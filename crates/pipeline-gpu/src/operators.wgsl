@@ -150,15 +150,23 @@ fn demosaic(x: i32, y: i32) -> vec3<f32> {
     return result;
 }
 
-// WGSL lacks log1p/expm1. Correct cancellation near zero rather than losing
-// shadow detail to log(1+x) or exp(x)-1. Transcendentals remain GPU f32, not
-// a promise of bit-identical results to the CPU's libm implementation.
+// Cancellation-free f32 tone math. Mirrored operation-for-operation in
+// pipeline-cpu/src/tone_math.rs: same branches, constants and Horner order.
 fn log_one_plus(x: f32) -> f32 {
-    let u = 1.0 + x;
-    if u == 1.0 {
-        return x;
+    if abs(x) < 0.5 {
+        // log(1+x) = 2 atanh(x/(2+x)); no small x is added to 1.
+        let t = x / (2.0 + x);
+        let t2 = t * t;
+        var r = 1.0 / 15.0;
+        r = 1.0 / 13.0 + t2 * r;
+        r = 1.0 / 11.0 + t2 * r;
+        r = 1.0 / 9.0 + t2 * r;
+        r = 1.0 / 7.0 + t2 * r;
+        r = 1.0 / 5.0 + t2 * r;
+        r = 1.0 / 3.0 + t2 * r;
+        return 2.0 * t * (1.0 + t2 * r);
     }
-    return log(u) * (x / (u - 1.0));
+    return log(1.0 + x);
 }
 
 fn exp_minus_one(x: f32) -> f32 {
@@ -182,12 +190,20 @@ fn softplus(v: f32) -> f32 {
     return max(v, 0.0) + log_one_plus(exp(-abs(v)));
 }
 
+fn upper_integral(z: f32, center: f32) -> f32 {
+    if z < 0.5 {
+        // The same softplus difference evaluated without cancellation.
+        return log_one_plus(exp_minus_one(z) / (1.0 + exp(center)));
+    }
+    // This form avoids exp(z) HDR overflow once subtraction is conditioned.
+    return softplus(z - center) - softplus(-center);
+}
+
 fn tone(v: vec3<f32>) -> vec3<f32> {
     let rgb = v * p[25];
-    // Exposure-only is also neutral in the CPU reference, even if the host
-    // uses p[31] only for the completely zero ToneSettings fast path.
-    if p[31] == 1.0 || (p[26] == 1.0 && p[27] == 0.0 && p[28] == 0.0
-        && p[29] == 0.0 && p[30] == 0.0) {
+    // Host uses the CPU's exact values[1..] == 0 predicate, including
+    // exposure-only settings. A rounded contrast slope of 1 is not neutral.
+    if p[31] == 1.0 {
         return rgb;
     }
     let y = luminance(rgb);
@@ -202,13 +218,13 @@ fn tone(v: vec3<f32>) -> vec3<f32> {
     var out = z;
     // Preserve black, shadow, highlight, white accumulation order.
     // Amounts are supplied clamped and normalized by the host.
-    let black_region = z - (softplus(z - 0.25) - softplus(-0.25));
+    let black_region = z - upper_integral(z, 0.25);
     out = out + 0.2 * p[30] * black_region;
-    let shadow_region = z - (softplus(z - 0.8) - softplus(-0.8));
+    let shadow_region = z - upper_integral(z, 0.8);
     out = out + 0.2 * p[28] * shadow_region;
-    let highlight_region = softplus(z - 1.5) - softplus(-1.5);
+    let highlight_region = upper_integral(z, 1.5);
     out = out + 0.2 * p[27] * highlight_region;
-    let white_region = softplus(z - 2.5) - softplus(-2.5);
+    let white_region = upper_integral(z, 2.5);
     out = out + 0.2 * p[29] * white_region;
     let scale = 0.18 * exp_minus_one(out) / y;
     return rgb * scale;

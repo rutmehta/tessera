@@ -133,18 +133,20 @@ fn finite(v: f32) -> f32 {
 fn luma(v: [f32; 3]) -> f32 {
     finite(0.2627 * v[0] + 0.678 * v[1] + 0.0593 * v[2])
 }
+// Shared by curves, presence and dehaze. Match the stable WGSL axis helpers
+// in operators.wgsl, presence.wgsl and tone_local.wgsl, including the inverse.
 fn encode(v: f32) -> f32 {
     let log = if v <= f32::MAX * 0.18 {
-        (v / 0.18).ln_1p()
+        crate::tone_math::log_one_plus(v / 0.18)
     } else {
         v.ln() - 0.18_f32.ln()
     };
-    log / (1.0_f32 / 0.18).ln_1p()
+    log / crate::tone_math::log_one_plus(1.0 / 0.18)
 }
 fn decode(v: f32) -> f32 {
-    let exponent = v * (1.0_f32 / 0.18).ln_1p();
+    let exponent = v * crate::tone_math::log_one_plus(1.0 / 0.18);
     if exponent < 80.0 {
-        0.18 * exponent.exp_m1()
+        0.18 * crate::tone_math::exp_minus_one(exponent)
     } else {
         finite((exponent + 0.18_f32.ln()).exp())
     }
@@ -585,6 +587,33 @@ mod tests {
             )
             .is_err()
         );
+    }
+    #[test]
+    fn eng4b_curve_presence_axis_uses_shared_stable_math() {
+        // Dense synthetic dark-to-HDR sweep, including both series boundaries.
+        // Curves and presence use this same encode/decode pair.
+        for i in 0..=20000 {
+            let input = 2.0_f32.powf(-30.0 + 40.0 * i as f32 / 20000.0);
+            let scale = crate::tone_math::log_one_plus(1.0 / 0.18);
+            let expected = crate::tone_math::log_one_plus(input / 0.18) / scale;
+            let reference = f64::from(input / 0.18).ln_1p() / f64::from(scale);
+            assert!((f64::from(encode(input)) - reference).abs() <= 3e-7 * reference);
+            assert_eq!(
+                encode(input).to_bits(),
+                expected.to_bits(),
+                "encode {input}"
+            );
+            let expected = 0.18 * crate::tone_math::exp_minus_one(input * scale);
+            if input * scale < 80.0 {
+                let reference = f64::from(0.18_f32) * f64::from(input * scale).exp_m1();
+                assert!((f64::from(decode(input)) - reference).abs() <= 3e-7 * reference);
+                assert_eq!(
+                    decode(input).to_bits(),
+                    expected.to_bits(),
+                    "decode {input}"
+                );
+            }
+        }
     }
     #[test]
     fn log_axis_is_scalar_single_precision() {

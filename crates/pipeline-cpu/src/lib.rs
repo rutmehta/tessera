@@ -73,6 +73,8 @@ pub fn map_rgb(tile: &mut Tile, mut op: impl FnMut([f32; 3]) -> [f32; 3]) -> Eng
     Ok(())
 }
 
+mod tone_math;
+
 /// Scene-linear exposure and monotone, luminance-only tonal adjustments.
 pub fn tone(tile: &mut Tile, settings: &ToneSettings) -> EngineResult<()> {
     if let Some(legacy) = &settings.legacy_pv2010 {
@@ -101,13 +103,12 @@ pub fn tone(tile: &mut Tile, settings: &ToneSettings) -> EngineResult<()> {
         if y <= 0.0 {
             return rgb;
         }
-        let z = (y / 0.18).ln_1p();
-        let pivot = 2.0f32.ln();
+        let z = tone_math::log_one_plus(y / 0.18);
+        let pivot = std::f32::consts::LN_2;
         let slope = (settings.contrast.clamp(-100.0, 100.0) / 100.0).exp2();
         // Bounded slope in log space avoids exp(log(Y)^2) overflow at +10 EV.
-        let z = slope * z + (1.0 - slope) * 2.0 * pivot * -(-z).exp_m1();
+        let z = slope * z + (1.0 - slope) * 2.0 * pivot * -tone_math::exp_minus_one(-z);
 
-        let softplus = |v: f32| v.max(0.0) + (-v.abs()).exp().ln_1p();
         let mut out = z;
         for (amount, center, upper) in [
             (settings.blacks, 0.25, false),
@@ -115,17 +116,17 @@ pub fn tone(tile: &mut Tile, settings: &ToneSettings) -> EngineResult<()> {
             (settings.highlights, 1.5, true),
             (settings.whites, 2.5, true),
         ] {
-            let upper_integral = softplus(z - center) - softplus(-center);
+            let upper_integral = tone_math::upper_integral(z, center);
             let region = if upper {
                 upper_integral
             } else {
                 z - upper_integral
             };
             // Each derivative contributes at most 0.2 in magnitude.
-            out += 0.2 * amount.clamp(-100.0, 100.0) / 100.0 * region;
+            out += 0.2 * (amount.clamp(-100.0, 100.0) / 100.0) * region;
         }
 
-        let scale = 0.18 * out.exp_m1() / y;
+        let scale = 0.18 * tone_math::exp_minus_one(out) / y;
         rgb.map(|v| v * scale)
     })
 }

@@ -214,13 +214,7 @@ fn batch_chain_matches_cpu() {
 /// B5-32: sharpening can leave signed RGB with nearly cancelling luminance.
 /// Tone's gain must approach its derivative at black, rather than magnifying
 /// cancellation in softplus(z-center) - softplus(-center).
-/// Diagnostic pending A/Codex engine work: clamp the texture/clarity signed
-/// luminance divisor or evaluate presence before sharpening, then reassess tone
-/// precision. Baseline tone errors: CPU 1.8405e-5, GPU 0.00511713; rich-chain max
-/// 0.0205 and 24 MP full-frame max 6.14. The dropped tone fix changed Develop
-/// output globally and worsened the 24 MP maximum to 16.49.
 #[test]
-#[ignore = "engine follow-up: signed-luminance conditioning; main exceeds f64-reference bound"]
 fn tone_signed_rgb_near_zero_luminance_matches_f64_reference() {
     use engine_api::recipe::settings::ToneSettings;
     let settings = ToneSettings {
@@ -232,7 +226,7 @@ fn tone_signed_rgb_near_zero_luminance_matches_f64_reference() {
         blacks: -3.,
         ..Default::default()
     };
-    let pixels: Vec<[f32; 3]> = [1e-7f32, 4e-7, 1e-6, 1e-5]
+    let mut pixels: Vec<[f32; 3]> = [1e-7f32, 4e-7, 1e-6, 1e-5]
         .map(|y| {
             [
                 -0.007,
@@ -241,8 +235,21 @@ fn tone_signed_rgb_near_zero_luminance_matches_f64_reference() {
             ]
         })
         .to_vec();
+    // Actual post-detail inputs at small-fixture pixel 10703 and 24 MP pixel
+    // 4,999,168, captured independently on CPU and Metal before tone (ENG-4).
+    // Test both backends on every input to separate tone from upstream ulps.
+    pixels.extend(
+        [
+            [3152284792, 3149941360, 1036554289],
+            [3152284814, 3149941348, 1036554287],
+            [1033291222, 3170405425, 1017776900],
+            [1033291228, 3170405430, 1017776934],
+        ]
+        .map(|p| p.map(f32::from_bits)),
+    );
+    let n = pixels.len();
     let layout = TileLayout {
-        extent: Extent::new(4, 1),
+        extent: Extent::new(n as u32, 1),
         halo: 0,
         channels: 3,
     };
@@ -287,7 +294,7 @@ fn tone_signed_rgb_near_zero_luminance_matches_f64_reference() {
         let mut error = 0f64;
         for (i, rgb) in expected.iter().enumerate() {
             for c in 0..3 {
-                error = error.max((f64::from(samples[c * 4 + i]) - rgb[c]).abs());
+                error = error.max((f64::from(samples[c * n + i]) - rgb[c]).abs());
             }
         }
         eprintln!("near-zero signed tone {name}: max absolute={error}");
