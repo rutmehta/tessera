@@ -9,7 +9,7 @@ use raw_decode::{CfaImage, CfaLayout, RawMetadata};
 
 // Actual little-endian TIFF IFD, not a mocked parsed profile.
 fn profile(matrix_scale: i32, tone: bool) -> DcpProfile {
-    let count = if tone { 3 } else { 2 };
+    let count = 3; // No tone in this order test means an explicit identity curve.
     let mut b = vec![0u8; 14 + count * 12];
     b[..8].copy_from_slice(&[73, 73, 82, 67, 8, 0, 0, 0]);
     b[8..10].copy_from_slice(&(count as u16).to_le_bytes());
@@ -27,15 +27,19 @@ fn profile(matrix_scale: i32, tone: bool) -> DcpProfile {
         ),
         (50778, 3, 1, 21u16.to_le_bytes().to_vec()),
     ];
-    if tone {
+    {
         entries.push((
             50940,
             11,
-            6,
-            [0f32, 0., 0.5, 0.25, 1., 1.]
-                .into_iter()
-                .flat_map(f32::to_le_bytes)
-                .collect(),
+            if tone { 6 } else { 4 },
+            (if tone {
+                vec![0f32, 0., 0.5, 0.25, 1., 1.]
+            } else {
+                vec![0., 0., 1., 1.]
+            })
+            .into_iter()
+            .flat_map(f32::to_le_bytes)
+            .collect(),
         ));
     }
     for (i, (tag, kind, n, data)) in entries.into_iter().enumerate() {
