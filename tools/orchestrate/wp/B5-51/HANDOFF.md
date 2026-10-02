@@ -375,4 +375,3 @@ system-setting change, real-catalog profiling, protected-library access, board
 change, or lockfile change was needed. The follow-up changes only this handoff and
 `crates/tessera-ffi/src/lrcat_profile.rs`. The authorized publication is
 `git push origin wp/B5-51`; Machine A remains the sole merger.
-
