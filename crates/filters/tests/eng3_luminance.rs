@@ -1,7 +1,10 @@
 use filters::adjust::Adjustment;
 #[test]
 fn eng3_photo_one_ulp_sensitivity() {
-    let rgb = [2., -0.2627_f32 / 0.678, 1e-6, 0.7];
+    // Reproduces the 6.1035156e-5 maximum RGB response to green.next_up().
+    // See tools/orchestrate/wp/ENG-3/HANDOFF.md (ENG-3e) for Y, rho and D.
+    const WORST_CASE_RGBA: [f32; 4] = [2., -0.2627_f32 / 0.678, 1e-6, 0.7];
+    let rgb = WORST_CASE_RGBA;
     let mut next = rgb;
     next[1] = next[1].next_up();
     let op = Adjustment::PhotoFilter {

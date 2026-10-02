@@ -1,3 +1,58 @@
+# ENG-3e — reproducible Photo Filter one-ULP worst case
+
+Follow-up on `e200b4bc`; Machine A accepted the existing `1e-4` bound.
+Temporary instrumentation of `eng3_photo_one_ulp_sensitivity` in
+`crates/filters/tests/eng3_luminance.rs` reproduces the reported maximum
+absolute RGB response **6.1035156e-5** (exactly `0.00006103515625`).
+This is the maximum over channels and nine identical pixels for the test's
+fixed input pair, not a global maximum over arbitrary RGB. The separate
+chromaticity sweeps in this file measure adjacent luminance continuity.
+
+The source RGBA is `[2., -0.2627_f32 / 0.678, 1e-6, 0.7]`, printed as
+`[2.0, -0.38746312, 1e-6, 0.7]`; its exact f32 bit patterns in decimal are
+`[1073741824, 3200672145, 897988541, 1060320051]`. The second input changes
+only green with `next_up()`, to `-0.3874631` (bits `3200672144`), a positive
+step of `2.98023223876953125e-8`.
+
+Filter settings: `colour=[0.5, 1.0, 1.0]`, `density=1.0`,
+`preserve_luminosity=true`, applied directly with `Adjustment::apply`.
+Photo Filter evaluates Y and A on **filtered RGB**, here
+`[1.0, -0.38746312, 1e-6]` before the green perturbation, rather than on
+source RGB. The following values reproduce production f32 arithmetic:
+
+| Quantity | Original input | Green `next_up()` input |
+| --- | ---: | ---: |
+| Y = 0.2627r + 0.678g + 0.0593b | 5.9300003130147161e-8 | 8.9102329070556152e-8 |
+| A = 0.2627\|r\| + 0.678\|g\| + 0.0593\|b\| | 5.2540004253387451e-1 | 5.2539998292922974e-1 |
+| rho = \|Y\|/A | 1.1286638113006120e-7 | 1.6958951221113239e-7 |
+| D = epsilon * clamp(1 - rho/k, 0, 1) | 9.9999958183616400e-4 | 9.9999934900552034e-4 |
+| Output RGBA (shortest f32 decimal) | `[263.7001, -102.174065, 0.00026370012, 0.7]` | `[263.70016, -102.17408, 0.00026370017, 0.7]` |
+
+With `epsilon=1e-3` and `k=0.25`, the **tapered floor term** is active in
+`D=max(|Y|, epsilon*clamp(1-rho/k,0,1))` for both inputs: D is approximately
+`1e-3`, much larger than |Y|. Both Y values are positive. The maximum
+response is in **red**; alpha remains unchanged. The existing independent
+f64 recombination oracle and its `<3e-5` per-output error bound still pass.
+The test now names this input `WORST_CASE_RGBA`; temporary prints were removed.
+
+Validation (PATH prepended with `$HOME/.cargo/bin`, target directory
+`$HOME/.cache/tessera-target/ENG-3`, build jobs and Rayon threads both 4):
+
+```sh
+cargo test --release -p filters --test eng3_luminance -- --test-threads=1 --nocapture
+cargo fmt --all -- --check
+cargo clippy -p filters --all-targets -- -D warnings
+git diff --check
+```
+
+The instrumented release run and the final run without temporary prints each
+pass all **6 tests**, including CPU/Metal checks. Formatting, filters all-target
+Clippy, and diff checks pass. Existing native LibRaw build warnings remain.
+Only this handoff and the named test input/comment change; production code,
+assertions, and numerical bounds are unchanged.
+
+---
+
 # ENG-3d — rebase onto fbb36594 and combined-tree gates
 
 Rebased `wp/ENG-3-luminance-divisions` from `cc626467` (nine commits on
