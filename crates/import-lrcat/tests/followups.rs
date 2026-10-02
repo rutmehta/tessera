@@ -531,7 +531,7 @@ fn xmp_source_fragments_preserve_attribute_spelling() {
 }
 
 #[test]
-fn retained_source_shapes_and_unedited_reasons_are_distinct() {
+fn retained_source_shapes_distinguish_failed_edits_from_silent_unedited_rows() {
     let (r, _) = lua_develop::parse("s = { shape = 'original', LensBlur = nil }", "15.4").unwrap();
     assert_eq!(r.unknown["lrcat_develop_source"]["shape"], "lua-values");
     assert_eq!(
@@ -550,10 +550,12 @@ fn retained_source_shapes_and_unedited_reasons_are_distinct() {
         "crs:Future='opaque'"
     );
     let (ids, plan) = import_with(&[(None, None), (Some("garbage"), Some("15.4"))]);
+    // LR-9: no develop source requests no effect; it is not unsupported content.
     assert!(
-        plan.report
+        !plan
+            .report
             .iter()
-            .any(|n| n.starts_with(&format!("image {}:", ids[0])) && n.contains("never developed"))
+            .any(|n| n.starts_with(&format!("image {}:", ids[0])))
     );
     assert!(
         plan.report
