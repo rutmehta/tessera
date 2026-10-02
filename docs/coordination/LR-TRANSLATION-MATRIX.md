@@ -17,9 +17,6 @@ the coordinator should review these assignments before implementation.
 - `unsupported-diagnostic`: unsupported source yields a diagnostic and is kept.
   Diagnostics depend on shape/value: nil Lua values may skip codec warnings;
   identity extended curves and their names are retained without warnings.
-- `approximate`: recipe fields present, exact source retained in `lrcat_develop_source`,
-  info diagnostic beginning `approximate: `, and zero user-facing warnings.
-  Unverified Adobe conventions must use this status.
 - `translated`: the valid synthetic example populates an existing field without
   per-key retained source/diagnostics. This does not assert pixel parity for Adobe.
 - `approximate`: the valid synthetic example populates the recipe path (its value
@@ -205,7 +202,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   handle, and the recipe has no dedicated regenerated-mask diagnostic field.
   Category decoding alone does not import Adobe Mask/Image pixels. Resource
   discovery and mask-store integration remain downstream, using synthetic data.
-- **LR-6c:** LensBlur and DepthMapInfo use `approximate`: renderable controls,
+- **LR-6d:** LensBlur and DepthMapInfo use `approximate`: renderable controls,
   optional selection/resource provenance, mask-store key and deferred regeneration,
   exact source retention, and info-only diagnostics. Adobe units, enum order,
   helper encoding and calibration remain unverified. See
@@ -213,8 +210,11 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   `image-core::DepthProvider::prepare_lens_blur_depth` resolves caller-associated
   grayscale resources or regenerates through the explicitly installed provider.
   DepthMapInfo is translated only alongside active Lens Blur (the guard supplies
-  this companion). Otherwise it remains retained source with an info record and
-  does not enable blur. Diagnostics name each translated field. Native focus
+  this companion). Otherwise its source and existing unsupported warning remain
+  byte-identical, with no info record and no enabled blur. Active is an exact
+  boolean translation and emits no approximation diagnostic. Each approximate
+  diagnostic uses the shared LR-DIAG helper, names the matrix recipe path, and
+  identifies the individual Adobe field in its reason. Native focus
   fields remain authoritative; rendering consumes stored mask-store depth keys.
 - **LR-7:** optional `geometry.upright.homography` stores a unit-image
   source-to-output map, tagged by `homography_mode`. Selected matrices,

@@ -1,4 +1,8 @@
-# LR-6c — review corrections for Lens Blur and depth translation
+# LR-6 — Lens Blur and depth translation
+
+**Current: LR-6d conversion, in the final appendix.** Earlier sections and gate
+results below are historical; the LR-6d appendix supersedes their diagnostics,
+schema, history, cache, and golden statements.
 
 This handoff describes LR-6c on top of `caee61c2` (no rebase, local only).
 The LR-6b gate results and commit list at the end are historical. LR-6c results
@@ -260,3 +264,132 @@ one lane's digest side. This lane does not authorize a re-pin of its own.
 No Cargo.lock, manifests/dependencies, board.json, Swift gate, app, remote push,
 real catalog, or user-image changes. RAW-fixture and model tests are explicitly
 excluded by `gate.sh`; synthetic tests remain enabled.
+
+
+## LR-6d — shared diagnostics and conditional schema conversion (2026-10-01)
+
+Rebased all nine original commits, without squashing, onto `38684d9b`
+(`origin/wp/LR-DIAG`, including LR-SCHEMA `02ae8196`). Conflicts were limited to
+translation-matrix documentation/guards. Kept LR-DIAG's complete guard and all
+base matrix rows, then restored LR-6's additive field checks using `entries()`.
+No remote push. The coordinator owns publication of the rebased branch.
+
+### Review status and changed contracts
+
+- **C1 resolved:** the unsupported DepthMapInfo exemption, warning removal, and
+  top-level source removal apply only when an active Lens Blur was decoded.
+  Inactive Lens Blur and standalone DepthMapInfo emit no info entries. Three
+  baseline rows (inactive, standalone depth, inactive plus depth) were captured
+  from an isolated `38684d9b` checkout, then added to the existing untouched-input
+  fixture without changing its previous rows. The temporary checkout was removed.
+  The original full-byte golden remains
+  `d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8`.
+- **C2 resolved:** removed `Recipe::record_translation_info`, its image-core
+  caller, and the XMP top-level-array writer. Only
+  `import_lrcat::diagnostics::push_approximate` writes translation information.
+  Entries are keyed by Adobe key, info/approximate, lane LR-6, and the exact
+  matrix recipe path (`/settings/effects/lens_blur` or its `/depth` child).
+  The reason begins `approximate: <Adobe subfield>:`. Readers use `entries()`;
+  the shared guard retains all four negative conditions plus field-path equality.
+  The LR-6 extension additionally checks each supplied field and reason, and
+  FocalRange requires both `focus_range` and `focus_falloff`.
+- **Active is translated, exact boolean:** it never receives an approximate
+  entry. The aggregate LensBlur row remains approximate because its optics/focus
+  mappings remain unverified. No Adobe equivalence claim or real-catalog evidence
+  was introduced. Nothing translated means no info diagnostic.
+- **User history resolved:** depth attachment only folds into an existing
+  Import-authored head. A user-authored head or absent head is left unchanged,
+  with no extra history entry and no newly persisted key. Preparation still
+  returns the usable raster. Import metadata and replay validity are preserved.
+- **Eviction resolved:** imported grayscale PNG/TIFF depth uses
+  `DepthMap::store_pinned` / `MaskStore::put_pinned`. Files live in the store's
+  `pinned/` class, outside normal cache accounting and eviction. Reads prefer
+  that class, validate its checksum, and work after reopening the store. Ordinary
+  inferred maps keep the cache budget. A synthetic pressure/reopen test proves
+  imported depth survives eviction. No regeneration-completion diagnostic is
+  written by image-core: this is an import-translation channel, not a render log.
+- **Schema resolved:** one `lens_blur` predicate covers the whole optional
+  feature, including focus falloff, Adobe controls/provenance, and imported depth.
+  `RECIPE_SCHEMA_VERSION` stays 3; active blur serializes as 4. The predicate test
+  exercises each nested feature and the no-feature case. LR-6 owns the first-lane
+  checklist here: import schema tests, sidecar/merge roundtrip version handling,
+  and a local journal save/reopen test asserting envelope schema 4. Existing
+  catalog fixtures have no active blur and remain schema 3, so no golden re-pin
+  is warranted. Older golden and streaming byte-equality tests remain intact.
+- **C3 gate coverage corrected:** `gate.sh` now runs all ordinary tests in all
+  nine packages, including merge and the FULL tessera-ffi suite, with no
+  command-line `--skip`. Upstream `#[ignore]` tests keep their stated reasons;
+  the paired synthetic import-to-render E2E is explicitly run separately.
+
+### Commit order and verification
+
+RED commit: `cd8f17af` (`test(LR-6d):`), with evidence in
+`evidence/lr6d-red.log`: six import regressions failed on the old channel/inactive
+behavior; the schema predicate test failed because no feature was registered.
+Implementation commit: `944fb7d8` (`fix(LR-6d):`). A clippy-only nested-if
+collapse followed the initial clean build. The initial gate was interrupted during
+FFI develop tests, with no final exit status. Its completed harness results are
+preserved in `lr6d-test.log`. The continuation cleaned import-lrcat and reran its
+full suite plus the full unfiltered FFI suite. No semantic production edit followed
+the clean nine-package gate build; the continuation corrected two stale test comments.
+
+All new LR-6d fixtures are synthetic. The requested unfiltered suite also runs
+its existing repository camera fixtures (the CC0 set listed in
+`fixtures/fetch.sh`), including the formerly excluded FFI history tests. No real
+Lightroom catalog or user photo collection was opened. The real-catalog test
+remains opt-in and is listed with its reason in `evidence/lr6d-ignored-tests.md`.
+No GUI, app/Swift changes, dependency/manifest/Cargo.lock changes, or board edits.
+The Swift gates are therefore not applicable to this lane's changes.
+
+
+### Final LR-6d gates (continuation)
+
+The nine-package clean removed 95,011 files / 25.6 GiB before the original gate.
+That run completed all eight non-FFI package harnesses without failures, then was
+interrupted during FFI develop tests. It has **no final exit code** and is not
+reported as a completed gate. The continuation cleaned import-lrcat again
+(3,613 files / 521.9 MiB), then completed the full import-lrcat and FFI suites,
+without command-line skips. Remaining doctests were run separately.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Initial clean non-FFI harnesses | 617 top-level passed, 0 failed, 9 ignored; includes import-lrcat subsequently rerun | `evidence/lr6d-test.log` |
+| Clean import-lrcat rerun | 95 passed, 0 failed, 1 ignored; original golden and every matrix guard pass | `evidence/lr6d-resumed-test.log` |
+| FULL tessera-ffi suite | 566 passed, 1 failed, 30 ignored, 0 filtered; sole failure is Liquify latency | `evidence/lr6d-resumed-test.log` |
+| Paired synthetic import → recipe save/reload → reopened depth store → CPU render | export exit 0; render exit 0 | `evidence/lr6d-e2e.log` |
+| Remaining seven-package doctests | exit 0 | `evidence/lr6d-doctests.log` |
+| Liquify serial rerun (`--test-threads=1 --nocapture`) | exit 101; p95 506.8 ms against 250 ms | `evidence/lr6d-liquify-serial.log` |
+| Serial frame-starvation rerun (`--test-threads=1 --nocapture`) | exit 0; 2 passed | `evidence/lr6d-frames-serial.log` |
+| Nine-package clippy, all targets, `-D warnings` | exit 0 | `evidence/lr6d-clippy.log` |
+| `cargo fmt --all -- --check` | exit 0 | `evidence/lr6d-fmt.log` |
+
+**Remaining blocker: Liquify p95.** The full run measured 340.2 ms p95
+(median 245.9 ms); the serial rerun measured 506.8 ms p95 (median 319.4 ms).
+Both exceed the unchanged 250 ms threshold. Other lanes were active on this
+shared host; serial here means one Rust test thread, not an exclusive host.
+These results do not establish that host load is the only cause. C3's missing
+coverage is corrected, but its performance gate remains red. No timing threshold
+or production Liquify implementation was changed.
+
+All ordinary frame-delivery tests passed in the full run, including
+`export_batch_does_not_starve_slider_drag`, `slow_interactive_frames_are_not_starved`,
+and `edits_do_not_wait_for_frames_in_flight`. The formerly filtered
+`process_version_is_undoable_and_persisted` and
+`session_renders_into_surfaces_and_persists_undoable_edits` also passed.
+The serial rerun passed both starvation tests: 120 frames during export; render
+p90 3.0 ms and setting-to-frame p90 4.4 ms. The interactive burst delivered
+39 frames in 284.1 ms. See `evidence/lr6d-frames-serial.log`; its 10 filtered
+cases are selection for this additional rerun, not exclusions from the full suite.
+
+There are 39 distinct ignored tests across the broad runs. Every one has a
+reason in `evidence/lr6d-ignored-tests.md`; the paired synthetic E2E was explicitly
+run afterward. The initial log includes three nested helper-subprocess passes
+and 21 internal filter counts, excluded from the 617 top-level count above;
+these are subprocess probes, not command-line exclusions from the lane gate.
+Existing LibRaw C deprecation warnings remain build-script output, not Rust
+clippy failures. Swift/app gates are not applicable because this lane changes
+no app or Swift files.
+
+The requirement-by-requirement audit is `evidence/lr6d-review.md`. Final docs and
+evidence are in the `docs(LR-6d):` commit containing this appendix; resolve its
+hash with `git log -1 --format=%H -- tools/orchestrate/wp/LR-6/HANDOFF.md`.
