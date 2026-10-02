@@ -5,6 +5,21 @@ fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
     if let LuaValue::Table(t) = v {
         let get = |name: &str| t.fields.iter().find_map(|(k,v)| matches!(k,LuaKey::Str(k) if k == name).then_some(v));
         let scalar = |v: &LuaValue| match v { LuaValue::Number(s) | LuaValue::String(s) => Some(s.clone()), _ => None };
+        let number = |table: &import_lrcat::lua_develop::LuaTable, key: &str| table.fields.iter().find_map(|(k,v)| {
+            if matches!(k,LuaKey::Str(k) if k.eq_ignore_ascii_case(key)) { scalar(v).and_then(|v|v.parse::<f64>().ok()) } else { None }
+        });
+        if let Some(LuaValue::Table(masks)) = get("Masks") {
+            for mask in &masks.items {
+                if let LuaValue::Table(mask) = mask {
+                    for (flat, nested) in [("centerX","X"),("centerY","Y"),("radius","SizeX"),("radius","SizeY"),("sourceY","OffsetY")] {
+                        if let (Some(a),Some(b)) = (number(t,flat),number(mask,nested)) {
+                            let class = if (a-b).abs()<1e-6 { "equal" } else if (2.*a-b).abs()<1e-6 { "double" } else if (a-2.*b).abs()<1e-6 { "half" } else { "different" };
+                            out.insert(format!("{prefix}/geometry_alias/{flat}_{nested}/{class}"));
+                        }
+                    }
+                }
+            }
+        }
         if let Some(what) = get("What").and_then(scalar) {
             let class = match what.as_str() {
                 "Mask/Image" => match get("MaskSubType").and_then(scalar).as_deref() {

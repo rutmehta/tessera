@@ -127,3 +127,13 @@ fn legacy_fixture_byte_change_is_only_the_inactive_fill_light_note() {
     assert_eq!(bytes.len(),11633);
     assert_eq!(engine_api::id::Digest::derive("LR-1 byte compatibility",&bytes).to_string(),"fe85a1a43d4268ab1aa6f24ba8add80325b3cd274d5b54e181f66bfbe6e438ce");
 }
+
+#[test]
+fn equivalent_retouch_aliases_are_accepted_but_conflicts_fail_closed() {
+    for (alias, accepted) in [("0.5",true),("0.8",false)] {
+        let (r,w)=lua_develop::parse(&format!("s={{RetouchAreas={{{{SpotType='clone',spotType='clone',Opacity=0.5,opacity={alias},CenterX=0.2,CenterY=0.4,Radius=0.03,SourceX=0.7,SourceY=0.6}}}}}}"),"15.4").unwrap();
+        assert_eq!(!r.settings.locals.retouch.is_empty(),accepted);
+        assert_eq!(w.is_empty(),accepted);
+        assert!(r.unknown["lrcat_develop_source"]["properties"].get("RetouchAreas").is_some());
+    }
+}
