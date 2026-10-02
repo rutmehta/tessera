@@ -217,12 +217,14 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   grayscale injection interface; the app does not supply one. Subject, Sky,
   Background and prompted Object descriptions remain approximate. Person parts
   and specific People/person instances are unsupported, retained with warnings,
-  never broadened to whole Subject. Missing models leave the entire local
+  never broadened to whole Subject. In preview, a missing model leaves the entire local
   adjustment pending/unavailable with zero effect, including inversion/subtraction.
   Resolved rasters use immutable content hashes, u16 storage and a session memory
   cache. Missing rasters request regeneration with a diagnostic. Import apply
   alone pushes the regeneration note after resolution; the diagnostics channel
-  remains push-only. See `crates/import-lrcat/README.md` for storage and pruning.
+  remains push-only. Preview skips an adjustment whose AI mask is unavailable;
+  export, DNG and print fail instead (LR-5c). See `crates/import-lrcat/README.md`
+  for storage and pruning.
 - **LR-6e:** LensBlur and DepthMapInfo use `approximate`: renderable controls,
   optional selection/resource provenance, mask-store key and deferred regeneration,
   exact source retention, and info-only diagnostics. Adobe units, enum order,
@@ -339,7 +341,8 @@ editing state; explicit Develop settings/crop geometry remain authoritative.
 Mask promotion admits `CorrectionReferenceX/Y`, zero legacy local sliders,
 `LocalCurveRefineSaturation=100`, zero `LocalGrain`/`LocalCorrectedDepth`,
 zero `LocalColorVariance` arrays and `Version` on `Mask/CircularGradient` only.
-AI raster provenance stays unsupported on this LR-5-free stack. A saved toning hue is
+On the LR-5b stack, AI raster provenance (`FullMaskSize`, `LocalInputDigest`,
+`LocalInputDigestVersion`) is accepted on AI mask kinds, which regenerate (LR-5b). A saved toning hue is
 inactive when saturation is zero. Real local curves, local point color, nonzero
 local overlay/defringe and individual AI-instance selection remain explicitly
 named unsupported features. LR-4 geometry, range and nested masks retain their existing approximation contract.
