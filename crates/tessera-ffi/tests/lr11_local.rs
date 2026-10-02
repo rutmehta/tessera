@@ -298,6 +298,22 @@ fn object_instance_uses_existing_host_mask_seam_and_preserves_hint() {
                 RenderOutput::SceneLinear,
             )
             .unwrap();
+        let gpu = std::sync::Arc::new(pipeline_gpu::GpuContext::new().unwrap());
+        let selected =
+            renderer.for_backend(std::sync::Arc::new(pipeline_gpu::GpuStageOp::new(gpu)));
+        let fallback = selected
+            .render_region_as(
+                &src,
+                &recipe.settings,
+                0,
+                PixelRect::full(src.active_extent()),
+                RenderOutput::SceneLinear,
+            )
+            .unwrap();
+        assert_eq!(
+            tiles[0].samples::<f32>().unwrap(),
+            fallback[0].samples::<f32>().unwrap()
+        );
         let samples = tiles[0].samples::<f32>().unwrap();
         for c in 0..3 {
             assert!((samples[c * 2] - 0.4).abs() < 2e-6);

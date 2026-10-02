@@ -97,7 +97,17 @@ impl DevelopSettings {
                 if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
                     ParamHash::chain(
                         self.tone.param_hash(),
-                        if self.color.point_colors.is_empty() {
+                        if self
+                            .locals
+                            .adjustments
+                            .iter()
+                            .any(|g| g.params.point_colors.is_some())
+                        {
+                            ParamHash::of(
+                                StageId::Tone,
+                                &(&self.color_before_curves(), &self.locals.adjustments),
+                            )
+                        } else if self.color.point_colors.is_empty() {
                             ParamHash::of(StageId::Tone, &self.color.monochrome)
                         } else {
                             ParamHash::of(StageId::Tone, &self.color_before_curves())

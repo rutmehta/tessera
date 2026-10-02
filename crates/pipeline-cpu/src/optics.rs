@@ -201,7 +201,7 @@ pub(crate) fn point_corrections(image: &Image, s: &LensSettings) -> EngineResult
     Image::new(image.width(), image.height(), planes)
 }
 
-fn defringe(image: &Image, s: &LensSettings) -> EngineResult<Image> {
+pub(crate) fn defringe(image: &Image, s: &LensSettings) -> EngineResult<Image> {
     if s.defringe_purple.amount <= 0. && s.defringe_green.amount <= 0. {
         return Ok(image.clone());
     }
