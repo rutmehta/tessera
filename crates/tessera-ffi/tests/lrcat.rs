@@ -1040,3 +1040,48 @@ fn offline_proxy_import_develop_copy_and_relink_preserve_lightroom() {
         }
     }
 }
+
+#[test]
+fn lr12_split_previews_are_counted_and_sampled_by_import_sheet() {
+    let mut s = setup();
+    let index = import_lrcat::previews::PreviewIndex::open(&s.fixture.catalog)
+        .unwrap()
+        .unwrap();
+    let mut pending = vec![index.dir.clone()];
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            if path.extension().is_some_and(|e| e == "lrprev") {
+                let sections =
+                    import_lrcat::previews::parse_lrprev(&std::fs::read(&path).unwrap()).unwrap();
+                for (level, section) in sections
+                    .iter()
+                    .filter(|s| s.data.starts_with(&[0xff, 0xd8]))
+                    .enumerate()
+                {
+                    let name = format!("{}_{}", path.file_stem().unwrap().to_str().unwrap(), level);
+                    std::fs::write(path.with_file_name(name), &section.data).unwrap();
+                }
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+    s.import = s
+        .engine
+        .clone()
+        .open_lrcat(s.fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    assert_eq!(s.import.summary().previews, 6);
+    let fidelity = s.import.fidelity_sample(relocated(&s), 3, 128).unwrap();
+    assert_eq!(fidelity.samples.len(), 3);
+    assert!(
+        fidelity
+            .samples
+            .iter()
+            .all(|sample| sample.status == LrcatFidelityStatus::Compared)
+    );
+}
