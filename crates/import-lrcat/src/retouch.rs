@@ -288,7 +288,9 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
     }
     let feather = percent(&fields, "feather", 0.0)?;
     let opacity = percent(&fields, "opacity", 1.0)?;
-    let strokes = if let Some(masks) = fields.get("masks") {
+    let strokes = if let Some(masks) = fields.get("masks")
+        && !equivalent_circle_mask(masks, &fields).unwrap_or(false)
+    {
         masks
             .as_array()?
             .iter()
@@ -326,6 +328,24 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
         feather: 0.0,
         enabled: true,
     })
+}
+
+// Some catalog versions write both the old circular spot and its equivalent
+// ellipse mask. Use LR-3's existing flat geometry only when both agree exactly.
+fn equivalent_circle_mask(value: &Value, flat: &Map<String, Value>) -> Option<bool> {
+    let masks = value.as_array()?;
+    if masks.len() != 1 { return Some(false); }
+    let mask = fields(&masks[0])?;
+    if mask.get("what")?.as_str()? != "Mask/Ellipse" { return Some(false); }
+    let allowed = ["what", "x", "y", "sizex", "sizey", "alpha", "centervalue", "perimetervalue", "maskid", "masksyncid", "maskactive", "maskinverted", "maskblendmode", "maskvalue"];
+    if mask.keys().any(|k| !allowed.contains(&k.as_str())) { return Some(false); }
+    for (key, expected) in [("maskactive","true"),("maskinverted","false"),("maskblendmode","0"),("maskvalue","1"),("alpha","0"),("centervalue","1"),("perimetervalue","0")] {
+        if mask.get(key).is_some_and(|v|v.as_str() != Some(expected)) { return Some(false); }
+    }
+    Some(number(flat,"centerx")? == number(&mask,"x")?
+        && number(flat,"centery")? == number(&mask,"y")?
+        && number(flat,"radius")? == number(&mask,"sizex")?
+        && number(flat,"radius")? == number(&mask,"sizey")?)
 }
 
 fn stroke(value: &Value, feather: f32) -> Option<BrushStroke> {
