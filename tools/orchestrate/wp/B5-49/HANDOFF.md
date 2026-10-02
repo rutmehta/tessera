@@ -1,6 +1,6 @@
 # B5-49 — background keyboard checklist
 
-Branch: `wp/B5-49`. Local only; no push. Base main: `486d069f`; merged harness tip: `fa8caea7`; merge commit: `30dd3d03`. Keyboard restoration fix: `68e61fcb`; checklist implementation: `bace9874`. The B5-25 harness branch was merged with `--no-ff` onto this worktree's current main without conflicts. Main's accessibility identifiers and subsequent shortcut/harness changes remain intact.
+Branch: `wp/B5-49`. Original B5-49 record; superseded by [B5-49b review corrections](../B5-49b/HANDOFF.md), including the explicitly authorized push. Base main: `486d069f`; merged harness tip: `fa8caea7`; merge commit: `30dd3d03`. Keyboard restoration fix: `68e61fcb`; checklist implementation: `bace9874`. The B5-25 harness branch was merged with `--no-ff` onto this worktree's current main without conflicts. Main's accessibility identifiers and subsequent shortcut/harness changes remain intact.
 
 ## What changed
 
@@ -8,9 +8,9 @@ Branch: `wp/B5-49`. Local only; no push. Base main: `486d069f`; merged harness t
 
 Keys go directly through `KeyRouter`, then `NSWindow.sendEvent` only when unhandled. Real mouse events exercise marquee and pan gestures. Native commands without an application menu scene use their actual action methods, explicitly identified in the results. No global key posting, app activation, key/main-window promotion, FKA toggling, or system setting writes are used. Every delivered key asserts that the fixture window is neither key nor main and the test application is inactive.
 
-The runner writes `RESULTS.md`, its archival alias `GUI-RESULTS.md`, and `focus-hosted.jsonl`. The latter contains actual `InspectorFocusTrace.snapshot` values and `KeyRouter` handled results, with global sequence, step, key code, repeat/up flags, document ownership, focused identifier after delivery, and layer count before every key (including every Delete). Production `routeEvent` excludes non-key windows; the test therefore labels its trace `background-hosted-direct-delivery` rather than inventing owned-key-window eligibility. It also records Delete/tool/up events beyond the production logger's restricted keys and 32-event limit. N/A means no acceptance claim; missing required hosted controls or failed checks produce FAIL and fail XCTest.
+With `TESSERA_REGENERATE_KEYBOARD_RESULTS=1`, the runner writes `RESULTS.md`, its archival alias `GUI-RESULTS.md`, and `focus-hosted.jsonl`. The latter contains actual `InspectorFocusTrace.snapshot` values and `KeyRouter` handled results, with global sequence, step, key code, repeat/up flags, document ownership, focused identifier after delivery, and layer count before every key (including every Delete). Production `routeEvent` excludes non-key windows; the test therefore labels its trace `background-hosted-direct-delivery` rather than inventing owned-key-window eligibility. It also records Delete/tool/up events beyond the production logger's restricted keys and 32-event limit. N/A means no acceptance claim; missing required hosted controls or failed checks produce FAIL and fail XCTest.
 
-The combined test found one merge-related safety gap: after removing a focused inspector and restoring it with Tab, `NSWindow` could retain first responder. A subsequent Delete could then remove a layer with no visible canvas owner. The fix reuses B5-25's `claimKeyboardIfStray` when Tab restores panels, restricted to the event's own viewport/window. It never makes the window key. Both the original panel restoration regression and the new checklist require visible canvas ownership before the next Delete.
+The combined test found one merge-related safety gap: after removing a focused inspector and restoring it with Tab, `NSWindow` could retain first responder. A subsequent Delete could then remove a layer with no visible canvas owner. B5-49b moves the fix into `setPanelsHidden(false)`, reusing B5-25's `claimKeyboardIfStray` in the visible viewport's own window for Tab, Show Panels, screen-mode restoration and document exit. It never makes the window key. Both the original panel restoration regression and the new checklist require visible canvas ownership before the next Delete.
 
 The B5-44 generated `docs/shortcuts.md` reference was regenerated with `python3 tools/orchestrate/shortcut-audit.py --write-doc` after the merge/fix. The audit enumerates 63 menu bindings, 11 routing sources, and 16 reserved chords; it reports `SHORTCUT AUDIT OK`. No shortcut integrity rule was relaxed.
 
@@ -44,14 +44,14 @@ The detailed sequence/nativeType/handled table is in [RESULTS.md](RESULTS.md). S
 | 14 | Actual Layers outline Delete removes one selected leaf; Undo restores; L recorded | None |
 | 15 | Canvas without pixel selection deletes one layer; Undo restores; real Space-drag changes viewport center; release ends pan | None |
 | 16 | 16a: real layer-name field editor Delete, Space, Escape, native Tab; no layer deletion/pan | 16b: FKA off; Properties Name → Load LUT → Dither native traversal |
-| 17 | None counted as native acceptance | FKA off; Dither D2/D3/D4 traversal/activation/history/Undo acceptance |
+| 17 | 17a: directly focused Dither activation, repeat/release suppression, one history entry and Undo | 17b: native focus-ring traversal needs FKA/key window |
 | 18 | Hide Panels action from eye focus; bounded Tab restoration, visible owner, safe post-restore Delete | None |
 | 19 | 19a: injected F twice/restoration and F back to standard; safe post-restore Delete | 19b: macOS full-screen/Space transition requires an application window and could take focus |
 | 20 | Canvas Tab hides panels; direct click at former inspector coordinates; canvas Tab restores | None |
 | 21 | 21a: real Library action; grid Right arrow advances image with document=false; injected ⌘E/confirmation and focus/Tab reentry | 21b: physical toolbar Library click and visible sheet UI require application scene |
-| 22 | 22a: hosted window disposes cleanly; results and trace archive with step-to-sequence map | 22b: app Quit/save-prompt lifecycle cannot be substituted with XCTest process exit |
+| 22 | 22a: TEARDOWN only, excluded from PASS counts; hosted window disposes cleanly | 22b: app Quit/save-prompt lifecycle cannot be substituted with XCTest process exit |
 
-Machine A's remaining manual pass is **exactly 1b, 5, 6a, 8, 11, 16b, 17, 19b, 21b, 22b**. Use the requested FKA-on environment for the ring checks; this runner never changes that setting. The observed machine has `AppleKeyboardUIMode` unset (`defaults read -g AppleKeyboardUIMode` exits 1) and `NSApp.isFullKeyboardAccessEnabled == false`.
+Machine A's remaining manual pass is **exactly 1b, 5, 6a, 8, 11, 16b, 17b, 19b, 21b, 22b**. Use the requested FKA-on environment for the ring checks; this runner never changes that setting. The observed machine has `AppleKeyboardUIMode` unset (`defaults read -g AppleKeyboardUIMode` exits 1) and `NSApp.isFullKeyboardAccessEnabled == false`.
 
 ## Reproduce
 
@@ -69,9 +69,9 @@ cd apps/mac
 swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
 ```
 
-The runner always rewrites the result/trace artifacts, including failures. Setup failures are explicit FAIL rows. On FKA-enabled machines, 5/6a are attempted normally; they are not hard-coded skips. Full UI-only rows remain N/A because no app command scene/key window is created.
+The runner only rewrites the result/trace artifacts with `TESSERA_REGENERATE_KEYBOARD_RESULTS=1`; routine tests never write them. Addresses in JSONL are normalized to `<address>`. Setup failures are explicit FAIL rows. On FKA-enabled machines, 5/6a are attempted normally; they are not hard-coded skips. Full UI-only rows remain N/A because no app command scene/key window is created.
 
-## Validation
+## Original B5-49 validation (superseded by B5-49b)
 
 - Merge: no conflicts; no Rust, `board.json`, or `Cargo.lock` changes.
 - Targeted original keyboard/History suites plus runner: 34 tests, zero failures.

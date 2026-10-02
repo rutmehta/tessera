@@ -865,6 +865,9 @@ final class DocumentWorkspace {
         panelsHidden = hidden
         columnVisibility = hidden ? .detailOnly : .all
         app?.showInspector = !hidden
+        // Every restoration path (Tab, menu, screen mode, document exit) recovers
+        // stray focus inside the visible viewport's own window, without activation.
+        if !hidden { current?.viewport?.claimKeyboardIfStray() }
     }
 
     func togglePanels() { setPanelsHidden(!panelsHidden) }

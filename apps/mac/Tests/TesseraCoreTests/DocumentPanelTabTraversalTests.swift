@@ -71,7 +71,7 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
     }
 
     private func settle(_ view: NSView) {
-        LayoutProbeHarness.settle(view)
+        LayoutProbeHarness.settle(view, timeout: 5)
     }
 
     private func hostInspector(_ workspace: DocumentWorkspace) -> (NSWindow, NSView) {

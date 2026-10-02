@@ -69,7 +69,9 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         try require(window.makeFirstResponder(view), "Could not establish responder \(view.accessibilityIdentifier())")
     }
     private func settle() {
-        if !LayoutProbeHarness.settle(host) { layoutFailed = true }
+        // The combined document/library host can span several display turns on a busy build
+        // machine. Keep the harness's 50 ms quiet criterion, with a bounded scheduling budget.
+        if !LayoutProbeHarness.settle(host, timeout: 5) { layoutFailed = true }
         window.recalculateKeyViewLoop()
     }
     private func doc() throws -> DocumentController { try XCTUnwrap(model.documents.current) }
@@ -97,11 +99,11 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             focusedIdentifierAfter: (window.firstResponder as? NSView)?.accessibilityIdentifier() ?? ""))
         return handled
     }
-    private func run(_ id: String, _ body: () throws -> String) {
+    private func run(_ id: String, success: String = "PASS", _ body: () throws -> String) {
         step = id
         let start = events.count
         layoutFailed = false
-        var result = "PASS", note = ""
+        var result = success, note = ""
         do { note = try body() } catch let unavailable as NotApplicable { result = "N/A"; note = unavailable.reason } catch { result = "FAIL"; note = String(describing: error); XCTFail("Step \(id): \(note)") }
         if layoutFailed { result = "FAIL"; note += " LayoutProbeHarness did not settle." }
         let trace = events.dropFirst(start)
@@ -133,6 +135,8 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         }
         try writeResults(fka: NSApp.isFullKeyboardAccessEnabled)
         XCTAssertFalse(rows.contains { $0.result == "FAIL" })
+        XCTAssertEqual(rows.first { $0.step == "22a" }?.result, "TEARDOWN")
+        XCTAssertEqual(rows.first { $0.step == "17a" }?.result, "PASS")
     }
 
     private func executeChecklist() throws {
@@ -419,7 +423,32 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         }
         let fka = NSApp.isFullKeyboardAccessEnabled
         na("16b", fka ? "FKA on; Properties Name → Load LUT → Dither focus ring requires key window." : "FKA off; Properties Name → Load LUT → Dither native traversal unavailable.")
-        na("17", fka ? "FKA on; real Dither → Color header → Dither focus and History activation require key window." : "FKA off; Dither D2/D3/D4 native focus-ring acceptance unavailable.")
+        run("17a") {
+            let doc = try self.doc()
+            doc.addAdjustment(.colorLookup)
+            let id = try XCTUnwrap(doc.primary?.id)
+            let initial = try XCTUnwrap(doc.adjustment(of: id))
+            let head = doc.info.historyHead, historyCount = doc.history.count
+            self.model.documents.inspectorTab = .properties
+            self.settle()
+            defer { self.model.documents.inspectorTab = .stack; self.settle() }
+            let box: DocumentDitherNativeCheckbox = try self.control("document.properties.colorLookup.dither")
+            try self.focus(box)
+            let initialState = box.state
+            try self.require(!self.press(49, " "), "Dither Space must reach its native control")
+            self.settle()
+            try self.require(box.state != initialState && doc.adjustment(of: id) != initial, "Dither did not toggle")
+            try self.require(doc.history.count == historyCount + 1 && doc.info.historyHead != head, "Dither must add exactly one history entry")
+            let toggled = doc.adjustment(of: id), toggledHead = doc.info.historyHead
+            for _ in 0..<30 { _ = try self.press(49, " ", repeatKey: true) }
+            _ = try self.press(49, " ", up: true)
+            try self.require(doc.adjustment(of: id) == toggled && doc.info.historyHead == toggledHead && doc.history.count == historyCount + 1, "Repeat/release changed Dither history")
+            try self.require(!self.model.documents.spaceHeld && self.window.firstResponder === box, "Dither lost ownership or started pan")
+            doc.undo(); self.settle()
+            try self.require(doc.adjustment(of: id) == initial && doc.info.historyHead == head && box.state == initialState, "Undo did not restore Dither and history head")
+            return "Direct focus on real Dither; Space toggles once and adds one history entry; 30 repeats/release add none; no pan; Undo restores value, checkbox and history head."
+        }
+        na("17b", "Dither → Color header → Dither native focus-ring traversal requires FKA and a key window; activation/history/Undo covered in 17a.")
         for path in ["18", "19a"] {
             run(path) {
                 let eye = try self.eye(); try self.focus(eye)
@@ -483,7 +512,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             return "Library action → grid Right arrow (document=false in trace) → Command-E and sheet confirmation action; automatic focus and Tab restored."
         }
         na("21b", "Toolbar Library click and visible sheet UI require application command scene; Library action, ⌘E routing and confirmed reentry automated in 21a.")
-        run("22a") {
+        run("22a", success: "TEARDOWN") {
             LayoutProbeHarness.dispose(self.window)
             try self.require(!self.window.isVisible && !self.window.isKeyWindow, "Hosted window did not close cleanly")
             return "Hosted window disposed; trace and step-to-sequence table archived."
@@ -499,9 +528,21 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), [])
     }
 
+    private static func normalizeAddresses(_ trace: String) -> String {
+        trace.replacingOccurrences(of: "0x[0-9a-fA-F]+", with: "<address>", options: .regularExpression)
+    }
+
+    func testTraceAddressNormalizationIsDeterministic() {
+        let first = "ObjectIdentifier(0x00000001) ObjectIdentifier(0xABCDEF)"
+        let second = "ObjectIdentifier(0x98765432) ObjectIdentifier(0x123456)"
+        XCTAssertEqual(Self.normalizeAddresses(first), Self.normalizeAddresses(second))
+        XCTAssertEqual(Self.normalizeAddresses(first), "ObjectIdentifier(<address>) ObjectIdentifier(<address>)")
+    }
+
     private func writeResults(fka: Bool,
                               directory: URL = ShellHarness.repoRoot.appendingPathComponent("tools/orchestrate/wp/B5-49"),
                               environment: [String: String] = ProcessInfo.processInfo.environment) throws {
+        guard environment["TESSERA_REGENERATE_KEYBOARD_RESULTS"] == "1" else { return }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let defaults = Process(), pipe = Pipe()
         defaults.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
@@ -511,7 +552,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         let mode = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         let modeSummary = defaults.terminationStatus == 0 ? mode.trimmingCharacters(in: .whitespacesAndNewlines) : "unset (defaults exit \(defaults.terminationStatus))"
         func clean(_ value: String) -> String { value.replacingOccurrences(of: "|", with: "\\|").replacingOccurrences(of: "\n", with: " ") }
-        let header = "# B5-49 automated keyboard checklist\n\nGenerated by DocumentKeyboardChecklistTests. AppleKeyboardUIMode: \(modeSummary); AppKit FKA: \(fka). Settings read only. Isolated LayoutProbeHarness preferences; StubLibrary scanning two generated JPEGs, StubDocumentEngine with ≥3 layers; step 12 onward uses a real 96×64 engine document for pixel Clear and ownership checks. Windows ordered back, activation prohibited.\n\nPASS covers the action/responder contract described in the note, not a visible ring or physical key delivery. Split rows explicitly retain native application/FKA work. FAIL includes missing required hosted preconditions (never silently skipped). Trace is `focus-hosted.jsonl`: actual InspectorFocusTrace snapshots, direct KeyRouter handled values, all key types including Delete/tool letters/up/repeats, and layer count before every event. It does not claim production owned-key-window eligibility. Non-key steps have no sequence.\n\n| Step | Result | Sequence | before.nativeType | handled | Note |\n| --- | --- | --- | --- | --- | --- |\n"
+        let header = "# B5-49 automated keyboard checklist\n\nGenerated by DocumentKeyboardChecklistTests. AppleKeyboardUIMode: \(modeSummary); AppKit FKA: \(fka). Settings read only. Isolated LayoutProbeHarness preferences; StubLibrary scanning two generated JPEGs, StubDocumentEngine with ≥3 layers; step 12 onward uses a real 96×64 engine document for pixel Clear and ownership checks. Windows ordered back, activation prohibited.\n\nTEARDOWN is cleanup only and is excluded from PASS counts. Memory addresses are normalized to `<address>`. Regenerate only with `TESSERA_REGENERATE_KEYBOARD_RESULTS=1`. PASS covers the action/responder contract described in the note, not a visible ring or physical key delivery. Split rows explicitly retain native application/FKA work. FAIL includes missing required hosted preconditions (never silently skipped). Trace is `focus-hosted.jsonl`: actual InspectorFocusTrace snapshots, direct KeyRouter handled values, all key types including Delete/tool letters/up/repeats, and layer count before every event. It does not claim production owned-key-window eligibility. Non-key steps have no sequence.\n\n| Step | Result | Sequence | before.nativeType | handled | Note |\n| --- | --- | --- | --- | --- | --- |\n"
         let table = rows.map { row in "| \([row.step, row.result, row.sequence.isEmpty ? "—" : row.sequence, row.nativeType.isEmpty ? "not observed" : row.nativeType, row.handled.isEmpty ? "not delivered" : row.handled, row.note].map(clean).joined(separator: " | ")) |" }.joined(separator: "\n")
         for filename in ["RESULTS.md", "GUI-RESULTS.md"] {
             try (header + table + "\n").write(to: directory.appendingPathComponent(filename), atomically: true, encoding: .utf8)
@@ -519,6 +560,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         var data = Data()
         for event in events { data.append(try encoder.encode(event)); data.append(0x0a) }
-        try data.write(to: directory.appendingPathComponent("focus-hosted.jsonl"), options: .atomic)
+        let normalized = Self.normalizeAddresses(String(decoding: data, as: UTF8.self))
+        try Data(normalized.utf8).write(to: directory.appendingPathComponent("focus-hosted.jsonl"), options: .atomic)
     }
 }
