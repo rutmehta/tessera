@@ -10,6 +10,7 @@ pub use lr2::LR2_APPROXIMATE_FIELDS;
 pub mod lua;
 pub mod lua_develop;
 mod mask_source;
+pub mod residual;
 pub mod previews;
 mod retouch;
 mod search_map;
