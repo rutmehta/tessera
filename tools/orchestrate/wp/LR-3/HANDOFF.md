@@ -1,3 +1,126 @@
+# LR-3e: diagnostics conversion and retouch review fixes
+
+Local branch `wp/LR-3-retouch`, Machine B. Rebased all 17 existing lane commits
+without squashing from `f55672b8` onto `38684d9b` (`origin/wp/LR-DIAG`), which
+includes LR-SCHEMA `02ae8196`. `origin/main` did not contain LR-DIAG at fetch.
+The two rebase conflicts were in `translation_matrix.rs`: LR-DIAG's complete
+shared guard wins; the lane-local approximate guard is gone. All 107 base matrix
+rows remain; only `RetouchAreas` and `RetouchInfo` change.
+
+## Review items
+
+1. **B2:** the import regression now includes `Exposure2012=0.75` and each retouch
+   alias, asserts the translated exposure and exactly one replay-valid history
+   entry, and pins decoder provenance `Import XMP` / `Author::Import { source:
+   "xmp" }`. The importer uses that provenance. It remains one consolidated edit.
+2. **Shared diagnostics:** removed the private TODO shim and its literal-key
+   writer. `retouch::translate` calls `crate::diagnostics::push_approximate` with
+   field `/settings/locals/retouch`, matching both matrix rows. Readers use
+   `diagnostics::entries`. No lane-local matrix guard remains. Source stays
+   retained and approximate translations produce no warnings.
+3. **N1:** only the retouch solve is downsampled. Its nonzero pixel deltas are
+   lifted into the original scene-linear image's matching box cells, before
+   Detail/Tone. Original crop, depth plane, and output scale are retained; every
+   other stage follows the no-spot sampling order. Unchanged cells are not
+   rewritten. Tests cover odd image edges, scales 2 and 4, real heal and clone,
+   default Detail plus contrast/clarity/texture/vibrance, and bit identity outside
+   the spot plus the stated margin: radius 0.0625 of the short image edge, 32
+   input pixels for feather/downstream filter support, and two sampling cells.
+   A separate injected 3x3 solve test pins target resolution and exterior bits.
+   This is a locality test for those bounded operators; global dehaze statistics
+   can legitimately respond to an edited input and are not claimed local.
+   The continuation's full gate found a remaining MCP scale switch: spot recipes
+   selected the requested size while empty recipes selected a different size.
+   `48a00d45` adds RED exterior-bit tests for both MCP source paths;
+   `c967a490` makes requested-size selection independent of spots. Both paths
+   now pass exterior identity on textured 512x384 input at 128x96, with a
+   radius 0.02 plus 32 input pixels and two output-cell margin. Graph comparisons
+   use equivalent cold caches because warm WB tiles are intentionally f16.
+   The requested-resolution test uses each path's own sampling-order reference:
+   graph stages run at the requested pyramid level; direct RGB stages retain
+   their input resolution and only the spot solve is reduced.
+4. **N2:** one lazily cached CPU fallback renderer per session retains its RGB
+   memo and Upright analysis across frame snapshots. Current process/profile,
+   depth, and caller-owned capability state come from the current request.
+   Replacing the retouch capability resets its fallback; the cached template has
+   a separate empty OnceLock to avoid a self-referential Arc. The internal
+   repeated-frame test proves one L0 solve; the real Metal-selected session test
+   allows initial admission/fallback analyses but requires no subsequent solves.
+5. **N3:** equality tests assert the expected written version before normalizing
+   schema_version. The single retouch v4 predicate checks both current settings
+   and `history.base`; bumped-only-when-present tests cover each. The base schema
+   constant remains 3. No Cargo manifest or lockfile changes.
+
+## Interactive timing: one clone + Upright Level
+
+Same new test `lr3e_gpu_spot_upright_frames`, actual `GpuStageOp`, CPU brush bridge,
+768x512 synthetic slanted-line RGB, L2 preview, five manual rotations 0–4 degrees.
+Unoptimized test profile, jobs=3, Rayon=3. Baseline used the pre-fix
+`image-core/src/render.rs`; the fixed source was restored immediately afterward.
+These are shared-machine samples, not an isolated release performance claim.
+
+| Frame | Before (ms) | After (ms) |
+| --- | ---: | ---: |
+| Cold 0 | 2595.03 | 5796.35 |
+| 1 | 1077.96 | 315.53 |
+| 2 | 1246.04 | 271.86 |
+| 3 | 1323.13 | 245.19 |
+| 4 | 1099.29 | 240.29 |
+
+Steady-frame median: 1172.66 → 258.52 ms (about 4.54x faster in these samples).
+L0 solves: `[2,3,4,5,6]` → `[2,2,2,2,2]`; the two cold analyses belong to admission
+and the CPU fallback. The small 192x160 direct `run_m2` test likewise changed
+`[1,2,3,4,5]` → `[1,1,1,1,1]`, with steady frames ~201–277 → ~81–82 ms. No timing
+threshold was added or changed. The cold after sample was slower; do not claim a
+cold-start improvement.
+
+## Coordinator merge rules
+
+- **LR-7d owns the first-merged-lane schema checklist.** At the initial rebase its
+  fetched remote did not yet contain the LR-SCHEMA checklist files. This
+  standalone LR-DIAG-based branch retains the necessary import schema expectation/golden and strengthened
+  equality checks so it can be tested before that landing. At rebase onto the
+  LR-7d landing, drop these lane copies and keep LR-7d's shared tests/pins; retain
+  only this lane's retouch predicate and bumped-only-when-present feature tests.
+  Recompute the combined import golden after integrating all translators.
+- **LR-2:** keep `validate_settings_with_retouch` alongside `validate_domain`;
+  taking only LR-2's validation rejects every spot recipe. Apply retouch to the
+  white-balanced buffer, then LR-2's pre/post-curve bindings. Detail hash includes
+  retouch; Tone hash chains monochrome. The rgb_render monochrome block must use
+  CPU ops. Lua ordering: `parse_inner(…, false)`, then `lr2::lua`, then
+  `geometry::apply`, and **`retouch::translate` last**.
+- **LR-6:** recompute `golden.rs`; do not choose either lane's hash. The standalone
+  LR-3e digest is `87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5`,
+  changed because retouch rows now use decoder provenance plus shared diagnostics.
+- Keep LR-DIAG's shared guard and all base matrix rows at every merge. This lane
+  makes no edits in another lane's worktree and does not integrate their code.
+
+## Verification
+
+Final clean-build verification on source `c967a490`: the complete 12-crate gate
+passed in 4304.505 s (1,563 top-level passed, zero failed, 60 existing ignores;
+two additional child-process test executions passed). Workspace/all-target
+clippy `-D warnings` passed in 51.123 s; fmt passed in 2.026 s.
+`export_batch_does_not_starve_slider_drag` passed in the broad run and serially:
+120/120 L2 frames, 4.7 ms render p90, all five exports succeeded.
+
+**Remaining performance limit:** Liquify's 20MP test passed in the final broad
+run but failed the required serial rerun: p95 266.6 ms against the unchanged
+250 ms limit. Earlier broad/serial samples were 467.2/434.6 ms. No threshold was
+changed. The initial gate also exposed the MCP issue fixed in `48a00d45` /
+`c967a490`; the entire clean-build gate was rerun after that fix, and both new
+MCP exterior-bit tests passed. This is not an all-gates-green handoff because
+of the serial Liquify result.
+
+Exact commands, counts, elapsed times, initial failures, and final serial
+measurements are in [LR-3e-EVIDENCE.md](LR-3e-EVIDENCE.md). The historic sections
+below describe older lane states; this LR-3e section supersedes their shim,
+early-scale, and gate-skip notes. Repo RAW fixtures are authorized for LR-3e;
+the full broad run uses no `--skip` filters. No personal Lightroom catalog, Swift gate, app launch, push, or
+board.json write.
+
+---
+
 # LR-3d: retouch review follow-up
 
 Local-only lane `wp/LR-3-retouch`. Do not force-push from Machine B.
