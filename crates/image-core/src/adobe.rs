@@ -211,7 +211,9 @@ impl StageOp for AdobeStageOp {
                     if matches!(op, Op::Tone(_))
                         && let Some(profile) = &self.profile
                     {
-                        pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_tone(p))?;
+                        pipeline_cpu::map_rgb(&mut tile, |p| {
+                            profile.apply_tone(profile.apply_look(p))
+                        })?;
                     }
                     output.put(&tile)?;
                 }

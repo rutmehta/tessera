@@ -1,6 +1,8 @@
 //! Safe, dependency-free subset of the public DNG camera profile format.
 
 use std::collections::BTreeMap;
+#[path = "dcp_acr3.rs"]
+mod acr3;
 
 type Matrix = [[f64; 3]; 3];
 #[derive(Debug, Clone)]
@@ -418,7 +420,8 @@ fn mix(a: Matrix, b: Matrix, w: f64) -> Matrix {
     std::array::from_fn(|i| std::array::from_fn(|j| a[i][j] * (1. - w) + b[i][j] * w))
 }
 const D50: [f64; 3] = [0.96422, 1., 0.82521];
-const D65: [f64; 3] = [0.95047, 1., 1.08883];
+// Rec.2020 D65 xy=(.3127,.3290), matching XYZ_TO_REC2020 below.
+const D65: [f64; 3] = [0.9504559270516716, 1., 1.0890577507598784];
 const XYZ_TO_PROPHOTO: Matrix = [
     [1.3459433, -0.2556075, -0.0511118],
     [-0.5445989, 1.5081673, 0.0205351],
@@ -543,24 +546,42 @@ impl DcpProfile {
     /// Convert normalized, un-white-balanced camera RGB to linear Rec.2020 D65.
     /// Temperature is Kelvin; invalid values use CalibrationIlluminant1.
     pub fn apply(&self, rgb: [f32; 3], temperature: f32) -> [f32; 3] {
-        self.apply_tone(self.apply_without_tone(rgb, temperature))
+        self.apply_tone(self.apply_look(self.apply_without_tone(rgb, temperature)))
     }
 
-    /// Apply only ProfileToneCurve to linear Rec.2020 D65 working RGB.
-    /// The curve is evaluated in linear ProPhoto D50, after basic tone edits.
-    /// With no curve this is an exact identity, including scene headroom.
+    /// Profile curve or the public SDK ACR3 default, in ProPhoto D50.
+    /// The SDK's RefBaselineRGBTone maps channel extrema and interpolates the
+    /// middle channel, preserving HSV hue (unlike three independent curves).
+    /// https://android.googlesource.com/platform/external/dng_sdk/+/de700ad461e35af50b28b861943a0b0753b10929/source/dng_reference.cpp
     pub fn apply_tone(&self, rgb: [f32; 3]) -> [f32; 3] {
-        let Some(tone) = &self.tone else {
-            return rgb;
-        };
-        let xyz = mul(inverse(XYZ_TO_REC2020).unwrap(), rgb.map(f64::from));
-        let pro = mul(XYZ_TO_PROPHOTO, adapt(xyz, D65, D50));
-        let xyz = mul(PROPHOTO_TO_XYZ, pro.map(|v| tone.apply(v)));
-        mul(XYZ_TO_REC2020, adapt(xyz, D50, D65)).map(|v| v as f32)
+        map_prophoto(rgb, |pro| {
+            let pro = pro.map(|v| v.clamp(0., 1.));
+            let lo = pro.into_iter().fold(f64::INFINITY, f64::min);
+            let hi = pro.into_iter().fold(f64::NEG_INFINITY, f64::max);
+            let curve = |v| {
+                self.tone
+                    .as_ref()
+                    .map_or_else(|| acr3::evaluate(v), |t| t.apply(v))
+            };
+            let low = curve(lo);
+            if hi <= lo {
+                [low; 3]
+            } else {
+                let high = curve(hi);
+                pro.map(|v| low + (high - low) * (v - lo) / (hi - lo))
+            }
+        })
     }
 
-    /// Camera calibration, white balance, HueSatMap and LookTable, without
-    /// ProfileToneCurve. Input is normalized unbalanced camera RGB.
+    /// ProfileLookTable is a separate post-exposure stage (DNG 1.7.1, p. 57).
+    pub fn apply_look(&self, rgb: [f32; 3]) -> [f32; 3] {
+        self.look.as_ref().map_or(rgb, |table| {
+            map_prophoto(rgb, |pro| table.apply(pro, None, 0.))
+        })
+    }
+
+    /// Camera calibration, white balance and HueSatMap, before exposure,
+    /// ProfileLookTable and ProfileToneCurve. Input is normalized unbalanced camera RGB.
     pub fn apply_without_tone(&self, rgb: [f32; 3], temperature: f32) -> [f32; 3] {
         let t = if temperature.is_finite() && temperature > 0. {
             f64::from(temperature).clamp(1667., 25000.)
@@ -590,19 +611,23 @@ impl DcpProfile {
                 xyz = mul(fm, std::array::from_fn(|i| camera[i] / neutral[i]));
             }
         }
-        if self.hue1.is_some() || self.look.is_some() {
+        if self.hue1.is_some() {
             let mut pro = mul(XYZ_TO_PROPHOTO, xyz);
             if let Some(table) = &self.hue1 {
                 pro = table.apply(pro, self.hue2.as_ref(), w);
-            }
-            if let Some(table) = &self.look {
-                pro = table.apply(pro, None, 0.);
             }
             xyz = mul(PROPHOTO_TO_XYZ, pro);
         }
         mul(XYZ_TO_REC2020, adapt(xyz, D50, D65))
             .map(|v| v.clamp(-(f32::MAX as f64), f32::MAX as f64) as f32)
     }
+}
+
+fn map_prophoto(rgb: [f32; 3], op: impl FnOnce([f64; 3]) -> [f64; 3]) -> [f32; 3] {
+    let xyz = mul(inverse(XYZ_TO_REC2020).unwrap(), rgb.map(f64::from));
+    let pro = mul(XYZ_TO_PROPHOTO, adapt(xyz, D65, D50));
+    let xyz = mul(PROPHOTO_TO_XYZ, op(pro));
+    mul(XYZ_TO_REC2020, adapt(xyz, D50, D65)).map(|v| v as f32)
 }
 
 #[cfg(test)]
@@ -618,7 +643,9 @@ mod tests {
             (0.5, 0.80486),
             (0.75, 0.93986),
         ] {
-            close(p.apply_tone([input; 3]), [expected; 3], 0.00002);
+            assert!((acr3::evaluate(f64::from(input)) - f64::from(expected)).abs() < 1e-7);
+            // Rounded published color matrices add < 1e-4 through D50/D65.
+            close(p.apply_tone([input; 3]), [expected; 3], 0.0001);
         }
         let mut entries = base();
         entries.push((50940, 11, vec![0., 0., 1., 1.]));
@@ -646,7 +673,10 @@ mod tests {
             plain.apply_without_tone(camera, 6504.),
             0.00001,
         );
-        assert_ne!(look.apply(camera, 6504.), plain.apply(camera, 6504.));
+        assert_ne!(
+            look.apply(camera, 6504.),
+            plain.apply_without_tone(camera, 6504.)
+        );
     }
 
     #[test]
@@ -707,7 +737,7 @@ mod tests {
                 match typ {
                     3 => data.extend(u16b(v as u16, be)),
                     4 => data.extend(u32b(v as u32, be)),
-                    10 => {
+                    5 | 10 => {
                         data.extend(u32b((v * 1000000.0) as i32 as u32, be));
                         data.extend(u32b(1000000, be));
                     }
@@ -757,7 +787,11 @@ mod tests {
             0.2880402 * 0.1 + 0.7118741 * 0.3 + 0.0000857 * 0.1,
             0.82521 * 0.1,
         ];
-        close(p.apply(input, 5003.), plain.apply(expected, 5003.), 0.0002);
+        close(
+            p.apply(input, 5003.),
+            plain.apply_without_tone(expected, 5003.),
+            0.0002,
+        );
     }
     #[test]
     fn deferred_tone_matches_combined_apply() {
@@ -767,7 +801,7 @@ mod tests {
         let p = DcpProfile::parse(&fixture(false, 42, &e)).unwrap();
         let camera = [0.2, 0.3, 0.1];
         let untoned = p.apply_without_tone(camera, 6504.);
-        close(untoned, plain.apply(camera, 6504.), 0.00001);
+        close(untoned, plain.apply_without_tone(camera, 6504.), 0.00001);
         close(p.apply_tone(untoned), p.apply(camera, 6504.), 0.00001);
         assert_ne!(p.apply_tone(untoned), untoned);
     }
@@ -780,7 +814,11 @@ mod tests {
             vec![0.96422, 0., 0., 0., 1., 0., 0., 0., 0.82521],
         ));
         let p = DcpProfile::parse(&fixture(false, 0x4352, &e)).unwrap();
-        close(p.apply([0.475235, 0.5, 0.544415], 6504.), [0.5; 3], 0.0002);
+        close(
+            p.apply_without_tone([0.475235, 0.5, 0.544415], 6504.),
+            [0.5; 3],
+            0.0002,
+        );
         // An FM intentionally different from the inverse-CM path must be used.
         let a = DcpProfile::parse(&fixture(false, 42, &base())).unwrap();
         assert!(
@@ -957,9 +995,13 @@ mod tests {
     fn inverts_color_matrix_into_linear_rec2020() {
         let p = DcpProfile::parse(&fixture(false, 0x4352, &base())).unwrap();
         // With identity ColorMatrix, camera RGB is XYZ D65.
-        close(p.apply([0.95047, 1., 1.08883], 6504.), [1.; 3], 0.002);
         close(
-            p.apply([0.636958, 0.262700, 0.], 6504.),
+            p.apply_without_tone([0.95047, 1., 1.08883], 6504.),
+            [1.; 3],
+            0.002,
+        );
+        close(
+            p.apply_without_tone([0.636958, 0.262700, 0.], 6504.),
             [1., 0., 0.],
             0.002,
         );
