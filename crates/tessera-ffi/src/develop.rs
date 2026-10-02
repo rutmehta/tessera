@@ -2798,7 +2798,59 @@ impl DevelopSession {
         if pipeline_cpu::validate_denoise(&st.live.denoise).is_ok() {
             ignored.retain(|path| !path.starts_with("/denoise"));
         }
+        if let Some(proxy) = self.shared.image.camera_linear_proxy() {
+            ignored.extend(
+                proxy
+                    .render_plan(&st.live, self.shared.renderer.mask_cache().has_hooks())
+                    .1
+                    .into_iter()
+                    .map(str::to_owned),
+            );
+            ignored.sort();
+            ignored.dedup();
+        }
         Ok(ignored)
+    }
+
+    /// Informational per-photo omissions; no saved setting is changed.
+    pub fn render_notices(&self) -> Result<Vec<String>> {
+        let st = self.shared.lock()?;
+        let Some(proxy) = self
+            .shared
+            .image
+            .camera_linear_proxy()
+            .filter(|p| p.is_external_dng())
+        else {
+            return Ok(Vec::new());
+        };
+        let mut fields = proxy.render_plan(&st.live, true).1;
+        if self.shared.masks.unavailable(&st.live) {
+            fields.push("/locals/adjustments");
+        }
+        let mut notes: Vec<String> = fields
+            .into_iter()
+            .map(|field| {
+                match field {
+                    "/decode" | "/linearize" | "/demosaic" | "/denoise" => {
+                        "Mosaic corrections are already baked into this Smart Preview."
+                    }
+                    "/white_balance/mode" => "Auto white balance unavailable; shown using As Shot.",
+                    "/camera_profile/look" => "Creative look unavailable; shown without it.",
+                    "/lens/profile" => "Lens profile unavailable; shown without it.",
+                    "/effects/lens_blur" => "Lens Blur needs the original; shown without it.",
+                    "/locals/retouch" => "Retouch needs the original; shown without it.",
+                    "/locals/adjustments" => {
+                        "Some local masks are unavailable; shown without them."
+                    }
+                    "/output/hdr" => "Rendered using the available Smart Preview dynamic range.",
+                    _ => "An optional setting is unavailable for this Smart Preview.",
+                }
+                .to_owned()
+            })
+            .collect();
+        notes.sort();
+        notes.dedup();
+        Ok(notes)
     }
 
     /// Histogram of the last completed frame (empty before the first one).

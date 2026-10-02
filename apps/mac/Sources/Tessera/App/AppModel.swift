@@ -465,6 +465,7 @@ final class AppModel {
     private(set) var smartPreviewBatchActive = false
     private(set) var smartPreviewCancelRequested = false
     var statusMessage: String?
+    @ObservationIgnored private var developRenderNotice: String?
     /// Set by the loupe view: colour space and EDR headroom of the current screen.
     var loupeInfo = ""
     /// A Loupe disclosure owns workspace keys while open; Escape dismisses the active disclosure.
@@ -2414,6 +2415,7 @@ final class AppModel {
         controller.onFrame = { [weak self, weak controller] frame in
             guard let self, let controller else { return }
             self.developDidRender(frame, controller)
+            self.updateDevelopRenderNotice(controller)
         }
         // The item id can change while the session is open (in-place library updates).
         controller.onSaved = { [weak self, weak controller, weak owner] _ in
@@ -2431,11 +2433,26 @@ final class AppModel {
             enterPhotoEdit()
             runHDRSelfTest(controller)
         }
-        if !controller.ignoredSettings.isEmpty {
+        updateDevelopRenderNotice(controller, initial: true)
+        if developRenderNotice == nil && !controller.ignoredSettings.isEmpty {
             statusMessage = "Develop: \(controller.ignoredSettings.count) imported setting(s) are kept but not rendered yet"
         }
         liveObservers.forEach { $0.developDidChange() }
         return sessionID
+    }
+
+    /// A late frame cannot publish another photo's note or replace a newer error.
+    private func updateDevelopRenderNotice(_ controller: DevelopController, initial: Bool = false) {
+        guard develop === controller else { return }
+        let previous = developRenderNotice
+        let notices = controller.renderNotices
+        let message = notices.isEmpty ? nil : "Develop: " + notices.joined(separator: " ")
+        developRenderNotice = message
+        if let message {
+            if initial || statusMessage == previous || statusMessage == nil { statusMessage = message }
+        } else if statusMessage == previous {
+            statusMessage = nil
+        }
     }
 
     /// Starts one shared close. A failure retains the editor and its callbacks.
@@ -2444,6 +2461,8 @@ final class AppModel {
         guard developSessionID == sessionID else { return }
         switch outcome {
         case .saved:
+            if statusMessage == developRenderNotice { statusMessage = nil }
+            developRenderNotice = nil
             develop = nil
             developSourceRoute = nil
             developLibrary = nil

@@ -1224,6 +1224,11 @@ void uniffi_tessera_ffi_fn_method_developsession_refresh(uint64_t ptr, RustCallS
 RustBuffer uniffi_tessera_ffi_fn_method_developsession_render_detail_preview(uint64_t ptr, uint32_t iosurface_id, uint32_t width, uint32_t height, float center_x, float center_y, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RENDER_NOTICES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RENDER_NOTICES
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_render_notices(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESET
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESET
 int8_t uniffi_tessera_ffi_fn_method_developsession_reset(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -4387,6 +4392,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_refresh(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_DETAIL_PREVIEW
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_DETAIL_PREVIEW
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_NOTICES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_NOTICES
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_render_notices(void
     
 );
 #endif

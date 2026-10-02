@@ -232,6 +232,7 @@ private final class MaskFaultSession: DevelopSession, @unchecked Sendable {
     }
     override func getSettingsJson() throws -> String { "{}" }
     override func ignoredSettings() throws -> [String] { [] }
+    override func renderNotices() throws -> [String] { [] }
     override func setListener(listener: DevelopListener?) {}
     override func setMaskListener(listener: MaskListener?) {}
     override func addBrushPoints(points: [BrushPoint]) throws {
