@@ -178,24 +178,27 @@ pub(crate) fn apply(
     Ok(())
 }
 
-pub(crate) fn remove_image(support: &std::path::Path, id: ImageId) -> Result<()> {
-    let root = support.join("imported-masks");
-    if !root.exists() {
-        return Ok(());
-    }
-    let owner = root.join("owners").join(id.to_string());
-    match std::fs::remove_file(owner) {
-        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),
-        _ => {}
-    }
-    prune_missing(support, |_| true)
-}
-
+/// Drops the ownership records of removed images and collects their content
+/// once for the batch. An image that never owned an imported raster costs one
+/// failed unlink: no store is opened and no directory is listed.
 pub(crate) fn remove_images(
     support: &std::path::Path,
     ids: impl IntoIterator<Item = ImageId>,
 ) -> Result<()> {
-    ids.into_iter().try_for_each(|id| remove_image(support, id))
+    let owners = support.join("imported-masks").join("owners");
+    let mut removed = false;
+    for id in ids {
+        match std::fs::remove_file(owners.join(id.to_string())) {
+            Ok(()) => removed = true,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+    if removed {
+        prune_missing(support, |_| true)
+    } else {
+        Ok(())
+    }
 }
 
 /// Explicit maintenance, not a per-pin write scan. Keeps shared and historical
