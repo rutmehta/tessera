@@ -245,6 +245,8 @@ pub struct LrcatReport {
     /// not warnings): one entry per Adobe key, `category` = the key, `count` =
     /// photos, `reason` = the first photo's reason, `examples` = up to five paths.
     pub approximate: Vec<LrcatIssue>,
+    /// Cloud-only visual content, counted once per photo and Adobe feature.
+    pub cloud: Vec<LrcatIssue>,
     pub albums: u32,
     pub album_groups: u32,
     pub smart_albums: u32,
@@ -1324,6 +1326,7 @@ impl LrcatImport {
             skipped: vec![],
             unsupported: self.summary.unsupported.clone(),
             approximate: vec![],
+            cloud: vec![],
             albums: merge.albums,
             album_groups: merge.groups,
             smart_albums: merge.smart_albums,
@@ -2064,6 +2067,52 @@ mod lrcat_resume_tests {
         let again = import.apply(options, None).unwrap();
         assert_eq!((again.imported, again.resumed), (0, report.imported));
         assert_eq!(again.approximate, report.approximate);
+    }
+
+    #[test]
+    fn lr9c_cloud_report_apply_resume_counts_examples_and_keeps_filter_list() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+        db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s={GenerativeRemove=true,GenerativeFill=true,EnableDistractionRemoval=true,FilterList={{What='synthetic'}}}"]).unwrap();
+        drop(db);
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = import.default_options().unwrap();
+        options.relocations[0].to = fixture
+            .photos
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        options.library_folder = options.relocations[0].to.clone();
+        let report = import.apply(options.clone(), None).unwrap();
+        assert_eq!(report.cloud.len(), 3);
+        for issue in &report.cloud {
+            assert!(issue.count > 0);
+            assert_eq!(issue.examples.len(), issue.count.min(5) as usize);
+            assert!(
+                issue
+                    .reason
+                    .contains("requires Adobe cloud; not translatable")
+            );
+        }
+        assert!(
+            report
+                .unsupported
+                .iter()
+                .any(|i| i.reason.contains("FilterList"))
+        );
+        assert!(
+            !report
+                .unsupported
+                .iter()
+                .any(|i| i.reason.contains("requires Adobe cloud"))
+        );
+        assert_eq!(import.apply(options, None).unwrap().cloud, report.cloud);
     }
 
     #[test]
