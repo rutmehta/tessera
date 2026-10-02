@@ -2185,3 +2185,7 @@ mod depth_tests;
 #[cfg(test)]
 #[path = "lrcat_combined_tests.rs"]
 mod combined_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "lrcat_profile.rs"]
+mod lrcat_profile;
