@@ -57,3 +57,45 @@ fn mixer_changes_colored_swatches_but_not_neutrals() {
         }
     }
 }
+
+#[test]
+fn lr2e_extended_curves_compose_with_ordinary_parametric() {
+    use engine_api::recipe::settings::{Curve, CurvePoint, ToneCurves, ToneSettings};
+    let input = pipeline_cpu::Image::new(3, 1, vec![vec![0.08, 0.18, 0.4]; 3]).unwrap();
+    for active in [false, true] {
+        let mut s = ToneSettings::default();
+        s.curves.parametric.darks = 55.;
+        s.curves.parametric.lights = 35.;
+        let param_only = pipeline_cpu::tone_extra_image(&input, &s).unwrap();
+        let extended = ToneCurves {
+            rgb: if active {
+                Curve(vec![
+                    CurvePoint { x: 0., y: 0. },
+                    CurvePoint { x: 2., y: 2.3 },
+                ])
+            } else {
+                Curve::default()
+            },
+            ..Default::default()
+        };
+        s.curves_extended = Some(extended.clone());
+        let actual = pipeline_cpu::tone_extra_image(&input, &s).unwrap();
+        let expected = pipeline_cpu::tone_extra_image(
+            &param_only,
+            &ToneSettings {
+                curves_extended: Some(extended),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        for (a, b) in actual
+            .planes()
+            .iter()
+            .flatten()
+            .zip(expected.planes().iter().flatten())
+        {
+            assert!((a - b).abs() < 1e-6, "active={active}: {a} vs {b}");
+        }
+        assert_ne!(actual.planes(), input.planes());
+    }
+}

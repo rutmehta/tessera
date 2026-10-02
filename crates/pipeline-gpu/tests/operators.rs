@@ -423,3 +423,25 @@ fn lr2b_fused_hdr_monochrome_matches_cpu() {
         .fold(0f32, f32::max);
     assert!(error <= 1e-4, "{error}");
 }
+
+#[test]
+fn lr2e_hdr_parametric_cpu_gpu_parity() {
+    use engine_api::recipe::settings::{Curve, CurvePoint, ToneCurves, ToneSettings};
+    for active in [false, true] {
+        let mut s = ToneSettings::default();
+        s.curves.parametric.darks = 55.;
+        s.curves.parametric.lights = 35.;
+        s.curves_extended = Some(ToneCurves {
+            rgb: if active {
+                Curve(vec![
+                    CurvePoint { x: 0., y: 0. },
+                    CurvePoint { x: 2., y: 2.3 },
+                ])
+            } else {
+                Curve::default()
+            },
+            ..Default::default()
+        });
+        compare(StageId::Tone, Op::ToneExtra(&s), tile(3, 0));
+    }
+}

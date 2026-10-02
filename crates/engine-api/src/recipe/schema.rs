@@ -209,18 +209,17 @@ mod v4_feature_predicates {
     }
 
     #[test]
-    fn lr2d_monochrome_bumps_only_when_enabled() {
+    fn lr2d_monochrome_bumps_only_when_enabled_or_nonzero() {
         assert_bumped_only_when_present("monochrome", |r| {
             r.settings.color.monochrome = Some(crate::recipe::settings::MonochromeSettings {
                 enabled: true,
                 ..Default::default()
             });
         });
-        let mut recipe = Recipe::default();
-        recipe.settings.color.monochrome = Some(Default::default());
-        recipe.settings.color.monochrome.as_mut().unwrap().mixer.red = 25.;
-        assert_eq!(required_schema_version(&recipe), 3);
-        assert_eq!(written_version(&recipe.to_json().unwrap()), 3);
+        assert_bumped_only_when_present("monochrome", |r| {
+            r.settings.color.monochrome = Some(Default::default());
+            r.settings.color.monochrome.as_mut().unwrap().mixer.red = 25.;
+        });
     }
 
     #[test]

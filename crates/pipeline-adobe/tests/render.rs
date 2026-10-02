@@ -74,3 +74,31 @@ fn lr2c_channel_curve_toning_survives_monochrome_conversion() {
     let result = pipeline_cpu::render_linear_scaled(&s, &RenderSource::Rgb(&source), 1).unwrap();
     assert!((result.planes()[0][0] - result.planes()[1][0]).abs() > 0.01);
 }
+
+#[test]
+fn lr2e_hdr_curves_keep_parametric_sliders() {
+    use engine_api::recipe::settings::{Curve, CurvePoint, ToneCurves};
+    let source = Image::new(4, 4, vec![vec![0.18; 16]; 3]).unwrap();
+    for active in [false, true] {
+        let mut s = DevelopSettings::default();
+        s.tone.curves_extended = Some(ToneCurves {
+            rgb: if active {
+                Curve(vec![
+                    CurvePoint { x: 0., y: 0. },
+                    CurvePoint { x: 2., y: 2.3 },
+                ])
+            } else {
+                Curve::default()
+            },
+            ..Default::default()
+        });
+        let before = render_linear_scaled(&s, &RenderSource::Rgb(&source), 1).unwrap();
+        s.tone.curves.parametric.darks = 60.;
+        s.tone.curves.parametric.lights = 60.;
+        let after = render_linear_scaled(&s, &RenderSource::Rgb(&source), 1).unwrap();
+        assert!(
+            after.planes()[0][0] > before.planes()[0][0] + 0.001,
+            "active={active}"
+        );
+    }
+}

@@ -365,3 +365,16 @@ fn lr2b_native_revision_two_is_not_adobe_pv2010() {
     apply(&values, &mut recipe, &mut Vec::new()).unwrap();
     assert!(recipe.settings.tone.legacy_pv2010.is_none());
 }
+
+#[cfg(test)]
+#[test]
+fn lr2e_apply_leaves_history_for_shared_finish() {
+    let mut recipe = Recipe::default();
+    let base = recipe.history.base.clone();
+    let mut values = Values::new();
+    values.insert("ConvertToGrayscale".into(), LuaValue::Bool(true));
+    apply(&values, &mut recipe, &mut Vec::new()).unwrap();
+    assert!(recipe.settings.color.monochrome.as_ref().unwrap().enabled);
+    assert_eq!(recipe.history.base, base);
+    assert!(recipe.history.entries.is_empty());
+}

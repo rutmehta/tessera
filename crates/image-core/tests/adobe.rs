@@ -199,3 +199,23 @@ fn lr2b_pv2010_is_admitted_by_develop_renderer() {
         assert!((a - b).abs() < 0.0001, "{a} vs {b}");
     }
 }
+
+#[test]
+fn lr2e_old_pv2010_requires_reimport_but_new_block_is_accepted() {
+    let image = synthetic(203, 24, 20, RGGB, [0, 0, 24, 20]);
+    for revision in [1, 2] {
+        let r = Renderer::new(RendererConfig {
+            process_version: ProcessVersion::adobe(revision),
+            ..Default::default()
+        });
+        let mut s = DevelopSettings::default();
+        s.tone.exposure = 2.;
+        let error = r
+            .render_region(&image, &s, 0, PixelRect::full(image.level_extent(0)))
+            .unwrap_err();
+        assert!(error.to_string().contains("re-import needed"), "{error}");
+        s.tone.legacy_pv2010 = Some(Default::default());
+        r.render_region(&image, &s, 0, PixelRect::full(image.level_extent(0)))
+            .unwrap();
+    }
+}
