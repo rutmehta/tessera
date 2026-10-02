@@ -297,15 +297,17 @@ It is a reference throughput report, not an interactive-latency guarantee:
 
 ### Photo Filter luminance conditioning (ENG-3)
 
-Preserve-luminosity recombination uses a scene-linear Rec.2020 floor of
-`epsilon=1e-3` (0.1% of white). With filtered luminance `L` and source
-luminance `f`, `abs(L)>=epsilon` retains the original `channel*f/L`
-arithmetic. For `0<abs(L)<epsilon`, it uses
-`gain=1+(f-L)/copysign(epsilon,L)` and `channel*gain`, identically on CPU
-and Metal. The signed extension preserves negative luminance semantics.
-The output luminance interpolates from filtered to source luminance by
-`abs(L)/epsilon`; it deliberately attenuates near-black luminosity restoration
-instead of amplifying cancelling channels without bound. Unlike the old
-`1e-10` guard, every nonzero sub-floor luminance is conditioned. Exact zero
-retains the existing source-RGB fallback; identity controls and alpha are
-unchanged. This does not promise continuity across that exact-zero fallback.
+Preserve-luminosity recombination uses `epsilon=1e-3` in scene-linear
+Rec.2020 (0.1% of white). For filtered luminance `L`, source luminance `f`,
+and `peak=max(abs(filtered RGB))`, conditioning applies only when
+`0<abs(L)<epsilon` AND `abs(L)<0.25*peak`. The documented relative threshold
+`k=0.25` distinguishes cancellation-scale luminance from neutral deep shadows.
+Outside that predicate, nonzero L retains `channel*f/L`, including ordinary
+near-black greys. Inside it, CPU and WGSL both use
+`gain=1+(f-L)/copysign(epsilon,L)` and `channel*gain`.
+Exact zero retains the source-RGB fallback; identity controls and alpha are
+unchanged. The negative-L formula differs from ENG-1's positive-denominator
+form. It retains a gain sign discontinuity at zero for coloured cancelling
+pixels with nonzero target luminance, explicitly pinned by
+`eng3b_coloured_photo_zero_crossing_documented`; this policy bounds gain
+but does not make that crossing continuous.

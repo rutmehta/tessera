@@ -41,7 +41,10 @@ fn adjustment(op:u32,rgb:vec3<f32>)->vec3<f32>{
  case 25u:{return floor(clamp(rgb,vec3(0.0),vec3(1.0))*p[32]+vec3(0.5))/p[32];}
  case 26u:{let hsl=to_hsl(clamp(rgb,vec3(0.0),vec3(1.0)));return from_hsl(vec3(modulo(hsl.x+p[32],1.0),shift_unit(hsl.y,p[33]),shift_unit(hsl.z,p[34])));}
  case 27u:{let y=luma(rgb);let hi=max(max(rgb.r,rgb.g),rgb.b);let lo=min(min(rgb.r,rgb.g),rgb.b);var chroma=0.0;if hi>0.0{chroma=clamp((hi-lo)/hi,0.0,1.0);}let gain=(1.0+p[33])*(1.0+p[32]*(1.0-chroma));return vec3(y)+(rgb-vec3(y))*gain;}
- case 28u:{let filtered=rgb*(vec3(1.0-p[35])+p[35]*rgb_at(32u));let y=luma(filtered);if p[36]!=0.0 {if abs(y)>=PHOTO_LUMA_FLOOR{return filtered*luma(rgb)/y;}
+ case 28u:{let filtered=rgb*(vec3(1.0-p[35])+p[35]*rgb_at(32u));let y=luma(filtered);if p[36]!=0.0 {let peak=max(abs(filtered.x),max(abs(filtered.y),abs(filtered.z)));
+ // k=0.25 and filtered-channel domain match CPU. Exact zero retains fallback.
+ let cancelling=abs(y)<PHOTO_LUMA_FLOOR && abs(y)<0.25*peak;
+ if y!=0.0 && !cancelling{return filtered*luma(rgb)/y;}
  if y!=0.0 {
  let mapped_luma = luma(rgb);
  let gain = 1.0 + (mapped_luma - y) / select(-PHOTO_LUMA_FLOOR, PHOTO_LUMA_FLOOR, y > 0.0);

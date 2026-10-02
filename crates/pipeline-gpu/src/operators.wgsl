@@ -376,7 +376,9 @@ fn curves(input: vec3<f32>) -> vec3<f32> {
     if y > 0.0 || (p[25] != 0.0 && y < 0.0) {
         let mapped_luma = curve_value(y, 4u);
         var gain = 1.0 + (mapped_luma - y) / select(-CURVE_LUMA_FLOOR, CURVE_LUMA_FLOOR, y > 0.0);
-        if abs(y) >= CURVE_LUMA_FLOOR { gain = mapped_luma / y; }
+        // k=0.25 matches CPU: small luminance relative to channel magnitude.
+        let peak = max(abs(rgb.x), max(abs(rgb.y), abs(rgb.z)));
+        if !(abs(y) < CURVE_LUMA_FLOOR && abs(y) < 0.25 * peak) { gain = mapped_luma / y; }
         rgb *= gain;
     }
     else if all(rgb == vec3<f32>(0.0)) { rgb = vec3<f32>(curve_value(0.0, 4u)); }

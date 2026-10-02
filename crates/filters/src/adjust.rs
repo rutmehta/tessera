@@ -357,8 +357,10 @@ impl Adjustment {
                         std::array::from_fn(|c| rgb[c] * (1.0 - density + density * colour[c]));
                     let y = luminance(filtered);
                     if *preserve_luminosity {
-                        if y.abs() >= PHOTO_LUMA_FLOOR {
-                            // Preserve above-floor arithmetic and encoded goldens.
+                        let peak = filtered.iter().map(|v| v.abs()).fold(0.0_f32, f32::max);
+                        let cancelling = y.abs() < PHOTO_LUMA_FLOOR && y.abs() < 0.25 * peak;
+                        if y != 0.0 && !cancelling {
+                            // Preserve ratio arithmetic outside channel cancellation.
                             filtered.map(|v| v * luminance(rgb) / y)
                         } else if y != 0.0 {
                             let target = luminance(rgb);
@@ -501,6 +503,7 @@ fn signed_power(v: f32, p: f32) -> f32 {
     }
 }
 // 0.1% of scene-linear Rec.2020 white, matching shaders/adjust.wgsl.
+// k=0.25 relative to max(|filtered RGB|) restricts the floor to cancellation.
 const PHOTO_LUMA_FLOOR: f32 = 1e-3;
 
 fn luminance(rgb: [f32; 3]) -> f32 {

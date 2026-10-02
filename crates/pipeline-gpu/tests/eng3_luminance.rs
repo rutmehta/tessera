@@ -177,6 +177,13 @@ fn monotone_evidence(label: &str, pixels: &[[f32; 3]]) {
     let ys: Vec<_> = (0..n)
         .map(|i| 0.2627 * a[i] + 0.678 * a[n + i] + 0.0593 * a[2 * n + i])
         .collect();
+    let gpu_ys: Vec<_> = (0..n)
+        .map(|i| 0.2627 * b[i] + 0.678 * b[n + i] + 0.0593 * b[2 * n + i])
+        .collect();
+    let gpu_min_step = gpu_ys
+        .windows(2)
+        .map(|v| v[1] - v[0])
+        .fold(f32::INFINITY, f32::min);
     let min_step = ys
         .windows(2)
         .map(|v| v[1] - v[0])
@@ -187,12 +194,13 @@ fn monotone_evidence(label: &str, pixels: &[[f32; 3]]) {
         .map(|(x, y)| (x - y).abs())
         .fold(0f32, f32::max);
     eprintln!(
-        "ENG3b {label}: n={n} black={} first={} last={} min_step={min_step:e} gpu_gap={gap:e}",
+        "ENG3b {label}: n={n} black={} first={} last={} min_step={min_step:e} gpu_gap={gap:e} gpu_min_step={gpu_min_step:e}",
         ys[0],
         ys[1],
         ys[n - 1]
     );
     assert!(min_step >= -1e-7, "near-black dip: {min_step}");
+    assert!(gpu_min_step >= -1e-7, "GPU near-black dip: {gpu_min_step}");
     assert!(gap < 2e-6);
     // Independent f64 oracle for a straight line in the curve's log domain.
     for (i, p) in pixels.iter().enumerate() {
@@ -314,9 +322,9 @@ fn eng3b_curve_relative_cancellation_boundary() {
                 .run(StageId::Tone, &Op::ToneExtra(&s), input.clone())
                 .unwrap();
             let b = gpu.run(StageId::Tone, &Op::ToneExtra(&s), input).unwrap();
-            for c in 0..3 {
+            for (c, channel) in rgb.iter().enumerate() {
                 let actual = a.samples::<f32>().unwrap()[c * 9];
-                assert!((actual as f64 - rgb[c] as f64 * gain).abs() < 1e-7);
+                assert!((actual as f64 - *channel as f64 * gain).abs() < 1e-7);
                 assert!((actual - b.samples::<f32>().unwrap()[c * 9]).abs() < 1e-7);
             }
         }

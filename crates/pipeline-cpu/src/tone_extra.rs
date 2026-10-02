@@ -119,7 +119,9 @@ fn apply(
         if y > 0.0 || (s.curves_extended.is_some() && y < 0.0) {
             // Signed extension retains LR-2's negative-domain curve ratio.
             let target = splines[4].linear(y);
-            let gain = finite(if y.abs() >= CURVE_LUMA_FLOOR {
+            let peak = rgb.iter().map(|v| v.abs()).fold(0.0_f32, f32::max);
+            let cancelling = y.abs() < CURVE_LUMA_FLOOR && y.abs() < 0.25 * peak;
+            let gain = finite(if !cancelling {
                 target / y
             } else {
                 1.0 + (target - y) / CURVE_LUMA_FLOOR.copysign(y)
@@ -134,6 +136,8 @@ fn apply(
     }
 }
 // 0.1% of scene-linear Rec.2020 white, independent of presence's floor.
+// Condition only if |Y| < 0.25 * max(|RGB|): k=0.25 detects cancellation
+// relative to channel magnitude, retaining the original ratio for neutral shadows.
 const CURVE_LUMA_FLOOR: f32 = 1e-3;
 
 fn finite(v: f32) -> f32 {
