@@ -20,7 +20,13 @@ fn profile(matrix_scale: i32, tone: bool) -> DcpProfile {
             9u32,
             (0..9)
                 .flat_map(|i| {
-                    let n = if i % 4 == 0 { matrix_scale } else { 0 };
+                    let n = if i == 0 {
+                        matrix_scale
+                    } else if i % 4 == 0 {
+                        1
+                    } else {
+                        0
+                    };
                     [n.to_le_bytes(), 1i32.to_le_bytes()].concat()
                 })
                 .collect::<Vec<_>>(),
@@ -190,7 +196,8 @@ fn tiff_profile_changes_final_cfa_render() {
     assert_eq!(first.dimensions(), (8, 8));
     assert_ne!(first.as_raw(), second.as_raw());
     let linear = render_linear_scaled_with_profile(&s, &source, 1, Some(&a)).unwrap();
-    let expected = a.apply([0.2; 3], 6504.);
+    // SDK camera-white normalization for identity CM: max(D65)=1.08905775.
+    let expected = a.apply([0.21781155; 3], 6504.);
     for (c, value) in expected.iter().enumerate() {
         assert!((linear.planes()[c][136] - value).abs() < 0.0001);
     }

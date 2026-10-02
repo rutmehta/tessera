@@ -2,10 +2,7 @@ use crate::{Image, RenderSource, Rgb8Image, basic_tone, dcp::DcpProfile};
 use engine_api::{
     EngineError, EngineResult,
     color::{ChromaticAdaptation, ColorMatrix3, WorkingSpace},
-    recipe::{
-        DevelopSettings,
-        settings::{DisplayTransform, WhiteBalanceMode},
-    },
+    recipe::{DevelopSettings, settings::DisplayTransform},
 };
 
 /// Full-resolution compatibility operators followed by linear-light area reduction.
@@ -108,47 +105,11 @@ pub fn render_linear_scaled_with_profile_and_locals(
         // This assumes point optics are channel-neutral and no clipping occurs;
         // spatial resampling remains in native preprocessing (an approximation).
         let undo = (native_wb * native_profile).inverse()?;
-        let (temperature, tint) = match settings.white_balance.mode {
-            WhiteBalanceMode::AsShot => {
-                pipeline_cpu::as_shot_temperature_tint(camera_xyz, metadata.as_shot_wb)?
-            }
-            WhiteBalanceMode::Custom => (
-                settings.white_balance.temperature,
-                settings.white_balance.tint,
-            ),
-            WhiteBalanceMode::Daylight | WhiteBalanceMode::Flash => (5503., 0.),
-            WhiteBalanceMode::Cloudy => (6504., 0.),
-            WhiteBalanceMode::Shade => (7504., 0.),
-            WhiteBalanceMode::Tungsten => (2856., 0.),
-            WhiteBalanceMode::Fluorescent => (4230., 0.),
-            WhiteBalanceMode::Auto => {
-                return Err(EngineError::invalid(
-                    "white balance",
-                    "Auto is not implemented",
-                ));
-            }
-        };
-        // DCP's temperature path uses its own Bradford/daylight approximation.
-        // Approximate tint with the native CAT16 residual at fixed temperature,
-        // NOT the full native WB again. This is not Adobe's proprietary tint.
-        let mut tinted = settings.white_balance.clone();
-        tinted.mode = WhiteBalanceMode::Custom;
-        tinted.temperature = temperature;
-        tinted.tint = tint;
-        let mut neutral = tinted.clone();
-        neutral.tint = 0.;
-        let tint_matrix = if tint == 0. {
-            ColorMatrix3::IDENTITY
-        } else {
-            pipeline_cpu::white_balance_matrix(&tinted, camera_xyz, metadata.as_shot_wb)?
-                * pipeline_cpu::white_balance_matrix(&neutral, camera_xyz, metadata.as_shot_wb)?
-                    .inverse()?
-        };
+        let wb = profile.resolve_white_balance(&settings.white_balance, metadata.as_shot_wb)?;
         for coord in rgb.coords() {
             let mut tile = rgb.tile(coord, 0, 1)?;
             pipeline_cpu::apply_matrix(&mut tile, undo)?;
-            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_without_tone(p, temperature))?;
-            pipeline_cpu::apply_matrix(&mut tile, tint_matrix)?;
+            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_camera(p, &wb))?;
             rgb.put(&tile)?;
         }
         // Read every halo from the same pre-detail image, avoiding tile seams

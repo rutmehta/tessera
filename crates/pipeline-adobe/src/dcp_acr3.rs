@@ -10,6 +10,7 @@ pub(super) fn evaluate(x: f64) -> f64 {
     f64::from(TABLE[index] * (1. - fraction) + TABLE[index + 1] * fraction)
 }
 
+#[allow(clippy::approx_constant)] // Preserve the published rounded samples verbatim.
 const TABLE: [f32; 1025] = [
     0.00000, 0.00078, 0.00160, 0.00242, 0.00314, 0.00385, 0.00460, 0.00539, 0.00623, 0.00712,
     0.00806, 0.00906, 0.01012, 0.01122, 0.01238, 0.01359, 0.01485, 0.01616, 0.01751, 0.01890,
