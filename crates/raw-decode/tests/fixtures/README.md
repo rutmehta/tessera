@@ -27,6 +27,17 @@ and Adobe APP14 / RGB component-ID invariance. The gradient tolerance is
 `tests/support::lossy_dng(false, false)`. It is used by the opt-in catalog fixture
 builder, with no dependency on a RAW encoder or any photographic input.
 
+`linear-gradient-jxl.dng` is the same synthetic TIFF as `linear-gradient.dng`,
+with its JPEG payload replaced by `cjxl linear-gradient.jpg output.jxl
+--lossless_jpeg=0 -d 0`; Compression is 52546 and TileByteCounts is updated.
+It exercises the app's imported JPEG XL LinearRaw route without private pixels.
+It was built from the pre-LR-8f `linear-gradient.jpg` (JFIF, no Adobe APP14), so
+its TIFF wrapper matches the pre-LR-8f `linear-gradient.dng` apart from the
+payload, and its pixels are that JPEG as cjxl decoded it. A JPEG XL tile carries
+no JPEG colour-transform marker, so the LR-8f transform rule does not apply to
+it; the LR-8e..8h reader claims it (PhotometricInterpretation 34892, Compression
+52546, three channels) and its tests are unchanged by the hotfix.
+
 LR-8f explicitly adds Adobe APP14 transform 0 to the camera-code JPEG and its
 synthetic DNG wrapper. JFIF without that marker denotes YCbCr and is converted
 by the decoder; the pixel regression tests strip/replace APP14 to cover both.
@@ -50,7 +61,3 @@ LR-8g adds two wholly synthetic codec inputs:
   `generate-two-frame.c` contains the compile/run instructions and complete
   procedural pixel definition. The test independently verifies two loaded
   keyframes before requiring the DNG decoder to reject the tile.
-`linear-gradient-jxl.dng` is the same synthetic TIFF as `linear-gradient.dng`,
-with its JPEG payload replaced by `cjxl linear-gradient.jpg output.jxl
---lossless_jpeg=0 -d 0`; Compression is 52546 and TileByteCounts is updated.
-It exercises the app's imported JPEG XL LinearRaw route without private pixels.
