@@ -14,9 +14,15 @@ use zune_jpeg::{
 /// Cap the actual camera RGB output (three f32 channels) at 1.5 GiB, or
 /// 134,217,728 pixels, admitting 100 MP originals with headroom. This is an
 /// output allocation cap, not a total-process cap: the final crop can coexist
-/// with the full output (up to another 1.5 GiB); compressed tiles and codec
-/// scratch retain their independent limits. Tiles decode sequentially, so
-/// summing padded tile working sets would unnecessarily reject large originals.
+/// with the full output (up to another 1.5 GiB); codec scratch retains its
+/// independent limits. Tiles decode sequentially, so summing padded tile
+/// working sets would unnecessarily reject large originals.
+///
+/// The same figure bounds the aggregate compressed payload, together with the
+/// file size: lossy tiles cannot sensibly exceed the f32 output they decode
+/// to, so a large original is never refused on compressed size alone. The
+/// pixel reader keeps the compressed tiles resident while decoding, so they
+/// can add up to this many bytes again (at most the file size).
 const MAX_DECODED_BYTES: usize = 1536 * 1024 * 1024;
 
 type Tags = BTreeMap<u16, Tag>;
@@ -440,8 +446,9 @@ fn read_identified<R: Read + Seek>(
         .iter()
         .try_fold(0u64, |sum, &n| sum.checked_add(n as u64))
         .ok_or_else(|| invalid("compressed byte budget overflow"))?;
-    // Bounds alias amplification as well as the resident compressed-header cache.
-    if compressed_total > size || compressed_total > 128 * 1024 * 1024 {
+    // The file-size term bounds alias amplification: tiles sharing or
+    // overlapping byte ranges cannot declare more bytes than the file holds.
+    if compressed_total > size.min(MAX_DECODED_BYTES as u64) {
         return Err(invalid("total compressed byte budget exceeded"));
     }
     for (&offset, &count) in offsets.iter().zip(&counts) {
