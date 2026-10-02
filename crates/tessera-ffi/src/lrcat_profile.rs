@@ -715,15 +715,18 @@ fn proxy_profile() -> std::result::Result<Value, u32> {
     let previews = import_lrcat::previews::PreviewIndex::open(&original_catalog)
         .map_err(|_| 41u32)?
         .ok_or(42u32)?;
-    let mut proxies: Vec<_> = resolved
+    let mut proxies = Vec::new();
+    for row in resolved
         .iter()
-        .filter(|r| {
-            r.outcome == Outcome::OfflineProxy
-                && previews
-                    .lrprev_path(import.plan.images[r.index].catalog_id)
-                    .is_some_and(|p| p.is_file())
-        })
-        .collect();
+        .filter(|r| r.outcome == Outcome::OfflineProxy)
+    {
+        if previews
+            .has_preview(import.plan.images[row.index].catalog_id)
+            .map_err(|_| 44u32)?
+        {
+            proxies.push(row);
+        }
+    }
     proxies.sort_by_key(|r| import.plan.images[r.index].catalog_id);
     if proxies.len() < 12 {
         return Err(43);
