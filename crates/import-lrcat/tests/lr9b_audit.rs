@@ -3,7 +3,37 @@ use import_lrcat::lua_develop::{LuaKey, LuaValue};
 use std::collections::{BTreeMap, BTreeSet};
 fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
     if let LuaValue::Table(t) = v {
+        let get = |name: &str| t.fields.iter().find_map(|(k,v)| matches!(k,LuaKey::Str(k) if k == name).then_some(v));
+        let scalar = |v: &LuaValue| match v { LuaValue::Number(s) | LuaValue::String(s) => Some(s.clone()), _ => None };
+        if let Some(what) = get("What").and_then(scalar) {
+            let class = match what.as_str() {
+                "Mask/Image" => match get("MaskSubType").and_then(scalar).as_deref() {
+                    Some("1") => "AI_subject", Some("2") => "AI_sky", Some("3") => {
+                        if get("MaskSubCategoryID").and_then(scalar).is_some_and(|s|s != "0") { "AI_person_part" } else { "AI_people" }
+                    }, Some("0") => "AI_object", _ => "AI_unknown_subtype",
+                },
+                "Mask/Range" | "Mask/RangeMask" => "range", "Mask/Paint" => "brush", "Mask/CircularGradient" => "radial", "Mask/Gradient" => "gradient", "Mask/Aggregate" | "Mask/Group" => "nested_group", _ => "other",
+            };
+            out.insert(format!("{prefix}/selection/{class}"));
+        }
+        if !t.items.is_empty() && t.fields.is_empty() {
+            let numbers: Option<Vec<_>> = t.items.iter().map(|v| scalar(v).and_then(|s|s.parse::<f64>().ok())).collect();
+            let label = if numbers.as_ref().is_some_and(|ns|ns.iter().all(|n| *n == 0.)) { "all_zero" }
+                else if numbers.is_some() { "numeric_sequence" }
+                else if t.items.iter().all(|v|scalar(v).is_some_and(|s|s.split(',').all(|n|n.trim().parse::<f64>() == Ok(-1.)))) { "all_point_placeholders" }
+                else { "other_sequence" };
+            out.insert(format!("{prefix}/sequence/{label}"));
+        }
         for item in &t.items { walk(item, prefix, out); }
+        let mut folded = BTreeSet::new();
+        for (key, _) in &t.fields {
+            if let LuaKey::Str(key) = key {
+                let key = key.to_ascii_lowercase();
+                if !folded.insert(key.clone()) && key.len() <= 64 && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+                    out.insert(format!("{prefix}/duplicate_casefold/{key}"));
+                }
+            }
+        }
         for (key, value) in &t.fields {
             if let LuaKey::Str(key) = key {
                 // Property names only; refuse arbitrary punctuation/long names.
