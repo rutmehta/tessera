@@ -229,7 +229,8 @@ pub(crate) fn render_with_options(
     else {
         return Ok(None);
     };
-    if recipe.process_version != engine_api::recipe::ProcessVersion::NATIVE_CURRENT
+    if metadata.catalog_orientation.is_some()
+        || recipe.process_version != engine_api::recipe::ProcessVersion::NATIVE_CURRENT
         || !recipe.settings.locals.adjustments.is_empty()
         || pipeline_cpu::denoise_active(&recipe.settings.denoise)
     {

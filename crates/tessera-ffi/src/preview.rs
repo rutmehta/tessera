@@ -219,7 +219,8 @@ impl PreviewJob {
             .unwrap_or_default();
         ctx.check_cancelled().map_err(|e| e.to_string())?;
         let hash = recipe.recipe_hash();
-        if catalog::lightroom_proxy(path).is_some() {
+        if catalog::lightroom_proxy(path).is_some() || catalog::catalog_orientation(path).is_some()
+        {
             let source = crate::export::Source::open(path, 1).map_err(|e| e.to_string())?;
             let render_source = source.render_source();
             let orientation = match &render_source {

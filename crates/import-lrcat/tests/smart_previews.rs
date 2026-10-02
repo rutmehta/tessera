@@ -35,6 +35,9 @@ fn explicit_bundle_does_not_depend_on_scratch_catalog_location() {
     let index = SmartPreviewIndex::from_bundle(bundle.clone());
     assert_eq!(index.root(), bundle);
     let uuid = "ABCD1234-5678-90AB-CDEF-1234567890AB";
-    assert_eq!(index.expected_path(uuid).unwrap(), bundle.join("A/ABCD").join(format!("{uuid}.dng")));
+    assert_eq!(
+        index.expected_path(uuid).unwrap(),
+        bundle.join("A/ABCD").join(format!("{uuid}.dng"))
+    );
     assert!(!bundle.exists());
 }

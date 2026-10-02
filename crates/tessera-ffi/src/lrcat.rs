@@ -808,6 +808,11 @@ fn stream_catalog(
     if let Some(w) = &mut writer {
         w.write_all(b"{\"images\":[")?;
     }
+    let smart_previews = std::env::var_os("TESSERA_LRCAT_SMART_PREVIEWS")
+        .map(|root| {
+            import_lrcat::smart_previews::SmartPreviewIndex::from_bundle(PathBuf::from(root))
+        })
+        .unwrap_or_else(|| import_lrcat::smart_previews::SmartPreviewIndex::new(path));
     let mut images = Vec::new();
     let mut records = Vec::new();
     let mut edited = Vec::new();
@@ -842,9 +847,10 @@ fn stream_catalog(
                     + 2048;
             }
             images.push(ImageMetadata {
-                smart_preview: image.file_uuid.as_deref().and_then(|uuid| {
-                    import_lrcat::smart_previews::SmartPreviewIndex::new(path).find(uuid)
-                }),
+                smart_preview: image
+                    .file_uuid
+                    .as_deref()
+                    .and_then(|uuid| smart_previews.find(uuid)),
                 catalog_id: image.catalog_id,
                 path: image.path,
                 master_image: image.master_image,
@@ -1622,6 +1628,16 @@ impl LrcatImport {
                         .unwrap_or((0, 0))
                 } else {
                     (0, 0)
+                };
+                let extent = if image
+                    .orientation
+                    .as_deref()
+                    .and_then(import_lrcat::orientation::exif)
+                    .is_some_and(|o| o >= 5)
+                {
+                    (extent.1, extent.0)
+                } else {
+                    extent
                 };
                 let prior = image_core::ml_depth::DepthMap::cached(
                     &depth_store,

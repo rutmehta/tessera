@@ -179,6 +179,12 @@ impl Sidecar {
         store::register(source, support);
     }
 
+    /// Opt in to app-owned edits for a read-only source outside Lightroom bundles.
+    /// Re-register when reopening the source; this does not change source permissions.
+    pub fn register_read_only_store(source: &Path, support: &Path) {
+        store::register_read_only(source, support);
+    }
+
     /// Lightroom bundle components are immutable source locations.
     pub fn is_lightroom_owned(path: impl AsRef<Path>) -> bool {
         lightroom_root(path.as_ref()).is_some()
@@ -214,7 +220,7 @@ impl Sidecar {
     /// canonical-path alias for offline lookup. Ordinary edits remain adjacent.
     pub fn paths(image_path: impl AsRef<Path>) -> SidecarPaths {
         let image = image_path.as_ref();
-        if Self::is_lightroom_owned(image) {
+        if Self::is_lightroom_owned(image) || store::is_read_only(image) {
             return store::paths(image);
         }
         let mut xmp = image.as_os_str().to_os_string();

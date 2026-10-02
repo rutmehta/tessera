@@ -64,6 +64,8 @@ fn decoded() -> DecodedCapturedCfa {
             aperture: 4.0,
             focal_mm: 50.0,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width: 6,
             height: 4,

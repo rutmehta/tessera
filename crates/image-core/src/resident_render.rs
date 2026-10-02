@@ -480,6 +480,9 @@ impl Renderer {
     /// `level`: the level to render, when known. Texture/Clarity/Dehaze need a
     /// backend whole-level barrier that fits that level (any level when None).
     pub(super) fn supports_resident(&self, r: &Resolved<'_>, level: Option<u8>) -> bool {
+        if r.image.metadata().catalog_orientation.is_some() {
+            return false;
+        }
         if r.image.camera_linear_proxy().is_some() && level != Some(0) {
             return false;
         }

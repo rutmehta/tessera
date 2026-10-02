@@ -18,6 +18,7 @@ pub struct AdobeStageOp {
     native: Arc<dyn StageOp>,
     profile: Option<Arc<pipeline_adobe::dcp::DcpProfile>>,
     temperature: f32,
+    baseline_gain: f32,
     tint: engine_api::color::ColorMatrix3,
     counts: [AtomicU64; StageId::COUNT],
 }
@@ -28,6 +29,7 @@ impl AdobeStageOp {
             native,
             profile: None,
             temperature: 6504.,
+            baseline_gain: 1.,
             tint: engine_api::color::ColorMatrix3::IDENTITY,
             counts: Default::default(),
         }
@@ -74,7 +76,15 @@ impl AdobeStageOp {
                 * pipeline_cpu::white_balance_matrix(&neutral, camera_xyz, m.as_shot_wb)?
                     .inverse()?
         };
+        let baseline_gain = 2f32.powf(m.baseline_exposure);
+        if !baseline_gain.is_finite() || baseline_gain <= 0. {
+            return Err(engine_api::EngineError::invalid(
+                "BaselineExposure",
+                "finite positive gain required",
+            ));
+        }
         Ok(Self {
+            baseline_gain,
             profile: Some(profile),
             temperature,
             tint,
@@ -118,7 +128,8 @@ impl StageOp for AdobeStageOp {
             if let Some(profile) = &self.profile {
                 if stage == StageId::CameraProfile {
                     pipeline_cpu::map_rgb(&mut input, |p| {
-                        profile.apply_without_tone(p, self.temperature)
+                        profile
+                            .apply_without_tone(p.map(|v| v * self.baseline_gain), self.temperature)
                     })?;
                     return Ok(input);
                 }

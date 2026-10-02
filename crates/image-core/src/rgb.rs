@@ -139,16 +139,29 @@ impl RgbSource {
     /// EXIF orientation is consumed here exactly once, before renderer geometry.
     /// HEIC/HEIF uses ImageIO on macOS when the `imageio` feature is enabled.
     pub fn open(path: impl AsRef<Path>) -> EngineResult<Self> {
+        Self::open_with_orientation(path, None)
+    }
+
+    /// Catalog orientation replaces EXIF; it is never composed on top of it.
+    pub fn open_with_orientation(
+        path: impl AsRef<Path>,
+        orientation: Option<u16>,
+    ) -> EngineResult<Self> {
+        if orientation.is_some_and(|o| !(1..=8).contains(&o)) {
+            return Err(EngineError::invalid("catalog orientation", "expected 1..8"));
+        }
         let path = path.as_ref();
         let bytes = std::fs::read(path).map_err(|e| EngineError::io_at(path, &e))?;
         let mut input = std::io::Cursor::new(&bytes);
         if raw_decode::linear_dng::is_linear_dng(&mut input)
             .map_err(|e| EngineError::io_at(path, &e))?
         {
-            return Self::from_linear_dng(
-                raw_decode::linear_dng::read(&mut input)
-                    .map_err(|e| EngineError::io_at(path, &e))?,
-            );
+            let mut dng = raw_decode::linear_dng::read(&mut input)
+                .map_err(|e| EngineError::io_at(path, &e))?;
+            if let Some(orientation) = orientation {
+                dng.orientation = orientation;
+            }
+            return Self::from_linear_dng(dng);
         }
         let heic = path
             .extension()
@@ -199,7 +212,12 @@ impl RgbSource {
         } else {
             decoder.icc_profile().map_err(decode_error)?
         };
-        let orientation = decoder.orientation().map_err(decode_error)?;
+        let orientation = match orientation {
+            Some(value) => {
+                image::metadata::Orientation::from_exif(value as u8).expect("validated orientation")
+            }
+            None => decoder.orientation().map_err(decode_error)?,
+        };
         let mut decoded = image::DynamicImage::from_decoder(decoder).map_err(decode_error)?;
         decoded.apply_orientation(orientation);
         let decoded = decoded.to_rgb32f();

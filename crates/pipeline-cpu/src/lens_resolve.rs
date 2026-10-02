@@ -566,6 +566,8 @@ mod tests {
             aperture: 4.,
             focal_mm: 50.,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width,
             height,
