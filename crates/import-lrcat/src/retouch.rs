@@ -25,6 +25,7 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
     let lua = source["shape"] == "lua-values";
     let mut decoded = Vec::new();
     let mut cloud_keys = Vec::new();
+    let mut cloud_present = false;
     for key in ["RetouchAreas", "RetouchInfo", "RemoveAreas"] {
         let Some(raw) = properties.get(key).and_then(Value::as_str) else {
             continue;
@@ -39,6 +40,7 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
                 recipe.unknown.get("sidecar_xmp").and_then(Value::as_str),
             )
         };
+        cloud_present |= value.as_ref().is_some_and(has_cloud);
         if let Some((ops, cloud)) = value.and_then(operations) {
             if cloud { cloud_keys.push(key); }
             decoded.push((key, ops));
@@ -46,6 +48,8 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
     }
     if !cloud_keys.is_empty() {
         warnings.retain(|w| !cloud_keys.iter().any(|key| w.starts_with(&format!("{key}:")) || w.starts_with(&format!("crs:{key}:"))) && !w.starts_with("EnableDistractionRemoval:") && !w.starts_with("crs:EnableDistractionRemoval:"));
+    }
+    if cloud_present {
         crate::diagnostics::push_ignored(recipe, "GenerativeRemove", "LR-9b", "requires Adobe cloud; not translatable. Export rendered pixels from Lightroom to preserve generative removal.");
     }
     // Both names can describe the same edits. Prefer the modern nonempty list;
@@ -180,6 +184,14 @@ fn xml_value(node: roxmltree::Node<'_, '_>) -> Option<Value> {
         Some(Value::String(node.text().unwrap_or("").trim().into()))
     } else {
         Some(Value::Object(fields))
+    }
+}
+
+fn has_cloud(value: &Value) -> bool {
+    match value {
+        Value::Array(items) => items.iter().any(has_cloud),
+        Value::Object(fields) => fields.contains_key("pm_clio_model_version") || fields.get("spottype").and_then(Value::as_str) == Some("generative"),
+        _ => false,
     }
 }
 

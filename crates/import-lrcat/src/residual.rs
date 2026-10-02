@@ -41,6 +41,7 @@ pub const FEATURES: &[(&str, &str)] = &[
 pub(crate) fn explain(_recipe: &Recipe, warnings: &mut Vec<String>) {
     for warning in warnings.iter_mut() {
         let Some((key, detail)) = warning.trim_start_matches("crs:").split_once(':') else { continue; };
+        if detail.contains("requires Adobe PV3 or later") { continue; }
         let reason = FEATURES.iter().find_map(|(k,r)| (*k == key).then_some(*r));
         if let Some(reason) = reason {
             *warning = format!("crs:{key}: {reason}");
