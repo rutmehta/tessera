@@ -666,7 +666,14 @@ fn pair_measurement(a: &image::RgbImage, b: &image::RgbImage) -> Value {
     let orientation = alternatives
         .iter()
         .all(|p| difference(p) + 0.25 >= identity);
-    json!({"luminance_mad_8bit":identity,"orientation_aspect_match":orientation&&aspect})
+    let mean_rgb_delta: [f64; 3] = std::array::from_fn(|c| {
+        a.pixels()
+            .zip(b.pixels())
+            .map(|(a, b)| f64::from(a[c]) - f64::from(b[c]))
+            .sum::<f64>()
+            / 4096.
+    });
+    json!({"luminance_mad_8bit":identity,"mean_rgb_delta_8bit":mean_rgb_delta,"orientation_aspect_match":orientation&&aspect})
 }
 
 fn proxy_profile() -> std::result::Result<Value, u32> {
@@ -857,9 +864,31 @@ fn contact_thumbnail_preserves_non_square_aspect() {
 
 #[test]
 fn lr10_pair_metrics_report_signed_rgb_delta() {
-    let a=image::RgbImage::from_pixel(8,8,image::Rgb([30,40,50]));
-    let b=image::RgbImage::from_pixel(8,8,image::Rgb([10,50,40]));
-    let value=pair_measurement(&a,&b);
-    assert_eq!(value["mean_rgb_delta_8bit"],json!([20.,-10.,10.]));
-    assert!((value["luminance_mad_8bit"].as_f64().unwrap()-2.178).abs()<1e-8);
+    let a = image::RgbImage::from_pixel(8, 8, image::Rgb([30, 40, 50]));
+    let b = image::RgbImage::from_pixel(8, 8, image::Rgb([10, 50, 40]));
+    let value = pair_measurement(&a, &b);
+    assert_eq!(value["mean_rgb_delta_8bit"], json!([20., -10., 10.]));
+    assert!((value["luminance_mad_8bit"].as_f64().unwrap() - 2.178).abs() < 1e-8);
+}
+
+/// Recompute both metrics from already-captured contact pairs without rerendering.
+#[test]
+#[ignore = "numeric-only private contact metrics; requires TESSERA_LR10_MEASURE_DIR"]
+fn lr10_saved_contact_metrics_from_env() {
+    let directory = scratch_directory("TESSERA_LR10_MEASURE_DIR", false).unwrap();
+    let pairs: Vec<_> = (1..=12)
+        .map(|n| {
+            let rendered = image::open(directory.join(format!("{n:02}-tessera.png")))
+                .unwrap()
+                .into_rgb8();
+            let jpeg = std::fs::read(directory.join(format!("{n:02}-lightroom.jpg"))).unwrap();
+            let reference = crate::lrcat_fidelity::decode_preview(&jpeg).unwrap();
+            pair_measurement(&rendered, &reference)
+        })
+        .collect();
+    std::fs::write(
+        directory.join("metrics.json"),
+        json!({"pairs":pairs}).to_string(),
+    )
+    .unwrap();
 }
