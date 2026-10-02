@@ -1,3 +1,88 @@
+# LR-2f — Machine B handoff
+
+Branch: `wp/LR-2-tone-curves`; local only. Step 0 fetched and rebased successfully
+onto `origin/main` = `486d069f974ecd37cda2da36dbfd2dd007e06d18` (main had advanced
+past the supplied `e37de957`). Git replayed 17 lane commits without conflicts;
+rebased LR-2e HEAD was `031421f7`.
+
+## Requested-item audit
+
+1. **Already done by LR-2e:** the lane-local `check_approximate` is absent;
+   LR-DIAG's `check_rows` is the only row gate. Field comparisons already use
+   `n.field.as_deref() == Some(path)`.
+2. **Done in LR-2f:** replaced the diagnostic writer's key match and
+   `unreachable!` with `LR2_APPROXIMATE_FIELDS`, one explicit 21-entry key/path
+   table exported for the matrix gate. The writer iterates that table and emits
+   notes only for populated approximations; the matrix checks every table entry
+   against its documented path.
+3. **Done in LR-2f:** the production Lua matrix test asserts exactly 21 LR-2
+   approximate rows, table length 21, all keys present, and matching paths. It
+   continues to run the shared row gate against the actual importer.
+4. **Already done by LR-2e:** the three requested documents contain no stale
+   `required_schema_version_lr2` references.
+5. **Already done by LR-2e:** monochrome requires v4 when enabled or when its
+   disabled mixer is nonzero. The shared bumped-only-when-present test pins both
+   cases to 4; disabled zero stays at 3. No obsolete schema-3 pin remains.
+6. **Partly already done; reconciliation completed in LR-2f:** schema.rs is the
+   union of all four LR-7 predicates and all three LR-2 predicates, with both
+   lanes' tests. `sidecar/tests/roundtrip.rs` and `merge/tests/recipe.rs` are
+   byte-identical to main's LR-7 versions. Restored the full schema fixture
+   imports (`required_schema_version`, `v4_features_used`) and the fixture-wide
+   `v4_features_used(recipe).is_empty()` assertion weakened by LR-7d. Kept
+   LR-7's import feature test and added LR-2 import feature coverage including
+   disabled B&W with a nonzero mixer.
+
+## Tests first and commits
+
+- `bd6242dc` — test(LR-2f): matrix mapping/count and restored schema fixture
+  guard. RED release build failed with E0432 for the absent shared table.
+- `0737d1f7` — fix(LR-2f): shared key/path table. Focused release tests passed:
+  13 translation-matrix tests and 3 schema-version tests.
+- A final docs(LR-2f) commit records the gate results and reproduction script.
+
+All new commits carry the requested Claude Opus 5.5 co-author footer.
+RED/GREEN logs: `/tmp/lr2f-red.log`, `/tmp/lr2f-green.log`.
+
+## Final gates
+
+All gates passed (exit 0):
+
+- Requested package clean: 15,742 files / 3.3 GiB removed.
+- Full eight-package `cargo test --release --locked ... --no-fail-fast -- --nocapture`:
+  **1,409 passed, 0 failed, 49 ignored, 18 filtered instances**, across 217
+  test/doc-test targets. The command supplied no test-name filters or exclusions;
+  the filtered instances are reported by the existing harness. Release build:
+  12m 00s. No ignored benchmarks were enabled.
+- Broad-run Liquify 20 MP: **p95 7.3 ms**, median 6.2 ms, max 31.4 ms,
+  full-resolution apply 57 ms. Passed the unchanged **p95 < 250 ms** bound.
+- Serial release Liquify (`--exact --nocapture --test-threads=1`): **p95 4.7 ms**,
+  median 4.3 ms, max 6.3 ms, full-resolution apply 48 ms. Passed; 1 test,
+  14 filtered out. Both measurements are retained; no threshold changed.
+- `cargo clippy --locked` for all eight packages, `--all-targets -- -D warnings`:
+  **pass**.
+- `cargo fmt --all --check`: **pass**.
+- `git diff --check` and `bash -n tools/orchestrate/wp/LR-2/gates-f.sh`: **pass**.
+
+Logs: `/tmp/tessera-lr2f-gates/{clean,test,liquify-serial,clippy,fmt}.log`
+and `status.txt` (all four gate statuses zero). The host was loaded during
+validation (observed one-minute load averages about 42–74); no causal or
+cross-profile performance comparison is claimed.
+
+Reproduce with `bash tools/orchestrate/wp/LR-2/gates-f.sh`.
+The script uses the requested external target directory and three Cargo/Rayon
+threads, cleans import-lrcat, engine-api, sidecar and merge before testing, and
+runs all eight requested packages in RELEASE with no test-name exclusions.
+It captures the broad run and serial Liquify measurement separately, followed
+by all-target clippy with `-D warnings` and workspace fmt.
+
+No Cargo.lock, board.json, Swift, or app changes. The supplied untracked
+`LR-RULINGS-FROM-A.md` is untouched and unstaged. No push performed.
+
+---
+
+The following LR-2e handoff is historical; its hashes and gate results predate
+this rebase and the release-profile LR-2f validation above.
+
 # LR-2e — Machine B handoff
 
 Branch: `wp/LR-2-tone-curves`. Local only, no squash or push.
