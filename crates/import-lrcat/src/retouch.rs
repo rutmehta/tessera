@@ -52,23 +52,14 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
     if cloud_present {
         crate::diagnostics::push_ignored(recipe, "GenerativeRemove", "LR-9b", crate::residual::CLOUD_NOTE);
     }
-    // Both names can describe the same edits. Prefer the modern nonempty list;
-    // conflicting nonempty aliases remain opaque rather than applying twice.
-    if decoded.len() == 2
-        && !decoded[0].1.is_empty()
-        && !decoded[1].1.is_empty()
-        && decoded[0].1 != decoded[1].1
-    {
-        return Ok(());
-    }
-    let Some(ops) = decoded
-        .iter()
-        .find(|(_, ops)| !ops.is_empty())
-        .map(|(_, ops)| ops.clone())
-    else {
-        // Empty values do not justify altering previously retained recipes.
-        return Ok(());
-    };
+    // RetouchInfo is the legacy alias; the complete modern list is authoritative.
+    // RemoveAreas is independent and must be appended, never silently dropped.
+    let modern = decoded.iter().any(|(key, ops)| *key == "RetouchAreas" && !ops.is_empty());
+    let mut ops: Vec<_> = decoded.iter()
+        .filter(|(key,_)| *key != "RetouchInfo" || !modern)
+        .flat_map(|(_,ops)| ops.iter().cloned()).collect();
+    if ops.is_empty() { return Ok(()); }
+    for (i, op) in ops.iter_mut().enumerate() { op.id = RetouchId(i as u32 + 1); }
     recipe.settings.locals.retouch = ops;
     for (key, ops) in decoded {
         if ops.is_empty() {
@@ -76,7 +67,11 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         }
         let qualified = format!("crs:{key}");
         recipe.unknown.remove(&qualified);
-        warnings.retain(|w| !w.starts_with(&format!("{qualified}:")));
+        warnings.retain(|w| !w.starts_with(&format!("{qualified}:")) && !w.starts_with(&format!("{key}:")));
+        if key == "RetouchInfo" && modern {
+            crate::diagnostics::push_ignored(recipe, key, "LR-9b", "legacy retouch alias superseded by the complete modern RetouchAreas list");
+            continue;
+        }
         crate::diagnostics::push_approximate(
             recipe,
             key,
