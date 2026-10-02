@@ -189,19 +189,10 @@ impl Renderer {
             );
             (rgb, correction)
         };
-        let (point_groups, remaining_groups) = if settings
-            .color
-            .monochrome
-            .as_ref()
-            .is_some_and(|m| m.enabled)
-        {
-            pipeline_cpu::split_local_point_colors(&settings.locals.adjustments)
-        } else {
-            (
-                Vec::new(),
-                std::borrow::Cow::Borrowed(settings.locals.adjustments.as_slice()),
-            )
-        };
+        // One stage for local Point Color in every mode: see
+        // `pipeline_cpu::split_local_point_colors`.
+        let (point_groups, remaining_groups) =
+            pipeline_cpu::split_local_point_colors(&settings.locals.adjustments);
         let ops: &dyn StageOp = if settings.locals.retouch.is_empty()
             && !settings
                 .locals

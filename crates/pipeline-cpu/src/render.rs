@@ -343,19 +343,10 @@ fn render_linear_impl(
     if needs_m2 {
         // Remove masked sensor margins before estimating global airlight.
         rgb = rgb.downsample_crop(crop, 1)?;
-        let (point_groups, remaining_groups) = if settings
-            .color
-            .monochrome
-            .as_ref()
-            .is_some_and(|m| m.enabled)
-        {
-            crate::split_local_point_colors(&settings.locals.adjustments)
-        } else {
-            (
-                Vec::new(),
-                std::borrow::Cow::Borrowed(settings.locals.adjustments.as_slice()),
-            )
-        };
+        // One stage for local Point Color in every mode: see
+        // `pipeline_cpu::split_local_point_colors`.
+        let (point_groups, remaining_groups) =
+            crate::split_local_point_colors(&settings.locals.adjustments);
         if !point_groups.is_empty() {
             rgb = crate::locals_image(
                 &rgb,

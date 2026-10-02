@@ -232,11 +232,16 @@ fn s7_rgb_local_point_color_is_one_stage_before_curves_with_and_without_bw() {
         let cancel = engine_api::jobs::CancellationToken::new();
         let rgb = renderer.render_rgb_linear(&src, 0, &s, &cancel).unwrap();
         assert!(planes_difference(&rgb, &expected) < 2e-6, "bw={bw}");
+        // No tile cache: a cached f16 checkpoint would be compared with f32.
+        let uncached = image_core::Renderer::new(image_core::RendererConfig {
+            cache_budget_bytes: 0,
+            ..Default::default()
+        });
         let rect = image_core::PixelRect::full(src.active_extent());
-        let cpu = renderer
+        let cpu = uncached
             .render_region_as(&src, &s, 0, rect, image_core::RenderOutput::SceneLinear)
             .unwrap();
-        let selected = renderer.for_backend(std::sync::Arc::new(pipeline_gpu::GpuStageOp::new(
+        let selected = uncached.for_backend(std::sync::Arc::new(pipeline_gpu::GpuStageOp::new(
             gpu.clone(),
         )));
         let fallback = selected

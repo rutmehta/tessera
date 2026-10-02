@@ -789,19 +789,10 @@ impl Renderer {
         };
         let mut developed =
             pipeline_cpu::apply_retouch(wb, &settings.locals.retouch, self.retouch.as_deref())?;
-        let (point_groups, remaining_groups) = if settings
-            .color
-            .monochrome
-            .as_ref()
-            .is_some_and(|m| m.enabled)
-        {
-            pipeline_cpu::split_local_point_colors(&settings.locals.adjustments)
-        } else {
-            (
-                Vec::new(),
-                std::borrow::Cow::Borrowed(settings.locals.adjustments.as_slice()),
-            )
-        };
+        // One stage for local Point Color in every mode: see
+        // `pipeline_cpu::split_local_point_colors`.
+        let (point_groups, remaining_groups) =
+            pipeline_cpu::split_local_point_colors(&settings.locals.adjustments);
         let pre_curve = settings.color_before_curves();
         let post_curve = settings.color_after_curves();
         let mut point_effects = settings.effects.clone();
