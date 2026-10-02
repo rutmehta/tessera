@@ -877,7 +877,12 @@ impl Source {
             .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
             && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(path)?)?
         {
-            let mut proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng)?;
+            let profile = image_core::pipeline_adobe::dcp::read_embedded_profile(
+                &mut std::fs::File::open(path)?,
+            )
+            .map_err(failure)?;
+            let mut proxy =
+                pipeline_cpu::CameraLinearProxy::from_dng(dng)?.with_embedded_profile(profile);
             if let Some(orientation) = orientation {
                 proxy = proxy.with_catalog_orientation(orientation)?;
             }
@@ -1255,7 +1260,7 @@ impl Engine {
                     date: &item.date,
                     metadata: packet.as_ref(),
                 };
-                if export::needs_segmenter(&recipe) && segmenter.is_none() {
+                if export::needs_segmenter(&recipe) && !matches!(&image.source, pipeline_cpu::RenderSource::CameraLinear(p) if p.is_external_dng()) && segmenter.is_none() {
                     segmenter = Some(
                         export::mask_ai::load_segmenter(self.support_dir()?)
                             .map_err(|e| failure(format!("AI masks: {e}")))?,
@@ -1488,7 +1493,9 @@ impl Engine {
         let (recipe, _) = self.recipe_and_xmp(&item)?;
         let source = Source::open(&item.path, item.orientation)?;
         let crop = recipe.settings.geometry.crop.rect;
-        let segmenter = if export::needs_segmenter(&recipe) {
+        let segmenter = if export::needs_segmenter(&recipe)
+            && !matches!(source.render_source(), pipeline_cpu::RenderSource::CameraLinear(p) if p.is_external_dng())
+        {
             Some(
                 export::mask_ai::load_segmenter(self.support_dir()?)
                     .map_err(|e| failure(format!("AI masks: {e}")))?,

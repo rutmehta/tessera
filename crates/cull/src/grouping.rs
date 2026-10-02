@@ -71,7 +71,7 @@ pub fn dhash_jpeg(bytes: &[u8]) -> EngineResult<u64> {
             message: e.to_string(),
         })
 }
-fn preview_hash(info: &ImageInfo) -> EngineResult<Option<u64>> {
+pub fn preview_hash(info: &ImageInfo) -> EngineResult<Option<u64>> {
     let ext = info
         .path
         .extension()
@@ -135,7 +135,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         let mut hashes = vec![None; infos.len()];
         if options.near_duplicates && self.declared.is_none() {
             for (n, info) in infos.iter().enumerate() {
-                match preview_hash(info) {
+                match (self.preview_hash)(info) {
                     Ok(hash) => hashes[n] = hash,
                     Err(error) => errors.push((info.id, error)),
                 }
@@ -218,7 +218,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         let info = self.index.image_info(id)?;
         self.preview_errors.retain(|(e, _)| *e != id);
         let hash = if self.options.near_duplicates && self.declared.is_none() {
-            match preview_hash(&info) {
+            match (self.preview_hash)(&info) {
                 Ok(hash) => hash,
                 Err(error) => {
                     self.preview_errors.push((id, error));

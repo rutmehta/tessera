@@ -726,6 +726,28 @@ impl MaskShared {
         })
     }
 
+    /// Keep every available imported raster; missing optional rasters are skipped
+    /// by the external-proxy renderer without preventing the other local edits.
+    pub(crate) fn load_available_imported(
+        &self,
+        support: &std::path::Path,
+        settings: &DevelopSettings,
+    ) {
+        for component in settings
+            .locals
+            .adjustments
+            .iter()
+            .flat_map(|g| &g.components)
+            .flat_map(MaskComponent::active_leaves)
+        {
+            if let Some(imported) = component.adobe_ai.as_ref().and_then(|s| s.mask_key)
+                && let Some(key) = component_raster_key(component)
+            {
+                let _ = self.refresh_imported(support, &key, &imported);
+            }
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn load_imported(
         &self,
