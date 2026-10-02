@@ -2082,3 +2082,7 @@ mod lrcat_resume_tests {
 #[cfg(test)]
 #[path = "lrcat_mask_tests.rs"]
 mod lrcat_mask_tests;
+
+#[cfg(test)]
+#[path = "lrcat_depth_tests.rs"]
+mod depth_tests;

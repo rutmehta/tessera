@@ -5,7 +5,7 @@ use engine_api::recipe::{
 };
 use image_core::{
     Renderer, RendererConfig,
-    depth::DepthProvider,
+    depth::{DepthProvider, import_lens_blur_depth, imported_depth_key},
     ml_depth::{DepthMap, DepthStore},
 };
 use pipeline_cpu::Image;
@@ -25,7 +25,7 @@ fn input() -> Image {
     .unwrap()
 }
 fn recipe() -> Recipe {
-    let mut recipe = Recipe::default();
+    let mut recipe = Recipe::new(engine_api::id::ImageId(66));
     recipe
         .edit(
             engine_api::recipe::EditMeta {
@@ -76,19 +76,19 @@ fn imports_decodable_resource_into_store_and_uses_reference_after_reload() {
     let mut bytes = Cursor::new(Vec::new());
     gray.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
     let history = recipe.history.clone();
-    let depth = provider()
-        .prepare_lens_blur_depth(&mut recipe, &input(), &store, |id| {
-            assert_eq!(id, "opaque-table");
-            Some(bytes.get_ref().clone())
-        })
-        .unwrap();
+    let depth = import_lens_blur_depth(&mut recipe, (16, 16), &store, |id| {
+        assert_eq!(id, "opaque-table");
+        Some(bytes.get_ref().clone())
+    })
+    .unwrap()
+    .unwrap();
     assert_eq!(recipe.history.entries.len(), history.entries.len());
     assert_eq!(recipe.history.entries[0].meta, history.entries[0].meta);
     assert!((depth.inverse_depth()[0] - 191. / 255.).abs() < 1e-6);
     assert!((depth.inverse_depth()[255] - 64. / 255.).abs() < 1e-6);
     recipe.validate().unwrap();
     let json = recipe.to_json().unwrap();
-    let mut restored = Recipe::from_json(&json).unwrap();
+    let restored = Recipe::from_json(&json).unwrap();
     let state = restored
         .settings
         .effects
@@ -103,12 +103,6 @@ fn imports_decodable_resource_into_store_and_uses_reference_after_reload() {
         DepthMap::cached(&store, &state.mask_key.unwrap()).unwrap(),
         depth
     );
-    let cached = provider()
-        .prepare_lens_blur_depth(&mut restored, &input(), &store, |_| {
-            panic!("cache must precede resolver")
-        })
-        .unwrap();
-    assert_eq!(cached, depth);
     assert!(!String::from_utf8(json).unwrap().contains("inverse_depth"));
     let renderer =
         Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(temp.path())));
@@ -120,61 +114,59 @@ fn imports_decodable_resource_into_store_and_uses_reference_after_reload() {
 }
 
 #[test]
-fn corrupt_missing_and_wrong_extent_resources_regenerate_without_models() {
+fn corrupt_missing_and_wrong_extent_resources_remain_pending_without_inference() {
     for bytes in [
         None,
-        Some(b"proprietary undecodable helper".to_vec()),
-        Some({
-            let mut out = Cursor::new(Vec::new());
-            image::GrayImage::new(1, 1)
-                .write_to(&mut out, image::ImageFormat::Png)
-                .unwrap();
-            out.into_inner()
-        }),
+        Some(b"proprietary helper".to_vec()),
+        Some(png(1, 1, 128)),
     ] {
         let temp = tempfile::tempdir().unwrap();
-        let store = DepthStore::new(temp.path().join("previews/depth-cache"), 100000).unwrap();
-        let mut recipe = recipe();
-        let depth = provider()
-            .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| bytes.clone())
-            .unwrap();
-        assert_eq!(depth.inverse_depth()[0], 1.);
-        assert_eq!(depth.inverse_depth()[255], 0.);
+        let store = DepthStore::new(temp.path(), 100000).unwrap();
+        let mut r = recipe();
         assert!(
-            !recipe
-                .settings
-                .effects
-                .lens_blur
-                .as_ref()
+            import_lens_blur_depth(&mut r, (16, 16), &store, |_| bytes.clone())
                 .unwrap()
-                .depth
-                .as_ref()
-                .unwrap()
-                .regenerate
+                .is_none()
         );
-        recipe.validate().unwrap();
+        let state = r
+            .settings
+            .effects
+            .lens_blur
+            .as_ref()
+            .unwrap()
+            .depth
+            .as_ref()
+            .unwrap();
+        assert!(state.regenerate);
+        assert!(state.mask_key.is_none());
+        r.validate().unwrap();
     }
 }
 
+fn png(width: u32, height: u32, value: u8) -> Vec<u8> {
+    let mut bytes = Cursor::new(Vec::new());
+    image::GrayImage::from_pixel(width, height, image::Luma([value]))
+        .write_to(&mut bytes, image::ImageFormat::Png)
+        .unwrap();
+    bytes.into_inner()
+}
+
 #[test]
-fn failed_store_keeps_regeneration_pending() {
+fn failed_import_store_keeps_recipe_unchanged() {
     let temp = tempfile::tempdir().unwrap();
     let store = DepthStore::new(temp.path(), 1).unwrap();
-    let mut recipe = recipe();
-    let before = recipe.clone();
-    assert!(
-        provider()
-            .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| None)
-            .is_err()
-    );
-    assert_eq!(recipe, before);
+    std::fs::write(temp.path().join("pinned"), b"blocked directory").unwrap();
+    let mut r = recipe();
+    let before = r.clone();
+    assert!(import_lens_blur_depth(&mut r, (16, 16), &store, |_| Some(png(16, 16, 128))).is_err());
+    assert_eq!(r, before);
 }
 
 #[test]
 #[ignore = "paired synthetic import; tools/orchestrate/wp/LR-6/gate.sh supplies LR6_RECIPE"]
 fn synthetic_import_to_cpu_render() {
     let path = std::env::var_os("LR6_RECIPE").expect("run LR-6 gate script");
-    let mut recipe = Recipe::from_json(&std::fs::read(path).unwrap()).unwrap();
+    let recipe = Recipe::from_json(&std::fs::read(path).unwrap()).unwrap();
     recipe.validate().unwrap();
     assert_eq!(
         recipe
@@ -186,31 +178,15 @@ fn synthetic_import_to_cpu_render() {
             .focus_range,
         [0.2, 0.6]
     );
-    let temp = tempfile::tempdir().unwrap();
-    let store = DepthStore::new(temp.path().join("previews/depth-cache"), 100000).unwrap();
-    // First half lies inside imported focus range; second half is fully defocused.
     let depth = DepthMap::from_normalized_inverse(
         16,
         16,
         (0..256).map(|i| if i < 128 { 0.6 } else { 0. }).collect(),
     )
     .unwrap();
-    let provider = DepthProvider::from_map(depth);
-    let imported_history = recipe.history.clone();
-    provider
-        .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| None)
-        .unwrap();
-    assert_eq!(recipe.history.entries.len(), 1);
-    assert_eq!(
-        recipe.history.entries[0].meta,
-        imported_history.entries[0].meta
-    );
-    assert!(matches!(
-        recipe.history.entries[0].meta.author,
-        engine_api::recipe::Author::Import { .. }
-    ));
-    let renderer =
-        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(temp.path())));
+    let before = recipe.to_json().unwrap();
+    let renderer = Renderer::new(RendererConfig::default())
+        .with_depth(Arc::new(DepthProvider::from_map(depth.clone())));
     let out = renderer
         .apply_depth_effects(&input(), &recipe.settings)
         .unwrap();
@@ -221,13 +197,10 @@ fn synthetic_import_to_cpu_render() {
         contrast(&out.planes()[0][128..]) < 0.35,
         "at least 50% reduction of 0.7 input contrast"
     );
-    let saved = temp.path().join("recipe.json");
-    std::fs::write(&saved, recipe.to_json().unwrap()).unwrap();
-    drop(renderer);
-    drop(store);
-    let restored = Recipe::from_json(&std::fs::read(saved).unwrap()).unwrap();
-    let renderer =
-        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(temp.path())));
+    assert_eq!(recipe.to_json().unwrap(), before);
+    let restored = Recipe::from_json(&before).unwrap();
+    let renderer = Renderer::new(RendererConfig::default())
+        .with_depth(Arc::new(DepthProvider::from_map(depth)));
     let again = renderer
         .apply_depth_effects(&input(), &restored.settings)
         .unwrap();
@@ -251,67 +224,43 @@ fn synthetic_import_to_cpu_render() {
 }
 
 #[test]
-fn lr6c_renderer_reads_persisted_depth_without_estimating() {
-    let temp = tempfile::tempdir().unwrap();
-    let store = DepthStore::new(temp.path().join("previews/depth-cache"), 100000).unwrap();
-    let mut recipe = recipe();
-    provider()
-        .prepare_lens_blur_depth(&mut recipe, &input(), &store, |_| None)
-        .unwrap();
-    let restored = Recipe::from_json(&recipe.to_json().unwrap()).unwrap();
-    // The fallback has the wrong extent; only the persisted map can render.
-    let renderer =
-        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(temp.path())));
-    let actual = renderer
-        .apply_depth_effects(&input(), &restored.settings)
-        .unwrap();
-    let expected = Renderer::new(RendererConfig::default())
-        .with_depth(Arc::new(provider()))
-        .apply_depth_effects(&input(), &restored.settings)
-        .unwrap();
-    assert_eq!(actual.planes(), expected.planes());
-}
-
-#[test]
-fn lr6d_user_history_is_not_rewritten_by_depth_preparation() {
+fn imported_depth_survives_cache_eviction_and_user_edits() {
     let tmp = tempfile::tempdir().unwrap();
-    let store = DepthStore::new(tmp.path(), 100000).unwrap();
+    let store = DepthStore::new(tmp.path().join("previews/depth-cache"), 1100).unwrap();
     let mut r = recipe();
-    r.edit(engine_api::recipe::EditMeta::user("exposure", 1), |s| {
-        s.tone.exposure = 1.
-    })
-    .unwrap();
-    let before = r.clone();
-    provider()
-        .prepare_lens_blur_depth(&mut r, &input(), &store, |_| None)
+    let depth = import_lens_blur_depth(&mut r, (16, 16), &store, |_| Some(png(16, 16, 128)))
+        .unwrap()
         .unwrap();
-    assert_eq!(r, before);
-    r.validate().unwrap();
-}
-
-#[test]
-fn lr6d_imported_depth_survives_cache_eviction_and_reopen() {
-    let tmp = tempfile::tempdir().unwrap();
-    let store = DepthStore::new(tmp.path(), 1100).unwrap();
-    let mut r = recipe();
-    let raster = image::GrayImage::from_pixel(16, 16, image::Luma([128]));
-    let mut bytes = Cursor::new(Vec::new());
-    image::DynamicImage::ImageLuma8(raster)
-        .write_to(&mut bytes, image::ImageFormat::Png)
-        .unwrap();
-    let depth = provider()
-        .prepare_lens_blur_depth(&mut r, &input(), &store, |_| Some(bytes.get_ref().clone()))
-        .unwrap();
-    let key = depth.resource_key();
+    let key = imported_depth_key(r.image_id.unwrap());
     for i in 0..3 {
         DepthMap::from_normalized_inverse(16, 16, vec![i as f32 / 3.; 256])
             .unwrap()
             .store(&store, &[i; 32])
             .unwrap();
     }
-    drop(store);
-    let store = DepthStore::new(tmp.path(), 1100).unwrap();
+    r.edit(engine_api::recipe::EditMeta::user("exposure", 1), |s| {
+        s.tone.exposure = 1.
+    })
+    .unwrap();
+    let mut restored = Recipe::from_json(&r.to_json().unwrap()).unwrap();
     assert_eq!(DepthMap::cached(&store, &key), Some(depth));
+    let renderer =
+        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(tmp.path())));
+    assert!(
+        renderer
+            .apply_depth_effects(&input(), &restored.settings)
+            .is_ok()
+    );
+    let before = restored.clone();
+    assert!(
+        import_lens_blur_depth(&mut restored, (16, 16), &store, |_| panic!(
+            "must reject user head before resolution"
+        ))
+        .is_err()
+    );
+    assert_eq!(restored, before);
+    store.remove_pinned(&key).unwrap();
+    assert!(DepthMap::cached(&store, &key).is_none());
 }
 
 #[test]
@@ -343,8 +292,8 @@ fn lr6e_reimport_replaces_one_pin_per_image_and_user_edits_keep_it() {
         image::GrayImage::from_pixel(16, 16, image::Luma([value]))
             .write_to(&mut bytes, image::ImageFormat::Png)
             .unwrap();
-        provider()
-            .prepare_lens_blur_depth(&mut r, &input(), &store, |_| Some(bytes.get_ref().clone()))
+        import_lens_blur_depth(&mut r, (16, 16), &store, |_| Some(bytes.get_ref().clone()))
+            .unwrap()
             .unwrap();
         let key = r
             .settings
@@ -389,4 +338,40 @@ fn lr6e_reimport_replaces_one_pin_per_image_and_user_edits_keep_it() {
         );
     }
     assert_eq!(keys[0], keys[1], "ownership key is stable across reimport");
+}
+
+#[test]
+fn lr6e_unresolved_reimport_removes_only_the_images_previous_pin() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = DepthStore::new(tmp.path(), 1).unwrap();
+    for id in [66, 67] {
+        let mut r = recipe();
+        r.image_id = Some(engine_api::id::ImageId(id));
+        import_lens_blur_depth(&mut r, (16, 16), &store, |_| Some(png(16, 16, 128))).unwrap();
+    }
+    let mut r = recipe();
+    assert!(
+        import_lens_blur_depth(&mut r, (16, 16), &store, |_| None)
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        r.settings
+            .effects
+            .lens_blur
+            .as_ref()
+            .unwrap()
+            .depth
+            .as_ref()
+            .unwrap()
+            .regenerate
+    );
+    assert!(DepthMap::cached(&store, &imported_depth_key(engine_api::id::ImageId(66))).is_none());
+    assert!(DepthMap::cached(&store, &imported_depth_key(engine_api::id::ImageId(67))).is_some());
+    assert_eq!(
+        std::fs::read_dir(tmp.path().join("pinned"))
+            .unwrap()
+            .count(),
+        1
+    );
 }
