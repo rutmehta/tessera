@@ -6,18 +6,9 @@ fn lightroom_smart_preview_libraw_decode() {
         eprintln!("smart preview sample not supplied; opt-in decode check skipped");
         return;
     };
-    // Exercise LibRaw directly: a linear RGB DNG is not a CFA mosaic, so the
-    // CFA-only RawSource decode API is not an appropriate format probe.
-    let Ok(mut raw) = libraw_ffi::RawFile::open(path) else {
-        panic!("decodes: no, dimensions: unavailable");
-    };
-    let info = raw.sensor_info();
-    assert!(
-        raw.unpack().is_ok(),
-        "decodes: no, dimensions: {}x{}",
-        info.width,
-        info.height
-    );
-    assert!(info.width > 0 && info.height > 0);
-    eprintln!("decodes: yes, dimensions: {}x{}", info.width, info.height);
+    let decoded = std::fs::File::open(path).ok()
+        .and_then(|mut file| raw_decode::lossy_dng::read(&mut file).ok().flatten())
+        .expect("decodes: no, dimensions: unavailable");
+    assert!(!decoded.pixels.is_empty());
+    eprintln!("decodes: yes, dimensions: {}x{}", decoded.width, decoded.height);
 }
