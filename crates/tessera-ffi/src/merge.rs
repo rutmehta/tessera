@@ -480,6 +480,23 @@ impl Engine {
 }
 
 pub(crate) fn load_linear(source: &PhotoSource) -> Result<(LinearImage, Option<hdr::Exposure>)> {
+    if let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(&source.path)?)? {
+        // Merge consumes unbalanced camera RGB. The Smart Preview is already
+        // normalized and demosaiced; sending it to LibRaw loses JXL support.
+        let wb = dng.metadata.as_shot_wb;
+        let image = LinearImage {
+            width: dng.width,
+            height: dng.height,
+            pixels: dng.pixels,
+            color_matrix: std::array::from_fn(|i| dng.metadata.cam_xyz[i].map(f64::from)),
+            as_shot_neutral: std::array::from_fn(|i| f64::from(wb[1] / wb[i])),
+        };
+        image.validate().map_err(failure)?;
+        return Ok((
+            orient_linear(image, source.orientation)?,
+            Some(hdr::Exposure::from_metadata(&dng.metadata)),
+        ));
+    }
     if let Ok(dng) = raw_decode::linear_dng::read(&mut std::fs::File::open(&source.path)?) {
         return Ok((
             orient_linear(
@@ -720,4 +737,29 @@ fn merge_images(
         image = thumbnail(&image, 512);
     }
     Ok((image, recipe, warnings))
+}
+
+#[cfg(test)]
+mod proxy_source_tests {
+    #[test]
+    fn lr13_merge_input_accepts_jxl_linearraw_and_catalog_orientation() {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../raw-decode/tests/fixtures/linear-gradient-jxl.dng");
+        let base = super::PhotoSource {
+            id: String::new(),
+            path: path.clone(),
+            orientation: 1,
+        };
+        let (a, _) = super::load_linear(&base).unwrap();
+        let rotated = super::PhotoSource {
+            id: String::new(),
+            path,
+            orientation: 6,
+        };
+        let (b, _) = super::load_linear(&rotated).unwrap();
+        assert_eq!((a.width, a.height), (b.height, b.width));
+        assert_eq!(a.pixels.len(), b.pixels.len());
+        a.validate().unwrap();
+        b.validate().unwrap();
+    }
 }
