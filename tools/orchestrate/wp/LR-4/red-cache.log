@@ -1,0 +1,22 @@
+     Running tests/mask_cache.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/mask_cache-5bae06a2223e23f6)
+
+running 1 test
+test lr4_nested_ranges_hash_the_actual_rgb ... FAILED
+
+failures:
+
+---- lr4_nested_ranges_hash_the_actual_rgb stdout ----
+
+thread 'lr4_nested_ranges_hash_the_actual_rgb' (52954523) panicked at crates/image-core/tests/mask_cache.rs:191:5:
+assertion `left == right` failed
+  left: [1.0, 1.0]
+ right: [0.0, 0.0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4_nested_ranges_hash_the_actual_rgb
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p image-core --test mask_cache`

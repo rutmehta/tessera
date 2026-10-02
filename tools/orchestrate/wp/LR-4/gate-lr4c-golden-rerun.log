@@ -1,0 +1,29 @@
+   Compiling psd v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/psd)
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/typography)
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/engine-api)
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/index)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/sidecar)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 8.87s
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/golden-efbefade07d8a759)
+
+running 2 tests
+test streaming_matches_import_and_plan_json_is_byte_identical ... ok
+test synthetic_catalog_output_including_retained_source ... golden digest: d1e21ee791640b841af3c07a02fba3f44714834c9d780e3c00026af21bda3ecd
+
+thread 'synthetic_catalog_output_including_retained_source' (55964725) panicked at crates/import-lrcat/tests/golden.rs:30:5:
+assertion `left == right` failed
+  left: "d1e21ee791640b841af3c07a02fba3f44714834c9d780e3c00026af21bda3ecd"
+ right: "d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    synthetic_catalog_output_including_retained_source
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.70s
+
+error: test failed, to rerun pass `-p import-lrcat --test golden`

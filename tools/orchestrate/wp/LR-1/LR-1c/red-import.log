@@ -1,0 +1,106 @@
+   Compiling syn v3.0.6
+   Compiling cc v1.5.1
+   Compiling crc32fast v1.5.2
+   Compiling bytemuck v1.25.2
+   Compiling simd-adler32 v0.3.10
+   Compiling miniz_oxide v0.9.1
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling syn v2.0.119
+   Compiling tiny-skia-path v0.11.4
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.21
+   Compiling flate2 v1.1.10
+   Compiling euclid v0.22.14
+   Compiling smallvec v1.16.2
+   Compiling zerocopy-derive v0.8.59
+   Compiling blake3 v1.8.7
+   Compiling vcpkg v0.2.15
+   Compiling lyon_geom v1.0.19
+   Compiling libsqlite3-sys v0.38.2
+   Compiling lyon_path v1.0.19
+   Compiling rustybuzz v0.20.1
+   Compiling zerocopy v0.8.59
+   Compiling lyon_algorithms v1.0.21
+   Compiling lyon_tessellation v1.0.22
+   Compiling lyon v1.0.19
+   Compiling kurbo v0.11.3
+   Compiling psd v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/psd)
+   Compiling tiny-skia v0.11.4
+   Compiling foldhash v0.2.0
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/typography)
+   Compiling hashbrown v0.17.1
+   Compiling vector v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/vector)
+   Compiling half v2.7.1
+   Compiling anyhow v1.0.104
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/engine-api)
+   Compiling hashlink v0.12.2
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling same-file v1.0.6
+   Compiling fallible-iterator v0.3.0
+   Compiling mutate_once v0.1.2
+   Compiling kamadak-exif v0.6.1
+   Compiling walkdir v2.5.0
+   Compiling image v0.25.10
+   Compiling rusqlite v0.40.2
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/index)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/library)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/sidecar)
+   Compiling roxmltree v0.20.0
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/import-lrcat)
+    Finished `release` profile [optimized] target(s) in 46.09s
+     Running tests/point_colors.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/point_colors-e31d2c61ef2bcf27)
+
+running 12 tests
+test point_color_success_has_no_unsupported_warning ... ok
+test point_color_skips_placeholder_among_real_records ... FAILED
+test point_color_requires_pv3_or_later ... ok
+test point_color_defaults_missing_ranges ... ok
+test point_color_lua_maps_shifts_and_all_feathers_with_exact_source ... FAILED
+test point_color_explicit_lua_array_indices_translate_without_losing_order ... FAILED
+test point_color_xmp_numeric_sequence_matches_lua ... FAILED
+test lr1c_shared_approximation_diagnostics_and_single_combined_import ... FAILED
+test point_color_list_extensions_and_mixed_invalid_items_are_retained ... ok
+test point_color_resource_wrapper_extensions_are_not_discarded ... ok
+test point_color_partial_or_unknown_shape_stays_atomic_and_retained ... ok
+test point_color_units_multiple_points_and_native_roundtrip ... ok
+
+failures:
+
+---- point_color_skips_placeholder_among_real_records stdout ----
+
+thread 'point_color_skips_placeholder_among_real_records' (58131148) panicked at crates/import-lrcat/tests/point_colors.rs:171:22:
+no entry found for key
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- point_color_lua_maps_shifts_and_all_feathers_with_exact_source stdout ----
+
+thread 'point_color_lua_maps_shifts_and_all_feathers_with_exact_source' (58131144) panicked at crates/import-lrcat/tests/point_colors.rs:25:22:
+no entry found for key
+
+---- point_color_explicit_lua_array_indices_translate_without_losing_order stdout ----
+
+thread 'point_color_explicit_lua_array_indices_translate_without_losing_order' (58131142) panicked at crates/import-lrcat/tests/point_colors.rs:116:22:
+no entry found for key
+
+---- point_color_xmp_numeric_sequence_matches_lua stdout ----
+
+thread 'point_color_xmp_numeric_sequence_matches_lua' (58131151) panicked at crates/import-lrcat/tests/point_colors.rs:34:22:
+no entry found for key
+
+---- lr1c_shared_approximation_diagnostics_and_single_combined_import stdout ----
+
+thread 'lr1c_shared_approximation_diagnostics_and_single_combined_import' (58131140) panicked at crates/import-lrcat/tests/point_colors.rs:198:14:
+shared PointColors diagnostic
+
+
+failures:
+    lr1c_shared_approximation_diagnostics_and_single_combined_import
+    point_color_explicit_lua_array_indices_translate_without_losing_order
+    point_color_lua_maps_shifts_and_all_feathers_with_exact_source
+    point_color_skips_placeholder_among_real_records
+    point_color_xmp_numeric_sequence_matches_lua
+
+test result: FAILED. 7 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p import-lrcat --test point_colors`

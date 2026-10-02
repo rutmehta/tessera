@@ -55,6 +55,23 @@ pub enum LandscapeClass {
     ArtificialGround,
 }
 
+/// Luminance coordinates used by a range mask. Legacy recipes use linear light.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LuminanceDomain {
+    /// Linear Rec.2020 luminance (the legacy Tessera operator).
+    #[default]
+    Linear,
+    /// sRGB display encoding of Rec.2020 luminance (Adobe imports).
+    Display,
+}
+
+impl LuminanceDomain {
+    fn is_linear(&self) -> bool {
+        *self == Self::Linear
+    }
+}
+
 /// What a mask component selects.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -147,9 +164,12 @@ pub enum MaskKind {
         /// Strokes.
         strokes: Vec<BrushStroke>,
     },
-    /// Luminance range.
+    /// Luminance range, evaluated before geometry.
     LuminanceRange {
-        /// `[low, high]` in `0..=1`.
+        /// Coordinate domain; absent preserves legacy linear semantics and bytes.
+        #[serde(default, skip_serializing_if = "LuminanceDomain::is_linear")]
+        luminance_domain: LuminanceDomain,
+        /// `[low, high]` in the selected luminance domain, `0..=1`.
         range: [f32; 2],
         /// Smoothness, `0..=100`.
         #[serde(default)]
@@ -225,7 +245,19 @@ pub enum MaskCombine {
 /// One component of a composite mask.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaskComponent {
-    /// What to select.
+    /// Disabled components do not seed or participate in composition.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub enabled: bool,
+    /// Nested composition, when present, replaces `kind`. Older readers ignore
+    /// this field; imported groups use an empty brush as their fallback.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<Vec<MaskComponent>>,
+    /// Optional four-bound luminance band: [low-feather, low, high, high-feather].
+    /// Replaces the two-bound range/smoothness only on a luminance leaf.
+    /// Absent preserves the original operator and serialized bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub luminance_bounds: Option<[f32; 4]>,
+    /// What to select when `group` is absent.
     #[serde(flatten)]
     pub kind: MaskKind,
     /// Combination with previous components (ignored for the first).
@@ -237,10 +269,31 @@ pub struct MaskComponent {
 }
 
 impl MaskComponent {
+    /// Enabled leaves in source order. Nested wrappers override their fallback
+    /// kind; disabled wrappers suppress their entire subtree.
+    pub fn active_leaves(&self) -> impl Iterator<Item = &Self> {
+        let mut stack = vec![self];
+        std::iter::from_fn(move || {
+            while let Some(c) = stack.pop() {
+                if !c.enabled {
+                    continue;
+                }
+                if let Some(children) = &c.group {
+                    stack.extend(children.iter().rev());
+                } else {
+                    return Some(c);
+                }
+            }
+            None
+        })
+    }
     /// An additive, non-inverted component.
     pub fn new(kind: MaskKind) -> Self {
         Self {
             kind,
+            enabled: true,
+            group: None,
+            luminance_bounds: None,
             combine: MaskCombine::Add,
             invert: false,
         }
@@ -308,6 +361,46 @@ pub struct LocalAdjustment {
     pub invert: bool,
     /// Parameters.
     pub params: LocalParams,
+}
+
+impl LocalAdjustment {
+    /// Bound recursive render work before allocating per-level alpha planes.
+    /// Includes disabled nodes so toggling cannot bypass structural limits.
+    pub fn validate_mask_tree(&self) -> crate::EngineResult<()> {
+        Self::validate_components(&self.components)
+    }
+
+    /// Validate a component tree, including retouch and disabled components.
+    pub fn validate_components(components: &[MaskComponent]) -> crate::EngineResult<()> {
+        let mut stack: Vec<_> = components.iter().map(|c| (c, 0usize, true)).collect();
+        let mut count = 0usize;
+        while let Some((c, depth, parent_enabled)) = stack.pop() {
+            count += 1;
+            if depth >= 8 || count > 65_536 {
+                return Err(crate::EngineError::invalid(
+                    "mask",
+                    "mask tree exceeds 8 levels or 65536 components",
+                ));
+            }
+            let enabled = parent_enabled && c.enabled;
+            if let Some(b) = c.luminance_bounds.filter(|_| enabled) {
+                if c.group.is_some()
+                    || !matches!(c.kind, MaskKind::LuminanceRange { .. })
+                    || b.iter().any(|v| !v.is_finite() || !(0. ..=1.).contains(v))
+                    || b.windows(2).any(|p| p[0] > p[1])
+                {
+                    return Err(crate::EngineError::invalid(
+                        "mask.luminance_bounds",
+                        "expected ordered four-bound luminance leaf in 0..=1",
+                    ));
+                }
+            }
+            if let Some(children) = &c.group {
+                stack.extend(children.iter().map(|c| (c, depth + 1, enabled)));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for LocalAdjustment {
@@ -398,4 +491,8 @@ fn hundred() -> f32 {
 
 fn yes() -> bool {
     true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }

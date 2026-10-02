@@ -201,7 +201,14 @@ fn mask_coverage(
     recipe: &Recipe,
     group: &LocalAdjustment,
 ) -> EngineResult<f32> {
-    if group.components.iter().any(|c| c.kind.is_ai()) {
+    group.validate_mask_tree()?;
+    if group.enabled
+        && group
+            .components
+            .iter()
+            .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+            .any(|c| c.kind.is_ai())
+    {
         return Err(unsupported(
             "AI mask components require inference/cache inputs absent from ToolCall; procedural masks are supported",
         ));
@@ -258,4 +265,28 @@ fn merge_style(target: &mut Value, patch: &Value, amount: f32, path: &str) -> En
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod lr4c_tests {
+    use super::*;
+    #[test]
+    fn lr4c_nested_ai_refused_before_preview_access() {
+        let g: LocalAdjustment = serde_json::from_value(serde_json::json!({"components":[{
+            "kind":"brush","strokes":[],"group":[{"kind":"subject"}]
+        }]}))
+        .unwrap();
+        let error = mask_coverage(
+            &PreviewCache::default(),
+            ImageId(1),
+            std::path::Path::new("/synthetic-absent-input.png"),
+            &Recipe::default(),
+            &g,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(error, EngineError::Unsupported { ref what } if what.contains("AI mask components")),
+            "{error}"
+        );
+    }
 }

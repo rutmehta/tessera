@@ -89,6 +89,7 @@ fn procedural_masks_and_composition_match_cpu() {
             feather: 57.,
         },
         MaskKind::LuminanceRange {
+            luminance_domain: Default::default(),
             range: [0.2, 0.6],
             smoothness: 49.,
         },
@@ -135,6 +136,9 @@ fn procedural_masks_and_composition_match_cpu() {
         g.amount = 137.;
         g.invert = true;
         g.components.push(MaskComponent {
+            enabled: true,
+            group: None,
+            luminance_bounds: None,
             kind: masks[0].clone(),
             combine,
             invert: true,
@@ -439,4 +443,21 @@ fn exposure_and_independent_identity() {
         })],
         1e-4,
     );
+}
+
+#[test]
+fn lr4e_linear_and_display_luminance_match_cpu() {
+    use engine_api::recipe::mask::LuminanceDomain;
+    for luminance_domain in [LuminanceDomain::Linear, LuminanceDomain::Display] {
+        let mut g = group(LocalParams {
+            exposure: 0.7,
+            ..Default::default()
+        });
+        g.components = vec![MaskComponent::new(MaskKind::LuminanceRange {
+            luminance_domain,
+            range: [0.4, 0.5],
+            smoothness: 12.,
+        })];
+        check(&[g], 2e-5);
+    }
 }

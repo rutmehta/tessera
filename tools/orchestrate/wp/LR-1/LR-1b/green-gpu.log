@@ -1,0 +1,8 @@
+     Running tests/m2_fallback.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/debug/deps/m2_fallback-2783eaf46628ff11)
+
+running 3 tests
+test curve_color_validation_and_neutral_bits ... ok
+test m2_tiles_and_image_barriers_match_cpu ... ok
+test point_color_render_routes_around_resident_gpu ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s

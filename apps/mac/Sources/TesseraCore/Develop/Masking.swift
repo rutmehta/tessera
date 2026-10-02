@@ -243,7 +243,7 @@ public struct MaskListState: Sendable {
 
     /// The brush component (paint target) of the selected group, if any.
     public var selectedBrushIndex: Int? {
-        selected?.components.lastIndex { $0.kind == .brush && $0.combine == .add && !$0.invert }
+        selected?.components.lastIndex { $0.enabled && $0.kind == .brush && $0.combine == .add && !$0.invert }
     }
 }
 
@@ -257,6 +257,7 @@ extension MaskComponentType {
         case .object: "cube"
         case .landscape: "mountain.2"
         case .depth: "square.3.layers.3d"
+        case .group: "square.stack.3d.up"
         case .linear: "square.bottomhalf.filled"
         case .radial: "circle.dashed.inset.filled"
         case .brush: "paintbrush.pointed"

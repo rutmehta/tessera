@@ -1,0 +1,52 @@
+     Running tests/point_colors.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/debug/deps/point_colors-6257a537cb61a37c)
+
+running 11 tests
+test point_color_defaults_missing_ranges ... FAILED
+test point_color_list_extensions_and_mixed_invalid_items_are_retained ... ok
+test point_color_explicit_lua_array_indices_translate_without_losing_order ... ok
+test point_color_lua_maps_shifts_and_all_feathers_without_pending_source ... ok
+test point_color_requires_pv3_or_later ... FAILED
+test point_color_resource_wrapper_extensions_are_not_discarded ... ok
+test point_color_skips_placeholder_among_real_records ... FAILED
+test point_color_success_has_no_unsupported_warning ... FAILED
+test point_color_partial_or_unknown_shape_stays_atomic_and_retained ... ok
+test point_color_xmp_numeric_sequence_matches_lua ... ok
+test point_color_units_multiple_points_and_native_roundtrip ... ok
+
+failures:
+
+---- point_color_defaults_missing_ranges stdout ----
+
+thread 'point_color_defaults_missing_ranges' (53685808) panicked at crates/import-lrcat/tests/point_colors.rs:146:5:
+assertion `left == right` failed: ["crs:PointColors: decode error (xmp): missing PointColors feather range; source preserved per property"]
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- point_color_requires_pv3_or_later stdout ----
+
+thread 'point_color_requires_pv3_or_later' (53685814) panicked at crates/import-lrcat/tests/point_colors.rs:159:5:
+assertion failed: r.settings.color.point_colors.is_empty()
+
+---- point_color_skips_placeholder_among_real_records stdout ----
+
+thread 'point_color_skips_placeholder_among_real_records' (53685816) panicked at crates/import-lrcat/tests/point_colors.rs:153:5:
+assertion `left == right` failed: ["crs:PointColors: decode error (xmp): PointColors sample/shift outside SDK range; retained in original XMP"]
+  left: 0
+ right: 1
+
+---- point_color_success_has_no_unsupported_warning stdout ----
+
+thread 'point_color_success_has_no_unsupported_warning' (53685817) panicked at crates/import-lrcat/tests/point_colors.rs:141:5:
+["Point Color: translated with an approximate SDR CPU HSL operator; signed/HDR pixels are unchanged; Adobe pixel parity is not established"]
+
+
+failures:
+    point_color_defaults_missing_ranges
+    point_color_requires_pv3_or_later
+    point_color_skips_placeholder_among_real_records
+    point_color_success_has_no_unsupported_warning
+
+test result: FAILED. 7 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p import-lrcat --test point_colors`

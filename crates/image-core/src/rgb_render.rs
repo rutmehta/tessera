@@ -193,10 +193,25 @@ impl Renderer {
                 StageId::Detail => run(Op::Detail(&settings.detail))?,
                 StageId::Tone => {
                     let toned = run(Op::Tone(&settings.tone))?;
+                    let toned = if settings
+                        .color
+                        .monochrome
+                        .as_ref()
+                        .is_some_and(|m| m.enabled)
+                    {
+                        self.ops.run_image(
+                            stage,
+                            &Op::Color(&settings.color_before_curves()),
+                            toned,
+                            cancel,
+                        )?
+                    } else {
+                        toned
+                    };
                     self.ops
                         .run_image(stage, &Op::ToneExtra(&settings.tone), toned, cancel)?
                 }
-                StageId::Color => run(Op::Color(&settings.color))?,
+                StageId::Color => run(Op::Color(&settings.color_after_curves()))?,
                 StageId::Locals => pipeline_cpu::locals_image(
                     &rgb,
                     &settings.locals.adjustments,

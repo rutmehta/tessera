@@ -1,0 +1,108 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling libm v0.2.16
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.6
+   Compiling serde v1.0.229
+   Compiling autocfg v1.5.1
+   Compiling serde_derive v1.0.229
+   Compiling arrayvec v0.7.8
+   Compiling num-traits v0.2.19
+   Compiling cfg-if v1.0.5
+   Compiling libc v0.2.189
+   Compiling crc32fast v1.5.2
+   Compiling version_check v0.9.5
+   Compiling slotmap v1.1.1
+   Compiling core_maths v0.1.1
+   Compiling memchr v2.8.3
+   Compiling shlex v2.0.1
+   Compiling zmij v1.0.23
+   Compiling simd-adler32 v0.3.10
+   Compiling find-msvc-tools v0.1.14
+   Compiling thiserror v2.0.21
+   Compiling log v0.4.34
+   Compiling bytemuck v1.25.2
+   Compiling euclid v0.22.14
+   Compiling smallvec v1.16.2
+   Compiling adler2 v2.0.1
+   Compiling miniz_oxide v0.9.1
+   Compiling cc v1.5.1
+   Compiling lyon_geom v1.0.19
+   Compiling lyon_path v1.0.19
+   Compiling ttf-parser v0.25.1
+   Compiling thiserror-impl v2.0.21
+   Compiling i_float v1.16.0
+   Compiling syn v2.0.119
+   Compiling zerocopy v0.8.59
+   Compiling strict-num v0.1.1
+   Compiling serde_json v1.0.151
+   Compiling arrayref v0.3.9
+   Compiling float_next_after v1.0.0
+   Compiling lyon_tessellation v1.0.22
+   Compiling zerocopy-derive v0.8.59
+   Compiling tiny-skia-path v0.11.4
+   Compiling i_shape v1.18.0
+   Compiling flate2 v1.1.10
+   Compiling memmap2 v0.9.11
+   Compiling lyon_algorithms v1.0.21
+   Compiling blake3 v1.8.7
+   Compiling tinyvec v1.13.3
+   Compiling unicode-ccc v0.4.0
+   Compiling itoa v1.0.18
+   Compiling i_tree v0.18.0
+   Compiling i_key_sort v0.10.3
+   Compiling unicode-script v0.5.8
+   Compiling unicode-bidi-mirroring v0.4.0
+   Compiling bitflags v2.13.2
+   Compiling unicode-properties v0.1.4
+   Compiling rustybuzz v0.20.1
+   Compiling i_overlay v4.5.2
+   Compiling fontdb v0.23.0
+   Compiling lyon v1.0.19
+   Compiling psd v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/psd)
+   Compiling tiny-skia v0.11.4
+   Compiling kurbo v0.11.3
+   Compiling quick-xml v0.38.4
+   Compiling unicode-linebreak v0.1.5
+   Compiling constant_time_eq v0.4.2
+   Compiling unicode-bidi v0.3.18
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/typography)
+   Compiling vector v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/vector)
+   Compiling half v2.7.1
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/engine-api)
+    Finished `release` profile [optimized] target(s) in 32.35s
+     Running tests/lr4_mask_schema.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_mask_schema-4d9cb8da2fd30b30)
+
+running 5 tests
+test lr4c_eight_levels_allowed_ninth_rejected ... ok
+test lr4_default_components_keep_legacy_json_bytes ... ok
+test lr4_extensions_roundtrip_and_older_readers_ignore_them ... ok
+test lr4e_luminance_domain_is_additive_and_roundtrips ... FAILED
+test lr4e_recipe_validate_rejects_ninth_level_even_when_disabled ... FAILED
+
+failures:
+
+---- lr4e_luminance_domain_is_additive_and_roundtrips stdout ----
+
+thread 'lr4e_luminance_domain_is_additive_and_roundtrips' (57804319) panicked at crates/engine-api/tests/lr4_mask_schema.rs:68:5:
+assertion `left == right` failed
+  left: Null
+ right: "display"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- lr4e_recipe_validate_rejects_ninth_level_even_when_disabled stdout ----
+
+thread 'lr4e_recipe_validate_rejects_ninth_level_even_when_disabled' (57804320) panicked at crates/engine-api/tests/lr4_mask_schema.rs:80:9:
+assertion `left == right` failed
+  left: true
+ right: false
+
+
+failures:
+    lr4e_luminance_domain_is_additive_and_roundtrips
+    lr4e_recipe_validate_rejects_ninth_level_even_when_disabled
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p engine-api --test lr4_mask_schema`

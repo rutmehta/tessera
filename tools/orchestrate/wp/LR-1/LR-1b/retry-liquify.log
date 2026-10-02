@@ -1,0 +1,19 @@
+
+running 1 test
+test brush_latency_on_a_20_megapixel_layer ... LIQUIFY 20MP (5472x3648, cell 16, proxy 1824x1216 /3): open 3247 ms; brush+preview per event median 330.3 ms, p95 595.2 ms, max 937.0 ms (brush 8.2 ms, preview 321.8 ms median); full-res apply 4663 ms
+
+thread 'brush_latency_on_a_20_megapixel_layer' (54789349) panicked at crates/tessera-ffi/tests/document_liquify_ui.rs:1064:5:
+brush latency p95 595.2 ms
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    brush_latency_on_a_20_megapixel_layer
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 67.27s
+
+real 67.45
+user 238.66
+sys 2.35

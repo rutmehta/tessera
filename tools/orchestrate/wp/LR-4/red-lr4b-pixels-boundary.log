@@ -1,0 +1,19 @@
+
+running 1 test
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+LR-4b Lua/XMP CPU maximum channel error 0; tolerance 1e-6
+
+thread 'lr4b_import_cpu_four_bounds_radial_and_subtypes' (54155357) panicked at crates/tessera-ffi/tests/lr4b_import_render.rs:65:13:
+maximum channel error: 0.25
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test lr4b_import_cpu_four_bounds_radial_and_subtypes ... FAILED
+
+failures:
+
+failures:
+    lr4b_import_cpu_four_bounds_radial_and_subtypes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

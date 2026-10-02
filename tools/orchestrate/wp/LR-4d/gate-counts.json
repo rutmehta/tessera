@@ -1,0 +1,84 @@
+{
+  "coverage": "completed compositor/filters/image-core suites plus clean remaining eight-crate run and doc-tests",
+  "packages_before_serial": {
+    "compositor": {
+      "passed": 330,
+      "failed": 0,
+      "ignored": 11
+    },
+    "filters": {
+      "passed": 153,
+      "failed": 0,
+      "ignored": 8
+    },
+    "image_core": {
+      "passed": 118,
+      "failed": 0,
+      "ignored": 2
+    },
+    "engine_api": {
+      "passed": 114,
+      "failed": 0,
+      "ignored": 0
+    },
+    "import_lrcat": {
+      "passed": 109,
+      "failed": 0,
+      "ignored": 1
+    },
+    "merge": {
+      "passed": 53,
+      "failed": 0,
+      "ignored": 1
+    },
+    "pipeline_cpu": {
+      "passed": 172,
+      "failed": 0,
+      "ignored": 3
+    },
+    "pipeline_gpu": {
+      "passed": 144,
+      "failed": 0,
+      "ignored": 13
+    },
+    "sidecar": {
+      "passed": 70,
+      "failed": 0,
+      "ignored": 0
+    },
+    "tessera_ffi": {
+      "passed": 583,
+      "failed": 2,
+      "ignored": 30
+    },
+    "tessera_mcp": {
+      "passed": 84,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "before_serial": {
+    "passed": 1930,
+    "failed": 2,
+    "ignored": 69
+  },
+  "serial_reruns": {
+    "liquify": {
+      "exit_code": 101,
+      "p95_ms": 322.6,
+      "limit_ms": 250.0
+    },
+    "export": {
+      "exit_code": 0,
+      "l2_frames": 118,
+      "frames": 120,
+      "render_p90_ms": 8.9,
+      "render_p90_limit_ms": 16.0
+    }
+  },
+  "combined_unique_after_serial": {
+    "passed": 1931,
+    "failed": 1,
+    "ignored": 69
+  }
+}

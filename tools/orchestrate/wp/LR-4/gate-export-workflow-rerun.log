@@ -1,0 +1,28 @@
+
+running 3 tests
+test gui_command_plans_keep_paths_as_literal_arguments ... ok
+test script_timeout_cancellation_empty_and_spawn_failure ... ok
+test validates_timeout_and_absolute_executable_paths ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+
+real 1.05
+user 0.60
+sys 0.00
+             6881280  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                 924  page reclaims
+                  60  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   6  voluntary context switches
+                 498  involuntary context switches
+            43594718  instructions retired
+            26736079  cycles elapsed
+             1933696  peak memory footprint

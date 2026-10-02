@@ -12,6 +12,9 @@ fn composition_and_inversion() {
         let mut g = group(linear());
         g.components[0].combine = MaskCombine::Subtract;
         g.components.push(MaskComponent {
+            enabled: true,
+            group: None,
+            luminance_bounds: None,
             kind: linear(),
             combine: op,
             invert: true,
@@ -102,6 +105,7 @@ fn luminance_and_depth_ranges() {
     let values = vec![0., 0.25, 0.5, 0.75, 1.];
     let i = Image::new(5, 1, vec![values.clone(); 3]).unwrap();
     let g = group(MaskKind::LuminanceRange {
+        luminance_domain: Default::default(),
         range: [0.5, 0.75],
         smoothness: 100.,
     });
@@ -218,6 +222,7 @@ fn guided_refinement_smooths_flat_guide_but_preserves_edges() {
     let constant = rasterize(
         &flat,
         &group(MaskKind::LuminanceRange {
+            luminance_domain: Default::default(),
             range: [0., 1.],
             smoothness: 0.,
         }),
@@ -291,6 +296,7 @@ fn rejects_invalid_options_and_geometry() {
             feather: 0.,
         },
         MaskKind::LuminanceRange {
+            luminance_domain: Default::default(),
             range: [0.8, 0.2],
             smoothness: 0.,
         },
@@ -483,6 +489,7 @@ fn depth_feather_and_hdr_luminance_are_not_clipped() {
         &rasterize(
             &i,
             &group(MaskKind::LuminanceRange {
+                luminance_domain: Default::default(),
                 range: [0., 1.],
                 smoothness: 0.,
             }),

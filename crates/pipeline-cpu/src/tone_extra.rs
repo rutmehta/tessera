@@ -63,16 +63,17 @@ fn prepare(input: &[f32], s: &ToneSettings) -> EngineResult<Option<(Parametric, 
         ));
     }
     let param = Parametric::new(s)?;
+    let selected = s.curves_extended.as_ref().unwrap_or(&s.curves);
     let curves = [
-        &s.curves.rgb,
-        &s.curves.red,
-        &s.curves.green,
-        &s.curves.blue,
-        &s.curves.luminance,
+        &selected.rgb,
+        &selected.red,
+        &selected.green,
+        &selected.blue,
+        &selected.luminance,
     ];
     let splines: Vec<_> = curves
         .iter()
-        .map(|c| Spline::new(c))
+        .map(|c| Spline::new_domain(c, s.curves_extended.is_some()))
         .collect::<EngineResult<_>>()?;
 
     if input.iter().any(|v| !v.is_finite()) {
@@ -115,7 +116,7 @@ fn apply(
             rgb[c] = splines[c + 1].linear(splines[0].linear(rgb[c]));
         }
         let y = luma(rgb);
-        if y > 0.0 {
+        if y > 0.0 || (s.curves_extended.is_some() && y < 0.0) {
             let gain = finite(splines[4].linear(y) / y);
             rgb = rgb.map(|v| finite(v * gain));
         } else if rgb.iter().all(|&v| v == 0.0) {
@@ -385,14 +386,18 @@ struct Spline {
     points: Vec<(f32, f32)>,
     slopes: Vec<f32>,
     identity: bool,
+    extended: bool,
 }
 impl Spline {
+    #[cfg(test)]
     fn new(c: &Curve) -> EngineResult<Self> {
+        Self::new_domain(c, false)
+    }
+    fn new_domain(c: &Curve, extended: bool) -> EngineResult<Self> {
         if c.0.iter().any(|p| {
             !p.x.is_finite()
                 || !p.y.is_finite()
-                || !(0.0..=1.0).contains(&p.x)
-                || !(0.0..=1.0).contains(&p.y)
+                || (!extended && (!(0.0..=1.0).contains(&p.x) || !(0.0..=1.0).contains(&p.y)))
         }) || c.0.windows(2).any(|p| p[1].x <= p[0].x || p[1].y < p[0].y)
         {
             return Err(EngineError::invalid(
@@ -400,11 +405,14 @@ impl Spline {
                 "finite ordered x and nondecreasing y in [0,1] required",
             ));
         }
+        if extended && c.0.len() == 1 {
+            return Err(EngineError::invalid("curve", "at least two knots required"));
+        }
         let mut points: Vec<_> = c.0.iter().map(|p| (p.x, p.y)).collect();
-        if points.is_empty() || points[0].0 > 0.0 {
+        if points.is_empty() || (!extended && points[0].0 > 0.0) {
             points.insert(0, (0.0, 0.0));
         }
-        if points.last().unwrap().0 < 1.0 {
+        if points.len() == 1 || (!extended && points.last().unwrap().0 < 1.0) {
             points.push((1.0, 1.0));
         }
         let d: Vec<_> = points
@@ -437,6 +445,7 @@ impl Spline {
             points,
             slopes,
             identity: c.is_identity(),
+            extended,
         })
     }
     fn eval(&self, x: f32) -> f32 {
@@ -447,8 +456,8 @@ impl Spline {
         if x >= last.0 {
             return x + last.1 - last.0;
         }
-        if x <= 0.0 {
-            return self.points[0].1 + x;
+        if x <= self.points[0].0 {
+            return self.points[0].1 + x - self.points[0].0;
         }
         let i = self.points.partition_point(|p| p.0 <= x).saturating_sub(1);
         let (x0, y0) = self.points[i];
@@ -463,8 +472,11 @@ impl Spline {
             .clamp(y0, y1)
     }
     fn linear(&self, v: f32) -> f32 {
-        if self.identity || v < 0.0 {
+        if self.identity || (!self.extended && v < 0.0) {
             v
+        } else if self.extended {
+            let y = self.eval(v.signum() * encode(v.abs()));
+            y.signum() * decode(y.abs())
         } else {
             decode(self.eval(encode(v)))
         }
@@ -880,4 +892,66 @@ mod tests {
         assert!((p[4] - 4.0).abs() < 1e-5);
         assert!(p.windows(2).all(|v| v[1] >= v[0]));
     }
+}
+
+#[cfg(test)]
+mod lr2b_tests {
+    use super::*;
+    use engine_api::tile::{Extent, TileCoord, TileLayout};
+    fn tile(x: f32) -> Tile {
+        Tile::from_samples(
+            TileCoord::new(0, 0, 0),
+            TileLayout {
+                extent: Extent::new(1, 1),
+                halo: 0,
+                channels: 3,
+            },
+            vec![x; 3],
+        )
+        .unwrap()
+    }
+    #[test]
+    fn lr2b_hdr_curve_renders_unclamped_control_point() {
+        let s: ToneSettings =
+            serde_json::from_str(r#"{"curves_extended":{"rgb":[{"x":0,"y":0},{"x":2,"y":3}]}}"#)
+                .unwrap();
+        let mut t = tile(decode(2.));
+        tone_extra(&mut t, &s).unwrap();
+        assert!((t.samples::<f32>().unwrap()[0] - decode(3.)).abs() < 0.0001);
+    }
+    #[test]
+    fn lr2b_legacy_exposure_and_brightness_are_separate_operators() {
+        let s: ToneSettings = serde_json::from_str(r#"{"legacy_pv2010":{"exposure":1}}"#).unwrap();
+        let mut t = tile(0.25);
+        crate::tone(&mut t, &s).unwrap();
+        assert_eq!(t.samples::<f32>().unwrap(), &[0.5; 3]);
+        let s: ToneSettings =
+            serde_json::from_str(r#"{"legacy_pv2010":{"brightness":100}}"#).unwrap();
+        let mut t = tile(1.);
+        crate::tone(&mut t, &s).unwrap();
+        assert_eq!(t.samples::<f32>().unwrap(), &[1.; 3]);
+        let mut t = tile(0.25);
+        crate::tone(&mut t, &s).unwrap();
+        assert!((t.samples::<f32>().unwrap()[0] - 0.4).abs() < 1e-6);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn lr2b_signed_luminance_curve_uses_hdr_domain() {
+    use engine_api::recipe::settings::{CurvePoint, ToneCurves};
+    let s = ToneSettings {
+        curves_extended: Some(ToneCurves {
+            luminance: Curve(vec![
+                CurvePoint { x: -2., y: -3. },
+                CurvePoint { x: 0., y: 0. },
+                CurvePoint { x: 2., y: 3. },
+            ]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let input = crate::Image::new(1, 1, vec![vec![-decode(2.)]; 3]).unwrap();
+    let out = tone_extra_image(&input, &s).unwrap();
+    assert!((out.planes()[0][0] + decode(3.)).abs() < 0.0001);
 }

@@ -18,6 +18,9 @@ fn refinement_cache_and_far_plane() {
     use engine_api::recipe::mask::*;
     let group = LocalAdjustment {
         components: vec![MaskComponent {
+            enabled: true,
+            group: None,
+            luminance_bounds: None,
             kind: MaskKind::Depth {
                 range: [0.9, 1.],
                 feather: 0.,

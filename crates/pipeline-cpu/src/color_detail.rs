@@ -8,11 +8,14 @@ use engine_api::{
 /// Perceptual colour in linear Rec.2020/D65; processes interior and halo.
 pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
     validate_tile(tile)?;
-    if !s.point_colors.is_empty() || s.lut.is_some() {
+    if s.lut.is_some() {
         return Err(engine_api::EngineError::invalid(
             "color",
-            "Point Color and LUT are not implemented in M2",
+            "LUT is not implemented in M2",
         ));
+    }
+    for point in &s.point_colors {
+        point.validate()?;
     }
     finite(&[
         s.vibrance,
@@ -33,10 +36,35 @@ pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
     ] {
         finite(&[w.hue, w.saturation, w.luminance])?;
     }
-    if s == &ColorSettings::default() {
+    if let Some(gray) = &s.monochrome {
+        let b = &gray.mixer;
+        finite(&[
+            b.red, b.orange, b.yellow, b.green, b.aqua, b.blue, b.purple, b.magenta,
+        ])?;
+    }
+    let mut base = s.clone();
+    base.point_colors.clear();
+    base.monochrome = None;
+    let only_points = base == ColorSettings::default();
+    if only_points
+        && s.point_colors.is_empty()
+        && !s.monochrome.as_ref().is_some_and(|gray| gray.enabled)
+    {
         return Ok(());
     }
-    crate::map_rgb(tile, |rgb| {
+    crate::map_rgb(tile, |mut rgb| {
+        let original = rgb;
+        for point in &s.point_colors {
+            rgb = crate::point_color::apply(rgb, point, original);
+        }
+        if let Some(gray) = &s.monochrome
+            && gray.enabled
+        {
+            rgb = grayscale(rgb, &gray.mixer);
+        }
+        if only_points {
+            return rgb;
+        }
         let [mut l, a, b] = to_lab(rgb);
         let mut c = a.hypot(b);
         let mut h = b.atan2(a).to_degrees().rem_euclid(360.0);
@@ -69,6 +97,43 @@ pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
         }
         from_lab(lab)
     })
+}
+
+/// Deterministic B&W approximation: linear Rec.2020 Y, modulated by the
+/// eight Adobe-named hue bands. Neutral colors are not affected by the mixer.
+/// Adobe's profile-dependent B&W algorithm is not replicated here.
+fn grayscale(rgb: [f32; 3], mixer: &engine_api::recipe::settings::HueBands) -> [f32; 3] {
+    let [r, g, b] = rgb;
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let span = max - min;
+    let y = 0.2627 * r + 0.6780 * g + 0.0593 * b;
+    if span <= 1e-7 || max <= 1e-7 {
+        return [y; 3];
+    }
+    let hue = (if max == r {
+        (g - b) / span
+    } else if max == g {
+        (b - r) / span + 2.
+    } else {
+        (r - g) / span + 4.
+    } * 60.)
+        .rem_euclid(360.);
+    const CENTERS: [f32; 9] = [0., 30., 60., 120., 180., 240., 270., 300., 360.];
+    let values = [
+        mixer.red,
+        mixer.orange,
+        mixer.yellow,
+        mixer.green,
+        mixer.aqua,
+        mixer.blue,
+        mixer.purple,
+        mixer.magenta,
+    ];
+    let i = (0..8).find(|&i| hue <= CENTERS[i + 1]).unwrap_or(7);
+    let t = (hue - CENTERS[i]) / (CENTERS[i + 1] - CENTERS[i]);
+    let amount = unit(values[i]) * (1. - t) + unit(values[(i + 1) % 8]) * t;
+    [y * (1. + amount * (span / max).clamp(0., 1.)); 3]
 }
 
 fn finite(values: &[f32]) -> EngineResult<()> {
@@ -586,7 +651,11 @@ mod tests {
         };
         assert!(color(&mut t, &c).is_err());
         c = ColorSettings::default();
-        c.point_colors.push(Default::default());
+        c.point_colors
+            .push(engine_api::recipe::settings::PointColor {
+                hue_shift: f32::NAN,
+                ..Default::default()
+            });
         assert!(color(&mut t, &c).is_err());
         c = ColorSettings::default();
         c.lut = Some(Default::default());

@@ -65,7 +65,7 @@ fn direct(kind: serde_json::Value) -> String {
     let out = masks::export_masks(&serde_json::to_value(&locals).unwrap()).unwrap();
     let t = xml::Tree::parse(&xml::packet(&out)).unwrap();
     let back: Vec<LocalAdjustment> =
-        serde_json::from_value(masks::import_masks(&t).unwrap()).unwrap();
+        serde_json::from_value(masks::import_masks(&t, true).unwrap()).unwrap();
     assert_eq!(back, locals);
     assert!(!out.contains("&quot;kind&quot;"));
     out
@@ -132,7 +132,7 @@ fn foreign(component: &str) -> String {
 #[test]
 fn direct_foreign_radial_rdf_description_attributes() {
     let t = xml::Tree::parse(&foreign(r#"<rdf:li><rdf:Description crs:What="Mask/CircularGradient" crs:Left="0.1" crs:Right="0.9" crs:Top="0.2" crs:Bottom="0.8" crs:Angle="23.5" crs:Feather="42.25" crs:MaskBlendMode="1" crs:MaskInverted="True"/></rdf:li>"#)).unwrap();
-    let v = masks::import_masks(&t).unwrap();
+    let v = masks::import_masks(&t, true).unwrap();
     assert_eq!(v[0]["components"][0]["combine"], "subtract");
     assert_eq!(v[0]["components"][0]["center"], json!([0.5, 0.5]));
     assert_eq!(v[0]["components"][0]["invert"], true);
@@ -142,11 +142,11 @@ fn direct_foreign_opaque_and_invalid_fail_atomically() {
     for c in [
         r#"<rdf:li crs:What="Mask/Future"/>"#,
         r#"<rdf:li crs:What="Mask/Paint"><crs:Dabs><rdf:Seq><rdf:li>opaque</rdf:li></rdf:Seq></crs:Dabs></rdf:li>"#,
-        r#"<rdf:li crs:What="Mask/Gradient" crs:MaskActive="False"/>"#,
+        r#"<rdf:li crs:What="Mask/Gradient" crs:MaskActive="not-a-boolean"/>"#,
         r#"<rdf:li crs:What="Mask/Gradient" crs:MaskBlendMode="999"/>"#,
         r#"<rdf:li crs:What="Mask/Gradient" crs:FullX="NaN"/>"#,
     ] {
-        assert!(masks::import_masks(&xml::Tree::parse(&foreign(c)).unwrap()).is_err());
+        assert!(masks::import_masks(&xml::Tree::parse(&foreign(c)).unwrap(), true).is_err());
     }
 }
 #[test]
@@ -168,7 +168,8 @@ fn direct_radial_foreign_edit_does_not_use_stale_geometry() {
         "<crs:Right>0.75</crs:Right>",
         "<crs:Right>0.875</crs:Right>",
     );
-    let back = masks::import_masks(&xml::Tree::parse(&xml::packet(&changed)).unwrap()).unwrap();
+    let back =
+        masks::import_masks(&xml::Tree::parse(&xml::packet(&changed)).unwrap(), true).unwrap();
     assert_eq!(back[0]["components"][0]["center"][0], json!(0.5625));
     assert_eq!(back[0]["components"][0]["radii"][0], json!(0.3125));
 }
@@ -189,4 +190,48 @@ fn pipeline_all_mask_kinds() {
     ] {
         roundtrip(c);
     }
+}
+
+#[test]
+fn lr4_optional_tree_and_disabled_fields_roundtrip() {
+    direct(json!({"kind":"brush","strokes":[],"enabled":false,"group":[
+        {"kind":"linear","start":[0.,0.],"end":[1.,0.],"enabled":false},
+        {"kind":"brush","strokes":[],"group":[
+            {"kind":"depth","range":[0.2,0.7],"feather":0.,"model":null,"combine":"intersect"},
+            {"kind":"color_range","samples":[[0.5,0.,0.]],"amount":10.},
+            {"kind":"brush","strokes":[{"points":[[0.5,0.5,1.]],"radius":0.1,"flow":100.,"feather":0.,"erase":false}]}
+        ]}
+    ]}));
+}
+
+#[test]
+fn lr4_arbitrary_legacy_fallback_survives_native_roundtrip() {
+    direct(json!({"kind":"linear","start":[0.1,0.2],"end":[0.8,0.9],"group":[]}));
+}
+
+#[test]
+fn lr4b_four_bounds_native_xmp_roundtrip() {
+    let kind =
+        json!({"kind":"luminance_range","range":[0.25,0.5],"luminance_bounds":[0.,0.25,0.5,1.]});
+    let local: LocalAdjustment = serde_json::from_value(json!({"components":[kind]})).unwrap();
+    let mut recipe = Recipe::default();
+    recipe
+        .edit(Default::default(), |s| s.locals.adjustments = vec![local])
+        .unwrap();
+    let p = XmpPacket::from_recipe(&recipe, &Metadata::default(), &MarkPreset::default()).unwrap();
+    let r = p.to_recipe().unwrap().recipe;
+    assert_eq!(
+        serde_json::to_value(&r.settings.locals.adjustments[0].components[0]).unwrap()["luminance_bounds"],
+        json!([0., 0.25, 0.5, 1.])
+    );
+}
+
+#[test]
+fn lr4e_display_domain_survives_native_xmp_and_linear_omits_extension() {
+    let legacy = direct(json!({"kind":"luminance_range","range":[0.2,0.8],"smoothness":10}));
+    assert!(!legacy.contains("luminance_domain"));
+    let display = direct(
+        json!({"kind":"luminance_range","luminance_domain":"display","range":[0.2,0.8],"smoothness":10}),
+    );
+    assert!(display.contains("luminance_domain"));
 }

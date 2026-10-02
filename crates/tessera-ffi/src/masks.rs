@@ -76,6 +76,7 @@ impl From<MaskCombine> for MaskCombineMode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
 pub enum MaskComponentType {
+    Group,
     Subject,
     Sky,
     Background,
@@ -108,6 +109,7 @@ pub enum AiMaskState {
 
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct MaskComponentInfo {
+    pub enabled: bool,
     pub kind: MaskComponentType,
     pub combine: MaskCombineMode,
     pub invert: bool,
@@ -320,6 +322,14 @@ fn coord(v: f32) -> f32 {
 }
 
 fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
+    if !c.enabled {
+        return Some(c.clone());
+    }
+    if let Some(children) = &c.group {
+        let mut out = c.clone();
+        out.group = Some(children.iter().filter_map(renderable_component).collect());
+        return Some(out);
+    }
     let kind = match &c.kind {
         k @ (MaskKind::Subject { .. } | MaskKind::Sky { .. } | MaskKind::Background { .. }) => {
             k.clone()
@@ -376,10 +386,15 @@ fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
             }
             MaskKind::Brush { strokes }
         }
-        MaskKind::LuminanceRange { range, smoothness } => {
+        MaskKind::LuminanceRange {
+            range,
+            smoothness,
+            luminance_domain,
+        } => {
             let lo = finite_or(range[0], 0.0).clamp(0.0, 1.0);
             let hi = finite_or(range[1], 1.0).clamp(lo, 1.0);
             MaskKind::LuminanceRange {
+                luminance_domain: *luminance_domain,
                 range: [lo, hi],
                 smoothness: unit(*smoothness, 50.0),
             }
@@ -400,6 +415,9 @@ fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
         }
     };
     Some(MaskComponent {
+        enabled: c.enabled,
+        group: None,
+        luminance_bounds: c.luminance_bounds,
         kind,
         combine: c.combine,
         invert: c.invert,
@@ -422,10 +440,19 @@ pub(crate) fn window_locals(
     let (ox, oy) = (wx as f32 / ww.max(1) as f32, wy as f32 / wh.max(1) as f32);
     let map = |p: [f32; 2]| [p[0] * sx - ox, p[1] * sy - oy];
     let mut out = locals.clone();
-    out.adjustments
-        .retain(|g| !g.components.iter().any(|c| c.kind.is_ai()));
+    out.adjustments.retain(|g| {
+        !g.components
+            .iter()
+            .flat_map(MaskComponent::active_leaves)
+            .any(|c| c.kind.is_ai())
+    });
     for g in &mut out.adjustments {
-        for c in &mut g.components {
+        let mut stack: Vec<_> = g.components.iter_mut().collect();
+        while let Some(c) = stack.pop() {
+            if let Some(children) = &mut c.group {
+                stack.extend(children.iter_mut());
+                continue;
+            }
             match &mut c.kind {
                 MaskKind::Linear { start, end } => {
                     let d = [end[0] - start[0], end[1] - start[1]];
@@ -522,7 +549,11 @@ fn group_info(g: &LocalAdjustment, ai: &HashMap<String, AiEntry>) -> MaskGroupIn
             .components
             .iter()
             .map(|c| {
-                let key = ai_key(&c.kind);
+                let key = if c.group.is_none() && g.enabled && c.enabled {
+                    ai_key(&c.kind)
+                } else {
+                    None
+                };
                 let state = match &key {
                     None => AiMaskState::NotAi,
                     Some(k) => match ai.get(k) {
@@ -539,14 +570,28 @@ fn group_info(g: &LocalAdjustment, ai: &HashMap<String, AiEntry>) -> MaskGroupIn
                     },
                 };
                 MaskComponentInfo {
-                    kind: component_type(&c.kind),
+                    enabled: c.enabled,
+                    kind: if c.group.is_some() {
+                        MaskComponentType::Group
+                    } else {
+                        component_type(&c.kind)
+                    },
                     combine: c.combine.into(),
                     invert: c.invert,
-                    title: component_title(&c.kind),
-                    definition_json: serde_json::to_string(&c.kind).unwrap_or_default(),
+                    title: if c.group.is_some() {
+                        "Group".into()
+                    } else {
+                        component_title(&c.kind)
+                    },
+                    definition_json: if c.group.is_some() {
+                        serde_json::to_string(c)
+                    } else {
+                        serde_json::to_string(&c.kind)
+                    }
+                    .unwrap_or_default(),
                     ai: state,
                     ai_key: key,
-                    rendered: renderable_component(c).is_some(),
+                    rendered: g.enabled && c.enabled && renderable_component(c).is_some(),
                 }
             })
             .collect(),
@@ -561,6 +606,13 @@ fn group_info(g: &LocalAdjustment, ai: &HashMap<String, AiEntry>) -> MaskGroupIn
 }
 
 fn parse_kind(json: &str) -> Result<MaskKind> {
+    let component: MaskComponent =
+        serde_json::from_str(json).map_err(|e| failure(format!("mask definition: {e}")))?;
+    LocalAdjustment {
+        components: vec![component],
+        ..Default::default()
+    }
+    .validate_mask_tree()?;
     serde_json::from_str(json).map_err(|e| failure(format!("mask definition: {e}")))
 }
 
@@ -841,6 +893,7 @@ impl AiMaskJob {
                 .adjustments
                 .iter()
                 .flat_map(|g| &g.components)
+                .flat_map(MaskComponent::active_leaves)
                 .any(|c| ai_key(&c.kind).as_deref() == Some(&self.key));
             if uses && !st.closing && !st.closed {
                 // Rasters are part of the mask cache key: re-render.
@@ -983,6 +1036,7 @@ pub(crate) fn ensure_ai_jobs(shared: &Arc<Shared>, settings: &DevelopSettings) {
         .adjustments
         .iter()
         .flat_map(|g| &g.components)
+        .flat_map(MaskComponent::active_leaves)
         .filter_map(|c| ai_key(&c.kind).map(|k| (k, c.kind.clone())))
         .collect();
     if wanted.is_empty() {
@@ -1134,7 +1188,13 @@ fn thumbnail_raster(
     width: u32,
     height: u32,
 ) -> Option<Vec<f32>> {
-    if group.components.is_empty() || !group.components.iter().all(|c| c.kind.is_ai()) {
+    if group.components.is_empty()
+        || !group
+            .components
+            .iter()
+            .flat_map(MaskComponent::active_leaves)
+            .all(|c| c.kind.is_ai())
+    {
         return None;
     }
     let image =
@@ -1341,6 +1401,9 @@ impl DevelopSession {
         let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
         g.components.push(MaskComponent {
+            enabled: true,
+            group: None,
+            luminance_bounds: None,
             kind,
             combine: combine.into(),
             invert: false,
@@ -1505,7 +1568,11 @@ impl DevelopSession {
         };
         let g = find_group(&mut st.live.locals.adjustments, id)?;
         let index = match g.components.iter().rposition(|c| {
-            matches!(c.kind, MaskKind::Brush { .. }) && c.combine == MaskCombine::Add && !c.invert
+            c.enabled
+                && c.group.is_none()
+                && matches!(c.kind, MaskKind::Brush { .. })
+                && c.combine == MaskCombine::Add
+                && !c.invert
         }) {
             Some(i) => i,
             None if brush.erase => return Err(failure("this mask has no brush to erase from")),
@@ -1597,8 +1664,13 @@ impl DevelopSession {
                 amount: 12.0,
             },
             RangeKind::Luminance => {
-                let l = (0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]).max(0.0);
+                let luminance_domain = engine_api::recipe::mask::LuminanceDomain::Linear;
+                let l = pipeline_cpu::masks::luminance_in_domain(
+                    (0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]).max(0.0),
+                    luminance_domain,
+                );
                 MaskKind::LuminanceRange {
+                    luminance_domain,
                     range: [(l * 0.5).min(1.0), (l * 2.0).min(1.0)],
                     smoothness: 50.0,
                 }
@@ -1610,6 +1682,9 @@ impl DevelopSession {
                 find_group(&mut st.live.locals.adjustments, id)?
                     .components
                     .push(MaskComponent {
+                        enabled: true,
+                        group: None,
+                        luminance_bounds: None,
                         kind: component,
                         combine: combine.into(),
                         invert: false,
@@ -1726,6 +1801,9 @@ impl DevelopSession {
                 find_group(&mut st.live.locals.adjustments, id)?
                     .components
                     .push(MaskComponent {
+                        enabled: true,
+                        group: None,
+                        luminance_bounds: None,
                         kind,
                         combine: combine.into(),
                         invert: false,
@@ -1922,6 +2000,123 @@ mod tests {
     }
 
     #[test]
+    fn lr4c_luminance_picker_fully_selects_the_sampled_tone() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([64, 64, 64]))
+            .save(photos.join("gray.png"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        let session = engine.clone().open_develop_session(id.clone()).unwrap();
+        let rgb = session.sample_prelocal(0.5, 0.5).unwrap();
+        session
+            .add_range_mask(None, RangeKind::Luminance, 0.5, 0.5, MaskCombineMode::Add)
+            .unwrap();
+        let group = session.shared.lock().unwrap().live.locals.adjustments[0].clone();
+        let image = pipeline_cpu::Image::new(1, 1, rgb.map(|v| vec![v]).to_vec()).unwrap();
+        assert_eq!(
+            pipeline_cpu::masks::rasterize(&image, &group, Default::default()).unwrap(),
+            vec![1.]
+        );
+        let before = session.shared.lock().unwrap().live.clone();
+        let mut c = serde_json::json!({"kind":"brush","strokes":[]});
+        for _ in 1..9 {
+            c = serde_json::json!({"kind":"brush","strokes":[],"group":[c]});
+        }
+        let patch = serde_json::json!({"locals":{"adjustments":[{"components":[c]}]}});
+        assert!(session.set_settings(patch.to_string(), false).is_err());
+        assert_eq!(session.shared.lock().unwrap().live, before);
+        session.close().unwrap();
+        let original = engine.get_recipe(id.clone()).unwrap();
+        let mut recipe: engine_api::recipe::Recipe = serde_json::from_str(&original).unwrap();
+        recipe.settings.locals.adjustments =
+            serde_json::from_value(patch["locals"]["adjustments"].clone()).unwrap();
+        recipe.history = Default::default();
+        recipe.history.base = recipe.settings.clone();
+        let error = engine
+            .set_recipe_json(id.clone(), serde_json::to_string(&recipe).unwrap())
+            .unwrap_err();
+        assert!(format!("{error}").contains("8 levels"));
+        assert_eq!(engine.get_recipe(id).unwrap(), original);
+    }
+    #[test]
+    fn lr4c_brush_painting_does_not_pick_disabled_brush() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([120, 80, 40]))
+            .save(photos.join("synthetic.png"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("db").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        let session = engine.clone().open_develop_session(id).unwrap();
+        {
+            let mut st = session.shared.edit_lock().unwrap();
+            st.live.locals.adjustments = serde_json::from_value(serde_json::json!([{"id":17,"components":[{"kind":"brush","strokes":[],"enabled":false}]}])).unwrap();
+        }
+        session
+            .begin_brush_stroke(
+                Some(17),
+                BrushSettings {
+                    radius: 0.1,
+                    feather: 0.,
+                    flow: 100.,
+                    erase: false,
+                },
+            )
+            .unwrap();
+        {
+            let st = session.shared.lock().unwrap();
+            let g = &st.live.locals.adjustments[0];
+            assert_eq!(g.components.len(), 2);
+            assert!(!g.components[0].enabled);
+            assert!(g.components[1].enabled);
+            assert!(
+                matches!(&g.components[0].kind, MaskKind::Brush { strokes } if strokes.is_empty())
+            );
+        }
+        session.close().unwrap();
+    }
+    #[test]
+    fn lr4c_group_info_distinguishes_disabled_and_nested_components() {
+        let g: LocalAdjustment = serde_json::from_value(serde_json::json!({"components":[
+            {"kind":"brush","strokes":[],"enabled":false},
+            {"kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]}
+        ]}))
+        .unwrap();
+        let info = group_info(&g, &HashMap::new());
+        assert!(!info.components[0].rendered);
+        assert_eq!(info.components[1].title, "Group");
+        assert!(info.components[1].definition_json.contains("group"));
+    }
+    #[test]
+    fn lr4c_bad_nested_child_preserves_valid_sibling() {
+        let g: LocalAdjustment = serde_json::from_value(serde_json::json!({"components":[
+            {"kind":"brush","strokes":[],"group":[
+                {"kind":"linear","start":[0,0],"end":[1,0]},
+                {"kind":"color_range","samples":[],"amount":10}]}]}))
+        .unwrap();
+        let sanitized = renderable_group(&g);
+        assert_eq!(sanitized.components.len(), 1);
+        assert_eq!(sanitized.components[0].group.as_ref().unwrap().len(), 1);
+    }
+    #[test]
     fn completed_ai_mask_job_does_not_revive_closed_session() {
         let dir = tempfile::tempdir().unwrap();
         let photos = dir.path().join("photos");
@@ -2001,6 +2196,40 @@ mod tests {
             "{raster:?}"
         );
         assert!(raster[0] < 0.1);
+    }
+
+    #[test]
+    fn lr4e_mask_setters_reject_ninth_level_before_discarding_extensions() {
+        let mut c = serde_json::json!({"kind":"brush","strokes":[]});
+        for _ in 1..8 {
+            c = serde_json::json!({"kind":"brush","strokes":[],"group":[c]});
+        }
+        assert!(parse_kind(&c.to_string()).is_ok());
+        c = serde_json::json!({"kind":"brush","strokes":[],"group":[c],"enabled":false});
+        assert!(parse_kind(&c.to_string()).is_err());
+    }
+
+    #[test]
+    fn lr4e_imported_mask_and_crop_share_sensor_frame_for_exif_6_and_8() {
+        let (recipe, _) = import_lrcat::lua_develop::parse(
+            r#"s={HasCrop=true,CropLeft=0.25,CropRight=0.75,CropTop=0.25,CropBottom=0.75,MaskGroupBasedCorrections={{CorrectionMasks={{What="Mask/Gradient",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}}"#, "15.4").unwrap();
+        let image = pipeline_cpu::Image::new(4, 4, vec![vec![0.2; 16]; 3]).unwrap();
+        let alpha = pipeline_cpu::masks::rasterize(
+            &image,
+            &recipe.settings.locals.adjustments[0],
+            Default::default(),
+        )
+        .unwrap();
+        let crop = recipe.settings.geometry.crop.rect;
+        for (orientation, expected) in [(6, [0.375, 0.625]), (8, [0.625, 0.375])] {
+            // Crop coordinates and mask coordinates are both pre-orientation.
+            let sensor = orient([0.25, 0.25], orientation);
+            let x = crop.left + sensor[0] * (crop.right - crop.left);
+            let y = crop.top + sensor[1] * (crop.bottom - crop.top);
+            assert_eq!([x, y], expected);
+            let pixel = ((y * 4.) as usize) * 4 + (x * 4.) as usize;
+            assert_eq!(alpha[pixel], 1. - x);
+        }
     }
 
     #[test]
@@ -2154,6 +2383,9 @@ mod tests {
             components: vec![
                 MaskComponent::new(subject.clone()),
                 MaskComponent {
+                    enabled: true,
+                    group: None,
+                    luminance_bounds: None,
                     kind: MaskKind::Linear {
                         start: [0.0, 0.0],
                         end: [0.0, 1.0],
@@ -2230,5 +2462,47 @@ mod tests {
         };
         let out = resample(&src, 4, 1);
         assert_eq!(out, vec![0.0, 0.25, 0.75, 1.0]);
+    }
+}
+
+#[cfg(test)]
+mod lr4_tests {
+    use super::*;
+    fn tree() -> LocalAdjustment {
+        let mut c = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+        c.group = Some(vec![MaskComponent::new(MaskKind::Linear {
+            start: [0.25, 0.],
+            end: [0.75, 0.],
+        })]);
+        LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        }
+    }
+    #[test]
+    fn lr4_renderable_tree_preserves_group_and_disabled_child() {
+        let mut g = tree();
+        g.components[0].group.as_mut().unwrap()[0].enabled = false;
+        assert_eq!(renderable_group(&g).components, g.components);
+    }
+    #[test]
+    fn lr4_window_coordinates_include_nested_leaves() {
+        let locals = LocalsSettings {
+            adjustments: vec![tree()],
+            ..Default::default()
+        };
+        let got = window_locals(
+            &locals,
+            engine_api::tile::Extent::new(100, 100),
+            (25, 0, 50, 100),
+        );
+        let child = &got.adjustments[0].components[0].group.as_ref().unwrap()[0];
+        assert_eq!(
+            child.kind,
+            MaskKind::Linear {
+                start: [0., 0.],
+                end: [1., 0.]
+            }
+        );
     }
 }

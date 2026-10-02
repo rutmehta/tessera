@@ -1,0 +1,23 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 0.81s
+     Running tests/lr4c_metadata.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4c_metadata-2c979c4490500830)
+
+running 2 tests
+test lr4c_documented_keys_each_admit_a_renderable_approximation ... ok
+test lr4c_neutral_mask_value_keeps_the_legacy_flat_envelope ... FAILED
+
+failures:
+
+---- lr4c_neutral_mask_value_keeps_the_legacy_flat_envelope stdout ----
+
+thread 'lr4c_neutral_mask_value_keeps_the_legacy_flat_envelope' (55972026) panicked at crates/import-lrcat/tests/lr4c_metadata.rs:34:5:
+assertion failed: !r.unknown.contains_key("lrcat_develop_diagnostics")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4c_neutral_mask_value_keeps_the_legacy_flat_envelope
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4c_metadata`

@@ -1,0 +1,64 @@
+     Running tests/lr4_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_masks-1373d77d42114499)
+
+running 9 tests
+test lr4_disabled_component_maps_without_losing_geometry ... ok
+test lr4_nil_untranslated_mask_key_still_has_exact_source ... FAILED
+test lr4_component_range_keeps_both_inversions ... ok
+test lr4_nested_group_preserves_order_and_operators ... ok
+test lr4_ignored_or_duplicate_fields_never_lose_source ... FAILED
+test lr4_group_range_intersects_the_whole_union ... ok
+test lr4_explicit_luminance_and_depth_bounds_translate ... ok
+test lr4_unknown_fields_and_types_keep_exact_source ... ok
+test lr4_opaque_brush_color_and_image_are_retained_atomically ... ok
+
+failures:
+
+---- lr4_nil_untranslated_mask_key_still_has_exact_source stdout ----
+
+thread 'lr4_nil_untranslated_mask_key_still_has_exact_source' (53095670) panicked at crates/import-lrcat/tests/lr4_masks.rs:132:5:
+assertion `left == right` failed
+  left: None
+ right: Some(String("nil"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- lr4_ignored_or_duplicate_fields_never_lose_source stdout ----
+
+thread 'lr4_ignored_or_duplicate_fields_never_lose_source' (53095668) panicked at crates/import-lrcat/tests/lr4_masks.rs:125:9:
+assertion failed: r.unknown.get("lrcat_develop_source").and_then(|v|
+                v.get("properties")).and_then(|v|
+            v.get("MaskGroupBasedCorrections")).is_some()
+
+
+failures:
+    lr4_ignored_or_duplicate_fields_never_lose_source
+    lr4_nil_untranslated_mask_key_still_has_exact_source
+
+test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4_masks`
+     Running tests/masks_complete.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/masks_complete-cf3bad3fd57d7c63)
+
+running 2 tests
+test lr4_arbitrary_legacy_fallback_survives_native_roundtrip ... FAILED
+test lr4_optional_tree_and_disabled_fields_roundtrip ... ok
+
+failures:
+
+---- lr4_arbitrary_legacy_fallback_survives_native_roundtrip stdout ----
+
+thread 'lr4_arbitrary_legacy_fallback_survives_native_roundtrip' (53095705) panicked at crates/sidecar/tests/masks_complete.rs:69:5:
+assertion `left == right` failed
+  left: [LocalAdjustment { id: MaskId(31), name: "native & foreign < >", enabled: false, components: [MaskComponent { enabled: true, group: Some([]), kind: Brush { strokes: [] }, combine: Add, invert: false }], amount: 137.12346, invert: false, params: LocalParams { exposure: 1.2345679, contrast: -17.12345, highlights: 23.12345, shadows: -43.12345, whites: 23.98765, blacks: -13.98765, temperature: -31.12345, tint: 13.98765, hue: 175.12346, saturation: 54.98765, texture: -26.12345, clarity: 34.98765, dehaze: -54.12345, sharpness: 76.98765, noise: 41.12345, moire: 12.98765, defringe: 43.12345, color_overlay: None } }, LocalAdjustment { id: MaskId(32), name: "native & foreign < >", enabled: true, components: [MaskComponent { enabled: true, group: Some([]), kind: Brush { strokes: [] }, combine: Subtract, invert: true }], amount: 137.12346, invert: true, params: LocalParams { exposure: 1.2345679, contrast: -17.12345, highlights: 23.12345, shadows: -43.12345, whites: 23.98765, blacks: -13.98765, temperature: -31.12345, tint: 13.98765, hue: 175.12346, saturation: 54.98765, texture: -26.12345, clarity: 34.98765, dehaze: -54.12345, sharpness: 76.98765, noise: 41.12345, moire: 12.98765, defringe: 43.12345, color_overlay: Some([217.12346, 63.98765]) } }, LocalAdjustment { id: MaskId(33), name: "native & foreign < >", enabled: false, components: [MaskComponent { enabled: true, group: Some([]), kind: Brush { strokes: [] }, combine: Intersect, invert: true }], amount: 137.12346, invert: true, params: LocalParams { exposure: 1.2345679, contrast: -17.12345, highlights: 23.12345, shadows: -43.12345, whites: 23.98765, blacks: -13.98765, temperature: -31.12345, tint: 13.98765, hue: 175.12346, saturation: 54.98765, texture: -26.12345, clarity: 34.98765, dehaze: -54.12345, sharpness: 76.98765, noise: 41.12345, moire: 12.98765, defringe: 43.12345, color_overlay: Some([217.12346, 63.98765]) } }]
+ right: [LocalAdjustment { id: MaskId(31), name: "native & foreign < >", enabled: false, components: [MaskComponent { enabled: true, group: Some([]), kind: Linear { start: [0.1, 0.2], end: [0.8, 0.9] }, combine: Add, invert: false }], amount: 137.12346, invert: false, params: LocalParams { exposure: 1.2345679, contrast: -17.12345, highlights: 23.12345, shadows: -43.12345, whites: 23.98765, blacks: -13.98765, temperature: -31.12345, tint: 13.98765, hue: 175.12346, saturation: 54.98765, texture: -26.12345, clarity: 34.98765, dehaze: -54.12345, sharpness: 76.98765, noise: 41.12345, moire: 12.98765, defringe: 43.12345, color_overlay: None } }, LocalAdjustment { id: MaskId(32), name: "native & foreign < >", enabled: true, components: [MaskComponent { enabled: true, group: Some([]), kind: Linear { start: [0.1, 0.2], end: [0.8, 0.9] }, combine: Subtract, invert: true }], amount: 137.12346, invert: true, params: LocalParams { exposure: 1.2345679, contrast: -17.12345, highlights: 23.12345, shadows: -43.12345, whites: 23.98765, blacks: -13.98765, temperature: -31.12345, tint: 13.98765, hue: 175.12346, saturation: 54.98765, texture: -26.12345, clarity: 34.98765, dehaze: -54.12345, sharpness: 76.98765, noise: 41.12345, moire: 12.98765, defringe: 43.12345, color_overlay: Some([217.12346, 63.98765]) } }, LocalAdjustment { id: MaskId(33), name: "native & foreign < >", enabled: false, components: [MaskComponent { enabled: true, group: Some([]), kind: Linear { start: [0.1, 0.2], end: [0.8, 0.9] }, combine: Intersect, invert: true }], amount: 137.12346, invert: true, params: LocalParams { exposure: 1.2345679, contrast: -17.12345, highlights: 23.12345, shadows: -43.12345, whites: 23.98765, blacks: -13.98765, temperature: -31.12345, tint: 13.98765, hue: 175.12346, saturation: 54.98765, texture: -26.12345, clarity: 34.98765, dehaze: -54.12345, sharpness: 76.98765, noise: 41.12345, moire: 12.98765, defringe: 43.12345, color_overlay: Some([217.12346, 63.98765]) } }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4_arbitrary_legacy_fallback_survives_native_roundtrip
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p sidecar --test masks_complete`
+error: 2 targets failed:
+    `-p import-lrcat --test lr4_masks`
+    `-p sidecar --test masks_complete`

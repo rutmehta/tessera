@@ -1,0 +1,1376 @@
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/write/file_write.cpp:78:3: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:    78 |   sprintf(th->date, "%04d:%02d:%02d %02d:%02d:%02d", t->tm_year + 1900,
+warning: libraw-ffi@0.1.0:       |   ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decompressors/losslessjpeg.cpp:24:9: warning: 'ZERO' macro redefined [-Wmacro-redefined]
+warning: libraw-ffi@0.1.0:    24 | #define ZERO(a) do { memset(a,0,sizeof(a));} while(0)
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decompressors/../../internal/libraw_cxx_defs.h:117:9: note: previous definition is here
+warning: libraw-ffi@0.1.0:   117 | #define ZERO(a) memset(&a, 0, sizeof(a))
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decompressors/losslessjpeg.cpp:375:17: warning: comparison of integers of different signs: 'int' and 'uint32_t' (aka 'unsigned int') [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   375 |           if (h >= tsize)
+warning: libraw-ffi@0.1.0:       |               ~ ^  ~~~~~
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/libraw_datastream.cpp:138:48: warning: unused parameter 'jpegdata' [-Wunused-parameter]
+warning: libraw-ffi@0.1.0:   138 | int LibRaw_abstract_datastream::jpeg_src(void *jpegdata)
+warning: libraw-ffi@0.1.0:       |                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/libraw_datastream.cpp:452:46: warning: unused parameter 'jpegdata' [-Wunused-parameter]
+warning: libraw-ffi@0.1.0:   452 | int LibRaw_buffer_datastream::jpeg_src(void *jpegdata)
+warning: libraw-ffi@0.1.0:       |                                              ^
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/integration/dngsdk_glue.cpp:527:33: warning: unused parameter 'p' [-Wunused-parameter]
+warning: libraw-ffi@0.1.0:   527 | void LibRaw::set_dng_host(void *p)
+warning: libraw-ffi@0.1.0:       |                                 ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/utils/open.cpp:476:11: warning: unused variable 'foveon_count' [-Wunused-const-variable]
+warning: libraw-ffi@0.1.0:   476 | const int foveon_count = sizeof(foveon_data) / sizeof(foveon_data[0]);
+warning: libraw-ffi@0.1.0:       |           ^~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/utils/thumb_utils.cpp:35:41: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:    35 |   if(INT64(T.theight) * INT64(T.twidth) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB)
+warning: libraw-ffi@0.1.0:       |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/utils/thumb_utils.cpp:38:42: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:    38 |   if (INT64(T.theight) * INT64(T.twidth) < 64ULL)
+warning: libraw-ffi@0.1.0:       |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/postprocessing/postprocessing_utils_dcrdefs.cpp:65:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:    65 |     sprintf(prof_desc.data(), "%s gamma %g toe slope %g", name[output_color - 1], floor(1000. / gamm[0] + .5) / 1000.,
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/postprocessing/mem_image.cpp:43:24: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:    43 |   if (INT64(T.tlength) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB)
+warning: libraw-ffi@0.1.0:       |       ~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:225:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   225 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:70:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    70 |     if (INT64(W)*INT64(H) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB) return LIBRAW_UNSUPPORTED_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:225:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   225 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:71:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    71 |     if (INT64(W)*INT64(H) < 64ULL)        return LIBRAW_NO_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:266:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   266 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:70:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    70 |     if (INT64(W)*INT64(H) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB) return LIBRAW_UNSUPPORTED_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:266:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   266 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:71:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    71 |     if (INT64(W)*INT64(H) < 64ULL)        return LIBRAW_NO_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:298:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   298 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:70:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    70 |     if (INT64(W)*INT64(H) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB) return LIBRAW_UNSUPPORTED_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:298:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   298 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:71:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    71 |     if (INT64(W)*INT64(H) < 64ULL)        return LIBRAW_NO_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:383:3: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   383 |                 THUMB_SIZE_CHECKWH(T.twidth, (INT64(T.theight)*INT64(o_bps)));
+warning: libraw-ffi@0.1.0:       |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:70:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    70 |     if (INT64(W)*INT64(H) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB) return LIBRAW_UNSUPPORTED_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:383:3: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   383 |                 THUMB_SIZE_CHECKWH(T.twidth, (INT64(T.theight)*INT64(o_bps)));
+warning: libraw-ffi@0.1.0:       |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:71:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    71 |     if (INT64(W)*INT64(H) < 64ULL)        return LIBRAW_NO_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: 8 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/decoders_libraw.cpp:894:2: warning: definition of implicit copy assignment operator for 'p1_row_info_t' is deprecated because it has a user-provided copy constructor [-Wdeprecated-copy-with-user-provided-copy]
+warning: libraw-ffi@0.1.0:   894 |         p1_row_info_t(const p1_row_info_t& q): row(q.row),offset(q.offset){}
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/sift_down.h:61:14: note: in implicit copy assignment operator for 'p1_row_info_t' first required here
+warning: libraw-ffi@0.1.0:    61 |     *__start = _Ops::__iter_move(__child_i);
+warning: libraw-ffi@0.1.0:       |              ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/make_heap.h:39:12: note: in instantiation of function template specialization 'std::__sift_down<std::_ClassicAlgPolicy, std::__less<void, void> &, p1_row_info_t *>' requested here
+warning: libraw-ffi@0.1.0:    39 |       std::__sift_down<_AlgPolicy>(__first, __comp_ref, __n, __first + __start);
+warning: libraw-ffi@0.1.0:       |            ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/partial_sort.h:41:8: note: in instantiation of function template specialization 'std::__make_heap<std::_ClassicAlgPolicy, std::__less<void, void> &, p1_row_info_t *>' requested here
+warning: libraw-ffi@0.1.0:    41 |   std::__make_heap<_AlgPolicy>(__first, __middle, __comp);
+warning: libraw-ffi@0.1.0:       |        ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/partial_sort.h:65:12: note: in instantiation of function template specialization 'std::__partial_sort_impl<std::_ClassicAlgPolicy, std::__less<void, void> &, p1_row_info_t *, p1_row_info_t *>' requested here
+warning: libraw-ffi@0.1.0:    65 |       std::__partial_sort_impl<_AlgPolicy>(__first, __middle, __last, static_cast<__comp_ref_type<_Compare> >(__comp));
+warning: libraw-ffi@0.1.0:       |            ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/sort.h:950:10: note: in instantiation of function template specialization 'std::__partial_sort<std::_ClassicAlgPolicy, std::__less<void, void>, p1_row_info_t *, p1_row_info_t *>' requested here
+warning: libraw-ffi@0.1.0:   950 |     std::__partial_sort<_AlgPolicy>(
+warning: libraw-ffi@0.1.0:       |          ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/sort.h:961:8: note: in instantiation of function template specialization 'std::__sort_impl<std::_ClassicAlgPolicy, std::__wrap_iter<p1_row_info_t *>, std::__less<void, void>>' requested here
+warning: libraw-ffi@0.1.0:   961 |   std::__sort_impl<_ClassicAlgPolicy>(std::move(__first), std::move(__last), __comp);
+warning: libraw-ffi@0.1.0:       |        ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/sort.h:967:8: note: in instantiation of function template specialization 'std::sort<std::__wrap_iter<p1_row_info_t *>, std::__less<void, void>>' requested here
+warning: libraw-ffi@0.1.0:   967 |   std::sort(__first, __last, __less<>());
+warning: libraw-ffi@0.1.0:       |        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/decoders_libraw.cpp:911:7: note: in instantiation of function template specialization 'std::sort<std::__wrap_iter<p1_row_info_t *>>' requested here
+warning: libraw-ffi@0.1.0:   911 |         std::sort(stripes.begin(), stripes.end());
+warning: libraw-ffi@0.1.0:       |              ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/olympus14.cpp:242:30: warning: comparison of integers of different signs: 'uint32_t' (aka 'unsigned int') and 'const int32_t' (aka 'const int') [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   242 |                 for (uint32_t col = 0; col < raw_width; col++)
+warning: libraw-ffi@0.1.0:       |                                        ~~~ ^ ~~~~~~~~~
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/load_mfbacks.cpp:534:45: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   534 |                         if (j == 0 || j == head[1] || k < 1 || k >= w0+w1)
+warning: libraw-ffi@0.1.0:       |                                                                ~ ^  ~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/load_mfbacks.cpp:541:10: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   541 |                         if (k < w0 + w1)
+warning: libraw-ffi@0.1.0:       |                             ~ ^ ~~~~~~~
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/fp_dng.cpp:361:21: warning: comparison of integers of different signs: 'int' and 'size_type' (aka 'unsigned long') [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   361 |   for (int i = 1; i < tiles.tBytes.size(); i++)
+warning: libraw-ffi@0.1.0:       |                   ~ ^ ~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/fp_dng.cpp:528:31: warning: comparison of integers of different signs: 'unsigned long long' and 'long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   528 |   if (pixcnt * sizeof(ushort) > INT64(imgdata.rawparams.max_raw_memory_mb) * 1024LL * 1024LL)
+warning: libraw-ffi@0.1.0:       |       ~~~~~~~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/fp_dng.cpp:560:24: warning: comparison of integers of different signs: 'size_t' (aka 'unsigned long') and 'INT64' (aka 'long long') [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   560 |   for (size_t i = 0; i < pixcnt; ++i)
+warning: libraw-ffi@0.1.0:       |                      ~ ^ ~~~~~~
+warning: libraw-ffi@0.1.0: 3 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/decoders_dcraw.cpp:545:14: warning: variable 'jhigh' set but not used [-Wunused-but-set-variable]
+warning: libraw-ffi@0.1.0:   545 |   int jwide, jhigh, jrow, jcol, val, jidx, i, j, row = 0, col = 0;
+warning: libraw-ffi@0.1.0:       |              ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:280:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   280 |           { 786432,   1024,  768, 0, 0,  0, 0,  0, 0x94, 0, 0, "AVT", "F-080C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:281:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   281 |           { 1447680,  1392, 1040, 0, 0,  0, 0,  0, 0x94, 0, 0, "AVT", "F-145C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:282:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   282 |           { 1920000,  1600, 1200, 0, 0,  0, 0,  0, 0x94, 0, 0, "AVT", "F-201C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:283:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   283 |           { 5067304,  2588, 1958, 0, 0,  0, 0,  0, 0x94, 0, 0, "AVT", "F-510C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:285:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   285 |           { 10134608, 2588, 1958, 0, 0,  0, 0,  9, 0x94, 0, 0, "AVT", "F-510C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:287:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   287 |           { 16157136, 3272, 2469, 0, 0,  0, 0,  9, 0x94, 0, 0, "AVT", "F-810C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:288:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   288 |           { 3995136,  1632, 1224, 0, 0,  0, 0,  8, 0x61, 0, 1, "AgfaPhoto", "DC-833m" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:289:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   289 |           { 15980544, 3264, 2448, 0, 0,  0, 0,  8, 0x61, 0, 1, "AgfaPhoto", "DC-833m" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:290:76: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   290 |           { 9631728,  2532, 1902, 0, 0,  0, 0, 96, 0x61, 0, 0, "Alcatel", "5035D" },
+warning: libraw-ffi@0.1.0:       |                                                                                   ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:291:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   291 |           { 31850496, 4608, 3456, 0, 0,  0, 0,  0, 0x94, 0, 0, "GITUP", "GIT2 4:3" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:292:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   292 |           { 23887872, 4608, 2592, 0, 0,  0, 0,  0, 0x94, 0, 0, "GITUP", "GIT2 16:9" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:293:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   293 |           { 32257024, 4624, 3488, 8, 2, 16, 2,  0, 0x94, 0, 0, "GITUP", "GIT2P 4:3" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:294:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   294 |           { 24192768, 4624, 2616, 8, 2, 16, 2,  0, 0x94, 0, 0, "GITUP", "GIT2P 16:9" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:295:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   295 |           { 18016000, 4000, 2252, 0, 0,  0, 0,  0, 0x94, 0, 0, "GITUP", "G3DUO 16:9" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:302:74: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   302 |           {  1540857, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "Samsung", "S3" },
+warning: libraw-ffi@0.1.0:       |                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:303:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   303 |           {  2658304, 1212, 1096,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G3FrontMipi" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:304:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   304 |           {  2842624, 1296, 1096,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G3FrontQCOM" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:305:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   305 |           {  2969600, 1976, 1200,   0, 0, 0, 0,  1, 0x16, 0, 0, "Xiaomi", "MI3wMipi" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:306:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   306 |           {  3170304, 1976, 1200,   0, 0, 0, 0,  1, 0x16, 0, 0, "Xiaomi", "MI3wQCOM" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:307:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   307 |           {  3763584, 1584, 1184,   0, 0, 0, 0, 96, 0x61, 0, 0, "I_Mobile", "I_StyleQ6" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:308:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   308 |           {  5107712, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "UltraPixel1" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:309:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   309 |           {  5382640, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "UltraPixel2" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:310:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   310 |           {  5664912, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "4688" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:311:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   311 |           {  5664912, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "4688" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:312:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   312 |           {  5364240, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "4688" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:313:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   313 |           {  6299648, 2592, 1944,   0, 0, 0, 0,  1, 0x16, 0, 0, "OmniVisi", "OV5648" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:314:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   314 |           {  6721536, 2592, 1944,   0, 0, 0, 0,  0, 0x16, 0, 0, "OmniVisi", "OV56482" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:315:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   315 |           {  6746112, 2592, 1944,   0, 0, 0, 0,  0, 0x16, 0, 0, "HTC", "OneSV" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:316:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   316 |           {  9631728, 2532, 1902,   0, 0, 0, 0, 96, 0x61, 0, 0, "Sony", "5mp" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:317:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   317 |           {  9830400, 2560, 1920,   0, 0, 0, 0, 96, 0x61, 0, 0, "NGM", "ForwardArt" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:318:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   318 |           { 10186752, 3264, 2448,   0, 0, 0, 0,  1, 0x94, 0, 0, "Sony", "IMX219-mipi 8mp" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:319:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   319 |           { 10223360, 2608, 1944,   0, 0, 0, 0, 96, 0x16, 0, 0, "Sony", "IMX" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:320:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   320 |           { 10782464, 3282, 2448,   0, 0, 0, 0,  0, 0x16, 0, 0, "HTC", "MyTouch4GSlide" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:321:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   321 |           { 10788864, 3282, 2448,   0, 0, 0, 0,  0, 0x16, 0, 0, "Xperia", "L" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:322:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   322 |           { 15967488, 3264, 2446,   0, 0, 0, 0, 96, 0x16, 0, 0, "OmniVison", "OV8850" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:323:74: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   323 |           { 16224256, 4208, 3082,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G3MipiL" },
+warning: libraw-ffi@0.1.0:       |                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:324:76: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   324 |           { 16424960, 4208, 3120,   0, 0, 0, 0,  1, 0x16, 0, 0, "IMX135", "MipiL" },
+warning: libraw-ffi@0.1.0:       |                                                                                   ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:325:74: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   325 |           { 17326080, 4164, 3120,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G3LQCom" },
+warning: libraw-ffi@0.1.0:       |                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:326:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   326 |           { 17522688, 4212, 3120,   0, 0, 0, 0,  0, 0x16, 0, 0, "Sony", "IMX135-QCOM" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:327:76: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   327 |           { 19906560, 4608, 3456,   0, 0, 0, 0,  1, 0x16, 0, 0, "Gione", "E7mipi" },
+warning: libraw-ffi@0.1.0:       |                                                                                   ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:328:69: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   328 |           { 19976192, 5312, 2988,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G4" },
+warning: libraw-ffi@0.1.0:       |                                                                            ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:329:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   329 |           { 20389888, 4632, 3480,   0, 0, 0, 0,  1, 0x16, 0, 0, "Xiaomi", "RedmiNote3Pro" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:330:85: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   330 |           { 20500480, 4656, 3496,   0, 0, 0, 0,  1, 0x94, 0, 0, "Sony", "IMX298-mipi 16mp" },
+warning: libraw-ffi@0.1.0:       |                                                                                            ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:331:76: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   331 |           { 21233664, 4608, 3456,   0, 0, 0, 0,  1, 0x16, 0, 0, "Gione", "E7qcom" },
+warning: libraw-ffi@0.1.0:       |                                                                                   ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:332:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   332 |           { 26023936, 4192, 3104,   0, 0, 0, 0, 96, 0x94, 0, 0, "THL", "5000" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:333:75: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   333 |           { 26257920, 4208, 3120,   0, 0, 0, 0, 96, 0x94, 0, 0, "Sony", "IMX214" },
+warning: libraw-ffi@0.1.0:       |                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:334:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   334 |           { 26357760, 4224, 3120,   0, 0, 0, 0, 96, 0x61, 0, 0, "OV", "13860" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:335:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   335 |           { 41312256, 5248, 3936,   0, 0, 0, 0, 96, 0x61, 0, 0, "Meizu", "MX4" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:336:75: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   336 |           { 42923008, 5344, 4016,   0, 0, 0, 0, 96, 0x61, 0, 0, "Sony", "IMX230" },
+warning: libraw-ffi@0.1.0:       |                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:340:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   340 |           {  6553440, 2664, 1968,   4,  4, 44,  4, 40, 0x94, 0, 2, "Canon", "PowerShot A460" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:341:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   341 |           {  9243240, 3152, 2346,  12,  7, 44, 13, 40, 0x49, 0, 2, "Canon", "PowerShot A470" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:342:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   342 |           {  6653280, 2672, 1992,  10,  6, 42,  2, 40, 0x94, 0, 2, "Canon", "PowerShot A530" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:343:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   343 |           {  6573120, 2672, 1968,  12,  8, 44,  0, 40, 0x94, 0, 2, "Canon", "PowerShot A610" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:344:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   344 |           {  9219600, 3152, 2340,  36, 12,  4,  0, 40, 0x94, 0, 2, "Canon", "PowerShot A620" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:345:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   345 |           { 10383120, 3344, 2484,  12,  6, 44,  6, 40, 0x94, 0, 2, "Canon", "PowerShot A630" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:346:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   346 |           { 12945240, 3736, 2772,  12,  6, 52,  6, 40, 0x94, 0, 2, "Canon", "PowerShot A640" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:347:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   347 |           { 15636240, 4104, 3048,  48, 12, 24, 12, 40, 0x94, 0, 2, "Canon", "PowerShot A650 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:348:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   348 |           { 10341600, 3336, 2480,   6,  5, 32,  3, 40, 0x94, 0, 2, "Canon", "PowerShot A720 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:349:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   349 |           { 24724224, 4704, 3504,   8, 16, 56,  8, 40, 0x49, 0, 2, "Canon", "PowerShot A3300 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:350:86: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   350 |           { 18763488, 4104, 3048,  10, 22, 82, 22,  8, 0x49, 0, 0, "Canon", "PowerShot D10" }, // ? chdk hack ?
+warning: libraw-ffi@0.1.0:       |                                                                                             ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:351:88: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   351 |           { 19493760, 4160, 3124, 104, 12,  8, 66, 40, 0x49, 0, 2,  "Canon", "PowerShot S100" }, // chdk hack CRW
+warning: libraw-ffi@0.1.0:       |                                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:352:88: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   352 |           {  7710960, 2888, 2136,  44,  8,  4,  0, 40, 0x94, 0, 2, "Canon", "PowerShot S3 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:353:88: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   353 |           {  5298000, 2400, 1766,  12, 12, 44,  2, 40, 0x94, 0, 2, "Canon", "PowerShot SD300" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:354:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   354 |           { 18653760, 4080, 3048,  24, 12, 24, 12, 40, 0x94, 0, 2, "Canon", "PowerShot SX20 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:355:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   355 |           { 21936096, 4464, 3276,  25, 10, 73, 12, 40, 0x16, 0, 2, "Canon", "PowerShot SX30 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:356:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   356 |           { 19167840, 4176, 3060,  96, 16,  8,  0, 40, 0x94, 0, 2, "Canon", "PowerShot SX40 HS" }, // chdk hack CR2
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:357:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   357 |           { 15467760, 3720, 2772,   6, 12, 30,  0, 40, 0x94, 0, 2, "Canon", "PowerShot SX110 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:358:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   358 |           { 15534576, 3728, 2778,  12,  9, 44,  9, 40, 0x94, 0, 2, "Canon", "PowerShot SX120 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:359:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   359 |           { 19131120, 4168, 3060,  92, 16,  4,  1, 40, 0x94, 0, 2, "Canon", "PowerShot SX220 HS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:360:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   360 |           { 31663200, 5344, 3950,  96, 18,  0,  0, 40, 0x94, 0, 2, "Canon", "PowerShot SX710 HS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:361:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   361 |           { 30858240, 5248, 3920,   8, 16, 56, 16, 40, 0x94, 0, 2, "Canon", "IXUS 160" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:362:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   362 |           {  1976352, 1632, 1211,   0,  2,  0,  1,  0, 0x94, 0, 1, "Casio", "QV-2000UX" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:363:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   363 |           {  3217760, 2080, 1547,   0,  0, 10,  1,  0, 0x94, 0, 1, "Casio", "QV-3*00EX" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:364:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   364 |           {  6218368, 2585, 1924,   0,  0,  9,  0,  0, 0x94, 0, 1, "Casio", "QV-5700" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:365:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   365 |           {  7816704, 2867, 2181,   0,  0, 34, 36,  0, 0x16, 0, 1, "Casio", "EX-Z60" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:366:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   366 |           {  2937856, 1621, 1208,   0,  0,  1,  0,  0, 0x94, 7, 13, "Casio", "EX-S20" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:367:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   367 |           {  4948608, 2090, 1578,   0,  0, 32, 34,  0, 0x94, 7, 1, "Casio", "EX-S100" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:368:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   368 |           {  6054400, 2346, 1720,   2,  0, 32,  0,  0, 0x94, 7, 1, "Casio", "QV-R41" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:369:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   369 |           {  7426656, 2568, 1928,   0,  0,  0,  0,  0, 0x94, 0, 1, "Casio", "EX-P505" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:370:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   370 |           {  7530816, 2602, 1929,   0,  0, 22,  0,  0, 0x94, 7, 1, "Casio", "QV-R51" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:371:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   371 |           {  7542528, 2602, 1932,   0,  0, 32,  0,  0, 0x94, 7, 1, "Casio", "EX-Z50" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:372:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   372 |           {  7562048, 2602, 1937,   0,  0, 25,  0,  0, 0x16, 7, 1, "Casio", "EX-Z500" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:373:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   373 |           {  7753344, 2602, 1986,   0,  0, 32, 26,  0, 0x94, 7, 1, "Casio", "EX-Z55" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:374:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   374 |           {  9313536, 2858, 2172,   0,  0, 14, 30,  0, 0x94, 7, 1, "Casio", "EX-P600" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:375:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   375 |           { 10834368, 3114, 2319,   0,  0, 27,  0,  0, 0x94, 0, 1, "Casio", "EX-Z750" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:376:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   376 |           { 10843712, 3114, 2321,   0,  0, 25,  0,  0, 0x94, 0, 1, "Casio", "EX-Z75" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:377:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   377 |           { 10979200, 3114, 2350,   0,  0, 32, 32,  0, 0x94, 7, 1, "Casio", "EX-P700" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:378:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   378 |           { 12310144, 3285, 2498,   0,  0,  6, 30,  0, 0x94, 0, 1, "Casio", "EX-Z850" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:379:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   379 |           { 12489984, 3328, 2502,   0,  0, 47, 35,  0, 0x94, 0, 1, "Casio", "EX-Z8" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:380:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   380 |           { 15499264, 3754, 2752,   0,  0, 82,  0,  0, 0x94, 0, 1, "Casio", "EX-Z1050" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:381:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   381 |           { 18702336, 4096, 3044,   0,  0, 24,  0, 80, 0x94, 7, 1, "Casio", "EX-ZR100" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:382:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   382 |           {  7684000, 2260, 1700,   0,  0,  0,  0, 13, 0x94, 0, 1, "Casio", "QV-4000" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:383:86: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   383 |           {   787456, 1024,  769,   0,  1,  0,  0,  0, 0x49, 0, 0, "Creative", "PC-CAM 600" },
+warning: libraw-ffi@0.1.0:       |                                                                                             ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:384:67: warning: missing field 't_model' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   384 |           { 28829184, 4384, 3288,   0,  0,  0,  0, 36, 0x61, 0, 0, "DJI" },
+warning: libraw-ffi@0.1.0:       |                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:385:70: warning: missing field 't_model' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   385 |           { 15151104, 4608, 3288,   0,  0,  0,  0,  0, 0x94, 0, 0, "Matrix" },
+warning: libraw-ffi@0.1.0:       |                                                                             ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:386:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   386 |           {  3840000, 1600, 1200,   0,  0,  0,  0, 65, 0x49, 0, 0, "Foculus", "531C" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:387:71: warning: missing field 't_model' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   387 |           {   307200,  640,  480,   0,  0,  0,  0,  0, 0x94, 0, 0, "Generic" },
+warning: libraw-ffi@0.1.0:       |                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:388:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   388 |           {    62464,  256,  244,   1,  1,  6,  1,  0, 0x8d, 0, 0, "Kodak", "DC20" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:389:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   389 |           {   124928,  512,  244,   1,  1, 10,  1,  0, 0x8d, 0, 0, "Kodak", "DC20" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:390:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   390 |           {  1652736, 1536, 1076,   0, 52,  0,  0,  0, 0x61, 0, 0, "Kodak", "DCS200" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:391:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   391 |           {  4159302, 2338, 1779,   1, 33,  1,  2,  0, 0x94, 0, 0, "Kodak", "C330" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:393:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   393 |           {  2247168, 1232,  912,   0,  0, 16,  0,  0, 0x00, 0, 0, "Kodak", "C330" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:394:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   394 |           {  3370752, 1232,  912,   0,  0, 16,  0,  0, 0x00, 0, 0, "Kodak", "C330" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:395:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   395 |           {  6163328, 2864, 2152,   0,  0,  0,  0,  0, 0x94, 0, 0, "Kodak", "C603" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:397:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   397 |           {   460800,  640,  480,   0,  0,  0,  0,  0, 0x00, 0, 0, "Kodak", "C603" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:398:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   398 |           {  9116448, 2848, 2134,   0,  0,  0,  0,  0, 0x00, 0, 0, "Kodak", "C603" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:399:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   399 |           { 12241200, 4040, 3030,   2,  0,  0, 13,  0, 0x49, 0, 0, "Kodak", "12MP" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:401:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   401 |           { 18000000, 4000, 3000,   0,  0,  0,  0,  0, 0x00, 0, 0, "Kodak", "12MP" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:402:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   402 |           {   614400,  640,  480,   0,  3,  0,  0, 64, 0x94, 0, 0, "Kodak", "KAI-0340" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:403:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   403 |           { 15360000, 3200, 2400,   0,  0,  0,  0, 96, 0x16, 0, 0, "Lenovo", "A820" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:406:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   406 |           {  1581060, 1305,  969,   0,  0, 18,  6,  6, 0x1e, 4, 1, "Nikon", "E900" }, // "diag raw" hack
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:407:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   407 |           {  2465792, 1638, 1204,   0,  0, 22,  1,  6, 0x4b, 5, 1, "Nikon", "E950" }, // "diag raw" hack; possibly also Nikon E700, E800, E775;
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:409:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   409 |           {  2940928, 1616, 1213,   0,  0,  0,  7, 30, 0x94, 0, 1, "Nikon", "E2100" }, // "diag raw" hack; also Nikon E2500
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:410:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   410 |           {  4771840, 2064, 1541,   0,  0,  0,  1,  6, 0xe1, 0, 1, "Nikon", "E990" }, // "diag raw" hack; possibly also Nikon E880, E885, E995;
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:412:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   412 |           {  4775936, 2064, 1542,   0,  0,  0,  0, 30, 0x94, 0, 1, "Nikon", "E3700" }, // "diag raw" hack; Nikon E3100, E3200, E3500;
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:414:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   414 |           {  5865472, 2288, 1709,   0,  0,  0,  1,  6, 0xb4, 0, 1, "Nikon", "E4500" }, // "diag raw" hack; possibly also Olympus C-4040Z
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:415:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   415 |           {  5869568, 2288, 1710,   0,  0,  0,  0,  6, 0x16, 0, 1, "Nikon", "E4300" }, // "diag raw" hack; also Minolta "DiMAGE Z2"
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:416:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   416 |           {  7438336, 2576, 1925,   0,  0,  0,  1,  6, 0xb4, 0, 1, "Nikon", "E5000" }, // also Nikon E5700
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:417:83: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   417 |           {  8998912, 2832, 2118,   0,  0,  0,  0, 30, 0x94, 7, 1, "Nikon", "COOLPIX S6" }, // "diag raw" hack
+warning: libraw-ffi@0.1.0:       |                                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:418:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   418 |           {  5939200, 2304, 1718,   0,  0,  0,  0, 30, 0x16, 0, 0, "Olympus", "C-770UZ" }, // possibly also Olympus C-4100Z, C-765UZ
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:419:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   419 |           {  3178560, 2064, 1540,   0,  0,  0,  0,  0, 0x94, 0, 1, "Pentax", "Optio S V1.01" },
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:420:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   420 |           {  4841984, 2090, 1544,   0,  0, 22,  0,  0, 0x94, 7, 1, "Pentax", "Optio S" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:421:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   421 |           {  6114240, 2346, 1737,   0,  0, 22,  0,  0, 0x94, 7, 1, "Pentax", "Optio S4" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:422:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   422 |           { 10702848, 3072, 2322,   0,  0,  0, 21, 30, 0x94, 0, 1, "Pentax", "Optio 750Z" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:423:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   423 |           {  4147200, 1920, 1080,   0,  0,  0,  0,  0, 0x49, 0, 0, "Photron", "BC2-HD" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:425:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   425 |           { 13248000, 2208, 3000,   0,  0,  0,  0, 13, 0x61, 0, 0, "Pixelink", "A782" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:426:83: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   426 |           {  6291456, 2048, 1536,   0,  0,  0,  0, 96, 0x61, 0, 0, "RoverShot", "3320AF" },
+warning: libraw-ffi@0.1.0:       |                                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:427:86: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   427 |           {   311696,  644,  484,   0,  0,  0,  0,  0, 0x16, 0, 8, "ST Micro", "STV680 VGA" },
+warning: libraw-ffi@0.1.0:       |                                                                                             ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:428:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   428 |           { 16098048, 3288, 2448,   0,  0, 24,  0,  9, 0x94, 0, 1, "Samsung", "S85" }, // hack
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:429:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   429 |           { 16215552, 3312, 2448,   0,  0, 48,  0,  9, 0x94, 0, 1, "Samsung", "S85" }, // hack
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:430:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   430 |           { 20487168, 3648, 2808,   0,  0,  0,  0, 13, 0x94, 5, 1, "Samsung", "WB550" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:431:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   431 |           { 24000000, 4000, 3000,   0,  0,  0,  0, 13, 0x94, 5, 1, "Samsung", "WB550" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:435:83: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   435 |           {  1409024, 1376, 1024,   0,  0,  1,  0,  0, 0x49, 0, 0, "Sony", "XCD-SX910CR" },
+warning: libraw-ffi@0.1.0:       |                                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:436:83: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   436 |           {  2818048, 1376, 1024,   0,  0,  1,  0, 97, 0x49, 0, 0, "Sony", "XCD-SX910CR" },
+warning: libraw-ffi@0.1.0:       |                                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:1124:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:  1124 |     sprintf(model, "%dx%d", width, height);
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:2292:5: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  2292 |                                 FORC(MIN(cblack[4] * cblack[5], LIBRAW_CBLACK_SIZE - 6)) cblack[c] *= 4;
+warning: libraw-ffi@0.1.0:       |                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/internal/defines.h:94:33: note: expanded from macro 'FORC'
+warning: libraw-ffi@0.1.0:    94 | #define FORC(cnt) for (c = 0; c < cnt; c++)
+warning: libraw-ffi@0.1.0:       |                               ~ ^ ~~~
+warning: libraw-ffi@0.1.0: 136 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:785:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   785 |     sprintf(imgdata.shootinginfo.InternalBodySerial, "%06llx",
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:797:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   797 |     sprintf(imgdata.shootinginfo.InternalBodySerial, "%06llx",
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:810:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   810 |       sprintf(imgdata.shootinginfo.InternalBodySerial, "%04x",
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:820:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   820 |       sprintf(imgdata.shootinginfo.InternalBodySerial, "%05llx",
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:2339:20: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  2339 |           if (ioffset + 3 >= len)
+warning: libraw-ffi@0.1.0:       |               ~~~~~~~~~~~ ^  ~~~
+warning: libraw-ffi@0.1.0: 5 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/ciff.cpp:264:9: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   264 |         sprintf(imgdata.shootinginfo.BodySerial, "%d", len);
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/ciff.cpp:266:9: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   266 |         sprintf(imgdata.shootinginfo.BodySerial, "%0x-%05d", len >> 16,
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/nikon.cpp:525:11: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   525 |           sprintf(imgdata.shootinginfo.BodySerial, "%d", serial);
+warning: libraw-ffi@0.1.0:       |           ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:493:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   493 |     sprintf(imgdata.shootinginfo.InternalBodySerial, "%d", get4());
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:553:9: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   553 |         sprintf(imgdata.shootinginfo.BodySerial, "%8s", buffer + 8);
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:556:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   556 |       sprintf(imgdata.shootinginfo.InternalBodySerial, "%8s", buffer);
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:560:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   560 |       sprintf(imgdata.shootinginfo.BodySerial, "%02x%02x%02x%02x", buffer[4],
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:562:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   562 |       sprintf(imgdata.shootinginfo.InternalBodySerial, "%02x%02x%02x%02x",
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 5 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/normalize_model.cpp:552:130: warning: suspicious concatenation of string literals in an array initialization; did you mean to separate the elements with a comma? [-Wstring-concatenation]
+warning: libraw-ffi@0.1.0:   552 |     "@DC-ZS200", "DC-ZS220", "DC-TZ200", "DC-TZ202", "DC-TZ220", "DC-TZ200D", "DC-TZ202D", "DC-TZ220D", "DC-ZS200D", "DC-ZS220D" "DC-TX2", "C-Lux", "CAM-DC25",
+warning: libraw-ffi@0.1.0:       |                                                                                                                                  ^
+warning: libraw-ffi@0.1.0:       |                                                                                                                                 ,
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/normalize_model.cpp:552:118: note: place parentheses around the string literal to silence warning
+warning: libraw-ffi@0.1.0:   552 |     "@DC-ZS200", "DC-ZS220", "DC-TZ200", "DC-TZ202", "DC-TZ220", "DC-TZ200D", "DC-TZ202D", "DC-TZ220D", "DC-ZS200D", "DC-ZS220D" "DC-TX2", "C-Lux", "CAM-DC25",
+warning: libraw-ffi@0.1.0:       |                                                                                                                      ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/canon.cpp:864:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   864 |     sprintf(imgdata.shootinginfo.BodySerial, "%d", tS);
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1029:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:  1029 |       sprintf(model, "Ixpress %d-Mp", c);
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1230:13: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  1230 |                                         if (fj > libraw_internal_data.unpacker_data.lenRAFData - 3)
+warning: libraw-ffi@0.1.0:       |                                             ~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1239:15: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  1239 |                                                 && ofst < libraw_internal_data.unpacker_data.lenRAFData - 3;
+warning: libraw-ffi@0.1.0:       |                                                    ~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1635:17: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  1635 |                                   if (items == SR2SubIFDLength)
+warning: libraw-ffi@0.1.0:       |                                       ~~~~~ ^  ~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1748:12: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  1748 |         if (items == sony_length)
+warning: libraw-ffi@0.1.0:       |             ~~~~~ ^  ~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: 5 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/misc_parsers.cpp:123:3: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   123 |   sprintf(model, "%d", get4());
+warning: libraw-ffi@0.1.0:       |   ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/misc_parsers.cpp:209:3: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   209 |   sprintf(model, "v%d %dx%d", ver, width, height);
+warning: libraw-ffi@0.1.0:       |   ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+   Compiling pipeline-cpu v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/pipeline-cpu)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/sidecar)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+   Compiling pipeline-adobe v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/pipeline-adobe)
+   Compiling image-core v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/image-core)
+   Compiling merge v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/merge)
+   Compiling mask-ai v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/mask-ai)
+   Compiling style-profile v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/style-profile)
+   Compiling pipeline-gpu v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/pipeline-gpu)
+   Compiling previews v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/previews)
+   Compiling cull v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/cull)
+   Compiling export v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/export)
+   Compiling ml-quality v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/ml-quality)
+   Compiling compositor v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/compositor)
+   Compiling ml-faces v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/ml-faces)
+   Compiling ml-embed v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/ml-embed)
+   Compiling ml-caption v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/ml-caption)
+   Compiling tether v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/tether)
+   Compiling ml-filters v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/ml-filters)
+   Compiling filters v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/filters)
+   Compiling selection v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/selection)
+   Compiling brush v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/brush)
+   Compiling tessera-mcp v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/tessera-mcp)
+   Compiling agent v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/agent)
+   Compiling tessera-ffi v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/tessera-ffi)
+   Compiling ml-depth v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/ml-depth)
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/engine-api)
+    Finished `test` profile [unoptimized] target(s) in 1m 58s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/engine_api-de8849754b861035)
+
+running 63 tests
+test action::tests::descriptor_form_is_stable ... ok
+test action::tests::registry_effects_match_call_predicates ... ok
+test action::tests::registry_matches_tool_enums ... ok
+test color::tests::adaptation_maps_white_to_white ... ok
+test color::tests::icc_handle_is_content_addressed ... ok
+test color::tests::illuminant_exif_codes ... ok
+test color::tests::inverse_round_trips ... ok
+test color::tests::rec2020_to_xyz_matches_reference ... ok
+test color::tests::working_space_conversion_preserves_white ... ok
+test document::tests::adjustment_minimal_json_is_neutral ... ok
+test document::tests::blend_mode_names_are_stable ... ok
+test document::tests::history_is_append_only_and_branches ... ok
+test document::tests::value_types_round_trip ... ok
+test error::tests::display_is_human_readable ... ok
+test error::tests::serializes_with_code_tag ... ok
+test id::tests::digest_hex_round_trip ... ok
+test id::tests::document_ids_are_transparent ... ok
+test id::tests::image_id_round_trip ... ok
+test id::tests::numeric_ids_are_transparent ... ok
+test jobs::tests::cancellation_propagates_down_not_up ... ok
+test jobs::tests::priority_order ... ok
+test jobs::tests::scheduler_runs_and_honours_cancellation ... ok
+test recipe::crs::tests::enhance_keys_are_informational_aux ... ok
+test recipe::crs::tests::every_target_path_exists_in_the_recipe_schema ... ok
+test recipe::crs::tests::names_unique_and_round_trip ... ok
+test recipe::crs::tests::ranges ... ok
+test recipe::history::tests::diff_apply_round_trip ... ok
+test recipe::history::tests::replay_matches_recorded_states ... ok
+test recipe::selection::tests::grade_serializes_as_number ... ok
+test recipe::selection::tests::invariant_is_kept ... ok
+test recipe::settings::tests::chain_changes_downstream_only ... ok
+test recipe::settings::tests::empty_object_is_default ... ok
+test recipe::settings::tests::schema_1_profile_ids_migrate ... ok
+test recipe::tests::empty_and_partial_documents_load ... ok
+test recipe::tests::hash_covers_render_state_only ... ok
+test recipe::tests::hash_is_stable_across_releases ... ok
+test recipe::tests::ids_are_never_reused ... ok
+test recipe::tests::json_round_trip ... ok
+test recipe::tests::native_exports_as_best_effort_pv6_with_companion ... ok
+test recipe::tests::newer_schema_is_read_only ... ok
+test recipe::tests::schema_1_documents_migrate_on_load ... ok
+test recipe::tests::stage_chain_seeded_by_process ... ok
+test recipe::tests::undo_redo_branch_and_snapshots ... ok
+test stage::tests::canonical_json_is_order_independent ... ok
+test stage::tests::memo_key_digest_distinguishes_fields ... ok
+test stage::tests::node_memo_key_digest_distinguishes_fields ... ok
+test stage::tests::node_parts_are_stable ... ok
+test stage::tests::param_hash_is_stage_scoped_and_chained ... ok
+test stage::tests::stage_order_is_fixed ... ok
+test tile::tests::coord_parent_children ... ok
+test tile::tests::copy_on_write ... ok
+test tile::tests::extent_levels ... ok
+test tile::tests::format_checks ... ok
+test tile::tests::halo_indexing ... ok
+test tile::tests::premultiplied_flag ... ok
+test tile::tests::pyramid_deeper_levels ... ok
+test tile::tests::pyramid_defaults ... ok
+test tools::tests::document_call_wire_form ... ok
+test tools::tests::document_envelopes ... ok
+test tools::tests::every_call_round_trips_and_is_tagged_by_name ... ok
+test tools::tests::every_document_call_round_trips_and_is_tagged_by_name ... ok
+test tools::tests::minimal_json_uses_defaults ... ok
+test tools::tests::request_and_response_envelopes ... ok
+
+test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/channels-634c67793cfe0e0d)
+
+running 4 tests
+test channel_calls_use_history_envelope_and_action_registry ... ok
+test channel_edit_returns_allocated_identity_and_reads_old_outputs ... ok
+test channel_value_schema_fixtures ... ok
+test ordered_channels_survive_summary_round_trip ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_filters-caa08a73f89e145f)
+
+running 1 test
+test filter_calls_are_document_actions_with_default_destructive_mode ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/library_calls.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/library_calls-0127f232499459b0)
+
+running 2 tests
+test library_calls_round_trip_and_register ... ok
+test unconfirm_and_clear_name_are_explicit ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lr4_mask_schema.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_mask_schema-a22f00f69d49b892)
+
+running 2 tests
+test lr4_default_components_keep_legacy_json_bytes ... ok
+test lr4_extensions_roundtrip_and_older_readers_ignore_them ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/m532_channels-3113f3e7f4d9f74f)
+
+running 1 test
+test explicit_alpha_display_and_channel_destination_are_additive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/people-fc389c61bdf9b0da)
+
+running 2 tests
+test missing_people_options_are_safe ... ok
+test people_schema_fixtures ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pinned_raw.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/pinned_raw-25e7d16de0f8bb60)
+
+running 20 tests
+test current_nondefault_settings_determine_recipe_hash_and_input_identity ... ok
+test declarations_length_and_canonical_suffix_participate_in_identity ... ok
+test default_settings_object_and_non_object_controls ... ok
+test descriptor_wire_and_current_headers_fail_closed ... ok
+test distinct_recipe_owners_have_distinct_descriptors ... ok
+test duplicate_nested_key_is_rejected ... ok
+test exact_metadata_and_payload_identity_are_preserved ... ok
+test exact_recipe_bytes_include_whitespace_in_input_identity ... ok
+test explicit_schema_and_owner_are_required ... ok
+test flattened_mask_arrays_and_nested_model_fields_are_checked ... ok
+test locator_does_not_affect_identity_but_asset_and_owner_do ... ok
+test negative_and_nested_array_float_overflow_reject ... ok
+test nested_unknowns_and_extreme_numbers_reject ... ok
+test opaque_history_does_not_override_current_settings_and_enum_extensions_reject ... ok
+test outer_descriptor_duplicate_is_rejected_recursively ... ok
+test profile_legacy_and_canonical_forms_are_supported_but_extensions_reject ... ok
+test raw_snapshot_headers_and_default_geometry_are_required ... ok
+test roundtrip_preserves_exact_recipe_and_identity ... ok
+test suffix_normalizes_and_recipe_history_is_opaque ... ok
+test zero_length_bad_suffix_and_duplicate_keys_reject ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/source_kind.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/source_kind-82459a5d990ade81)
+
+running 3 tests
+test legacy_source_kind_is_promoted_and_normalized ... ok
+test source_kind_schema_and_invalid_values ... ok
+test source_kind_separates_render_caches ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/text_vector-91a7ee21ca49f692)
+
+running 2 tests
+test editable_commands_are_registered_and_replayable ... ok
+test legacy_layer_summary_defaults_editable_metadata ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export-ca38f990769aadac)
+
+running 34 tests
+test ai_masks::lr4_tests::lr4_nested_ai_activates_raster_export_but_disabled_does_not ... ok
+test batch::tests::serial_cancellation_before_commit_discards_prepared_files ... ok
+test codec::tests::cancel_during_encoding_stops_writes ... ok
+test codec::tests::density_is_recorded_in_every_container ... ok
+test codec::tests::jpeg_xl_rejects_invalid_input_without_writing ... ok
+test codec::tests::jpeg_xl_round_trips_quantized_srgb_at_both_depths ... ok
+test codec::tests::shared_profiles_are_reused_and_tiff_quantizes_target_encoded_pixels ... ok
+test codec::tests::striped_jpeg_matches_sequential_restart_encode ... ok
+test depth::denoise_tests::drunet_raw_is_nonblack_reduces_flat_noise_and_matches_preview ... ok
+test depth::tests::ai_masks_and_depth_both_run_in_one_export ... ok
+test depth::tests::corrupt_depth_weights_fail_instead_of_skipping ... ok
+test depth::tests::missing_weights_skip_only_blur_with_warning ... ok
+test depth::tests::raw_neural_export_installs_automatic_adapter_without_noise_configuration ... ok
+test depth::tests::resident_cfa_export_matches_reference_and_cancels ... ok
+test depth::tests::supplied_depth_blurs_before_geometry ... ok
+test depth::tests::unknown_depth_provenance_is_not_silently_replaced ... ok
+test filter::tests::lanczos_matches_independent_reference ... ok
+test filter::tests::lanczos_preserves_constants_and_suppresses_aliasing ... ok
+test filter::tests::output_sharpening_chart_strength_density_and_determinism ... ok
+test gpu::tests::band_renderer_matches_tile_renderer ... ok
+test gpu::tests::five_fixture_full_chain_tolerance ... ignored, full-chain precision on all five real RAW fixtures
+test gpu::tests::five_fixture_web_scale_tolerance ... ignored, Web-scale precision on all five real RAW fixtures
+test gpu::tests::forced_calibration_matches_reference ... ok
+test gpu::tests::gpu_matches_cpu_and_bands_match_whole ... ok
+test gpu::tests::lens_and_geometry_recipes_render_on_gpu ... ok
+test gpu::tests::raw_batch_cancel_preserves_icc_xmp_without_partial_files ... ok
+test lightroom_safety_tests::original_export_never_creates_files_in_lightroom_owned_directory ... ok
+test lightroom_safety_tests::rendered_export_rejects_lightroom_owned_directory_before_creation ... ok
+test tests::ai_subject_export_changes_pixels ... ok
+test tests::enhancement_output_matches_managed_render_for_every_profile ... ok
+test tests::enhancement_render_does_not_quantize_model_input ... ok
+test tests::naming_tokens_and_path_safety ... ok
+test tests::warning_publication_collision_never_overwrites_existing_report ... ok
+test tests::warning_report_survives_commit_and_preserves_success ... ok
+
+test result: ok. 32 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 44.92s
+
+     Running tests/ai_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/ai_masks-fb66c0ec0bfed69f)
+
+running 6 tests
+test ai_lens_warp_fails_explicitly_instead_of_exporting_misaligned_masks ... ok
+test disabled_ai_never_calls_backend_and_matches_default_export ... ok
+test empty_object_prompt_is_rejected_instead_of_guessing_a_mask ... ok
+test invalid_or_failed_segmentation_never_publishes_image_or_sidecar ... ok
+test mixed_ai_composition_runs_before_geometry_and_matches_procedural_reference ... ok
+test raw_subject_export_maps_display_mask_back_to_active_sensor_area ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.33s
+
+     Running tests/avif.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/avif-a1474b33a8960af5)
+
+running 2 tests
+test avif_depths_profiles_alpha_and_xmp_roundtrip ... ok
+test avif_rejects_invalid_options_and_honors_cancellation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests/avif_precision.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/avif_precision-91ad277344e336a2)
+
+running 2 tests
+test tiny_and_odd_dimensions_roundtrip ... ok
+test twelve_bit_encode_does_not_round_through_rgb8 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+     Running tests/batch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/batch-01a8053c4f9eb1f2)
+
+running 3 tests
+test bench_five_full_size_jpegs ... ignored, full-size five-image JPEG q90 benchmark
+test five_images_progress_cancel_and_resume ... ok
+test precancel_and_duplicate_names_publish_nothing ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 32.97s
+
+     Running tests/dng.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/dng-e2d04155f420bdd5)
+
+running 1 test
+test developed_float_dng_matches_linear_render ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/dng_libraw.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/dng_libraw-e9d4d13838806ab7)
+
+running 1 test
+test developed_dng_libraw_rgb_matches_engine_render ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/dng_original.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/dng_original-fa2f4498828f6753)
+
+running 2 tests
+test embedded_original_roundtrips_block_boundaries ... ok
+test embedding_rejects_privacy_reduction_and_wrong_format_without_output ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+     Running tests/dng_safety.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/dng_safety-88c420ac059312d8)
+
+running 3 tests
+test fifo_original_is_rejected_without_blocking ... ok
+test opaque_original_still_requires_valid_type_range_and_unique_tag ... ok
+test rejects_unsupported_backward_version ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/errors.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/errors-7fca3f00c413cd33)
+
+running 1 test
+test invalid_formats_existing_files_and_encoder_errors_are_atomic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/export.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export-9a83d54cc7d7679f)
+
+running 2 tests
+test formats_profiles_and_privacy ... ok
+test jpeg_roundtrip_icc_and_selection_sidecar ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.43s
+
+     Running tests/gpu_bench.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/gpu_bench-dd306fca4f214e51)
+
+running 3 tests
+test five_fixture_export_benchmark ... ignored, five real RAW fixtures; prints decode + render + encode wall time
+test fixture_export_worker ... ignored, subprocess worker of five_fixture_export_benchmark
+test hundred_web_exports ... ignored, five real RAW fixtures; 100 Web-preset JPEG exports
+
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/hdr_avif.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_avif-84a1bfd45d1fa0d8)
+
+running 1 test
+test avif_hdr_has_consistent_rec2020_transfer_properties ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/hdr_filtering.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_filtering-1996d55fba77e21b)
+
+running 3 tests
+test pq_resize_respects_two_stop_headroom ... ok
+test pq_resize_then_sharpen_respects_two_stop_headroom ... ok
+test pq_sharpen_respects_two_stop_headroom ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/hdr_output.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_output-de136b6aca48876d)
+
+running 1 test
+test png_hdr_is_16bit_rec2020_with_transfer_and_no_sdr_icc ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/hdr_reconstruction.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_reconstruction-de00d385af977f6f)
+
+running 1 test
+test colored_highlights_reconstruct_and_follow_recipe_headroom ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.64s
+
+     Running tests/lens_analysis.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lens_analysis-20f0e59308fbec2f)
+
+running 1 test
+test sparse_lens_analysis_matches_reference_on_fixtures ... ignored, five real RAW fixtures (PIPELINE_RAW_FIXTURES)
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/managed.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/managed-994bd0beba9fe8d3)
+
+running 1 test
+test tiff_preserves_wide_gamut_float_render_until_final_quantization ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/metadata_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/metadata_policy-8df803e3bcc61b12)
+
+running 3 tests
+test baked_hdr_png_metadata_does_not_reapply_source_development ... ok
+test baked_jpeg_metadata_does_not_reapply_source_development ... ok
+test xmp_policies_and_privacy_read_back_in_every_export_format ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+
+     Running tests/native_metadata.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/native_metadata-ace5d39c6519a4e6)
+
+running 12 tests
+test compressed_native_profiles_share_an_aggregate_metadata_budget ... ok
+test explicit_sidecar_keywords_override_native_keywords_in_every_carrier ... ok
+test external_sidecar_cannot_hide_embedded_person_identity_from_privacy_filter ... ok
+test heif_uses_metadata_associated_with_primary_image_only ... ok
+test independently_written_png_and_tiff_metadata_is_extracted ... ok
+test latin1_iptc_person_keywords_are_removed_without_losing_other_keywords ... ok
+test malformed_native_metadata_never_publishes_an_output ... ok
+test metadata_sources_roundtrip_all_six_formats_and_big_endian_tiff ... ok
+test native_metadata_survives_hdr_carriers_and_jpeg_budget_counts_it ... ok
+test native_policies_and_independent_privacy_flags_in_every_carrier ... ok
+test review_regressions_reject_misplaced_pointers_and_extended_xmp ... ok
+test sidecar_overrides_properties_without_discarding_embedded_descriptive_metadata ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.02s
+
+     Running tests/native_review_regressions.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/native_review_regressions-2942844499900b70)
+
+running 4 tests
+test extended_xmp_person_metadata_is_rejected_not_silently_ignored ... ok
+test jpeg_metadata_segment_limit_fails_closed ... ok
+test misplaced_ifd_pointers_return_error_without_panicking ... ok
+test partial_sidecar_preserves_embedded_properties_in_developed_exports ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/orientation.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/orientation-be2b8fabb2ec4966)
+
+running 2 tests
+test apply_orientation_rotates_raw_exports_only_when_asked ... ok
+test render_pixels_orients_resizes_and_bins ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+     Running tests/original.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/original-30684ca136ce185d)
+
+running 3 tests
+test dng_copy_preserves_samples_and_merges_embedded_xmp ... ok
+test original_bytes_and_foreign_xmp_survive_recipe_merge ... ok
+test original_copy_never_overwrites_or_publishes_on_cancel ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/original_tiff.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/original_tiff-01f4681d1beeac55)
+
+running 2 tests
+test both_byte_orders_preserve_opaque_payloads_and_next_ifd ... ok
+test malformed_dng_and_sidecar_collision_do_not_publish ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/output_sharpening.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/output_sharpening-a3eb937f773765e9)
+
+running 1 test
+test export_sharpens_after_resize_with_selected_strength_and_ppi ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+
+     Running tests/resize.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/resize-6b79b8fc7c700d93)
+
+running 1 test
+test resize_modes_and_sharpening ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s
+
+     Running tests/size_limit.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/size_limit-b190a8a17420c23e)
+
+running 1 test
+test jpeg_budget_includes_profile_and_metadata_and_never_publishes_oversize ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+
+     Running tests/smart_preview_admission.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_preview_admission-cc2cbf1c5e129cf5)
+
+running 3 tests
+test mixed_batch_rejects_before_any_original_output_or_progress ... ok
+test proxy_render_pixels_requires_original_even_when_resize_requests_upscale ... ok
+test proxy_single_and_staged_export_require_original_without_output ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/staged.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/staged-6151ba7873bba136)
+
+running 1 test
+test render_then_encode_is_owned_and_cancelled_without_partial_files ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/upscale.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/upscale-9a05fdd7265bd3b8)
+
+running 2 tests
+test cached_model_exports_doubled_png ... ok
+test cached_models_batch_cancellation_resume_and_duplicate_preflight ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/watermark.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/watermark-796450c264d28f22)
+
+running 2 tests
+test graphic_anchor_alpha_and_inset_are_deterministic ... ok
+test text_rasterization_rotation_and_validation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/workflow.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/workflow-e9fd20ea4bb051ef)
+
+running 3 tests
+test gui_command_plans_keep_paths_as_literal_arguments ... ok
+test script_timeout_cancellation_empty_and_spawn_failure ... FAILED
+test validates_timeout_and_absolute_executable_paths ... ok
+
+failures:
+
+---- script_timeout_cancellation_empty_and_spawn_failure stdout ----
+
+thread 'script_timeout_cancellation_empty_and_spawn_failure' (53251927) panicked at crates/export/tests/workflow.rs:70:49:
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    script_timeout_cancellation_empty_and_spawn_failure
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+
+error: test failed, to rerun pass `-p export --test workflow`
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/image_core-b7ac04b72006ec3e)
+
+running 43 tests
+test cache::tests::f16_round_trip ... ok
+test cache::tests::lru_eviction_respects_budget_and_recency ... ok
+test graph::tests::dirty_stage_and_rerun_set ... ok
+test graph::tests::order_and_flags ... ok
+test raw_admission::tests::all_bayer_phases_and_both_green_conventions_remain_admissible ... ok
+test raw_admission::tests::changed_manual_lens_and_camera_profile_settings_refuse ... ok
+test raw_admission::tests::checked_inventory_accepts_exact_limit_and_rejects_each_lower_limit ... ok
+test raw_admission::tests::checked_inventory_rejects_zero_and_overflow_with_no_large_buffers ... ok
+test raw_admission::tests::common_default_auto_demosaic_and_optics_are_not_sanitized ... ok
+test raw_admission::tests::decoded_bayer_metadata_facts_are_not_source_authentication ... ok
+test raw_admission::tests::descriptor_authority_rejects_unknown_fields_before_profile_admission ... ok
+test raw_admission::tests::descriptor_rejects_every_non_neutral_geometry_member_without_rewriting_recipe ... ok
+test raw_admission::tests::every_non_neutral_lens_member_refuses_including_inactive_ranges ... ok
+test raw_admission::tests::explicit_camera_and_lens_profiles_refuse_after_descriptor_compatibility ... ok
+test raw_admission::tests::invalid_sensor_count_dimensions_and_crop_refuse_without_allocating ... ok
+test raw_admission::tests::invertible_calibration_with_nonpositive_as_shot_scene_white_refuses ... ok
+test raw_admission::tests::legacy_empty_camera_reference_keeps_default_compatibility ... ok
+test raw_admission::tests::malformed_sensor_levels_wb_and_matrices_refuse ... ok
+test raw_admission::tests::neural_models_local_edits_depth_lut_and_hdr_are_refused_without_mutation ... ok
+test raw_admission::tests::omitted_defaults_and_supported_detail_are_preserved ... ok
+test raw_admission::tests::retouch_point_color_proof_and_even_disabled_local_inputs_refuse ... ok
+test raw_admission::tests::unsupported_decode_reconstruction_and_display_controls_are_not_sanitized ... ok
+test raw_admission::tests::unsupported_orientation_and_correction_metadata_refuse ... ok
+test raw_admission::tests::xtrans_invalid_bayer_and_layout_mismatch_refuse ... ok
+test render::review_tests::nonresident_scalar_preview_uses_l0_upright_with_manual_transforms ... ok
+test render::review_tests::nonresident_upright_analysis_is_cached_across_manual_transforms ... ok
+test resample::tests::phase_clamp_matches_reference ... ok
+test resample::tests::sources_cover_halo_and_edges ... ok
+test resident_model::cfa_resident_scheduler_matches_cpu_and_reuses_fullstrength ... ok
+test resident_model::disabled_detail_still_validates_controls ... ok
+test resident_model::preview_matrices_run_only_at_output_resolution ... ok
+test resident_model::resident_graph_preserves_crop_phase_parity_and_edit_invalidation ... ok
+test rgb::tests::corrupt_input_and_invalid_icc_are_errors ... ok
+test rgb::tests::heic_pixels_are_decoded_through_imageio ... ok
+test rgb::tests::heic_reports_unsupported_instead_of_raw_decode_failure ... ok
+test rgb::tests::jpeg_embedded_adobe_rgb_is_not_treated_as_srgb ... ok
+test rgb::tests::jpeg_exif_rotation_swaps_dimensions_once ... ok
+test rgb::tests::png_defaults_to_srgb_and_exposes_linear_planes ... ok
+test rgb::tests::raster_constructor_preserves_linear_hdr_and_rejects_monochrome ... ok
+test rgb::tests::raster_constructor_uses_linear_profile_primaries_not_encoded_trcs ... ok
+test rgb::tests::recognizes_supported_extensions_case_insensitively ... ok
+test rgb::tests::tiff_16_bit_preserves_precision_and_applies_each_orientation_once ... ok
+test rgb::tests::tiff_float_with_linear_icc_retains_hdr_and_sub_byte_precision ... ok
+
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 284.01s
+
+     Running tests/adobe.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/adobe-97fe31fb95370e4a)
+
+running 3 tests
+test adobe_dispatch_changes_pixels_but_reuses_demosaic ... ok
+test compat_matches_standalone_with_and_without_dcp ... ok
+test op_set_hash_starts_at_camera_profile ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+
+     Running tests/automatic_post_denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/automatic_post_denoise-3474d08202d1aa0f)
+
+running 1 test
+test cached_post_adapter_uses_automatic_sigma_for_masked_and_unmasked_images ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/batch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/batch-b867ff6fdf4aabfd)
+
+running 1 test
+test cpu_batch_hook_preserves_in_place_ownership ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.44s
+
+     Running tests/cfa_denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/cfa_denoise-7b2ad588bea2a1c5)
+
+running 1 test
+test cfa_denoise_is_cached_before_demosaic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests/denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/denoise-7769466fdff710d2)
+
+running 2 tests
+test denoise_dirties_demosaic_not_reserved_raw_stage ... ok
+test full_image_inference_cached_at_demosaic ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running tests/depth_hook.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/depth_hook-8e377138504230c6)
+
+running 7 tests
+test cached_provider_histogram_tracks_source_and_clears_after_failed_estimate ... ok
+test cached_provider_rejects_unknown_model_before_loading_weights ... ok
+test depth_hook_applies_blur_and_visualises_without_weights ... ok
+test direct_rgb_linear_depth_and_visualisation_use_separate_memo_entries ... ok
+test replacing_depth_provider_invalidates_direct_rgb_memo ... ok
+test rgb_render_with_cached_depth_blurs_and_invalidates_visualisation_cache ... ok
+test zero_blur_amount_is_exact_without_a_depth_provider ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/fixture.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/fixture-96a885f6ac842c6e)
+
+running 3 tests
+test bench_tone_only_change_at_level_2 ... ignored
+test fixture_level3_m2_extremes_are_finite ... time: command terminated abnormally
+real 756.39
+user 906.21
+sys 68.02
+          1502609408  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+            19638141  page reclaims
+               92587  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                 254  signals received
+              190348  voluntary context switches
+             1845060  involuntary context switches
+         10824919840  instructions retired
+          4857453697  cycles elapsed
+           207143680  peak memory footprint

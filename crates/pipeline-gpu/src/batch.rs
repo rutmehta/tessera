@@ -462,6 +462,12 @@ fn internal(e: impl std::fmt::Display) -> EngineError {
     EngineError::internal(e.to_string())
 }
 fn cpu_fallback(op: &Op<'_>) -> bool {
+    if let Op::Tone(s) = op {
+        return s.legacy_pv2010.is_some();
+    }
+    if let Op::Color(s) = op {
+        return !s.point_colors.is_empty();
+    }
     if let Op::ToneExtra(s) = op {
         return s.texture != 0.0 || s.clarity != 0.0 || s.dehaze != 0.0;
     }
@@ -526,7 +532,7 @@ impl StageOp for GpuStageOp {
             // Presence-only edits do not need a second upload/dispatch/map of
             // every pixel merely to evaluate the default identity curves.
             // Curve validation above is intentionally not bypassed.
-            if s.curves == Default::default() {
+            if s.curves == Default::default() && s.curves_extended.is_none() {
                 return Ok(filtered);
             }
             let curves = engine_api::recipe::settings::ToneSettings {

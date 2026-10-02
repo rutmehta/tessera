@@ -8,7 +8,7 @@
 //! Adding a feature (one line, plus a test in `v4_feature_predicates`):
 //!
 //! ```text
-//! ("point_colors", |r| r.settings.color.point_colors.is_some()),
+//! ("point_colors", |r| !r.settings.color.point_colors.is_empty()),
 //! ```
 //!
 //! and a test that calls `assert_bumped_only_when_present("point_colors", ..)`.
@@ -34,6 +34,20 @@ pub type FeaturePredicate = (&'static str, fn(&Recipe) -> bool);
 
 /// Every schema 4 feature, by diagnostic name.
 const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
+    ("point_colors", |r| {
+        !r.settings.color.point_colors.is_empty()
+    }),
+    ("mask_luminance_display", |r| {
+        mask_feature(r, |c| {
+            matches!(
+                c.kind,
+                super::MaskKind::LuminanceRange {
+                    luminance_domain: super::mask::LuminanceDomain::Display,
+                    ..
+                }
+            )
+        })
+    }),
     ("upright_homography", |r| {
         r.settings.geometry.upright.homography.is_some()
     }),
@@ -44,7 +58,55 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
     ("legacy_ca_blue", |r| {
         r.settings.lens.legacy_ca_blue.is_some()
     }),
+    ("monochrome", |r| {
+        r.settings
+            .color
+            .monochrome
+            .as_ref()
+            .is_some_and(|m| m.enabled || m.mixer != Default::default())
+    }),
+    ("curves_extended", |r| {
+        r.settings.tone.curves_extended.is_some()
+    }),
+    ("legacy_pv2010", |r| r.settings.tone.legacy_pv2010.is_some()),
+    ("mask_component_disabled", |r| {
+        mask_feature(r, |c| !c.enabled)
+    }),
+    ("mask_groups", |r| mask_feature(r, |c| c.group.is_some())),
+    ("mask_luminance_bounds", |r| {
+        mask_feature(r, |c| c.luminance_bounds.is_some())
+    }),
 ];
+
+fn mask_feature(recipe: &Recipe, uses: fn(&super::MaskComponent) -> bool) -> bool {
+    // Include disabled subtrees and retouch areas: re-enabling them must not
+    // expose data already discarded by an older writer. The history base is
+    // typed settings too; JSON patches themselves preserve unknown fields.
+    [&recipe.settings, &recipe.history.base]
+        .into_iter()
+        .any(|settings| {
+            let mut stack: Vec<_> = settings
+                .locals
+                .adjustments
+                .iter()
+                .flat_map(|g| &g.components)
+                .collect();
+            for op in &settings.locals.retouch {
+                if let super::mask::RetouchTarget::Area { components } = &op.target {
+                    stack.extend(components);
+                }
+            }
+            while let Some(c) = stack.pop() {
+                if uses(c) {
+                    return true;
+                }
+                if let Some(children) = &c.group {
+                    stack.extend(children);
+                }
+            }
+            false
+        })
+}
 
 /// Lowest schema version that can represent `recipe` (3 or 4).
 pub fn required_schema_version(recipe: &Recipe) -> u32 {
@@ -165,6 +227,13 @@ mod v4_feature_predicates {
     }
 
     #[test]
+    fn lr1c_point_colors_bumps_only_when_present() {
+        assert_bumped_only_when_present("point_colors", |r| {
+            r.settings.color.point_colors.push(Default::default());
+        });
+    }
+
+    #[test]
     fn lr7d_homography() {
         assert_bumped_only_when_present("upright_homography", |r| {
             r.settings.geometry.upright.homography =
@@ -195,6 +264,112 @@ mod v4_feature_predicates {
         serde_json::from_slice::<Value>(bytes).unwrap()["schema_version"]
             .as_u64()
             .unwrap()
+    }
+
+    #[test]
+    fn lr2d_monochrome_bumps_only_when_enabled_or_nonzero() {
+        assert_bumped_only_when_present("monochrome", |r| {
+            r.settings.color.monochrome = Some(crate::recipe::settings::MonochromeSettings {
+                enabled: true,
+                ..Default::default()
+            });
+        });
+        assert_bumped_only_when_present("monochrome", |r| {
+            r.settings.color.monochrome = Some(Default::default());
+            r.settings.color.monochrome.as_mut().unwrap().mixer.red = 25.;
+        });
+    }
+
+    #[test]
+    fn lr2d_curves_extended_bumps_only_when_present() {
+        assert_bumped_only_when_present("curves_extended", |r| {
+            r.settings.tone.curves_extended = Some(Default::default());
+        });
+    }
+
+    #[test]
+    fn lr2d_legacy_pv2010_bumps_only_when_present() {
+        assert_bumped_only_when_present("legacy_pv2010", |r| {
+            r.settings.tone.legacy_pv2010 = Some(Default::default());
+        });
+    }
+
+    fn mask_recipe(r: &mut Recipe, component: serde_json::Value) {
+        r.settings.locals.adjustments.push(
+            serde_json::from_value(serde_json::json!({
+                "components": [component]
+            }))
+            .unwrap(),
+        );
+    }
+
+    #[test]
+    fn lr4c_disabled_component_requires_v4() {
+        assert_bumped_only_when_present("mask_component_disabled", |r| {
+            mask_recipe(
+                r,
+                serde_json::json!({"kind":"brush","strokes":[],"enabled":false}),
+            )
+        });
+    }
+    #[test]
+    fn lr4c_nested_group_requires_v4() {
+        assert_bumped_only_when_present("mask_groups", |r| {
+            mask_recipe(
+                r,
+                serde_json::json!({"kind":"brush","strokes":[],"group":[]}),
+            )
+        });
+    }
+    #[test]
+    fn lr4c_luminance_bounds_requires_v4() {
+        assert_bumped_only_when_present("mask_luminance_bounds", |r| {
+            mask_recipe(
+                r,
+                serde_json::json!({"kind":"luminance_range","range":[0.2,0.8],"luminance_bounds":[0.1,0.2,0.8,0.9]}),
+            )
+        });
+    }
+
+    #[test]
+    fn lr4c_disabled_masks_in_retouch_and_history_base_require_v4() {
+        for path in ["/settings", "/history/base"] {
+            let mut value = serde_json::to_value(Recipe::default()).unwrap();
+            value.pointer_mut(path).unwrap()["locals"]["retouch"] = serde_json::json!([{
+                "id":0,"kind":{"kind":"heal","source_offset":[0,0]},
+                "target":{"kind":"area","components":[{"kind":"brush","strokes":[],"enabled":false}]}
+            }]);
+            let r: Recipe = serde_json::from_value(value).unwrap();
+            assert_eq!(required_schema_version(&r), 4, "{path}");
+        }
+    }
+
+    #[test]
+    fn lr4d_approximate_dabs_and_color_samples_use_existing_v3_fields() {
+        for component in [
+            serde_json::json!({"kind":"brush","strokes":[{"points":[[0.2,0.3,1.0]],"radius":0.1,"feather":40.0,"flow":50.0,"erase":true}]}),
+            serde_json::json!({"kind":"color_range","samples":[[0.5,0.1,0.2]],"amount":25.0}),
+        ] {
+            let mut recipe = Recipe::default();
+            mask_recipe(&mut recipe, component);
+            assert!(v4_features_used(&recipe).is_empty());
+            assert_eq!(required_schema_version(&recipe), 3);
+            let bytes = recipe.to_json().unwrap();
+            assert_eq!(written_version(&bytes), 3);
+            let reloaded = Recipe::from_json(&bytes).unwrap();
+            assert_eq!(reloaded.settings.locals, recipe.settings.locals);
+            assert_eq!(reloaded.to_json().unwrap(), bytes);
+        }
+    }
+
+    #[test]
+    fn lr4e_display_luminance_bumped_only_when_present() {
+        assert_bumped_only_when_present("mask_luminance_display", |r| {
+            mask_recipe(
+                r,
+                serde_json::json!({"kind":"luminance_range","range":[0.2,0.8],"luminance_domain":"display"}),
+            )
+        });
     }
 
     const TEST_FEATURE: &str = "lr_schema_test_feature";

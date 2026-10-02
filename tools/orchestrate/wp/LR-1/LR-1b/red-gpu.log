@@ -1,0 +1,28 @@
+     Running tests/m2_fallback.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/debug/deps/m2_fallback-2783eaf46628ff11)
+
+running 3 tests
+test curve_color_validation_and_neutral_bits ... FAILED
+test point_color_render_routes_around_resident_gpu ... FAILED
+test m2_tiles_and_image_barriers_match_cpu ... ok
+
+failures:
+
+---- curve_color_validation_and_neutral_bits stdout ----
+
+thread 'curve_color_validation_and_neutral_bits' (53734301) panicked at crates/pipeline-gpu/tests/m2_fallback.rs:182:10:
+called `Result::unwrap()` on an `Err` value: InvalidArgument { name: "color", reason: "Point Color and LUT are not implemented in M2" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- point_color_render_routes_around_resident_gpu stdout ----
+
+thread 'point_color_render_routes_around_resident_gpu' (53734303) panicked at crates/pipeline-gpu/tests/m2_fallback.rs:226:5:
+assertion failed: !renderer.can_render_resident(&image, &settings).unwrap()
+
+
+failures:
+    curve_color_validation_and_neutral_bits
+    point_color_render_routes_around_resident_gpu
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+
+error: test failed, to rerun pass `-p pipeline-gpu --test m2_fallback`

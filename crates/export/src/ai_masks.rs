@@ -13,11 +13,14 @@ use pipeline_cpu::{Image, RenderSource};
 use std::sync::Arc;
 
 pub(crate) fn active(settings: &DevelopSettings) -> bool {
-    settings
-        .locals
-        .adjustments
-        .iter()
-        .any(|g| g.enabled && g.amount != 0.0 && g.components.iter().any(|c| c.kind.is_ai()))
+    settings.locals.adjustments.iter().any(|g| {
+        g.enabled
+            && g.amount != 0.0
+            && g.components
+                .iter()
+                .flat_map(|c| c.active_leaves())
+                .any(|c| c.kind.is_ai())
+    })
 }
 
 struct ReadyMasks(Vec<(MaskKind, AlphaPlane)>);
@@ -102,7 +105,12 @@ pub(crate) fn render_with_hooks(
         .iter()
         .filter(|g| g.enabled && g.amount != 0.0)
     {
-        for c in group.components.iter().filter(|c| c.kind.is_ai()) {
+        for c in group
+            .components
+            .iter()
+            .flat_map(|c| c.active_leaves())
+            .filter(|c| c.kind.is_ai())
+        {
             if !requests.iter().any(|(kind, _)| kind == &c.kind) {
                 requests.push((
                     c.kind.clone(),
@@ -211,4 +219,23 @@ pub(crate) fn render_with_hooks(
             })
         },
     ))
+}
+
+#[cfg(test)]
+mod lr4_tests {
+    use super::*;
+    use engine_api::recipe::MaskComponent;
+    #[test]
+    fn lr4_nested_ai_activates_raster_export_but_disabled_does_not() {
+        let mut c = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+        c.group = Some(vec![MaskComponent::new(MaskKind::Subject { model: None })]);
+        let mut s = DevelopSettings::default();
+        s.locals.adjustments.push(LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        });
+        assert!(active(&s));
+        s.locals.adjustments[0].components[0].enabled = false;
+        assert!(!active(&s));
+    }
 }

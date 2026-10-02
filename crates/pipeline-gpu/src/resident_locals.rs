@@ -332,14 +332,24 @@ fn mask_parameters(group: &LocalAdjustment, extent: Extent) -> EngineResult<Vec<
     use engine_api::recipe::mask::MaskCombine;
     let bounded = |v: f32, lo: f32, hi: f32| v.is_finite() && (lo..=hi).contains(&v);
     let coords = |v: &[f32]| v.iter().all(|&v| bounded(v, -16., 16.));
+    group.validate_mask_tree()?;
+    let count = group.components.iter().filter(|c| c.enabled).count();
     let mut data = vec![
         extent.width as f32,
         extent.height as f32,
-        group.components.len() as f32,
-        f32::from(group.invert),
+        count as f32,
+        f32::from(group.invert && count != 0),
     ];
     let mut stamps = 0usize;
-    for c in &group.components {
+    for c in group.components.iter().filter(|c| c.enabled) {
+        if c.luminance_bounds.is_some() {
+            return Err(invalid(
+                "four-bound luminance masks require the CPU mask path",
+            ));
+        }
+        if c.group.is_some() {
+            return Err(invalid("nested mask groups require the CPU mask path"));
+        }
         let start = data.len();
         data.extend([
             0.,
@@ -383,7 +393,11 @@ fn mask_parameters(group: &LocalAdjustment, extent: Extent) -> EngineResult<Vec<
                     *feather / 100.,
                 ]);
             }
-            MaskKind::LuminanceRange { range, smoothness } => {
+            MaskKind::LuminanceRange {
+                range,
+                smoothness,
+                luminance_domain,
+            } => {
                 if !bounded(range[0], 0., 1.)
                     || !bounded(range[1], range[0], 1.)
                     || !bounded(*smoothness, 0., 100.)
@@ -391,7 +405,14 @@ fn mask_parameters(group: &LocalAdjustment, extent: Extent) -> EngineResult<Vec<
                     return Err(invalid("invalid luminance mask"));
                 }
                 data[start] = 2.;
-                data.extend([range[0], range[1], *smoothness / 200.]);
+                data.extend([
+                    range[0],
+                    range[1],
+                    *smoothness / 200.,
+                    f32::from(
+                        *luminance_domain == engine_api::recipe::mask::LuminanceDomain::Display,
+                    ),
+                ]);
             }
             MaskKind::ColorRange { samples, amount } => {
                 if !bounded(*amount, 0., 100.) || samples.iter().flatten().any(|v| !v.is_finite()) {
@@ -555,4 +576,50 @@ fn dispatch(
         return Err(invalid(&e.to_string()));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod lr4_tests {
+    use super::*;
+    use engine_api::recipe::MaskComponent;
+    #[test]
+    fn lr4_disabled_components_do_not_seed_gpu_masks() {
+        let mut off = MaskComponent::new(MaskKind::Linear {
+            start: [0., 0.],
+            end: [1., 0.],
+        });
+        off.enabled = false;
+        let on = MaskComponent::new(MaskKind::Linear {
+            start: [1., 0.],
+            end: [0., 0.],
+        });
+        let g = LocalAdjustment {
+            components: vec![off, on],
+            ..Default::default()
+        };
+        let data = mask_parameters(&g, Extent::new(2, 1)).unwrap();
+        assert_eq!(data[2], 1.);
+        assert_eq!(&data[8..12], &[1., 0., 0., 0.]);
+    }
+    #[test]
+    fn lr4_gpu_rejects_trees_instead_of_rendering_fallback_geometry() {
+        let mut c = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+        c.group = Some(vec![]);
+        let g = LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        };
+        assert!(mask_parameters(&g, Extent::new(2, 1)).is_err());
+    }
+}
+
+#[cfg(test)]
+mod lr4b_tests {
+    use super::*;
+    #[test]
+    fn lr4b_four_bounds_explicitly_require_cpu() {
+        let r = engine_api::recipe::Recipe::from_json(br#"{"settings":{"locals":{"adjustments":[{"components":[{"kind":"luminance_range","range":[0.25,0.5],"luminance_bounds":[0,0.25,0.5,1]}]}]}}}"#).unwrap();
+        let g = &r.settings.locals.adjustments[0];
+        assert!(mask_parameters(g, Extent::new(2, 1)).is_err());
+    }
 }

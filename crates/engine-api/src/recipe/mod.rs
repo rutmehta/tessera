@@ -382,6 +382,7 @@ impl Recipe {
     ) -> EngineResult<Option<HistoryEntryId>> {
         let mut next = self.settings.clone();
         f(&mut next);
+        next.locals.validate_mask_trees()?;
         next.geometry
             .upright
             .invalidate_after_edit(&self.settings.geometry.upright);
@@ -464,6 +465,8 @@ impl Recipe {
     /// Checks every invariant: history structure, settings = replay(head),
     /// selection normalized.
     pub fn validate(&self) -> EngineResult<()> {
+        self.settings.locals.validate_mask_trees()?;
+        self.history.base.locals.validate_mask_trees()?;
         if self
             .settings
             .geometry
@@ -511,6 +514,8 @@ impl Recipe {
     /// [`max_writable_schema_version`]. Every recipe write calls this (via
     /// [`Recipe::to_json`] or directly) before serialising.
     pub fn ensure_writable(&self) -> EngineResult<()> {
+        self.settings.locals.validate_mask_trees()?;
+        self.history.base.locals.validate_mask_trees()?;
         let supported = max_writable_schema_version();
         if self.schema_version > supported {
             return Err(EngineError::SchemaVersion {

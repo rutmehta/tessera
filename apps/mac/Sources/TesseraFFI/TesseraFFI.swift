@@ -21377,6 +21377,7 @@ public func FfiConverterTypeLrcatSummary_lower(_ value: LrcatSummary) -> RustBuf
 
 
 public struct MaskComponentInfo: Equatable, Hashable {
+    public var enabled: Bool
     public var kind: MaskComponentType
     public var combine: MaskCombineMode
     public var invert: Bool
@@ -21400,7 +21401,7 @@ public struct MaskComponentInfo: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(kind: MaskComponentType, combine: MaskCombineMode, invert: Bool, 
+    public init(enabled: Bool, kind: MaskComponentType, combine: MaskCombineMode, invert: Bool, 
         /**
          * "Subject", "Brush (3 strokes)", "Linear Gradient", …
          */title: String, 
@@ -21413,6 +21414,7 @@ public struct MaskComponentInfo: Equatable, Hashable {
         /**
          * False when this pipeline version keeps but does not draw the component.
          */rendered: Bool) {
+        self.enabled = enabled
         self.kind = kind
         self.combine = combine
         self.invert = invert
@@ -21439,6 +21441,7 @@ public struct FfiConverterTypeMaskComponentInfo: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MaskComponentInfo {
         return
             try MaskComponentInfo(
+                enabled: FfiConverterBool.read(from: &buf), 
                 kind: FfiConverterTypeMaskComponentType.read(from: &buf), 
                 combine: FfiConverterTypeMaskCombineMode.read(from: &buf), 
                 invert: FfiConverterBool.read(from: &buf), 
@@ -21451,6 +21454,7 @@ public struct FfiConverterTypeMaskComponentInfo: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: MaskComponentInfo, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.enabled, into: &buf)
         FfiConverterTypeMaskComponentType.write(value.kind, into: &buf)
         FfiConverterTypeMaskCombineMode.write(value.combine, into: &buf)
         FfiConverterBool.write(value.invert, into: &buf)
@@ -30270,6 +30274,7 @@ public func FfiConverterTypeMaskCombineMode_lower(_ value: MaskCombineMode) -> R
 
 public enum MaskComponentType: Equatable, Hashable {
     
+    case group
     case subject
     case sky
     case background
@@ -30303,29 +30308,31 @@ public struct FfiConverterTypeMaskComponentType: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .subject
+        case 1: return .group
         
-        case 2: return .sky
+        case 2: return .subject
         
-        case 3: return .background
+        case 3: return .sky
         
-        case 4: return .person
+        case 4: return .background
         
-        case 5: return .object
+        case 5: return .person
         
-        case 6: return .landscape
+        case 6: return .object
         
-        case 7: return .depth
+        case 7: return .landscape
         
-        case 8: return .linear
+        case 8: return .depth
         
-        case 9: return .radial
+        case 9: return .linear
         
-        case 10: return .brush
+        case 10: return .radial
         
-        case 11: return .luminanceRange
+        case 11: return .brush
         
-        case 12: return .colorRange
+        case 12: return .luminanceRange
+        
+        case 13: return .colorRange
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -30335,52 +30342,56 @@ public struct FfiConverterTypeMaskComponentType: FfiConverterRustBuffer {
         switch value {
         
         
-        case .subject:
+        case .group:
             writeInt(&buf, Int32(1))
         
         
-        case .sky:
+        case .subject:
             writeInt(&buf, Int32(2))
         
         
-        case .background:
+        case .sky:
             writeInt(&buf, Int32(3))
         
         
-        case .person:
+        case .background:
             writeInt(&buf, Int32(4))
         
         
-        case .object:
+        case .person:
             writeInt(&buf, Int32(5))
         
         
-        case .landscape:
+        case .object:
             writeInt(&buf, Int32(6))
         
         
-        case .depth:
+        case .landscape:
             writeInt(&buf, Int32(7))
         
         
-        case .linear:
+        case .depth:
             writeInt(&buf, Int32(8))
         
         
-        case .radial:
+        case .linear:
             writeInt(&buf, Int32(9))
         
         
-        case .brush:
+        case .radial:
             writeInt(&buf, Int32(10))
         
         
-        case .luminanceRange:
+        case .brush:
             writeInt(&buf, Int32(11))
         
         
-        case .colorRange:
+        case .luminanceRange:
             writeInt(&buf, Int32(12))
+        
+        
+        case .colorRange:
+            writeInt(&buf, Int32(13))
         
         }
     }

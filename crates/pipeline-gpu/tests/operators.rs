@@ -297,3 +297,151 @@ fn tone_signed_rgb_near_zero_luminance_matches_f64_reference() {
     }
     assert!(failures.is_empty(), "tone cancellation: {failures:?}");
 }
+
+#[test]
+fn lr2b_monochrome_gpu_matches_cpu() {
+    use engine_api::recipe::settings::{ColorSettings, HueBands, MonochromeSettings};
+    let mut s = ColorSettings {
+        monochrome: Some(MonochromeSettings {
+            enabled: true,
+            mixer: HueBands {
+                red: 50.,
+                orange: -20.,
+                yellow: 30.,
+                green: -40.,
+                aqua: 70.,
+                blue: -80.,
+                purple: 90.,
+                magenta: -10.,
+            },
+        }),
+        ..Default::default()
+    };
+    compare(StageId::Color, Op::Color(&s), tile(3, 2));
+    s.saturation = 20.;
+    s.grading.highlights.saturation = 10.;
+    compare(StageId::Color, Op::Color(&s), tile(3, 2));
+}
+
+#[test]
+fn lr2b_hdr_curves_match_cpu_and_legacy_is_guarded() {
+    use engine_api::recipe::settings::{Curve, CurvePoint, LegacyPv2010, ToneCurves, ToneSettings};
+    let curve = Curve(vec![
+        CurvePoint { x: -1., y: -0.5 },
+        CurvePoint { x: 0., y: 0. },
+        CurvePoint { x: 1., y: 1.3 },
+        CurvePoint { x: 2., y: 2.3 },
+    ]);
+    for channel in 0..5 {
+        let mut curves = ToneCurves::default();
+        *match channel {
+            0 => &mut curves.rgb,
+            1 => &mut curves.red,
+            2 => &mut curves.green,
+            3 => &mut curves.blue,
+            _ => &mut curves.luminance,
+        } = curve.clone();
+        let s = ToneSettings {
+            curves_extended: Some(curves),
+            ..Default::default()
+        };
+        compare(StageId::Tone, Op::ToneExtra(&s), tile(3, 2));
+        let mut negative = tile(3, 0);
+        for v in negative.samples_mut::<f32>().unwrap() {
+            *v = -v.abs();
+        }
+        compare(StageId::Tone, Op::ToneExtra(&s), negative);
+    }
+    let s = ToneSettings {
+        legacy_pv2010: Some(LegacyPv2010 {
+            exposure: Some(1.),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    compare(StageId::Tone, Op::Tone(&s), tile(3, 0));
+    use engine_api::jobs::CancellationToken;
+    assert!(
+        gpu()
+            .run_chain_batch(
+                &[(StageId::Tone, Op::Tone(&s))],
+                vec![tile(3, 0)],
+                &CancellationToken::new()
+            )
+            .is_ok()
+    );
+}
+
+#[test]
+fn lr2b_fused_hdr_monochrome_matches_cpu() {
+    use engine_api::{
+        jobs::CancellationToken,
+        recipe::settings::{
+            ColorSettings, Curve, CurvePoint, HueBands, MonochromeSettings, ToneCurves,
+            ToneSettings,
+        },
+    };
+    let tone = ToneSettings {
+        curves_extended: Some(ToneCurves {
+            rgb: Curve(vec![
+                CurvePoint { x: 0., y: 0. },
+                CurvePoint { x: 2., y: 2.3 },
+            ]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let color = ColorSettings {
+        monochrome: Some(MonochromeSettings {
+            enabled: true,
+            mixer: HueBands {
+                red: 60.,
+                blue: -30.,
+                ..Default::default()
+            },
+        }),
+        ..Default::default()
+    };
+    let chain = [
+        (StageId::Tone, Op::Tone(&tone)),
+        (StageId::Tone, Op::ToneExtra(&tone)),
+        (StageId::Color, Op::Color(&color)),
+    ];
+    let input = vec![tile(3, 0)];
+    let expected = CpuStageOp
+        .run_chain_batch(&chain, input.clone(), &CancellationToken::new())
+        .unwrap();
+    let actual = gpu()
+        .run_chain_batch(&chain, input, &CancellationToken::new())
+        .unwrap();
+    let error = expected[0]
+        .samples::<f32>()
+        .unwrap()
+        .iter()
+        .zip(actual[0].samples::<f32>().unwrap())
+        .map(|(a, b)| (a - b).abs())
+        .fold(0f32, f32::max);
+    assert!(error <= 1e-4, "{error}");
+}
+
+#[test]
+fn lr2e_hdr_parametric_cpu_gpu_parity() {
+    use engine_api::recipe::settings::{Curve, CurvePoint, ToneCurves, ToneSettings};
+    for active in [false, true] {
+        let mut s = ToneSettings::default();
+        s.curves.parametric.darks = 55.;
+        s.curves.parametric.lights = 35.;
+        s.curves_extended = Some(ToneCurves {
+            rgb: if active {
+                Curve(vec![
+                    CurvePoint { x: 0., y: 0. },
+                    CurvePoint { x: 2., y: 2.3 },
+                ])
+            } else {
+                Curve::default()
+            },
+            ..Default::default()
+        });
+        compare(StageId::Tone, Op::ToneExtra(&s), tile(3, 0));
+    }
+}
