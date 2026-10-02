@@ -5,7 +5,7 @@
 //! `recipe.unknown["lrcat_develop_source"]` and records one info-level entry
 //! here. Storage is `recipe.unknown[KEY]`: a JSON object keyed by Adobe key,
 //! each value an array of [`Entry`] objects. Lanes write only through
-//! [`push_approximate`] or [`push_ignored`]; readers use [`entries`]. A recipe
+//! [`push_approximate`], [`push_ignored`] or [`push_cloud`]; readers use [`entries`]. A recipe
 //! without diagnostics has no such member, so its serialization is unchanged.
 use std::collections::BTreeMap;
 
@@ -19,16 +19,16 @@ pub const KEY: &str = "lrcat_translation_diagnostics";
 /// One diagnostic for one Adobe key.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entry {
-    /// Always `info`; approximate and ignored translations never warn.
+    /// `info` for approximate/ignored; `warning` for unrendered cloud content.
     pub level: String,
-    /// Translation status, `approximate` or `ignored`.
+    /// Translation status: `approximate`, `ignored`, or `cloud`.
     pub status: String,
     /// Owning lane, e.g. `LR-2`.
     pub lane: String,
-    /// JSON pointer of the populated recipe field; absent for ignored keys.
+    /// JSON pointer of the populated recipe field; absent for ignored/cloud keys.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub field: Option<String>,
-    /// Why the translation is approximate or ignored.
+    /// Why translation is approximate, ignored, or requires Adobe cloud.
     pub reason: String,
 }
 

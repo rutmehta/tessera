@@ -71,10 +71,16 @@ fn active_local_curves_name_the_missing_feature() {
     assert!(!w.iter().any(|w| w.contains("mask source retained")));
 }
 #[test]
-fn ai_raster_metadata_does_not_block_regeneration() {
+fn ai_raster_metadata_remains_unsupported_without_lr5() {
     let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalExposure2012=0.5,CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic',FullMaskSize='synthetic-size',LocalInputDigest='synthetic-digest',LocalInputDigestVersion=1}}}}}","15.4").unwrap();
-    assert!(w.is_empty(), "{w:?}");
-    assert_eq!(r.settings.locals.adjustments.len(), 1);
+    assert!(
+        w.iter().any(|w| w.contains("MaskGroupBasedCorrections")),
+        "{w:?}"
+    );
+    assert!(r.settings.locals.adjustments.is_empty());
+    assert!(
+        r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].is_string()
+    );
 }
 
 #[test]
@@ -103,14 +109,17 @@ fn remaining_global_effects_have_named_feature_diagnostics() {
 #[test]
 fn generative_removal_has_one_cloud_note_per_image() {
     let (r,w)=lua_develop::parse("s={EnableDistractionRemoval=true,RemoveAreas={{SpotType='generative',pm_clio_model_version='synthetic',pm_patch='synthetic'},{SpotType='generative',pm_clio_model_version='synthetic',pm_patch='synthetic'}}}","15.4").unwrap();
-    assert!(w.is_empty(), "{w:?}");
+    assert!(
+        w.iter().any(|w| w.contains("requires Adobe cloud")),
+        "{w:?}"
+    );
     let notes: Vec<_> = diagnostics::entries(&r)
         .into_values()
         .flatten()
         .filter(|e| e.reason.contains("requires Adobe cloud; not translatable"))
         .collect();
     assert_eq!(notes.len(), 1);
-    assert_eq!(notes[0].status, "ignored");
+    assert_eq!(notes[0].status, "cloud");
 }
 
 #[test]
@@ -151,8 +160,9 @@ fn zero_local_color_variance_is_inactive() {
 #[test]
 fn mixed_cloud_and_patch_removal_keeps_both_dispositions() {
     let (r,w)=lua_develop::parse("s={RemoveAreas={{SpotType='generative',pm_clio_model_version='synthetic',pm_patch='synthetic'},{SpotType='contentAware',pm_patch='synthetic'}}}","15.4").unwrap();
-    assert_eq!(w.len(), 1, "{w:?}");
-    assert!(w[0].contains("content-aware"));
+    assert_eq!(w.len(), 2, "{w:?}");
+    assert!(w.iter().any(|w| w.contains("content-aware")));
+    assert!(w.iter().any(|w| w.contains("requires Adobe cloud")));
     let notes: Vec<_> = diagnostics::entries(&r)
         .into_values()
         .flatten()
@@ -162,28 +172,29 @@ fn mixed_cloud_and_patch_removal_keeps_both_dispositions() {
 }
 
 #[test]
-fn cloud_switches_are_info_notes_once_per_image() {
+fn cloud_switches_keep_each_feature_visible() {
     let (r,w)=lua_develop::parse("s={GenerativeRemove=true,GenerativeFill=true,EnableDistractionRemoval=true,FilterList={{What='synthetic-filter'}}}","15.4").unwrap();
-    assert!(
-        !w.iter().any(|w| w.contains("GenerativeRemove:")
-            || w.contains("GenerativeFill:")
-            || w.contains("EnableDistractionRemoval:")),
-        "{w:?}"
-    );
+    for key in [
+        "GenerativeRemove",
+        "GenerativeFill",
+        "EnableDistractionRemoval",
+        "FilterList",
+    ] {
+        assert!(w.iter().any(|w| w.contains(key)), "{w:?}");
+    }
     let notes: Vec<_> = diagnostics::entries(&r)
         .into_values()
         .flatten()
         .filter(|e| e.reason.contains("requires Adobe cloud; not translatable"))
         .collect();
-    assert_eq!(notes.len(), 1);
+    assert_eq!(notes.len(), 3);
+    assert!(notes.iter().all(|n| n.status == "cloud"));
 }
 #[test]
-fn legacy_fixture_byte_change_is_only_the_inactive_fill_light_note() {
-    let (mut r, _) = lua_develop::parse(include_str!("data/lrc155/legacy.lua"), "15.4").unwrap();
+fn legacy_fixture_bytes_remain_unchanged() {
+    let (r, _) = lua_develop::parse(include_str!("data/lrc155/legacy.lua"), "15.4").unwrap();
     let notes = diagnostics::entries(&r);
-    assert_eq!(notes.len(), 1);
-    assert_eq!(notes["FillLight"][0].status, "ignored");
-    r.unknown.remove(diagnostics::KEY);
+    assert!(notes.is_empty());
     let bytes = r.to_json().unwrap();
     assert_eq!(bytes.len(), 11633);
     assert_eq!(

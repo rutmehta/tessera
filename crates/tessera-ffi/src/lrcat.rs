@@ -532,11 +532,14 @@ fn issue(category: &str, reason: String, count: usize, examples: Vec<String>) ->
 /// Count one photo's approximate translations (`import_lrcat::diagnostics`)
 /// into per-Adobe-key groups; the first photo's reason is the example.
 fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) {
+    note_diagnostics(issues, recipe, path, "approximate");
+}
+
+fn note_diagnostics(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path, status: &str) {
     for (key, entries) in import_lrcat::diagnostics::entries(recipe) {
-        let Some(first) = entries
-            .iter()
-            .find(|e| e.level == "info" && e.status == "approximate")
-        else {
+        let Some(first) = entries.iter().find(|e| {
+            e.status == status && e.level == if status == "cloud" { "warning" } else { "info" }
+        }) else {
             continue;
         };
         match issues.iter_mut().find(|i| i.category == key) {
@@ -1180,7 +1183,17 @@ impl LrcatImport {
                 .count() as u32,
             library_exists: library_path.is_file(),
             library_path: library_path.to_string_lossy().into_owned(),
-            unsupported: self.summary.unsupported.clone(),
+            unsupported: self
+                .summary
+                .unsupported
+                .iter()
+                .filter(|issue| {
+                    !issue
+                        .reason
+                        .contains("requires Adobe cloud; not translatable")
+                })
+                .cloned()
+                .collect(),
             estimated_bytes: self.summary.estimated_bytes,
         })
     }
@@ -1324,7 +1337,17 @@ impl LrcatImport {
                 .filter(|r| r.outcome == Outcome::VirtualCopy)
                 .count() as u32,
             skipped: vec![],
-            unsupported: self.summary.unsupported.clone(),
+            unsupported: self
+                .summary
+                .unsupported
+                .iter()
+                .filter(|issue| {
+                    !issue
+                        .reason
+                        .contains("requires Adobe cloud; not translatable")
+                })
+                .cloned()
+                .collect(),
             approximate: vec![],
             cloud: vec![],
             albums: merge.albums,
@@ -1392,6 +1415,12 @@ impl LrcatImport {
                     &mut report.approximate,
                     applied.as_ref().map_or(&image.recipe, |doc| &doc.recipe),
                     &r.path,
+                );
+                note_diagnostics(
+                    &mut report.cloud,
+                    applied.as_ref().map_or(&image.recipe, |doc| &doc.recipe),
+                    &r.path,
+                    "cloud",
                 );
                 continue;
             }
@@ -1509,6 +1538,7 @@ impl LrcatImport {
                     }
                     count_selection(&mut report.selection, &selection);
                     note_approximate(&mut report.approximate, &image.recipe, &r.path);
+                    note_diagnostics(&mut report.cloud, &image.recipe, &r.path, "cloud");
                     state.done.insert(image.catalog_id);
                     if report.imported.is_multiple_of(50) {
                         state.write(&state_file)?;
@@ -1520,6 +1550,7 @@ impl LrcatImport {
             }
         }
         state.write(&state_file)?;
+        report.cloud.sort_by(|a, b| a.category.cmp(&b.category));
         report
             .approximate
             .sort_by(|a, b| a.category.cmp(&b.category));
