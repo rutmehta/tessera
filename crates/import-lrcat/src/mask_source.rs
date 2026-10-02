@@ -661,6 +661,9 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
             } { reasons.insert(reason); }
         }
         if let Some(f) = fields(n) {
+            if f.get("What").and_then(Field::scalar).is_some_and(|what| what.starts_with("Mask/") && !matches!(what, "Mask/Image" | "Mask/Subject" | "Mask/Sky" | "Mask/Background" | "Mask/People" | "Mask/Person" | "Mask/Object" | "Mask/Gradient" | "Mask/CircularGradient" | "Mask/Paint" | "Mask/Group" | "Mask/Aggregate" | "Mask/Range" | "Mask/RangeMask")) {
+                reasons.insert("unrecognized mask selection kind");
+            }
             for (key, label) in [("LocalDefringe", "local defringe rendering is not implemented"), ("LocalToningSaturation", "local color overlay rendering is not implemented")] {
                 if f.get(key).and_then(Field::scalar).and_then(|v|v.parse::<f64>().ok()).is_some_and(|v|v != 0.) { reasons.insert(label); }
             }
@@ -668,4 +671,26 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
     }
     if reasons.is_empty() { reasons.insert("mask geometry, blend mode or selection encoding cannot be rendered"); }
     reasons.into_iter().collect::<Vec<_>>().join("; ")
+}
+
+
+pub(crate) fn decoder_reason(reason: String, warning: &str) -> String {
+    if reason != "mask geometry, blend mode or selection encoding cannot be rendered" { return reason; }
+    for (needle, label) in [
+        ("radial Flipped", "radial mask inversion flags conflict"),
+        ("unknown Adobe AI mask subtype", "unrecognized AI selection subtype"),
+        ("unknown Adobe AI mask category", "unrecognized AI selection category"),
+        ("invalid object bounds", "AI object selection bounds are invalid"),
+        ("invalid object reference point", "AI object selection reference point is invalid"),
+        ("object regeneration requires", "AI object selection lacks a box or reference point"),
+        ("mask tree exceeds", "nested mask selection exceeds eight levels"),
+        ("mask blend mode", "mask selection uses an unrecognized blend mode"),
+        ("Adobe dab", "brush stamp encoding cannot be decoded"),
+        ("Adobe Dabs", "brush stamp list is empty or invalid"),
+        ("range mask", "range-mask selection encoding is incomplete or ambiguous"),
+        ("color sample", "color-range sample encoding cannot be decoded"),
+    ] {
+        if warning.contains(needle) { return label.into(); }
+    }
+    reason
 }

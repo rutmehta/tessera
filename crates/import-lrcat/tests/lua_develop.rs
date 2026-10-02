@@ -103,7 +103,8 @@ fn unknown_keys_are_reported_and_the_source_is_retained() {
         recipe.settings.camera_profile.profile.name,
         "Synthetic \"Quoted\" Profile".into()
     );
-    for key in ["SyntheticFutureKey", "Preset"] {
+    // LR-9b: Preset is saved provenance; unknown future effects still warn.
+    for key in ["SyntheticFutureKey"] {
         assert!(
             warnings
                 .iter()

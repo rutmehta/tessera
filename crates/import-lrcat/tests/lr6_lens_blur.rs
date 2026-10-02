@@ -239,7 +239,7 @@ fn focal_range_preserves_outer_endpoints_and_shapes_have_renderable_interpretati
 fn untranslated_inputs_preserve_recipe_bytes_and_main_depth_warnings() {
     // Captured by compiling dcf07355 in a temporary detached checkout. Synthetic
     // source, complete recipe bytes and warning order; no normalization applied.
-    // LR-6f retains main's LR-2 wording for standalone/inactive depth warnings.
+    // LR-9b names DepthBasedCorrections explicitly; all recipe_bytes remain unchanged.
     let cases: serde_json::Value =
         serde_json::from_str(include_str!("data/lr6b-untranslated-baseline.json")).unwrap();
     for case in cases.as_array().unwrap() {
