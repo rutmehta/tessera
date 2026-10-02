@@ -182,7 +182,18 @@ fn main() {
                 "LocalParams",
             ],
         ),
-        ("recipe/settings.rs", vec!["NormalizedRect"]),
+        (
+            "recipe/settings.rs",
+            vec![
+                "NormalizedRect",
+                "CurvePoint",
+                "Curve",
+                "ParametricCurve",
+                "ToneCurves",
+                "PointColor",
+                "PointColorSelection",
+            ],
+        ),
         ("recipe/selection.rs", vec!["Decision"]),
         ("id.rs", vec!["ModelRef"]),
         ("tile.rs", vec!["Extent"]),
@@ -287,7 +298,7 @@ fn main() {
                     output.extend(i.into_token_stream())
                 }
                 Item::Impl(i)
-                    if ["NormalizedRect", "LuminanceDomain"]
+                    if ["NormalizedRect", "LuminanceDomain", "ParametricCurve"]
                         .contains(&i.self_ty.to_token_stream().to_string().as_str()) =>
                 {
                     output.extend(i.into_token_stream())

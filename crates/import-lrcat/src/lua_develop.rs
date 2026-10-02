@@ -926,6 +926,10 @@ fn scalar_text(v: &LuaValue) -> Result<String, String> {
 /// points), identifier keys → `rdf:Description`, language keys → `rdf:Alt`.
 /// Depth is bounded by the parser's [`MAX_DEPTH`].
 fn element(name: &str, t: &LuaTable) -> Result<String, String> {
+    let normalized = (name == "crs:LocalPointColors")
+        .then(|| point_colors::sequence(t))
+        .transpose()?;
+    let t = normalized.as_deref().unwrap_or(t);
     let fields: Vec<_> = t
         .fields
         .iter()

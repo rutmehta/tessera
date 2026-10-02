@@ -274,7 +274,7 @@ pub const LOCAL_PARAMS: [&str; 16] = [
 
 /// Sanitize the local adjustment controls this pipeline draws.
 /// Person, landscape and depth components (no model or depth plane
-/// here) and defringe / colour overlay are kept in the recipe but not drawn;
+/// here) are kept in the recipe but not drawn;
 /// retouch operations are preserved for the registered renderer, which reports
 /// unsupported operations explicitly.
 pub(crate) fn renderable_locals(s: &LocalsSettings) -> LocalsSettings {
@@ -308,8 +308,13 @@ fn renderable_group(g: &LocalAdjustment) -> LocalAdjustment {
         *v = finite_or(*v, 0.0).clamp(-100.0, 100.0);
     }
     p.hue = finite_or(p.hue, 0.0).clamp(-180.0, 180.0);
-    p.defringe = 0.0;
-    p.color_overlay = None;
+    p.defringe = finite_or(p.defringe, 0.).clamp(0., 100.);
+    p.color_overlay = p.color_overlay.map(|[h, s]| {
+        [
+            finite_or(h, 0.).rem_euclid(360.),
+            finite_or(s, 0.).clamp(0., 100.),
+        ]
+    });
     r.components = g
         .components
         .iter()
@@ -2421,7 +2426,10 @@ mod tests {
         let r = renderable_group(&g);
         assert_eq!(r.amount, 200.0);
         assert_eq!(r.params.exposure, 5.0);
-        assert_eq!((r.params.defringe, r.params.color_overlay), (0.0, None));
+        assert_eq!(
+            (r.params.defringe, r.params.color_overlay),
+            (20.0, Some([10.0, 20.0]))
+        );
         let kinds: Vec<_> = r
             .components
             .iter()
@@ -2627,6 +2635,7 @@ mod lr5_imported_tests {
                 .unwrap();
             let mut c = MaskComponent::new(MaskKind::Sky { model: None });
             c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+                instance_hint: None,
                 resource_id: Some("opaque".into()),
                 category: "Sky".into(),
                 mask_key: Some(key),

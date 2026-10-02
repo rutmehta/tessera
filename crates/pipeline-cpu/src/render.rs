@@ -392,6 +392,33 @@ fn render_linear_impl(
     if needs_m2 {
         // Remove masked sensor margins before estimating global airlight.
         rgb = rgb.downsample_crop(crop, 1)?;
+        let (point_groups, remaining_groups) = if settings
+            .color
+            .monochrome
+            .as_ref()
+            .is_some_and(|m| m.enabled)
+        {
+            crate::split_local_point_colors(&settings.locals.adjustments)
+        } else {
+            (
+                Vec::new(),
+                std::borrow::Cow::Borrowed(settings.locals.adjustments.as_slice()),
+            )
+        };
+        if !point_groups.is_empty() {
+            rgb = if let Some(locals) = locals {
+                locals(&rgb, &point_groups)?
+            } else {
+                crate::locals_image(
+                    &rgb,
+                    &point_groups,
+                    crate::masks::MaskOptions {
+                        depth: depth.map(|(plane, _)| plane),
+                        ..Default::default()
+                    },
+                )?
+            };
+        }
         let pre_curve = settings.color_before_curves();
         let post_curve = settings.color_after_curves();
         if pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled) {
@@ -408,11 +435,11 @@ fn render_linear_impl(
             rgb.put(&tile)?;
         }
         rgb = if let Some(locals) = locals {
-            locals(&rgb, &settings.locals.adjustments)?
+            locals(&rgb, &remaining_groups)?
         } else {
             crate::locals_image(
                 &rgb,
-                &settings.locals.adjustments,
+                &remaining_groups,
                 crate::masks::MaskOptions {
                     depth: depth.map(|(plane, _)| plane),
                     ..Default::default()

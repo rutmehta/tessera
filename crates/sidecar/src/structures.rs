@@ -10,7 +10,7 @@
 //! interpret Adobe controls approximately; import-lrcat retains exact source and diagnostics.
 //! No opaque recipe JSON, invented CRS subfields, or cached pixels are emitted.
 #[path = "point_colors.rs"]
-mod point_colors;
+pub(crate) mod point_colors;
 use super::resource;
 use crate::xml::*;
 use engine_api::{error::EngineResult, recipe::CrsKey};

@@ -190,3 +190,49 @@ fn indexed_local_point_color_sdk_resources_share_global_decoder() {
         30.
     );
 }
+
+#[test]
+fn empty_local_point_controls_do_not_create_new_recipe_fields_or_lr11_notes() {
+    for source in [
+        "LocalPointColors={}",
+        "LocalPointColors=''",
+        "LocalDefringe=0",
+        "LocalPointColors={'-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1'}",
+    ] {
+        let (r, w) = lua_develop::parse(
+            &format!("s={{MaskGroupBasedCorrections={{{{{source},{GRADIENT}}}}}}}"),
+            "15.4",
+        )
+        .unwrap();
+        assert!(w.is_empty(), "{source}: {w:?}");
+        let p = &r.settings.locals.adjustments[0].params;
+        assert!(p.point_colors.is_none());
+        assert_eq!(p.defringe, 0.);
+        assert!(
+            !diagnostics::entries(&r)
+                .values()
+                .flatten()
+                .any(|d| d.lane == "LR-11")
+        );
+    }
+}
+
+#[test]
+fn instance_hints_are_only_promoted_for_objects_and_keep_nested_range() {
+    for extra in [
+        "MaskSubType=1,InstanceIDs={{InstanceID=1}}",
+        "MaskSubType=0,ReferencePoint='0.5 0.5',InstanceIDs={{InstanceID=1,FutureSelection=2}}",
+        "MaskSubType=0,ReferencePoint='0.5 0.5',InstanceIDs={{}}",
+    ] {
+        let (r,w)=lua_develop::parse(&format!("s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{{What='Mask/Image',{extra}}}}}}}}}}}"),"15.4").unwrap();
+        assert!(!w.is_empty());
+        assert!(r.settings.locals.adjustments.is_empty());
+    }
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{CorrectionMasks={{What='Mask/Image',MaskSubType=0,ReferencePoint='0.5 0.5',InstanceIDs={{InstanceID=2}},CorrectionRangeMask={Type=2,LumRange='0.1 0.2 0.8 0.9'}}}}}}","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    let c = &r.settings.locals.adjustments[0].components[0]
+        .group
+        .as_ref()
+        .unwrap()[0];
+    assert!(c.adobe_ai.as_ref().unwrap().instance_hint.is_some());
+}
