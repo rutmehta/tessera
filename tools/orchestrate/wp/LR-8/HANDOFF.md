@@ -193,3 +193,87 @@ UniFFI bindings, and this handoff. No board.json change.
 All Rust checks use the requested external LR-8 target, four build jobs, and four
 Rayon threads. Committed test inputs are synthetic or existing public fixtures;
 new tests do not access ~/Pictures.
+
+## LR-8e hotfix (B1, B2)
+
+Machine B; branch `wp/LR-8-smart-preview-proxies`, based on `afe97d4c`.
+Binding scope: Machine A's `A-LR8-REVIEW.md`, B1/B2, M9, and the small M1
+APP14 guard. No B3/B4 or other rendering/import changes are included.
+
+- **B1:** the reader identifies full-resolution LinearRaw from its inline
+  PhotometricInterpretation before interpreting other IFD fields. Errors before
+  identification return `None` silently; errors after identification propagate.
+  Both existing source-open call sites therefore retain their LibRaw fallback
+  without call-site changes. The generated CFA regression first proves LibRaw
+  can unpack an ordinary DNG containing an exotic optional TIFF field, then
+  verifies that the lossy reader declines it.
+- **B2:** field types/ranges and retained numeric values, layout, crop,
+  calibration, opcodes, all tile ranges/counts, and decoded-byte accounting are
+  checked before pixel allocation. Tile dimensions cannot exceed the image
+  rounded up to a 16-pixel tile boundary; strips cannot exceed image dimensions.
+  The sum of padded tile outputs (three f64 channels) is capped at 512 MiB.
+  Every codec header is checked before allocating the full image buffer.
+  Metadata projection still avoids compressed payload reads.
+- JPEG receives zune's maximum width/height before header/decode. JXL receives a
+  tile-derived allocation tracker (128 bytes per tile pixel plus 16 MiB,
+  capped at 512 MiB) before initialization. Because jxl-oxide 0.12.6 has no
+  dimension-limit builder option, staged initialization checks dimensions,
+  bit depth, sample format, orientation, and channel count before feeding frame
+  data; it does not use the eager `builder.read` path. Header consumption is
+  capped at 64 KiB. Both codec paths reject oversized header-only inputs.
+- **M9:** tile-count and aggregate decoded-byte multiplication use checked
+  arithmetic. Huge dimensions and overflow-sized tile arrays are rejected.
+- **M1:** APP14 stripping is reachable only for a selected LinearRaw IFD and
+  removes only Adobe transform 0. Explicit YCbCr/YCCK markers are preserved.
+  Synthetic tests pin YCbCr marker preservation and non-LinearRaw fallback.
+
+All new inputs are built in tests (including the CFA pixels and both malformed
+codec headers). No private fixtures, GUI work, dependency/lock changes, generated
+bindings, or board edits. Production changes are confined to
+`crates/raw-decode/src/lossy_dng.rs`; tests remain in raw-decode.
+
+RED commit: `6417ec4f` (`test(LR-8e): expose LinearRaw admission and allocation
+regressions`). Its release run recorded five expected failures and five passes.
+Additional coverage includes malformed field order, crop/calibration/NaN values,
+empty and short LinearizationTables, cyclic IFDs, truncated JPEG/JXL, and a small
+byte-mutation/truncation corpus. The existing truncation test now distinguishes
+pre-identification fallback from post-identification errors, as B1 requires.
+
+Verification uses `$HOME/.cache/tessera-target/LR-8e`, four Cargo build jobs,
+`$HOME/.cargo/bin` on PATH, and `--locked`.
+
+Implementation commit: `3256ed56cff0ad4ba6fe8ff4b142113a5155763d`
+(`fix(LR-8e): gate LinearRaw admission and bound tile decoding`). Cherry-pick
+`6417ec4f` first, then this fix, then the documentation commit containing this
+section. All three commits carry the requested Claude Opus 5.5 co-author trailer.
+
+Final verification:
+
+- Release gates **PASS** for raw-decode, image-core, pipeline-cpu, import-lrcat,
+  previews, export, and tessera-ffi. Completed final-source per-crate runs total
+  **1,492 passed, zero failed, 56 existing ignores**. The first combined release
+  run also passed with those totals.
+- **15 new safety tests pass:** 14 integration tests plus the APP14 unit test.
+  After the test-only Clippy helper cleanup, `cargo test --locked --release
+  -p raw-decode --test lr8e_safety` passed all 14 again.
+- `cargo clippy --locked --release --workspace --all-targets -- -D warnings`:
+  **PASS**.
+- `cargo fmt --all -- --check`: **PASS**.
+- `git diff --check`: **PASS**. Cargo.lock and board.json are unchanged.
+
+Timing reruns are recorded explicitly: a final-source combined run hit the
+existing previews 3-second timing assertion at 3.979 s (render output checks
+passed). The unchanged isolated Cargo test passed at 2.252 s; the same original
+executable also passed at 2.487 s with four Rayon threads. The previews and
+raw-decode full release suites passed in a remaining-crates run using
+`RAYON_NUM_THREADS=4` and `--test-threads=4`. That run then hit the existing FFI
+export/slider p90 timing assertion at 24.4 ms against 16 ms. The complete FFI
+release suite passed when rerun with `--test-threads=1` and the normal Rayon
+configuration, including that latency assertion and the 20k-image streaming
+memory gate. No timing thresholds, production code, or CI skip flags were
+changed to obtain these rerun results.
+
+Local evidence: `/tmp/lr8e-red.log`, `/tmp/lr8e-release.log`,
+`/tmp/lr8e-release-final.log`, `/tmp/lr8e-preview-retry.log`,
+`/tmp/lr8e-release-remaining.log`, `/tmp/lr8e-ffi-serial.log`,
+`/tmp/lr8e-safety-final.log`, `/tmp/lr8e-clippy.log`, and `/tmp/lr8e-fmt.log`.
