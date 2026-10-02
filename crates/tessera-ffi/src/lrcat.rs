@@ -2034,3 +2034,7 @@ mod lrcat_resume_tests {
         assert!(report.imported > 0);
     }
 }
+
+#[cfg(test)]
+#[path = "lrcat_depth_tests.rs"]
+mod depth_tests;
