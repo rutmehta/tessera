@@ -47,19 +47,102 @@ struct KeyViewWalk: CustomStringConvertible {
             + trail.map(\.name).joined(separator: " → ")
     }
 
-    /// Presses until `isTarget`. `budget` is the number of stops allowed before giving up.
-    /// `press` returns nil when the key was consumed.
+    /// Presses until `isTarget`. `press` returns nil when the key was consumed.
+    ///
+    /// `budget` counts only controlled stops after the start, the target included: the stops the
+    /// test can predict. Uncontrolled stops are allowed in between, up to `uncontrolledLimit`. They
+    /// are not checked for repeats, because one SwiftUI proxy may keep the keyboard for several
+    /// presses while focus moves inside SwiftUI. A controlled stop seen twice (the start included)
+    /// ends the walk at once. Every press is one or the other, so the walk always terminates within
+    /// `budget + uncontrolledLimit + 1` presses.
     static func run(from start: Stop, budget: Int, uncontrolledLimit: Int = KeyViewWalk.uncontrolledLimit,
                     isTarget: (Stop) -> Bool, press: () throws -> Stop?) rethrows -> KeyViewWalk {
         var walk = KeyViewWalk(trail: [start])
-        // RED (B5-49d): every stop counts against the budget, as in the test that failed on Machine A.
-        while walk.presses < budget {
+        var seen: Set<ObjectIdentifier> = []
+        if start.controlled, let object = start.object { seen.insert(ObjectIdentifier(object)) }
+        while true {
             guard let stop = try press() else { walk.outcome = .consumed; return walk }
             walk.trail.append(stop)
             if stop.controlled { walk.controlledStops += 1 } else { walk.uncontrolledStops += 1 }
-            if isTarget(stop) { walk.outcome = .reached; return walk }
+            if isTarget(stop) {
+                walk.outcome = walk.controlledStops > budget ? .overBudget : .reached
+                return walk
+            }
+            if stop.controlled {
+                if let object = stop.object, !seen.insert(ObjectIdentifier(object)).inserted {
+                    walk.outcome = .repeated
+                    return walk
+                }
+                if walk.controlledStops > budget { walk.outcome = .overBudget; return walk }
+            } else if walk.uncontrolledStops > uncontrolledLimit {
+                walk.outcome = .uncontrolledLimit
+                return walk
+            }
         }
-        _ = uncontrolledLimit
-        return walk
+    }
+}
+
+extension KeyViewWalk {
+    /// The stop a first responder stands for. `host` gives SwiftUI proxies a frame to be named by.
+    @MainActor static func stop(_ responder: NSResponder?, in host: NSView?) -> Stop {
+        guard let view = responder as? NSView else {
+            return Stop(object: responder, name: responder.map { String(describing: type(of: $0)) } ?? "nil", controlled: true)
+        }
+        if isSwiftUIProxy(view) { return Stop(object: view, name: proxyName(view, host: host), controlled: false) }
+        let identifier = view.accessibilityIdentifier()
+        let name = identifier.isEmpty ? String(describing: type(of: view)) : identifier
+        return Stop(object: view, name: name, controlled: isControlled(view))
+    }
+
+    /// SwiftUI's stand-in view for one focusable SwiftUI control (a private class, matched by name).
+    @MainActor static func isSwiftUIProxy(_ view: NSView) -> Bool {
+        NSStringFromClass(type(of: view)).hasSuffix("KeyViewProxy")
+    }
+
+    /// Buttons follow the pin. Text, lists and the app's own key-owning views are Tab stops in either
+    /// mode. Any other AppKit control (slider, pop-up, segmented control, …) follows the real setting.
+    @MainActor static func isControlled(_ view: NSView) -> Bool {
+        if isSwiftUIProxy(view) { return false }
+        guard view is NSControl else { return true }
+        return view is NSButton || view is NSTextField || view is NSTableView || view is KeyOwningControl
+    }
+
+    /// Names a proxy by the SwiftUI control it stands for: its own accessibility identity, else the
+    /// element its hosting view vends at the proxy's centre, else the control's frame in the host.
+    /// SwiftUI builds no accessibility tree in a process no assistive client has queried, so in the
+    /// background test host the frame is what identifies the control.
+    @MainActor static func proxyName(_ view: NSView, host: NSView?) -> String {
+        func identity(_ element: (any NSAccessibilityProtocol)?) -> String? {
+            guard let element else { return nil }
+            if let identifier = element.accessibilityIdentifier(), !identifier.isEmpty { return identifier }
+            if let label = element.accessibilityLabel(), !label.isEmpty { return label }
+            return nil
+        }
+        var resolved = identity(view)
+        if resolved == nil, let window = view.window, let hosting = view.superview {
+            let centre = view.convert(NSPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
+            if let hit = hosting.accessibilityHitTest(window.convertPoint(toScreen: centre)) as AnyObject?,
+               hit !== hosting, hit !== view {
+                resolved = identity(hit as? any NSAccessibilityProtocol)
+            }
+        }
+        if let resolved { return "KeyViewProxy(\(resolved))" }
+        let frame = view.convert(view.bounds, to: host ?? view.superview)
+        return "KeyViewProxy(\(Int(frame.minX)),\(Int(frame.minY)) \(Int(frame.width))×\(Int(frame.height)))"
+    }
+
+    /// Presses Tab in `window` through `press` until `isTarget` holds for the first responder.
+    @MainActor static func run(in window: NSWindow, budget: Int, isTarget: (NSResponder?) -> Bool,
+                               press: () throws -> Bool) rethrows -> KeyViewWalk {
+        let host = window.contentView
+        return try run(from: stop(window.firstResponder, in: host), budget: budget,
+                       isTarget: { _ in isTarget(window.firstResponder) }) {
+            try press() ? nil : stop(window.firstResponder, in: host)
+        }
+    }
+
+    @MainActor static func run(in window: NSWindow, budget: Int, to target: NSResponder,
+                               press: () throws -> Bool) rethrows -> KeyViewWalk {
+        try run(in: window, budget: budget, isTarget: { $0 === target }, press: press)
     }
 }
