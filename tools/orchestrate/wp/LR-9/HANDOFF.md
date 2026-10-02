@@ -450,3 +450,128 @@ After the gates the lane's 66 commits were rebased with `git rebase --onto
 4dba1640 f84aebdb` (no conflicts); `git diff` between the pre- and post-rebase
 tips is empty. Hashes quoted in the restack range-diff section above
 (`f84aebdb..83fe6be4`) are the pre-rebase ones.
+
+## Rebased onto main f7bab45c
+
+Machine A approved LR-9c at `3be064d2` (the pushed `846614b6` with a
+message-only trailer cleanup). Main then moved to `f7bab45c` (batch 43 LR-3 +
+LR-6 restack, B5-51 FINAL b/c), so the 67 commits were replayed with
+`git rebase --onto origin/main 4dba1640`, in order, without squash, reorder or
+message changes. No commit became empty; none was dropped. One commit was
+added on top (see "Swift gate" below).
+
+### Conflict resolutions
+
+- `crates/tessera-ffi/src/lrcat_profile.rs` (add/add in the first commit,
+  `d98badcb`): resolved as main's B5-51c file plus only LR-9's additions. It
+  was produced by a three-way merge with the original B5-51 file (`8750280f`)
+  as the base, main's version as one side and the LR-9 copy as the other; the
+  merge was conflict-free. All B5-51b/c hardening is kept (system temp
+  directory allowlist, app-dir-inside-.lrdata/.lrcat rejection, immutable
+  read-only audit URI, debug-ignored synthetic test, `tempdir_in` fix). LR-9's
+  additions are the value-class audit: `AUDIT_KEYS`, the wider `allowed_key`,
+  `processVersion` in the audit query, and the `warned_images_by_key`,
+  `warning_keys`, `value_classes`, `approximate_groups_in_spool` and
+  `unaudited_value_class_rows` outputs. The two later LR-9 commits that touch
+  the file (`41fd974e`, `5161a5bc`) then applied without conflict, and the
+  final file equals the same three-way merge of the LR-9c tip.
+- `crates/tessera-ffi/src/lrcat.rs` test-module hunk: git auto-merged a second
+  `mod lrcat_profile;` after main's; the duplicate was removed in the same
+  commit. All module declarations are present once: `lrcat_resume_tests`
+  (with LR-9's tests), B5-51's `lrcat_profile`, LR-6's `depth_tests` and
+  `combined_tests`.
+
+### Range-diff
+
+`git range-diff 4dba1640..3be064d2 origin/main..<67th commit>`: 67 commits on
+each side, 66 `=`, 1 `!`. The changed patch is the first commit
+(`eb6c0536` -> `d98badcb`): its `lrcat.rs` hunk is gone (main already declares
+the module), its `lrcat_profile.rs` hunk is a modification of main's file
+instead of a new file, and one `translation_matrix.rs` hunk has shifted
+context only. The files that differ between `3be064d2` and the rebased 67th
+commit are exactly the files that differ between `4dba1640` and `f7bab45c`.
+`crates/import-lrcat/tests/data` is byte-identical before and after.
+
+### Swift gate
+
+The first swift-gate run on the rebased tip failed (exit 1, nothing executed):
+main's B5-50 audit test `LibraryDevelopAccessibilityTests` builds an
+`LrcatReport` without the `cloud` field. Commit `9de67eb2` adds a cloud issue
+to that fixture, which also puts the new group under the B5-50 audit. Second
+run: SWIFT GATE OK.
+
+### Gates on the rebased tip
+
+Rust gates and the strict build ran on `6ec21a7e` (the 67th commit); the Swift
+gate passed on `9de67eb2`, which changes one Swift test file only. Touched
+crates were cleaned first.
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release -p import-lrcat` | 247 passed, 0 failed, 2 ignored |
+| `-p sidecar` | 81 passed |
+| `-p engine-api` | 136 passed |
+| `-p image-core` | 131 passed, 3 ignored |
+| `-p pipeline-cpu` | 211 passed, 3 ignored |
+| `-p pipeline-gpu` | 160 passed, 12 ignored |
+| `-p filters` | 154 passed, 8 ignored |
+| `-p previews` | 28 passed, 3 ignored |
+| `-p export` | 103 passed, 7 ignored |
+| `-p tessera-ffi` (default `TMPDIR`) | 638 passed, 0 failed, 31 ignored |
+| `-p tessera-ffi`, `TMPDIR=$CARGO_TARGET_DIR/tmp-alt` | 638 passed, 0 failed, 31 ignored |
+| `-p tessera-ffi`, `TMPDIR` unset | 638 passed, 0 failed, 31 ignored |
+| `-p tessera-mcp` | 89 passed |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean |
+| `cargo fmt --all -- --check` | clean |
+| `build-ffi.sh` | ok |
+| `swift-gate.sh` attempt 1 | FAILED: test target did not compile (missing `cloud` argument) |
+| `swift-gate.sh` attempt 2, after `9de67eb2` | SWIFT GATE OK: 934 XCTest executed, 3 skipped, 0 failures; 5 Swift Testing tests passed |
+| strict release build of `Tessera` | complete |
+
+In both `TMPDIR` runs `profile_synthetic_fixture`,
+`profile_rejects_tmpdir_widening`, `profile_rejects_lightroom_bundle_app_dirs`
+and `audit_catalog_is_immutable_and_read_only` passed; `profile_from_env` is
+the opt-in ignored test.
+
+The aggregate measurement was re-run on the rebased tip and is identical to
+the table above: 21,615 rows, 1,289 warnings, 10 cloud images, same per-key
+counts.
+
+### Hash mapping
+
+Every commit hash cited in the LR-9 and LR-9b handoffs or in Machine A's
+rulings that belongs to this lane, with its hash on the current branch.
+Subjects are unchanged. Base hashes (`270f0169`, `43a508e3`, `f84aebdb`,
+`4dba1640`) are not lane commits and are not listed.
+
+| Cited hash | Where it lived | Now | Subject |
+| --- | --- | --- | --- |
+| `2c109154` | original LR-9/9b | `d98badcb` | test(LR-9): add aggregate value-class audit and RED default-noise matrix guard |
+| `eb6c0536` | A-approved 3be064d2 | `d98badcb` | test(LR-9): add aggregate value-class audit and RED default-noise matrix guard |
+| `bd916dfd` | original LR-9/9b | `8548c4e7` | test(LR-9): cover decoded approximation reports and ignored diagnostics |
+| `25692160` | original LR-9/9b | `41fd974e` | fix(LR-9): silence shared default policies while preserving retained source |
+| `2d76264d` | A-approved 3be064d2 | `41fd974e` | fix(LR-9): silence shared default policies while preserving retained source |
+| `f5853df1` | original LR-9/9b | `1a83cf87` | test(LR-9): RED empty filter and distraction-panel noise regression |
+| `d17d31c6` | original LR-9/9b | `17706c32` | test(LR-9): RED classify structured SDK point-color placeholders |
+| `87fd730a` | A-approved 3be064d2 | `5161a5bc` | fix(LR-9): handle empty AI payloads and inactive distraction panels |
+| `a1313734` | original LR-9/9b | `5161a5bc` | fix(LR-9): handle empty AI payloads and inactive distraction panels |
+| `d30b5ba3` | original LR-9/9b | `62b685ab` | test(LR-9): RED distinguish silent unedited rows from failed edit imports |
+| `d54c5d85` | original LR-9/9b | `83f56b99` | fix(LR-9): keep never-developed images out of unsupported reports |
+| `2bbb45cd` | original LR-9/9b | `a85b7fe0` | test(LR-9): RED reject foreign XMP payloads as empty defaults |
+| `720dfec5` | original LR-9/9b | `5a286719` | fix(LR-9): fail closed on foreign XMP default projections |
+| `f987afe5` | original LR-9/9b | `b9c53bda` | test(LR-9): RED reproduce native zero-overlay round-trip gate failure |
+| `950485f3` | original LR-9/9b | `86551d7c` | fix(LR-9): preserve native zero-overlay presence through sidecar round trips |
+| `50f114da` | original LR-9/9b | `bef58be0` | docs(LR-9): record aggregate warning reduction, remaining gaps and final gates |
+| `fc6bd47a` | original LR-9/9b | `b93a35f9` | fix(LR-9b): accept AI raster provenance and name unimplemented mask features |
+| `905d85b0` | restack on f84aebdb | `c477087c` | fix(LR-9b): identify mask decoder failures and justify diagnostic compatibility changes |
+| `fbccf50a` | original LR-9/9b | `c477087c` | fix(LR-9b): identify mask decoder failures and justify diagnostic compatibility changes |
+| `38490249` | original LR-9/9b | `a5825e9d` | fix(LR-9b): enforce modern retouch authority and align cloud-note integration checks |
+| `0df613d3` | original LR-9/9b | `3c6e72fd` | fix(LR-9b): report individual AI instance selection accurately |
+| `46b1bf54` | original LR-9/9b | `b5e9a0c6` | docs(LR-9b): record final aggregate dispositions and clean release gates |
+| `83fe6be4` | restack on f84aebdb | `b5e9a0c6` | docs(LR-9b): record final aggregate dispositions and clean release gates |
+| `c002bd6f` | restack on 4dba1640 (pushed 846614b6) | `f83c2d4f` | test(LR-9c): keep cloud effects visible in plan preview and cloud-only reports |
+| `3b47161e` | restack on 4dba1640 (pushed 846614b6) | `44adce45` | fix(LR-9c): show the cloud group in the import sheet and saved report |
+| `066d63e9` | restack on f84aebdb | `39360d38` | docs(LR-9c): describe cloud report group, default no-ops and LR-5-free mask scope |
+| `373f5aa5` | restack on 4dba1640 (pushed 846614b6) | `39360d38` | docs(LR-9c): describe cloud report group, default no-ops and LR-5-free mask scope |
+| `3be064d2` | A-approved 3be064d2 | `6ec21a7e` | docs(LR-9c): point handoff at post-rebase hashes |
+| `846614b6` | restack on 4dba1640 (pushed 846614b6) | `6ec21a7e` | docs(LR-9c): point handoff at post-rebase hashes |
