@@ -52,12 +52,19 @@ fn run() -> Result<(), ()> {
         if source.trim().is_empty() { continue; }
         let Ok((r,w)) = import_lrcat::develop(0, &source, &pv) else { *counts.entry("decode_failure".into()).or_default() += 1; continue; };
         let family = if r.process_version.revision <= 2 { "legacy" } else { "modern" };
+        *counts.entry(format!("process_family/{family}")).or_default() += 1;
         let mut keys = BTreeSet::new();
         for warning in &w {
             if let Some((k,_)) = warning.trim_start_matches("crs:").split_once(':') {
                 if k.len() <= 64 && k.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') { keys.insert(k.to_string());
-                    let reason = ["number outside CRS range", "invalid boolean", "unknown choice", "unsupported property", "unknown Lua develop key", "duplicate property superseded"].into_iter().find(|r| warning.contains(r)).unwrap_or("structured_or_other");
+                    let reason = ["local tone curve", "local point-color", "local color-variance", "individual AI person-instance", "local defringe", "local color overlay", "mask geometry", "number outside CRS range", "invalid boolean", "unknown choice", "unsupported property", "unknown Lua develop key", "duplicate property superseded"].into_iter().find(|r| warning.contains(r)).unwrap_or("structured_or_other");
                     *counts.entry(format!("reasons/{k}/{reason}")).or_default() += 1; }
+            }
+        }
+        for (key, entries) in import_lrcat::diagnostics::entries(&r) {
+            if ["MaskGroupBasedCorrections", "RetouchAreas", "RetouchInfo", "RemoveAreas", "GenerativeRemove"].contains(&key.as_str()) {
+                let class = if entries.iter().any(|e| e.status == "approximate") { "approximate" } else { "ignored" };
+                *counts.entry(format!("outcomes/{key}/{class}")).or_default() += 1;
             }
         }
         for key in &keys { *counts.entry(format!("warnings/{key}/{family}")).or_default() += 1; }
