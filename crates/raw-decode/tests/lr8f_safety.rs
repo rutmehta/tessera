@@ -580,8 +580,11 @@ fn lr8h_compressed_total_above_decoded_budget_is_rejected() {
 #[test]
 fn lr8h_compressed_total_above_file_size_and_aliased_ranges_are_rejected() {
     let count = MIB / 2;
-    // 200 MiB declared in a file one byte too short to hold it.
-    compressed_budget_error(sparse_original(10000, count, count, 400 * count as u64 - 1));
+    // 200 MiB declared in a file one byte smaller than that sum. The TIFF
+    // structures count towards the file size, so trim the whole file.
+    let mut short = sparse_original(10000, count, count, 400 * count as u64);
+    short.size = 400 * count as u64 - 1;
+    compressed_budget_error(short);
     // Every tile aliases the same 512 KiB range; each range is inside the file.
     compressed_budget_error(sparse_original(10000, count, 0, 100 * count as u64));
     // Overlapping ranges half a tile apart; each range is inside the file.
