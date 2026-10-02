@@ -4,9 +4,19 @@ fn catalog_upright_renders_known_projective_corners_and_reports_cloud_features()
     let dir = tempfile::tempdir().unwrap();
     let fixture = import_lrcat::fixture::write(dir.path()).unwrap();
     let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
-    db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s = { PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0.2,0,1', EnableDistractionRemoval = true, FilterList={{What='synthetic-filter'}} }"]).unwrap();
+    let changed_rows = db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s = { PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0.2,0,1', EnableDistractionRemoval = true, FilterList={{What='synthetic-filter'}} }"]).unwrap();
     drop(db);
     let plan = import_lrcat::import(&fixture.catalog).unwrap();
+    assert!(changed_rows > 0);
+    assert_eq!(
+        plan.images
+            .iter()
+            .filter(|image| image.recipe.settings.geometry.upright.mode
+                == engine_api::recipe::settings::UprightMode::Auto)
+            .count(),
+        changed_rows
+    );
+    // Images with no Develop row must not gain a cloud note.
     assert!(plan.images.iter().all(|image| {
         import_lrcat::diagnostics::entries(&image.recipe)
             .values()
@@ -18,7 +28,10 @@ fn catalog_upright_renders_known_projective_corners_and_reports_cloud_features()
                         .contains("requires Adobe cloud; not translatable")
             })
             .count()
-            == 1
+            == usize::from(
+                image.recipe.settings.geometry.upright.mode
+                    == engine_api::recipe::settings::UprightMode::Auto,
+            )
     }));
     let recipe = &plan
         .images
