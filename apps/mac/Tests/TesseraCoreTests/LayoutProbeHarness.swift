@@ -20,6 +20,7 @@ enum LayoutProbeHarness {
 
     /// Never become the active app: no Dock icon, no focus change for the person at the Mac.
     static func prepare() {
+        KeyboardAccessHarness.install()
         _ = installNonblockingAnimations
         precondition(AppDefaultsIsolation.installForLaunch(
             arguments: ["TesseraTests", "--app-dir", defaultsDirectory.path], environment: [:]) != nil,
