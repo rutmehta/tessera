@@ -50,3 +50,7 @@ LR-8g adds two wholly synthetic codec inputs:
   `generate-two-frame.c` contains the compile/run instructions and complete
   procedural pixel definition. The test independently verifies two loaded
   keyframes before requiring the DNG decoder to reject the tile.
+`linear-gradient-jxl.dng` is the same synthetic TIFF as `linear-gradient.dng`,
+with its JPEG payload replaced by `cjxl linear-gradient.jpg output.jxl
+--lossless_jpeg=0 -d 0`; Compression is 52546 and TileByteCounts is updated.
+It exercises the app's imported JPEG XL LinearRaw route without private pixels.
