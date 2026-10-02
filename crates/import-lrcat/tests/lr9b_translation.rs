@@ -144,11 +144,14 @@ fn retouch_offsety_is_the_absolute_source_y_spelling() {
 }
 
 #[test]
-fn ai_group_rejection_reports_the_effect_that_blocks_promotion() {
-    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
+fn ai_group_rejection_does_not_blame_a_decodable_local_curve() {
+    // LR-11 renders local curves; on the LR-5-free stack the AI selection is
+    // the only reason this group is retained.
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
     assert_eq!(w.len(), 1, "{w:?}");
-    assert!(w[0].contains("local tone curve"), "{w:?}");
+    assert!(!w[0].contains("local tone curve"), "{w:?}");
     assert!(!w[0].contains("unsupported mask kind"));
+    assert!(r.settings.locals.adjustments.is_empty());
 }
 #[test]
 fn zero_local_color_variance_is_inactive() {
@@ -277,7 +280,8 @@ fn conflicting_radial_inversion_is_a_named_mask_limitation() {
 #[test]
 fn neutral_color_variance_is_not_named_as_a_curve_blocker() {
     let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalColorVariance={0,0,0},MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
-    assert!(w[0].contains("local tone curve"));
+    assert_eq!(w.len(), 1, "{w:?}");
+    assert!(!w[0].contains("local tone curve"), "{w:?}");
     assert!(!w[0].contains("color-variance"), "{w:?}");
 }
 
