@@ -222,28 +222,21 @@ pub trait LrcatProgressListener: Send + Sync {
     fn on_progress(&self, progress: LrcatProgress);
 }
 
-/// Extent of the decoded RGB source, after the same EXIF transform as RgbSource.
-fn oriented_mask_extent(path: &Path) -> Option<(u32, u32)> {
-    use image::ImageDecoder;
-    let reader = image::ImageReader::open(path)
-        .ok()?
-        .with_guessed_format()
-        .ok()?;
-    let mut decoder = reader.into_decoder().ok()?;
-    let (w, h) = decoder.dimensions();
-    let orientation = decoder.orientation().ok()?.to_exif();
-    Some(if orientation >= 5 { (h, w) } else { (w, h) })
-}
-
-/// Extent an injected mask raster must have to be accepted for `path`.
+/// Extent an injected mask raster must have: the space the renderer masks in.
+/// The same recognizer and decoder as rendering decide it, so RGB sources are
+/// measured after EXIF orientation and RAW sources by their active sensor
+/// area, never by a container preview or unrotated file dimensions. Only
+/// called for an AI-masked image when the caller injects rasters.
 fn render_mask_extent(path: &Path) -> (u32, u32) {
-    oriented_mask_extent(path)
-        .or_else(|| image::image_dimensions(path).ok())
-        .or_else(|| {
-            raw_decode::RawSource::open(path).ok().map(|raw| {
-                let meta = raw.metadata();
-                (meta.default_crop[2], meta.default_crop[3])
-            })
+    if image_core::RgbSource::recognizes(path) {
+        return image_core::RgbSource::open(path)
+            .map(|source| (source.pixels().width(), source.pixels().height()))
+            .unwrap_or((0, 0));
+    }
+    raw_decode::RawSource::open(path)
+        .map(|raw| {
+            let meta = raw.metadata();
+            (meta.default_crop[2], meta.default_crop[3])
         })
         .unwrap_or((0, 0))
 }

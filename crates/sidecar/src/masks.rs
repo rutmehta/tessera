@@ -437,6 +437,15 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
                     _ => return Err(error("unknown Adobe AI mask subtype")),
                 }
             };
+            // A part ID selects a sub-region of whatever category carries it.
+            // The IDs are unverified, so never widen one to the whole category.
+            if get(t, n, CRS, "MaskSubCategoryID")
+                .is_some_and(|part| number(&part).ok() != Some(0.))
+            {
+                return Err(error(
+                    "unsupported Adobe AI mask part; part identities are unverified",
+                ));
+            }
             let native_kind = match category.as_str() {
                 "Subject" => "subject",
                 "Sky" => "sky",

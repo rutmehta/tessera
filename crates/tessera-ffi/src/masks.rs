@@ -763,15 +763,29 @@ impl MaskShared {
             return Ok(());
         }
         let plane = mask_backend::imported_plane(support, imported)?;
+        // Stored pixels are only usable at the render extent. Anything else
+        // takes the regeneration path, exactly as file export does.
+        anyhow::ensure!(
+            self.extents.first() == Some(&(plane.width, plane.height)),
+            "stored mask raster has the wrong extent"
+        );
         self.set_ai(key, AiEntry::Ready(Arc::new(plane)));
         Ok(())
     }
 
+    /// Every enabled AI leaf has pixels: a stored raster validated on load or
+    /// a finished segmentation (resampled on use). Pending and failed do not.
     fn group_available(&self, group: &LocalAdjustment) -> bool {
         let entries = self.ai.lock().unwrap_or_else(|e| e.into_inner());
-        group.components.iter().flat_map(MaskComponent::active_leaves).filter(|c| c.kind.is_ai()).all(|c| {
-            component_raster_key(c).is_some_and(|key| matches!(entries.get(&key), Some(AiEntry::Ready(plane)) if c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_none() || self.extents.first() == Some(&(plane.width,plane.height))))
-        })
+        group
+            .components
+            .iter()
+            .flat_map(MaskComponent::active_leaves)
+            .filter(|c| c.kind.is_ai())
+            .all(|c| {
+                component_raster_key(c)
+                    .is_some_and(|key| matches!(entries.get(&key), Some(AiEntry::Ready(_))))
+            })
     }
 
     fn listener(&self) -> Option<Arc<dyn MaskListener>> {
