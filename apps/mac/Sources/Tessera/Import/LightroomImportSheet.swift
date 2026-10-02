@@ -249,7 +249,7 @@ private struct MappingStep: View {
     private var foldersSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
             section("Folders", "Where Lightroom's folders are now. Locate a root folder if its drive moved or was renamed.")
-            ForEach(Array((importer.folders?.roots ?? []).enumerated()), id: \.offset) { index, root in
+            ForEach(Array((importer.folders?.roots ?? []).enumerated()), id: \.element.id) { index, root in
                 let row = importer.preview?.roots.first { $0.catalogPath == root.catalogPath }
                 HStack(spacing: Theme.Space.s) {
                     Image(systemName: row?.exists == true ? "checkmark.circle.fill" : "questionmark.folder.fill")
@@ -326,7 +326,7 @@ private struct MappingStep: View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
             section("Colour labels → marks", "Keep a label's text, map it to one of Tessera's marks (keys 6–9), or drop it.")
             if let table = importer.marks, !table.rows.isEmpty {
-                ForEach(Array(table.rows.enumerated()), id: \.offset) { index, row in
+                ForEach(Array(table.rows.enumerated()), id: \.element.id) { index, row in
                     HStack {
                         Text(row.label).frame(width: 140, alignment: .leading)
                         Text("\(row.count) photo\(row.count == 1 ? "" : "s")").foregroundStyle(Theme.textSecondary).frame(width: 80, alignment: .leading)

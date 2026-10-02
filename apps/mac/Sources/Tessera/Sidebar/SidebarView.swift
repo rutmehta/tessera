@@ -75,7 +75,10 @@ final class SidebarRow: NSObject {
     }
     let kind: Kind
     let key: String
-    private let opaqueAccessibilityID = UUID().uuidString
+    // Process-session identity survives rebuilding the outline's row objects.
+    // Keys remain in memory; only random values reach the accessibility tree.
+    @MainActor private static var opaqueAccessibilityIDs: [String: String] = [:]
+    private let opaqueAccessibilityID: String
     var accessibilityKey: String {
         switch kind {
         case .folder, .pendingBasket: opaqueAccessibilityID
@@ -94,8 +97,16 @@ final class SidebarRow: NSObject {
     var tooltip: String?
     var children: [SidebarRow] = []
 
-    init(_ kind: Kind, key: String, title: String) {
+    @MainActor init(_ kind: Kind, key: String, title: String) {
         self.kind = kind; self.key = key; self.title = title
+        switch kind {
+        case .folder, .pendingBasket:
+            let identifier = Self.opaqueAccessibilityIDs[key] ?? UUID().uuidString
+            Self.opaqueAccessibilityIDs[key] = identifier
+            opaqueAccessibilityID = identifier
+        default:
+            opaqueAccessibilityID = key
+        }
     }
 
     var node: CollectionNode? { if case .node(let n) = kind { n } else { nil } }

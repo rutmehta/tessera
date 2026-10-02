@@ -36,7 +36,7 @@ struct AIDenoiseSection: View {
                      ? "First use downloads the denoise model; the loupe refines when it is ready."
                      : "Model downloads are off (Settings ▸ AI): only a model already on this Mac is used.")
             } else {
-                ModelProgressRow(title: ModelRequirement.cfaDenoise.title, state: state, id: "develop.detail.aiDenoise-model") { enable() }
+                ModelProgressRow(title: ModelRequirement.cfaDenoise.title, state: state, id: "detail-ai-denoise-model") { enable() }
             }
             if on, tools.develop?.ignores("/denoise") == true {
                 StatusLine(text: "This photo's AI Denoise is kept in the recipe but not drawn by the loupe.", kind: .warning)
@@ -97,7 +97,7 @@ struct LensBlurPanel: View {
                 .accessibilityIdentifier("lensblur-apply")
             if weights.isBusy {
                 ModelProgressRow(title: depth.busy == .subject ? "Subject models" : ModelRequirement.depth.title,
-                                 state: weights, id: "develop.lensBlur.model") {}
+                                 state: weights, id: "lensblur-model") {}
             } else if depth.busy != nil {
                 HStack(spacing: Theme.Space.xs) {
                     ProgressView().controlSize(.mini)

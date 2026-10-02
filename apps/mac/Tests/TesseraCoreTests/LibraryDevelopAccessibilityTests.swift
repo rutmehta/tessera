@@ -320,7 +320,7 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
     }
 
     func testIdentifierFormatAllowsOnlyNamespacesOrPinnedStems() {
-        for id in ["library.new.action", "develop.new.action", "ruleTextField", "agent-step-toggle-42", "detail-ai-denoise-model-retry"] {
+        for id in ["library.new.action", "develop.new.action", "ruleTextField", "facetCamera", "agent-step-toggle-42", "detail-ai-denoise-model-retry"] {
             XCTAssertTrue(EstablishedAccessibilityIdentifiers.accepts(id), id)
         }
         for id in ["", "arbitrary", "gridUnexpected", "ruleTextField.new", "libraryWrong.action"] {
@@ -425,7 +425,8 @@ enum EstablishedAccessibilityIdentifiers {
     static func accepts(_ identifier: String) -> Bool {
         if identifier.range(of: #"^(library|develop)\."#, options: .regularExpression) != nil { return true }
         return stems.contains { stem in
-            identifier == stem || (["-", ".", ":"].contains(String(stem.suffix(1))) && identifier.hasPrefix(stem))
+            // Main's FilterBar uses "facet\(title)" without a separator.
+            identifier == stem || ((stem == "facet" || ["-", ".", ":"].contains(String(stem.suffix(1)))) && identifier.hasPrefix(stem))
         } || ["detail-ai-denoise-model-retry", "lensblur-model-retry"].contains(identifier)
     }
 

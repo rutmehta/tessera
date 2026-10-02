@@ -639,7 +639,7 @@ struct SnapshotsPanel: View {
             if names.isEmpty {
                 Hint("Snapshots name a state you can return to.")
             }
-            ForEach(Array(names.enumerated()), id: \.offset) { index, n in
+            ForEach(Array(names.enumerated()), id: \.element) { index, n in
                 Button { model.restoreSnapshot(n) } label: {
                     HStack(spacing: Theme.Space.s) {
                         Image(systemName: "camera.viewfinder").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textSecondary)
@@ -714,7 +714,7 @@ private struct HistoryRow: View {
                     .labelsHidden()
                     .controlSize(.mini)
                     .frame(width: Theme.Space.l)
-                    .accessibilityIdentifier("agent-step-toggle-\(item.id)").accessibilityLabel("Enable \(item.label)")
+                    .accessibilityIdentifier("agent-step-toggle-\(item.id)").accessibilityLabel(item.label)
                     .help(item.enabled ? "Turn this step off (recorded as a new step)" : "Turn this step back on")
             } else {
                 Image(systemName: item.toggles != nil ? "arrow.uturn.left" : item.groupAmount != nil ? "slider.horizontal.below.rectangle" : "circle")

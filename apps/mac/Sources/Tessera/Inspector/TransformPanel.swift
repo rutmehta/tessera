@@ -180,7 +180,7 @@ struct TransformPanel: View {
         let mode = guideTool.active ? .guided : UprightControls.mode(in: settings)
         let constrain = (DevelopController.value(in: settings, at: UprightControls.constrainCropPath) as? NSNumber)?.boolValue ?? false
         VStack(alignment: .leading, spacing: 0) {
-            GroupHeader(title: "Upright", resetHelp: "Upright back to Off (one undo step)", id: "develop.transform.upright-reset") {
+            GroupHeader(title: "Upright", resetHelp: "Upright back to Off (one undo step)", id: "transform-upright-reset") {
                 guideTool.resetUpright()
             }
             UprightModeBar(selection: mode) { guideTool.setMode($0) }
@@ -208,7 +208,7 @@ struct TransformPanel: View {
             } else {
                 Hint(mode.help)
             }
-            GroupHeader(title: "Transform", resetHelp: "Manual transform back to neutral (one undo step)", id: "develop.transform.reset") {
+            GroupHeader(title: "Transform", resetHelp: "Manual transform back to neutral (one undo step)", id: "transform-reset") {
                 guideTool.resetTransform()
             }
             ForEach(TransformControls.all) { c in

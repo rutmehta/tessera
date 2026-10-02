@@ -18,7 +18,7 @@ struct KeywordsPanel: View {
                 Hint(model.focusedItem == nil ? "No image selected" : "No keywords")
             } else {
                 FlowRow(spacing: Theme.Space.xs) {
-                    ForEach(Array(applied.enumerated()), id: \.offset) { index, k in
+                    ForEach(Array(applied.enumerated()), id: \.element) { index, k in
                         KeywordChip(name: k, index: index, mixed: library.mixed.contains("keywords")) {
                             library.applyKeywords([k], add: false)
                         }
@@ -50,7 +50,7 @@ struct KeywordsPanel: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(library.keywords.enumerated()), id: \.offset) { index, k in
+                        ForEach(Array(library.keywords.enumerated()), id: \.element.name) { index, k in
                             KeywordTreeRow(keyword: k, index: index, applied: applied.contains(k.name), library: library,
                                            all: library.keywords, selectionCount: n)
                         }

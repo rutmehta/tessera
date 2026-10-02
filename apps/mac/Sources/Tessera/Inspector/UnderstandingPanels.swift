@@ -35,7 +35,7 @@ struct SuggestedKeywordsSection: View {
                      : "Suggestions appear here with their confidence. Nothing is applied until you accept it.")
             } else {
                 FlowRow(spacing: Theme.Space.xs) {
-                    ForEach(Array(chips.items.enumerated()), id: \.offset) { index, s in
+                    ForEach(Array(chips.items.enumerated()), id: \.element.id) { index, s in
                         SuggestionChipView(suggestion: s, index: index, strong: chips.isAboveThreshold(s), selectionCount: n,
                                            accept: { all in understanding.accept(s.keyword, all: all) },
                                            reject: { understanding.reject(s.keyword) })
