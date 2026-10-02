@@ -55,3 +55,64 @@ fn b2_instance_keys_reject_the_mask_group_on_every_kind() {
         }
     }
 }
+
+fn adobe_packet(top: &str, extended: &str) -> String {
+    format!(
+        "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:crs=\"http://ns.adobe.com/camera-raw-settings/1.0/\" crs:ProcessVersion=\"15.4\"{top}><crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li rdf:parseType=\"Resource\"><crs:MainCurve><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,127.5</rdf:li></rdf:Seq></crs:MainCurve><crs:ExtendedMainCurve><rdf:Seq>{extended}</rdf:Seq></crs:ExtendedMainCurve><crs:CorrectionMasks><rdf:Seq><rdf:li rdf:parseType=\"Resource\"><crs:What>Mask/Gradient</crs:What><crs:FullX>0</crs:FullX><crs:FullY>0</crs:FullY><crs:ZeroX>1</crs:ZeroX><crs:ZeroY>0</crs:ZeroY></rdf:li></rdf:Seq></crs:CorrectionMasks></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections></rdf:Description></rdf:RDF></x:xmpmeta>"
+    )
+}
+
+/// B3: Adobe extended local curves populate `curves_extended` only for HDR
+/// output and only when they are not the identity, like the global curve.
+#[test]
+fn b3_extended_local_curves_follow_the_global_hdr_rule() {
+    let real = "<rdf:li>0,0</rdf:li><rdf:li>255,255</rdf:li><rdf:li>510,600</rdf:li>";
+    let identity = "<rdf:li>0,0</rdf:li><rdf:li>255,255</rdf:li><rdf:li>510,510</rdf:li>";
+    for (top, extended, expected) in [
+        ("", real, false),
+        (" crs:HDREditMode=\"0\"", real, false),
+        (" crs:HDREditMode=\"1\"", real, true),
+        (" crs:HDREditMode=\"1\"", identity, false),
+    ] {
+        let imported = XmpPacket::parse(adobe_packet(top, extended))
+            .unwrap()
+            .to_recipe()
+            .unwrap();
+        assert!(imported.warnings.is_empty(), "{:?}", imported.warnings);
+        let p = &imported.recipe.settings.locals.adjustments[0].params;
+        assert_eq!(p.curves.as_ref().unwrap().rgb.0[1].y, 0.5, "{top}");
+        assert_eq!(p.curves_extended.is_some(), expected, "{top}");
+    }
+    // A malformed extended curve is still an error on an SDR image.
+    let imported = XmpPacket::parse(adobe_packet(
+        "",
+        "<rdf:li>0,0</rdf:li><rdf:li>0,255</rdf:li>",
+    ))
+    .unwrap()
+    .to_recipe()
+    .unwrap();
+    assert!(
+        imported.warnings.iter().any(|w| w.contains("local curve")),
+        "{:?}",
+        imported.warnings
+    );
+    assert!(imported.recipe.settings.locals.adjustments.is_empty());
+}
+
+/// B3: a native `ts:curves_extended` field is an explicit recipe value and
+/// keeps round-tripping, as the global native field does.
+#[test]
+fn b3_native_extended_local_curve_still_round_trips() {
+    let xml = packet(serde_json::json!([{
+        "params":{"curves_extended":{"blue":[{"x":0,"y":0},{"x":2,"y":1.5}]}},
+        "components":[{"kind":"linear","start":[0,0],"end":[1,0]}]
+    }]));
+    let imported = XmpPacket::parse(xml).unwrap().to_recipe().unwrap();
+    assert!(imported.warnings.is_empty(), "{:?}", imported.warnings);
+    assert!(
+        imported.recipe.settings.locals.adjustments[0]
+            .params
+            .curves_extended
+            .is_some()
+    );
+}
