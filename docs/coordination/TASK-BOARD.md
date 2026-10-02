@@ -1,5 +1,9 @@
 # Tessera task board — Machine A coordinator
 
+## Batch 41 reconciliation — 2026-10-02 17:10 UTC
+
+Replacement Machine A coordinator merged B5-48/48b/48c at `ab4c7cf513398cc32b4c67acce3aa2136965d777`: click-time Export Flat snapshot, deterministic ring test and release-only latency bounds. Independently inspected `/Volumes/betterSSD/tessera-validation/batch41b/head.txt`, which matches this exact merge, and exits: Rust, Clippy, fmt, Swift gate, bindings drift and strict build all 0, done. Swift: 919 tests, 3 skipped, 0 failures, 209.895s; additional 5 Swift Testing tests passed. Earlier batch41 evidence targets ffdd9bb5 and is superseded for this merge. This confirms recorded integration gates, not GUI acceptance or general latency claims. Codex A runtime/ownership handoff remains pending; no duplicate workload launched. Mailbox remains 0 messages, 75 receipts, 6 historical in-progress entries already reconciled against integration; no receipt was ACKed.
+
 ## LR/ENG ownership reassigned — 2026-10-01 15:52 UTC
 
 Main brief `87ff1ff1` assigns LR-0..7 and ENG-1/2 to Machine B Codex. Its assertion that A never started is contradicted by the published inventory, source candidates, audits and test drafts below. A preserves all work and starts no additional LR/ENG tasks; B is the implementation owner, with prior A artifacts available for reuse. No `origin/wp/LR-*` or `origin/wp/ENG-*` branches were visible at this fetch; that absence does not prove B is idle. Handoff status `1ac93976-126f-4dd7-b875-e86032cddd54` published to B with exact branches/hashes and UNRUN limits; existing-session SSH queue accepted `01a0f82d-1d56-7df3-92b1-00ca59fbd5e9`. Queue acceptance is not peer receipt; receipt remains unverified. Do not duplicate the wakeup. PERF ownership/candidates stay with A pending coordinator reconciliation and the existing explicit runtime handoff. Historical owner rows below describe artifact authorship, not permission to duplicate B work.
