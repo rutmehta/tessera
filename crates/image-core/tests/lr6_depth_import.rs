@@ -375,3 +375,31 @@ fn lr6e_unresolved_reimport_removes_only_the_images_previous_pin() {
         1
     );
 }
+
+#[test]
+fn lr6e_preview_reads_full_resolution_imported_depth_without_inference_or_writes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("previews/depth-cache");
+    let store = DepthStore::new(&root, 1).unwrap();
+    let mut r = recipe();
+    let depth = import_lens_blur_depth(&mut r, (16, 16), &store, |_| Some(png(16, 16, 128)))
+        .unwrap()
+        .unwrap();
+    let key = imported_depth_key(r.image_id.unwrap());
+    let preview = Image::new(8, 8, vec![vec![0.4; 64]; 3]).unwrap();
+    // The 1x1 fallback deliberately cannot estimate this 8x8 frame.
+    let renderer =
+        Renderer::new(RendererConfig::default()).with_depth(Arc::new(stored_provider(tmp.path())));
+    let before = r.to_json().unwrap();
+    let actual = renderer.apply_depth_effects(&preview, &r.settings).unwrap();
+    let expected_depth = DepthMap::from_normalized_inverse(8, 8, vec![128. / 255.; 64]).unwrap();
+    let expected = Renderer::new(RendererConfig::default())
+        .with_depth(Arc::new(DepthProvider::from_map(expected_depth)))
+        .apply_depth_effects(&preview, &r.settings)
+        .unwrap();
+    assert_eq!(actual.planes(), expected.planes());
+    assert_eq!(r.to_json().unwrap(), before);
+    assert_eq!(DepthMap::cached(&store, &key), Some(depth));
+    assert_eq!(std::fs::read_dir(&root).unwrap().count(), 1);
+    assert_eq!(std::fs::read_dir(root.join("pinned")).unwrap().count(), 1);
+}
