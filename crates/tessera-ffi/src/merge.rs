@@ -480,7 +480,14 @@ impl Engine {
 }
 
 pub(crate) fn load_linear(source: &PhotoSource) -> Result<(LinearImage, Option<hdr::Exposure>)> {
-    if let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(&source.path)?)? {
+    // Same gate as the two approved reader call sites: only a .dng is offered
+    // to the LinearRaw reader, so every other original keeps its LibRaw path.
+    if source
+        .path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
+        && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(&source.path)?)?
+    {
         // Merge consumes unbalanced camera RGB. The Smart Preview is already
         // normalized and demosaiced; sending it to LibRaw loses JXL support.
         let wb = dng.metadata.as_shot_wb;
