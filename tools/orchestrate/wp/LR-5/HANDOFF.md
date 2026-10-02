@@ -238,7 +238,8 @@ as exact. All fixtures and raster values added here are invented.
 ## LR-5b — Machine A round-2 rework
 
 This section supersedes the rejected LR-5 behavior and the historical gate claims
-above. Base: `f84aebdb` (LR-6 restack without LR-5). Ported the original
+above. Base: `4dba1640` (LR-6 restack without LR-5; built on `f84aebdb`, the
+same tree, and rebased after the gates). Ported the original
 `5e0633e1..04217312` lane and restored the removed LR-5 export/print plumbing,
 combined-lane resolver assertions and matrix rows. LR-6's shared `put_pinned`,
 `remove_pinned` and `pinned_revision` functions are preserved.
@@ -282,7 +283,7 @@ after the first worker (Codex) stopped; "audit" marks what that audit changed.
   `lr6f_all_lanes_one_apply_both_resources_and_both_absent` therefore asserts
   removal of the old mask raster after an explicit prune (the depth slot is
   still replaced in place), and its per-sample size is 2 for masks, 4 for depth.
-  That test was already failing at `8323df62` on both points; no assertion was
+  That test was already failing at `91ec5ab0` (the first worker's last commit) on both points; no assertion was
   removed.
 - **Reimport without any AI mask.** M4 forbids a store call, so the ownership
   record of an image that had masks before is kept until the image is removed.
@@ -325,7 +326,7 @@ Commits are named by subject because the lane was rebased afterwards.
 - RED "require scan-free removal of images without imported masks": FFI `lr5`
   18 passed, 1 failed. GREEN "remove image mask ownership in one batch without
   listing the store". The wider `lr` filter then ran the combined all-lane test
-  for the first time in this lane: it was already failing at `8323df62`.
+  for the first time in this lane: it was already failing at `91ec5ab0` (the first worker's last commit).
 - RED "require superseded rasters to be reclaimable and align the combined test
   with u16 pins": FFI `lr` 38 passed, 2 failed. GREEN "own only the published
   recipe's rasters so pruning reclaims superseded content": 40 passed.
