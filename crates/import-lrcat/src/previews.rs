@@ -252,6 +252,40 @@ mod tests {
     use super::*;
 
     #[test]
+    fn split_jpeg_levels_select_current_digest_and_largest_dimensions() {
+        let temp = tempfile::tempdir().unwrap();
+        let uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+        let digest = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        let index = PreviewIndex {
+            dir: temp.path().to_owned(),
+            entries: [(1, (uuid.into(), digest.into()))].into(),
+        };
+        let legacy = index.lrprev_path(1).unwrap();
+        std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        let jpeg = |width: u16| {
+            let mut bytes = vec![0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 10];
+            bytes.extend(width.to_be_bytes());
+            bytes.extend([1, 1, 0x11, 0, 0xff, 0xd9]);
+            bytes
+        };
+        let small = jpeg(20);
+        let large = jpeg(40);
+        for (suffix, bytes) in [("_256", &small), ("_1024", &large)] {
+            std::fs::write(legacy.with_file_name(format!("{uuid}-{digest}{suffix}")), bytes)
+                .unwrap();
+        }
+        std::fs::write(
+            legacy.with_file_name(format!("{uuid}-cccccccccccccccccccccccccccccccc_2048")),
+            jpeg(80),
+        )
+        .unwrap();
+        assert!(index.has_preview(1).unwrap());
+        assert!(!index.has_preview(2).unwrap());
+        assert_eq!(index.jpeg(1, 15).unwrap().unwrap(), small);
+        assert_eq!(index.jpeg(1, u32::MAX).unwrap().unwrap(), large);
+    }
+
+    #[test]
     fn container_round_trip_and_truncation() {
         let sections = vec![
             Section {
