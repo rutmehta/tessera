@@ -203,3 +203,12 @@ fn retouch_dab_state_commands_preserve_radius_flow_and_hardness() {
     assert_eq!(strokes[1].feather,80.);
     assert!(strokes.iter().all(|s|s.points.len()==1));
 }
+
+#[test]
+fn unsupported_modern_retouch_does_not_apply_a_stale_legacy_alias() {
+    let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='contentAware',pm_patch='synthetic'}},RetouchInfo={'spotType=clone,centerX=0.2,centerY=0.4,radius=0.03,sourceX=0.7,sourceY=0.6'}}","15.4").unwrap();
+    assert!(r.settings.locals.retouch.is_empty());
+    assert_eq!(w.len(),1,"{w:?}");
+    assert!(w[0].contains("content-aware"),"{w:?}");
+    assert_eq!(diagnostics::entries(&r)["RetouchInfo"][0].status,"ignored");
+}
