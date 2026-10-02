@@ -112,13 +112,6 @@ pub(crate) fn apply(
             "LR-5",
             REGENERATED,
         );
-    } else {
-        import_lrcat::diagnostics::remove_approximate(
-            &mut next,
-            "MaskGroupBasedCorrections",
-            "LR-5",
-            REGENERATED,
-        );
     }
     // Snapshot at most the same per-image durable bound for rollback.
     let mut prior = Vec::new();

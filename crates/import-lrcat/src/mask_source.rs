@@ -428,29 +428,6 @@ pub(crate) fn record_approximation_diagnostics(
             }
         }
     }
-    for category in categories {
-        crate::diagnostics::push_approximate(
-            recipe,
-            "MaskGroupBasedCorrections",
-            "/settings/locals/adjustments",
-            "LR-5",
-            "regenerated: no Adobe mask raster; Tessera re-segments at render",
-        );
-        if !matches!(
-            category.as_str(),
-            "Subject" | "Sky" | "Background" | "Object" | "Objects"
-        ) {
-            crate::diagnostics::push_approximate(
-                recipe,
-                "MaskGroupBasedCorrections",
-                "/settings/locals/adjustments",
-                "LR-5",
-                &format!(
-                    "{category}: person sub-part segmentation unavailable; regeneration uses the closest available subject category"
-                ),
-            );
-        }
-    }
     let shape_value = root.descendants().filter_map(fields).any(|f| {
         matches!(
             f.get("What").and_then(Field::scalar),

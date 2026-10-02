@@ -437,29 +437,12 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
                     _ => return Err(error("unknown Adobe AI mask subtype")),
                 }
             };
-            let category = if matches!(category.as_str(), "People" | "Person") {
-                match get(t, n, CRS, "MaskSubCategoryID").as_deref() {
-                    None | Some("0") => category,
-                    Some("2") => "FaceSkin".into(),
-                    Some("4") => "BodySkin".into(),
-                    Some("5") => "Hair".into(),
-                    Some("6") => "Lips".into(),
-                    Some("11") => "Clothes".into(),
-                    Some(id) if id.parse::<u32>().is_ok() => format!("PersonSubPart:{id}"),
-                    _ => return Err(error("invalid person subcategory")),
-                }
-            } else {
-                category
-            };
             let native_kind = match category.as_str() {
-                "Subject" | "People" | "Person" | "Hair" | "FaceSkin" | "BodySkin" | "Eyebrows"
-                | "EyeSclera" | "Sclera" | "Iris" | "Lips" | "Teeth" | "Clothes" | "Clothing"
-                | "Body" => "subject",
+                "Subject" => "subject",
                 "Sky" => "sky",
                 "Background" => "background",
                 "Object" | "Objects" => "object",
-                value if value.starts_with("PersonSubPart:") => "subject",
-                _ => return Err(error("unknown Adobe AI mask category")),
+                _ => return Err(error("unsupported Adobe person or part mask; subtype and instance identities are unverified")),
             };
             c = json!({"kind":native_kind, "model":null});
             if native_kind == "object" {
