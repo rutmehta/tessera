@@ -311,9 +311,21 @@ fn malformed_modern_retouch_also_blocks_stale_legacy_fallback() {
 #[test]
 fn retouch_brushes_may_cross_the_image_boundary_without_clamping() {
     let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='clone',SourceX=0.3,SourceY=0.4,Masks={{What='Mask/Paint',Radius=0.03,Dabs={'d -0.05 0.4','d 0.1 0.4'}}}}}}","15.4").unwrap();
-    assert!(w.is_empty(),"{w:?}");
-    let engine_api::recipe::mask::RetouchTarget::Area{components}=&r.settings.locals.retouch[0].target else {panic!("area required")};
-    let engine_api::recipe::MaskKind::Brush{strokes}=&components[0].kind else {panic!("brush required")};
-    assert_eq!(strokes[0].points[0][0],-0.05);
+    assert!(w.is_empty(), "{w:?}");
+    let engine_api::recipe::mask::RetouchTarget::Area { components } =
+        &r.settings.locals.retouch[0].target
+    else {
+        panic!("area required")
+    };
+    let engine_api::recipe::MaskKind::Brush { strokes } = &components[0].kind else {
+        panic!("brush required")
+    };
+    assert_eq!(strokes[0].points[0][0], -0.05);
     r.validate().unwrap();
+}
+
+#[test]
+fn ai_object_instance_metadata_names_instance_selection() {
+    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',CorrectionMasks={{What='Mask/Image',MaskSubType=0,ReferencePoint='0.5 0.5',InstanceIDs={{InstanceID=1}},InstanceBounds={{Left=0.2,Top=0.2,Right=0.8,Bottom=0.8}}}}}}}","15.4").unwrap();
+    assert!(w.iter().any(|w|w.contains("individual AI instance selection")),"{w:?}");
 }
