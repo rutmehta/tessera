@@ -9,17 +9,18 @@ struct InspectorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                PanelSection("Image") { ImageInfoPanel(model: model) }
-                PanelSection("Selection") { SelectionPanel(model: model).disabled(model.isCachedPreviewLibrary) }
+                PanelSection("Image", headerIdentifier: "library.panel.Image") { ImageInfoPanel(model: model) }
+                PanelSection("Selection", headerIdentifier: "library.panel.Selection") { SelectionPanel(model: model).disabled(model.isCachedPreviewLibrary) }
                 if model.isEngineBacked && !model.isCachedPreviewLibrary {
-                    PanelSection("Assist") { AssistPanel(model: model) }
-                    PanelSection("People", expanded: false) { PeoplePanel(model: model) }
-                    PanelSection("Agent Edit") { AgentEditPanel(model: model) }
-                    PanelSection("Keywords") { KeywordsPanel(model: model, library: model.collections) }
-                    PanelSection("Metadata") { MetadataPanel(model: model, library: model.collections) }
+                    PanelSection("Assist", headerIdentifier: "library.panel.Assist") { AssistPanel(model: model) }
+                    PanelSection("People", expanded: false, headerIdentifier: "library.panel.People") { PeoplePanel(model: model) }
+                    PanelSection("Agent Edit", headerIdentifier: "library.panel.AgentEdit") { AgentEditPanel(model: model) }
+                    PanelSection("Keywords", headerIdentifier: "library.panel.Keywords") { KeywordsPanel(model: model, library: model.collections) }
+                    PanelSection("Metadata", headerIdentifier: "library.panel.Metadata") { MetadataPanel(model: model, library: model.collections) }
                 }
-                PanelSection("Photo Edit") {
+                PanelSection("Photo Edit", headerIdentifier: "library.panel.PhotoEdit") {
                     Button("Edit photo") { model.enterPhotoEdit() }
+                        .accessibilityIdentifier("library.inspector.editPhoto")
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .disabled(!model.canEnterPhotoEdit)
                     Hint("Develop and masks edit the focused photo. Library selection actions show their own scope.")
@@ -144,6 +145,7 @@ struct DecisionChip: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .accessibilityLabel(title.isEmpty ? "Key \(key)" : "\(title), key \(key)")
+        .accessibilityIdentifier("library.selection.\(key)")
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
@@ -157,17 +159,19 @@ struct BasicPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.Space.xs) {
                 Button("Reset") { model.resetDevelop() }
+                    .accessibilityIdentifier("develop.basic.reset")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .help("Reset all develop settings (one undo step)")
                 Menu("Snapshots") {
-                    Button("New Snapshot…") { model.promptSnapshot() }
+                    Button("New Snapshot…") { model.promptSnapshot() }.accessibilityIdentifier("develop.basic.newSnapshot")
                     let names = model.developHistory?.snapshots ?? []
                     if !names.isEmpty { Divider() }
-                    ForEach(names, id: \.self) { name in
-                        Button(name) { model.restoreSnapshot(name) }
+                    ForEach(Array(names.enumerated()), id: \.element) { index, name in
+                        Button(name) { model.restoreSnapshot(name) }.accessibilityIdentifier("develop.basic.restoreSnapshot.\(index)")
                     }
                 }
                 .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
+                .accessibilityIdentifier("develop.basic.snapshots").accessibilityLabel("Snapshots")
                 Spacer(minLength: Theme.Space.xs)
                 Text(statusText).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
             }
@@ -212,6 +216,8 @@ struct AdjustmentSlider: NSViewRepresentable {
     func makeNSView(context: Context) -> ValueSlider {
         let s = ValueSlider(frame: .zero)
         s.title = key.title
+        s.setAccessibilityIdentifier("develop.basic.\(key.rawValue)")
+        s.setAccessibilityLabel(key.title)
         s.minValue = key.range.lowerBound
         s.maxValue = key.range.upperBound
         s.defaultValue = key.defaultValue

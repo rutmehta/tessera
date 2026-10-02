@@ -400,3 +400,20 @@ Collected from the passing hosted audit. These include fixture-specific records 
 | `document.transform.warpSplit.2` | Split horizontally: click the net |
 | `document.transform.warpSplit.3` | Split crosswise: click the net (⇧ keeps splitting) |
 | `document.transform.width` | W |
+
+## B5-50b shared shell toolbar compatibility
+
+`ContentView.axMode` applies only to newly identified Library/Develop controls.
+Document mode retains these established identifiers (also listed above):
+
+| Identifier | Control |
+| --- | --- |
+| `document.toolbar.open` | Open Folder |
+| `document.toolbar.inspector` | Inspector visibility |
+| `document.toolbar.sidebar` | Document sidebar visibility |
+| `document.toolbar.library` | Return to Library |
+
+Library/Develop use the native SwiftUI sidebar toggle. Existing shared actions retain
+`toolbar-assist`, `toolbar-assist-menu`, `toolbar-people-merge`, `toolbar-auto-edit`,
+and `toolbar-agent-review`; they do not acquire document-prefixed aliases.
+The full restoration inventory is in [B5-50](../B5-50/RESTORED-IDENTIFIERS.md).

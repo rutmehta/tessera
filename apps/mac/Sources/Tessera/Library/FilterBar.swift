@@ -81,6 +81,7 @@ struct FilterBar: View {
                 }
                     .buttonStyle(.theme(.borderless, square: compact))
                     .accessibilityLabel("Clear")
+                    .accessibilityIdentifier("library.filter.clear")
                     .fixedSize()
                     .help("Remove all filters (⌥⌘L)")
             }
@@ -89,6 +90,7 @@ struct FilterBar: View {
             }
                 .buttonStyle(.theme(.borderless, square: compact))
                 .accessibilityLabel("Save as Smart Album…")
+                .accessibilityIdentifier("library.filter.save")
                 .fixedSize()
                 .disabled(library.composedRule.isEmpty || library.diagnostic != nil)
                 .help(library.composedRule.isEmpty ? "Set a filter (or open an album) first"
@@ -196,6 +198,7 @@ struct FilterBar: View {
             showDates.toggle()
         }
         .buttonStyle(ThemeButtonStyle(kind: .bordered, height: Theme.Height.small))
+        .accessibilityIdentifier("library.filter.date")
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control)
             .strokeBorder(active ? Theme.accent.opacity(0.5) : Theme.clear, lineWidth: Theme.Space.hairline))
         .fixedSize()
@@ -203,17 +206,17 @@ struct FilterBar: View {
             VStack(alignment: .leading, spacing: Theme.Space.s) {
                 Text("Capture date").font(Theme.Fonts.labelSemibold)
                 HStack(spacing: Theme.Space.s) {
-                    TextField("From  YYYY[-MM[-DD]]", text: filterBinding(\.dateFrom)).frame(width: 150)
+                    TextField("From  YYYY[-MM[-DD]]", text: filterBinding(\.dateFrom)).accessibilityIdentifier("library.filter.dateFrom").accessibilityLabel("Capture date from").frame(width: 150)
                     Text("to").foregroundStyle(Theme.textSecondary)
-                    TextField("To", text: filterBinding(\.dateTo)).frame(width: 150)
+                    TextField("To", text: filterBinding(\.dateTo)).accessibilityIdentifier("library.filter.dateTo").accessibilityLabel("Capture date to").frame(width: 150)
                 }
                 .textFieldStyle(.roundedBorder)
                 Hint("Inclusive. 2024 is the whole year; 2024-06 the whole month.")
                 HStack(spacing: Theme.Space.s) {
-                    Button("Clear") { model.updateLibraryFilter { $0.dateFrom = ""; $0.dateTo = "" } }
+                    Button("Clear") { model.updateLibraryFilter { $0.dateFrom = ""; $0.dateTo = "" } }.accessibilityIdentifier("library.filter.dateClear")
                         .buttonStyle(.themeBordered)
                     Spacer()
-                    Button("Done") { showDates = false }.keyboardShortcut(.defaultAction).buttonStyle(.themePrimary)
+                    Button("Done") { showDates = false }.accessibilityIdentifier("library.filter.dateDone").keyboardShortcut(.defaultAction).buttonStyle(.themePrimary)
                 }
             }
             .font(Theme.Fonts.label)

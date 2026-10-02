@@ -1,0 +1,79 @@
+[0/1] Planning build
+Building for production...
+[0/5] Write sources
+[1/5] Write swift-version--58304C5D6DBC2206.txt
+[3/6] Compiling TesseraFFI TesseraFFI.swift
+[4/7] Compiling TesseraCore AppDefaultsIsolation.swift
+[5/8] Compiling Tessera AISettingsView.swift
+[5/9] Write Objects.LinkFileList
+[6/9] Linking Tessera
+[8/10] Compiling TesseraCoreTests AgentReviewLayoutTests.swift
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/DocumentLoadSettlementTests.swift:59:18: warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+57 |     func testReleasedWorkspaceStillSettlesAfterBackendReturns() {
+58 |         var workspace: DocumentWorkspace? = DocumentWorkspace()
+59 |         weak var weakWorkspace = workspace
+   |                  `- warning: weak variable 'weakWorkspace' was never mutated; consider changing to 'let' constant [#WeakMutability]
+60 |         var finish: (@MainActor (Result<any DocumentBackend, Error>) -> Void)?
+61 |         workspace?.documentLoadExecutor = { _, _, done in finish = done }
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/DocumentOverlayAnimationTests.swift:72:18: warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 70 |     func testReleasedOwnerInvalidatesRetainedTimerWithoutTicks() {
+ 71 |         var view: Overlay? = makeOverlay()
+ 72 |         weak var weakView = view
+    |                  `- warning: weak variable 'weakView' was never mutated; consider changing to 'let' constant [#WeakMutability]
+ 73 |         view?.updateAnimation()
+ 74 |         let timer = view?.animationTimer
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/DocumentViewportOwnershipTests.swift:32:18: warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+30 |     func testControllerReleasedBeforeDismantleStillClearsLocalResources() throws {
+31 |         var doc: DocumentController? = try document()
+32 |         weak var released = doc
+   |                  `- warning: weak variable 'released' was never mutated; consider changing to 'let' constant [#WeakMutability]
+33 |         let view = DocumentViewportView(frame: .zero)
+34 |         view.attach(doc)
+
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/EngineDocumentBackendTests.swift:244:54: warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+  9 | /// history ids, listener coalescing, a real `DocumentSession` behind `DocumentBackend`, and the
+ 10 | /// workspace's engine-vs-stub choice.
+ 11 | final class EngineDocumentBackendTests: XCTestCase {
+    |             `- note: class 'EngineDocumentBackendTests' does not conform to the 'Sendable' protocol
+ 12 |     private func temp() throws -> URL {
+ 13 |         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("engine-doc-\(UUID().uuidString)")
+    :
+242 |         let done = expectation(description: "delivered")
+243 |         DispatchQueue.global().async {
+244 |             for e in 1...20 { adapter.onFrame(frame: self.frameInfo(epoch: UInt64(e))) }
+    |                                                      `- warning: capture of 'self' with non-Sendable type 'EngineDocumentBackendTests' in a '@Sendable' closure [#SendableClosureCaptures]
+245 |             DispatchQueue.main.async { done.fulfill() }
+246 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
+[9/11] Compiling TesseraPackageTests runner.swift
+[9/11] Write Objects.LinkFileList
+[10/11] Linking TesseraPackageTests
+Build complete! (255.32s)
+Test Suite 'Selected tests' started at 2026-10-02 14:03:45.667.
+Test Suite 'TesseraPackageTests.xctest' started at 2026-10-02 14:03:45.668.
+Test Suite 'LibraryDevelopAccessibilityTests' started at 2026-10-02 14:03:45.668.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testEstablishedIdentifiersFromMainRemainPresent]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/LibraryDevelopAccessibilityTests.swift:310: error: -[TesseraCoreTests.LibraryDevelopAccessibilityTests testEstablishedIdentifiersFromMainRemainPresent] : XCTAssertTrue failed - Established identifier missing: detail-ai-denoise-model
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/LibraryDevelopAccessibilityTests.swift:310: error: -[TesseraCoreTests.LibraryDevelopAccessibilityTests testEstablishedIdentifiersFromMainRemainPresent] : XCTAssertTrue failed - Established identifier missing: lensblur-model
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/LibraryDevelopAccessibilityTests.swift:310: error: -[TesseraCoreTests.LibraryDevelopAccessibilityTests testEstablishedIdentifiersFromMainRemainPresent] : XCTAssertTrue failed - Established identifier missing: transform-upright-reset
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/LibraryDevelopAccessibilityTests.swift:310: error: -[TesseraCoreTests.LibraryDevelopAccessibilityTests testEstablishedIdentifiersFromMainRemainPresent] : XCTAssertTrue failed - Established identifier missing: transform-reset
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testEstablishedIdentifiersFromMainRemainPresent]' failed (0.769 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testIdentifierFormatAllowsOnlyNamespacesOrPinnedStems]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testIdentifierFormatAllowsOnlyNamespacesOrPinnedStems]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarFolderIdentifierSurvivesRebuild]' started.
+/Users/rutmehta/Developer/lightroom/.worktrees/B5-50/apps/mac/Tests/TesseraCoreTests/LibraryDevelopAccessibilityTests.swift:336: error: -[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarFolderIdentifierSurvivesRebuild] : XCTAssertEqual failed: ("E4E42414-4362-4880-8CA3-6E8B354470F7") is not equal to ("1557F891-F85B-47B0-BB44-C250B509C425")
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarFolderIdentifierSurvivesRebuild]' failed (0.001 seconds).
+Test Suite 'LibraryDevelopAccessibilityTests' failed at 2026-10-02 14:03:46.438.
+	 Executed 3 tests, with 5 failures (0 unexpected) in 0.770 (0.770) seconds
+Test Suite 'TesseraPackageTests.xctest' failed at 2026-10-02 14:03:46.438.
+	 Executed 3 tests, with 5 failures (0 unexpected) in 0.770 (0.770) seconds
+Test Suite 'Selected tests' failed at 2026-10-02 14:03:46.438.
+	 Executed 3 tests, with 5 failures (0 unexpected) in 0.770 (0.771) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

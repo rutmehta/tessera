@@ -35,8 +35,8 @@ struct SuggestedKeywordsSection: View {
                      : "Suggestions appear here with their confidence. Nothing is applied until you accept it.")
             } else {
                 FlowRow(spacing: Theme.Space.xs) {
-                    ForEach(chips.items) { s in
-                        SuggestionChipView(suggestion: s, strong: chips.isAboveThreshold(s), selectionCount: n,
+                    ForEach(Array(chips.items.enumerated()), id: \.element.id) { index, s in
+                        SuggestionChipView(suggestion: s, index: index, strong: chips.isAboveThreshold(s), selectionCount: n,
                                            accept: { all in understanding.accept(s.keyword, all: all) },
                                            reject: { understanding.reject(s.keyword) })
                     }
@@ -66,6 +66,7 @@ struct SuggestedKeywordsSection: View {
 
 private struct SuggestionChipView: View {
     let suggestion: SuggestedKeyword
+    let index: Int
     /// At or above the accept-all threshold.
     let strong: Bool
     let selectionCount: Int
@@ -101,14 +102,14 @@ private struct SuggestionChipView: View {
             .help(help)
             .accessibilityLabel("Accept \(suggestion.keyword)")
             .accessibilityValue(suggestion.percent)
-            .accessibilityIdentifier("keyword-suggestion-\(suggestion.keyword)")
+            .accessibilityIdentifier("keyword-suggestion-\(index)")
             Button(action: reject) {
                 Image(systemName: "xmark").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
             }
             .buttonStyle(.plain)
             .help("Reject: not suggested again for these photos")
             .accessibilityLabel("Reject \(suggestion.keyword)")
-            .accessibilityIdentifier("keyword-suggestion-reject-\(suggestion.keyword)")
+            .accessibilityIdentifier("keyword-suggestion-reject-\(index)")
             .fixedSize()
         }
         .padding(.horizontal, Theme.Space.s - Theme.Space.xxs)

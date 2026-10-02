@@ -22,7 +22,7 @@ struct AssistPanel: View {
                                                    set: { assist.setAutomated($0) }), segments: [
                     .init(value: false, title: "Assisted", help: "Predictions and a confidence order; nothing pre-filled"),
                     .init(value: true, title: "Automated", help: "Pre-filled decisions outside the thresholds, to confirm with Y"),
-                ], height: Theme.Height.small, fill: false)
+                ], height: Theme.Height.small, fill: false, accessibilityPrefix: "library.assist.mode")
                 .fixedSize()
             }
             if assist.enabled, let item = model.focusedItem {
@@ -57,7 +57,7 @@ struct AssistPanel: View {
                             Chip(text: s == .keep ? "Keep?" : "Reject?",
                                  color: s == .keep ? Theme.keep : Theme.reject, style: .outlined)
                             Spacer()
-                            Button("Dismiss") { assist.dismiss([item.id]) }
+                            Button("Dismiss") { assist.dismiss([item.id]) }.accessibilityIdentifier("library.assist.dismiss")
                                 .help("Reject this suggestion (N); nothing is decided")
                                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                             Button("Confirm All") { assist.confirmAll() }
@@ -105,7 +105,7 @@ struct PeoplePanel: View {
                     Text("\(person.items.count) frame\(person.items.count == 1 ? "" : "s")")
                         .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
                     Spacer()
-                    Button("Frames") { assist.filter(person: person, eyesClosed: false) }
+                    Button("Frames") { assist.filter(person: person, eyesClosed: false) }.accessibilityIdentifier("library.assist.frames.\(person.id)")
                         .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                         .help("Show frames with \(person.name)")
                     Button("Eyes closed") { assist.filter(person: person, eyesClosed: true) }
@@ -115,7 +115,7 @@ struct PeoplePanel: View {
                 }
                 .frame(height: Theme.Height.regular)
             }
-            Button("Analyze Faces") { assist.analyze(faces: true, force: false, title: "Finding faces") }
+            Button("Analyze Faces") { assist.analyze(faces: true, force: false, title: "Finding faces") }.accessibilityIdentifier("library.assist.analyzeFaces")
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                 .disabled(!model.isEngineBacked || assist.isRunning)
         }
@@ -128,7 +128,7 @@ struct AssistProgressBar: View {
     var body: some View {
         if let p = assist.progress {
             ProgressStrip(title: p.title, done: p.done, total: p.total, current: p.current) {
-                Button("Stop") { assist.cancel() }
+                Button("Stop") { assist.cancel() }.accessibilityIdentifier("library.assist.stop")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
             .accessibilityElement(children: .contain)

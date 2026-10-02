@@ -1,0 +1,22 @@
+B5-50b verification on d5504d60
+
+Required serial FFI rebuild and Swift gate:
+Build complete! (63.86s)
+Executed 927 tests, with 3 tests skipped and 0 failures (0 unexpected) in 325.039 seconds.
+Swift Testing: 5 tests in 2 suites passed.
+SWIFT GATE OK
+
+Relevant suites in the full gate:
+LibraryDevelopAccessibilityTests: 8 tests, 0 failures.
+LightroomImportAccessibilityTests: 3 tests, 0 failures.
+DocumentAccessibilityTests: 7 tests, 0 failures.
+
+The pre-gate focused run had one Document layout-settling timeout; the single-test retry
+also timed out. The same unchanged test passed in 2.27 seconds in the full gate after
+the clean FFI rebuild. No tolerance or layout timeout was loosened.
+
+The synthetic AX map contains 327 distinct observed identifiers before UUID normalization.
+See IDENTIFIERS.md for current names and RESTORED-IDENTIFIERS.md for compatibility audit.
+
+Strict release product build: PASS, 338.73 seconds, 0 warnings / 0 errors.
+Flags: -strict-concurrency=complete -warnings-as-errors.

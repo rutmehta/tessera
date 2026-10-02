@@ -122,6 +122,7 @@ struct LensBlurPanel: View {
                     tools.apply(LensBlurControls.bokehPatch(s), final: true, label: "Bokeh: \(s.title)")
                     tools.bump()
                 }), options: BokehShape.allCases.map { (value: $0, title: $0.title) })
+                    .accessibilityIdentifier("develop.lensBlur.bokehShape").accessibilityLabel("Bokeh shape")
             }
             .frame(height: Theme.Height.regular)
             .disabled(!applied)

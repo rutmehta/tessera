@@ -43,6 +43,8 @@ final class ThumbnailCell: NSCollectionViewItem {
                    focused: Bool, style: CellStyle, loader: ThumbnailLoader, suggestion: Decision? = nil, smartPreviewBadge: String? = nil) {
         let v = cellView
         v.style = style
+        let identifier = "library.thumbnail.\(style == .grid ? "grid" : "filmstrip").\(item.id)"
+        if v.accessibilityIdentifier() != identifier { v.setAccessibilityIdentifier(identifier) }
         v.isFocusedCell = focused
         v.altGroup = item.groupID % 2 == 1
         v.overlay.set(item: item, state: state, status: status, basketTarget: basketTarget,
@@ -106,14 +108,15 @@ final class ThumbnailCell: NSCollectionViewItem {
     private var suggestion: Decision?
 
     private func updateAccessibility(state: CullState, status: ItemStatus, basketTarget: String) {
-        cellView.setAccessibilityLabel("\(name), \(state.decision.label)"
+        let label: String = "\(name), \(state.decision.label)"
             + (state.grade > 0 ? ", grade \(state.grade)" : "")
             + (state.mark > 0 ? ", mark \(state.mark)" : "")
             + (suggestedBest ? ", suggested best" : "")
             + (suggestion.map { ", suggested \($0.label.lowercased())" } ?? "")
             + (smartPreviewBadge.map { ", " + $0 } ?? "")
             + ", \(status.isCachedDeclaration ? "Cached declaration; edit status not checked" : status.phase.rawValue)"
-            + (status.albums.isEmpty ? "" : ", in " + status.albums.joined(separator: ", ")))
+            + (status.albums.isEmpty ? "" : ", in " + status.albums.joined(separator: ", "))
+        if cellView.accessibilityLabel() != label { cellView.setAccessibilityLabel(label) }
     }
 
     func setFocused(_ f: Bool) { cellView.isFocusedCell = f }

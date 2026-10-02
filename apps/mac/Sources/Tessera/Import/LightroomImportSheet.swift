@@ -48,7 +48,7 @@ struct LightroomImportSheet: View {
                         .accessibilityLabel(importer.step == .fidelity ? "Fidelity error" : "Import error")
                         .accessibilityValue(error)
                         .accessibilityIdentifier(importer.step == .fidelity && (importer.fidelity?.samples.isEmpty ?? true)
-                                                 ? "document.import.report.fidelity" : "lrimport-error")
+                                                 ? "document.import.report.fidelity" : "library.import.error")
                 }
             }
         } leading: {
@@ -63,28 +63,29 @@ struct LightroomImportSheet: View {
         } actions: {
             switch importer.step {
             case .choose:
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction).sheetButton()
+                Button("Cancel") { dismiss() }.accessibilityIdentifier("library.import.cancel").keyboardShortcut(.cancelAction).sheetButton()
             case .summary:
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction).sheetButton()
-                Button("Choose Another…") { importer.chooseCatalog(in: NSApp.keyWindow) }.sheetButton()
-                Button("Continue") { importer.goTo(.mapping) }.keyboardShortcut(.defaultAction).sheetButton(primary: true)
+                Button("Cancel") { dismiss() }.accessibilityIdentifier("library.import.cancel").keyboardShortcut(.cancelAction).sheetButton()
+                Button("Choose Another…") { importer.chooseCatalog(in: NSApp.keyWindow) }.accessibilityIdentifier("library.import.chooseAnother").sheetButton()
+                Button("Continue") { importer.goTo(.mapping) }.accessibilityIdentifier("library.import.continue").keyboardShortcut(.defaultAction).sheetButton(primary: true)
             case .mapping:
-                Button("Back") { importer.goTo(.summary) }.sheetButton()
-                Button("Preview Fidelity") { importer.goTo(.fidelity) }.keyboardShortcut(.defaultAction).sheetButton(primary: true)
+                Button("Back") { importer.goTo(.summary) }.accessibilityIdentifier("library.import.back").sheetButton()
+                Button("Preview Fidelity") { importer.goTo(.fidelity) }.accessibilityIdentifier("library.import.preview").keyboardShortcut(.defaultAction).sheetButton(primary: true)
                     .disabled(importer.preview == nil)
             case .fidelity:
-                Button("Back") { importer.goTo(.mapping) }.sheetButton()
+                Button("Back") { importer.goTo(.mapping) }.accessibilityIdentifier("library.import.back").sheetButton()
                 Button("Import \(importer.preview?.toImport ?? 0) Photos") {
                     dismiss()
                     importer.startImport()
                 }
+                .accessibilityIdentifier("library.import.start")
                 .keyboardShortcut(.defaultAction)
                 .sheetButton(primary: true)
                 .disabled(importer.preview.map { $0.toImport == 0 } ?? true || importer.busy != nil)
                 .help("Writes .edits/ and .xmp sidecars beside the photos and merges library.json. Runs in the background.")
             case .report:
                 if let url = importer.reportURL {
-                    Button("Show Report in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }.sheetButton()
+                    Button("Show Report in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }.accessibilityIdentifier("library.import.showReport").sheetButton()
                 }
                 if importer.report?.cancelled == true {
                     Button("Resume Import") {
@@ -92,9 +93,10 @@ struct LightroomImportSheet: View {
                         dismiss()
                         importer.resume()
                     }
+                    .accessibilityIdentifier("library.import.resume")
                     .sheetButton()
                 }
-                Button("Done") { importer.reset(); dismiss() }.keyboardShortcut(.defaultAction).sheetButton(primary: true)
+                Button("Done") { importer.reset(); dismiss() }.accessibilityIdentifier("library.import.done").keyboardShortcut(.defaultAction).sheetButton(primary: true)
             }
         }
         .frame(width: 820, height: 620)
@@ -112,6 +114,7 @@ private struct ChooseStep: View {
             Text("Tessera reads a copy of the catalog and its previews. Your photos stay where they are: edits and\nselections are written as sidecars next to them, collections go into library.json.")
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary).multilineTextAlignment(.center)
             Button("Choose Catalog…") { importer.chooseCatalog(in: NSApp.keyWindow) }
+                .accessibilityIdentifier("library.import.chooseCatalog")
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.theme(.primary, height: Theme.Height.large))
                 .disabled(importer.busy != nil)
@@ -204,6 +207,7 @@ private struct MappingStep: View {
                 marksSection
                 keywordsSection
                 Toggle("Replace edits already made in Tessera", isOn: $importer.overwriteExistingEdits)
+                    .accessibilityIdentifier("library.import.overwrite")
                     .font(Theme.Fonts.label)
                     .help("Off: photos that already have Tessera edits keep them and are listed as skipped.")
             }
@@ -227,7 +231,7 @@ private struct MappingStep: View {
                     .lineLimit(1).truncationMode(.middle)
                     .accessibilityIdentifier("lrimport-library-folder")
                 Spacer()
-                Button("Choose…") { importer.chooseLibraryFolder(in: NSApp.keyWindow) }.buttonStyle(.themeBordered)
+                Button("Choose…") { importer.chooseLibraryFolder(in: NSApp.keyWindow) }.accessibilityIdentifier("library.import.chooseLibraryFolder").buttonStyle(.themeBordered)
             }
             if let p = importer.preview {
                 if p.libraryExists {
@@ -245,7 +249,7 @@ private struct MappingStep: View {
     private var foldersSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
             section("Folders", "Where Lightroom's folders are now. Locate a root folder if its drive moved or was renamed.")
-            ForEach(importer.folders?.roots ?? []) { root in
+            ForEach(Array((importer.folders?.roots ?? []).enumerated()), id: \.element.id) { index, root in
                 let row = importer.preview?.roots.first { $0.catalogPath == root.catalogPath }
                 HStack(spacing: Theme.Space.s) {
                     Image(systemName: row?.exists == true ? "checkmark.circle.fill" : "questionmark.folder.fill")
@@ -262,7 +266,7 @@ private struct MappingStep: View {
                         .buttonStyle(.themeBordered)
                         .accessibilityIdentifier("lrimport-locate")
                     if importer.folders?.isRelocated(root) == true {
-                        Button("Reset") { importer.folders?.reset(root.catalogPath) }.buttonStyle(.themeBorderless)
+                        Button("Reset") { importer.folders?.reset(root.catalogPath) }.accessibilityIdentifier("library.import.resetRoot.\(index)").buttonStyle(.themeBorderless)
                     }
                 }
                 .padding(Theme.Space.s)
@@ -322,7 +326,7 @@ private struct MappingStep: View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
             section("Colour labels → marks", "Keep a label's text, map it to one of Tessera's marks (keys 6–9), or drop it.")
             if let table = importer.marks, !table.rows.isEmpty {
-                ForEach(table.rows) { row in
+                ForEach(Array(table.rows.enumerated()), id: \.element.id) { index, row in
                     HStack {
                         Text(row.label).frame(width: 140, alignment: .leading)
                         Text("\(row.count) photo\(row.count == 1 ? "" : "s")").foregroundStyle(Theme.textSecondary).frame(width: 80, alignment: .leading)
@@ -336,7 +340,8 @@ private struct MappingStep: View {
                         }
                         .labelsHidden()
                         .frame(width: 220)
-                        .accessibilityIdentifier("lrimport-mark-\(row.label)")
+                        .accessibilityIdentifier("lrimport-mark-\(index)")
+                        .accessibilityLabel("Map colour label \(row.label)")
                         Spacer()
                     }
                     .font(Theme.Fonts.caption)
@@ -394,6 +399,7 @@ private struct FidelityStep: View {
                         ForEach(FidelityGrid.Sort.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .frame(width: 210)
+                    .accessibilityIdentifier("library.import.fidelitySort").accessibilityLabel("Fidelity sort order")
                     Toggle("Looks different (\(importer.fidelity?.differentCount ?? 0))", isOn: Binding(
                         get: { importer.fidelity?.onlyDifferent ?? false }, set: { importer.fidelity?.onlyDifferent = $0 }))
                         .toggleStyle(.checkbox)
@@ -577,6 +583,7 @@ struct ReportStep: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .font(Theme.Fonts.caption)
+                        .accessibilityIdentifier("library.import.report.disclosure").accessibilityLabel("Import report markdown")
                     }
                 }
                 .padding(Theme.Space.l)
