@@ -192,6 +192,7 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
             contents: bytemuck::cast_slice(&data),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         });
+    let mut failures = Vec::new();
     for (amount, presence) in [(0., true), (0.35, true), (1., true), (1., false)] {
         let mut settings = rich_settings();
         if !presence {
@@ -204,8 +205,9 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
             camera_raw_gpu::evaluate(&gpu.device, &gpu.queue, &buffer, extent, &value, &context)
                 .unwrap();
         let actual = readback(&gpu, &output, extent.area() * 16);
-        // ENG-1e: Machine A ruled an absolute 0.01 full-chain bound.
+        // Retain both the scaled chain bound and absolute ceiling.
         let mut max_absolute = 0.0_f32;
+        let mut max_scaled = 0.0_f32;
         for (i, p) in actual.iter().enumerate() {
             let expected = cpu.pixel(i as u32 % extent.width, i as u32 / extent.width);
             assert_eq!(p[3].to_bits(), data[i][3].to_bits());
@@ -214,27 +216,25 @@ fn resident_chain_matches_cpu_across_tile_edges_and_preserves_alpha() {
                 assert!(expected[c].is_finite());
                 let gap = (p[c] - expected[c]).abs();
                 max_absolute = max_absolute.max(gap);
+                max_scaled = max_scaled.max(gap / expected[c].abs().max(1.));
                 if amount == 0. {
                     assert_eq!(p[c].to_bits(), data[i][c].to_bits());
                 }
             }
         }
-        eprintln!("amount {amount}, presence {presence}: max absolute {max_absolute}");
-        assert!(
-            max_absolute < 0.01,
-            "amount {amount}, presence {presence}: max absolute RGB error {max_absolute}"
+        let target_cpu = cpu.pixel(84, 41);
+        eprintln!(
+            "amount {amount}, presence {presence}: max absolute {max_absolute}, max scaled {max_scaled}; pixel 10703 GPU {:?} CPU {:?}",
+            actual[10703], target_cpu
         );
-        if !presence {
-            // ENG-4 will close the pre-existing tone-stage gap and then restore
-            // the full-chain guard to 0.002 scaled. Pin the no-presence baseline:
-            // 0.0043850243 at pixel 10703, blue; GPU 0.4546297 / CPU 0.45024467
-            // (measured 2026-10-01). This must stay <= 0.005 absolute.
-            assert!(
-                max_absolute <= 0.005,
-                "presence-disabled tone regression: max absolute RGB error {max_absolute}"
-            );
+        if max_absolute >= 0.01 || max_scaled >= 0.002 {
+            failures.push((amount, presence, max_absolute, max_scaled));
         }
     }
+    assert!(
+        failures.is_empty(),
+        "chain absolute < 0.01 / scaled < 0.002: {failures:?}"
+    );
 }
 
 /// Compare individual stages with identical sRGB primaries and either the
@@ -550,22 +550,25 @@ fn bench_24mp_cpu_gpu() {
         eprintln!(
             "24MP presence={presence} all-pixel max absolute={max_absolute}, worst={worst:?}"
         );
+        eprintln!(
+            "24MP presence={presence} target pixel 4999168 GPU {:?} CPU {:?}",
+            actual[4999168],
+            cpu.pixel(1168, 833)
+        );
         max_absolute
     };
     let mut settings = rich_settings();
     settings.tone.texture = 0.;
     settings.tone.clarity = 0.;
     let presence_off = measure("off", settings);
-    // ENG-4 owns the pre-existing tone gap: 0.016636014 at pixel 4,999,168 red
-    // (GPU 0.5281837 / CPU 0.5115477). ENG-4 restores the 0.01 absolute bound.
-    assert!(
-        presence_off <= 0.02,
-        "24MP presence-off RGB error {presence_off}"
-    );
     let presence_on = measure("on", rich_settings());
     assert!(
-        presence_on <= presence_off + 1e-4,
-        "24MP presence-on RGB error {presence_on} exceeds presence-off {presence_off} + 1e-4"
+        presence_off < 0.01,
+        "24MP presence-off RGB error {presence_off}"
+    );
+    assert!(
+        presence_on < 0.01,
+        "24MP presence-on RGB error {presence_on}"
     );
 }
 
