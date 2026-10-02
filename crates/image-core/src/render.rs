@@ -583,6 +583,13 @@ impl Renderer {
         rect: PixelRect,
         output: RenderOutput,
     ) -> EngineResult<Vec<Tile>> {
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            &planned
+        } else {
+            settings
+        };
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
             return prepared.render_region_as(image, settings, level, rect, output);
         }

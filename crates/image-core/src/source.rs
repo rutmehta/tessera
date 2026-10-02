@@ -109,13 +109,21 @@ impl RawImage {
     }
 
     pub(crate) fn embedded_dcp(&self) -> EngineResult<Option<&[u8]>> {
-        self.embedded_profile.as_ref().map_or(Ok(None), |profile| {
-            profile
-                .bytes
-                .as_ref()
-                .map(|bytes| bytes.as_deref())
-                .map_err(|error| EngineError::invalid("embedded DNG profile", error.clone()))
-        })
+        self.embedded_profile.as_ref().map_or_else(
+            || {
+                Ok(self
+                    .camera_linear_proxy
+                    .as_ref()
+                    .and_then(|p| p.embedded_profile()))
+            },
+            |profile| {
+                profile
+                    .bytes
+                    .as_ref()
+                    .map(|bytes| bytes.as_deref())
+                    .map_err(|error| EngineError::invalid("embedded DNG profile", error.clone()))
+            },
+        )
     }
 
     /// Open in the catalog's absolute frame. RAW reconstruction remains sensor-

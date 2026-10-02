@@ -191,3 +191,41 @@ fn imported_camera_masks_use_host_hooks_in_each_catalog_frame() {
         }
     }
 }
+
+#[test]
+fn lr13_adobe_linearraw_output_does_not_apply_a_second_native_tone_curve() {
+    let dir = tempfile::tempdir().unwrap();
+    let bytes = support::lossy_dng(false, false);
+    let path = dir.path().join("adobe.dng");
+    std::fs::write(&path, &bytes).unwrap();
+    let raw = RawImage::open(ImageId(1818), &path).unwrap();
+    let profile = image_core::pipeline_adobe::dcp::DcpProfile::parse(&bytes).unwrap();
+    let settings = DevelopSettings::default();
+    let expected = image_core::pipeline_adobe::render_scaled_with_profile(
+        &settings,
+        &pipeline_cpu::RenderSource::CameraLinear(raw.camera_linear_proxy().unwrap()),
+        1,
+        Some(&profile),
+    )
+    .unwrap();
+    let renderer = Renderer::new(Default::default()).for_process_version(ProcessVersion::adobe(6));
+    let extent = Renderer::output_extent(&raw, &settings, 0).unwrap();
+    let tiles = renderer
+        .render_region(&raw, &settings, 0, image_core::PixelRect::full(extent))
+        .unwrap();
+    for tile in tiles {
+        let l = tile.layout();
+        let (ox, oy) = tile.coord().pixel_origin(engine_api::tile::TILE_SIZE);
+        for y in 0..l.extent.height {
+            for x in 0..l.extent.width {
+                for c in 0..3 {
+                    let value = tile.plane::<u8>(c).unwrap()[(y as usize + l.halo as usize)
+                        * l.stride()
+                        + x as usize
+                        + l.halo as usize];
+                    assert_eq!(value, expected.get_pixel(ox + x, oy + y)[c as usize]);
+                }
+            }
+        }
+    }
+}

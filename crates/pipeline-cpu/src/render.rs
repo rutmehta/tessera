@@ -233,6 +233,19 @@ fn render_linear_impl(
     before_geometry: bool,
     locals: Option<&LocalAdjustmentHook<'_>>,
 ) -> EngineResult<Image> {
+    let planned;
+    let settings = if let RenderSource::CameraLinear(proxy) = source {
+        let mut plan = proxy.render_plan(settings, locals.is_some()).0;
+        if proxy.is_external_dng()
+            && (context.profile.is_some() || context.database.is_some() || resolved.is_some())
+        {
+            plan.lens = settings.lens.clone();
+        }
+        planned = plan;
+        &planned
+    } else {
+        settings
+    };
     if depth.is_some() {
         let mut without_blur = settings.clone();
         without_blur.effects.lens_blur = None;
@@ -272,11 +285,12 @@ fn render_linear_impl(
         }
         RenderSource::CameraLinear(proxy) => {
             proxy.validate_prefix(settings)?;
-            if resolved.is_some()
-                || context.profile.is_some()
-                || context.database.is_some()
-                || context.capture.is_some()
-                || !context.manual_ca.is_identity()
+            if !proxy.is_external_dng()
+                && (resolved.is_some()
+                    || context.profile.is_some()
+                    || context.database.is_some()
+                    || context.capture.is_some()
+                    || !context.manual_ca.is_identity())
             {
                 return Err(EngineError::Unsupported {
                     what: "smart preview: original required to replace captured lens dependencies"
@@ -284,25 +298,13 @@ fn render_linear_impl(
                 });
             }
             let metadata = proxy.original_metadata();
-            let camera_xyz = crate::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
-                metadata.cam_xyz[r].map(f64::from)
-            })))?;
-            let profile = crate::camera_profile_matrix(camera_xyz, metadata.baseline_exposure)?;
-            let wb = crate::white_balance_matrix(
-                &settings.white_balance,
-                camera_xyz,
-                metadata.as_shot_wb,
-            )?;
-            let mut out = proxy.pixels().clone();
-            for coord in out.coords() {
-                let mut tile = out.tile(coord, 0, 1)?;
-                crate::apply_matrix(&mut tile, profile)?;
-                crate::apply_matrix(&mut tile, wb)?;
-                out.put(&tile)?;
-            }
+            let out = proxy.working_rgb(settings)?;
             let crop = [0, 0, out.width(), out.height()];
             let correction = if proxy.is_external_dng() {
-                crate::resolve_lens(&out, &settings.lens, Some(metadata), context)?
+                match resolved {
+                    Some(lens) => lens.clone(),
+                    None => crate::resolve_lens(&out, &settings.lens, Some(metadata), context)?,
+                }
             } else {
                 proxy.correction().clone()
             };
