@@ -214,6 +214,11 @@ fn render_scaled_cpu(
     space: ColorSpace,
     scale: u32,
 ) -> EngineResult<image::Rgb32FImage> {
+    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
+        && matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
+    {
+        return encode_output_profile(adobe_float(image, recipe, scale)?, recipe, space);
+    }
     if ai_masks::active(&recipe.settings) {
         return encode_output_profile(render_full_float(image, recipe)?, recipe, space);
     }
@@ -237,7 +242,29 @@ fn render_scaled_cpu(
 }
 
 /// Enhancement input is tone-mapped linear Rec.2020, never encoded sRGB.
+fn adobe_float(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    scale: u32,
+) -> EngineResult<image::Rgb32FImage> {
+    let rgb =
+        image_core::pipeline_adobe::render_linear_scaled(&recipe.settings, &image.source, scale)?;
+    Ok(image::Rgb32FImage::from_fn(
+        rgb.width(),
+        rgb.height(),
+        |x, y| {
+            let i = (y * rgb.width() + x) as usize;
+            image::Rgb(std::array::from_fn(|c| rgb.planes()[c][i]))
+        },
+    ))
+}
+
 fn render_full_float(image: &ExportImage<'_>, recipe: &Recipe) -> EngineResult<image::Rgb32FImage> {
+    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
+        && matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
+    {
+        return adobe_float(image, recipe, 1);
+    }
     if ai_masks::active(&recipe.settings) {
         ai_masks::render(&image.source, &recipe.settings, None)
     } else {
@@ -386,6 +413,8 @@ pub fn render_pixels_with_resources(
     require_full_quality_source(&image.source)?;
     cancel.check()?;
     recipe.validate()?;
+    let planned = proxy_recipe(&image.source, recipe);
+    let recipe = planned.as_ref();
     if !matches!(render.scale, 1 | 2 | 4 | 8) {
         return Err(EngineError::invalid("scale", "must be 1, 2, 4 or 8"));
     }
@@ -420,8 +449,19 @@ pub fn color_space_icc(space: ColorSpace) -> EngineResult<Vec<u8>> {
     Ok(codec::profile(&mut registry, space)?.icc_bytes().to_vec())
 }
 
-/// All full-quality export entry points must admit the original source before
-/// backend/model work or output publication. Preview size is never export quality.
+/// Adapt only external proxy pixels; keep the authoritative recipe for metadata.
+fn proxy_recipe<'a>(source: &RenderSource<'_>, recipe: &'a Recipe) -> std::borrow::Cow<'a, Recipe> {
+    match source {
+        RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
+            let mut drawn = recipe.clone();
+            drawn.settings = proxy.render_plan(&recipe.settings, false).0;
+            std::borrow::Cow::Owned(drawn)
+        }
+        _ => std::borrow::Cow::Borrowed(recipe),
+    }
+}
+
+/// Generated proxies cannot stand in for full-quality originals.
 fn require_full_quality_source(source: &RenderSource<'_>) -> EngineResult<()> {
     if matches!(source, RenderSource::CameraLinear(proxy) if !proxy.is_external_dng()) {
         return Err(original_required());
@@ -585,6 +625,17 @@ pub fn render_one_cancellable(
     cancel.check()?;
     Sidecar::ensure_destination(&settings.output_dir, "export")?;
     recipe.validate()?;
+    let proxy_warnings = match &image.source {
+        RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
+            let mut notes = vec!["Exported from a Smart Preview proxy at its available resolution; the original was not used.".to_owned()];
+            notes.extend(proxy.render_plan(&recipe.settings, false).1.into_iter().map(|field| format!("Info: {field} is unavailable for this proxy; exported without it. Saved settings are unchanged.")));
+            notes
+        }
+        _ => Vec::new(),
+    };
+    let metadata_recipe = recipe;
+    let planned = proxy_recipe(&image.source, recipe);
+    let recipe = planned.as_ref();
     settings.format.validate()?;
     dng::validate(settings)?;
     hdr::validate(settings)?;
@@ -642,10 +693,10 @@ pub fn render_one_cancellable(
         .map(|path| native::Native::read(path, cancel))
         .transpose()?
         .unwrap_or_default();
-    let packet = metadata_packet(image, recipe, settings, &native)?;
+    let packet = metadata_packet(image, metadata_recipe, settings, &native)?;
     native.filter(settings, packet.as_ref())?;
     let needs_hooks = depth::active(&image.source, &recipe.settings);
-    let mut warnings = Vec::new();
+    let mut warnings = proxy_warnings;
     let gpu_pixels = if settings.hdr.is_none()
         && !matches!(settings.format, Format::Dng)
         && upscale.is_none()
@@ -748,7 +799,7 @@ pub fn render_one_cancellable(
                 None,
             )?,
         };
-        warnings = notices;
+        warnings.extend(notices);
         cancel.check()?;
         let rgb = match upscale {
             Some(model) => upscale_rgb(rgb, model)?,

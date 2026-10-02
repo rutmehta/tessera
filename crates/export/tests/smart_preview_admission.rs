@@ -167,24 +167,121 @@ fn mixed_batch_rejects_before_any_original_output_or_progress() {
 
 #[test]
 fn lr13_external_proxy_optional_settings_export_with_warning_and_adobe_pixels() {
-    let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"))).unwrap().unwrap();
-    let proxy = CameraLinearProxy::from_dng(dng).unwrap().with_catalog_orientation(6).unwrap();
-    let mut recipe = Recipe { process_version: ProcessVersion::adobe(6), ..Default::default() };
-    let settings = serde_json::from_value(serde_json::json!({"tone":{"exposure":0.7,"contrast":20.0},"camera_profile":{"look":{"style":"unavailable","amount":100.0}},"output":{"hdr":true,"hdr_headroom_stops":2.0},"effects":{"lens_blur":{}}})).unwrap();
-    recipe.edit(engine_api::recipe::EditMeta::user("Proxy settings", 1), |s| *s = settings).unwrap();
+    let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(include_bytes!(
+        "../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"
+    )))
+    .unwrap()
+    .unwrap();
+    let proxy = CameraLinearProxy::from_dng(dng)
+        .unwrap()
+        .with_catalog_orientation(6)
+        .unwrap();
+    let mut recipe = Recipe {
+        process_version: ProcessVersion::adobe(6),
+        ..Default::default()
+    };
+    let settings = serde_json::from_value(serde_json::json!({"tone":{"exposure":0.7,"contrast":20.0},"camera_profile":{"look":{"style":"unavailable","amount":100.0}},"output":{"hdr":true,"hdr_headroom_stops":2.0,"gamut_mapping":"clip"},"effects":{"lens_blur":{}}})).unwrap();
+    recipe
+        .edit(
+            engine_api::recipe::EditMeta::user("Proxy settings", 1),
+            |s| *s = settings,
+        )
+        .unwrap();
     let retained = recipe.clone();
     let dir = tempfile::tempdir().unwrap();
-    let settings = ExportSettings { output_dir: dir.path().into(), metadata: export::Metadata::None, ..Default::default() };
-    let rendered = export::render_one_cancellable(&input(&proxy), &recipe, &settings, &CancellationToken::new(), None, None).unwrap();
-    assert!(rendered.warnings().iter().any(|w| w.contains("proxy")), "proxy quality warning is required");
+    let settings = ExportSettings {
+        output_dir: dir.path().into(),
+        metadata: export::Metadata::None,
+        ..Default::default()
+    };
+    let rendered = export::render_one_cancellable(
+        &input(&proxy),
+        &recipe,
+        &settings,
+        &CancellationToken::new(),
+        None,
+        None,
+    )
+    .unwrap();
+    assert!(
+        rendered.warnings().iter().any(|w| w.contains("proxy")),
+        "proxy quality warning is required"
+    );
     let path = rendered.finish(&CancellationToken::new()).unwrap();
     assert!(path.is_file());
     assert_eq!(recipe, retained);
     // The pixel-only API must take the same optional-feature policy.
-    let actual = export::render_pixels(&input(&proxy), &recipe, &RenderRequest { color_space: ColorSpace::Srgb, resize: Resize::None, sharpen_for: SharpenFor::None, scale: 1 }, &CancellationToken::new(), None).unwrap();
-    let expected = image_core::pipeline_adobe::render_scaled(&recipe.settings, &RenderSource::CameraLinear(&proxy), 1).unwrap();
+    let actual = export::render_pixels(
+        &input(&proxy),
+        &recipe,
+        &RenderRequest {
+            color_space: ColorSpace::Srgb,
+            resize: Resize::None,
+            sharpen_for: SharpenFor::None,
+            scale: 1,
+        },
+        &CancellationToken::new(),
+        None,
+    )
+    .unwrap();
+    let expected = image_core::pipeline_adobe::render_scaled(
+        &recipe.settings,
+        &RenderSource::CameraLinear(&proxy),
+        1,
+    )
+    .unwrap();
     assert_eq!(actual.dimensions(), expected.dimensions());
     for (a, b) in actual.as_raw().iter().zip(expected.as_raw()) {
-        assert!((a * 255.0 - f32::from(*b)).abs() <= 2.0, "Adobe export parity: {a} vs {b}");
+        assert!(
+            (a * 255.0 - f32::from(*b)).abs() <= 2.0,
+            "Adobe export parity: {a} vs {b}"
+        );
+    }
+}
+
+#[test]
+fn lr13_proxy_auto_white_balance_uses_as_shot_without_rewriting_recipe() {
+    use engine_api::recipe::{EditMeta, settings::WhiteBalanceMode};
+    let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(include_bytes!(
+        "../../raw-decode/tests/fixtures/linear-gradient.dng"
+    )))
+    .unwrap()
+    .unwrap();
+    let proxy = CameraLinearProxy::from_dng(dng).unwrap();
+    for version in [ProcessVersion::NATIVE_CURRENT, ProcessVersion::adobe(6)] {
+        let mut recipe = Recipe {
+            process_version: version,
+            ..Default::default()
+        };
+        recipe
+            .edit(EditMeta::user("White balance", 1), |s| {
+                s.white_balance.mode = WhiteBalanceMode::Auto;
+            })
+            .unwrap();
+        let retained = recipe.clone();
+        let mut expected = recipe.clone();
+        expected
+            .edit(EditMeta::user("As shot", 2), |s| {
+                s.white_balance.mode = WhiteBalanceMode::AsShot;
+            })
+            .unwrap();
+        let request = RenderRequest {
+            color_space: ColorSpace::Srgb,
+            resize: Resize::None,
+            sharpen_for: SharpenFor::None,
+            scale: 1,
+        };
+        let render = |r: &Recipe| {
+            export::render_pixels(&input(&proxy), r, &request, &CancellationToken::new(), None)
+                .unwrap()
+        };
+        assert_eq!(render(&recipe), render(&expected));
+        assert_eq!(recipe, retained);
+        assert!(
+            proxy
+                .render_plan(&recipe.settings, false)
+                .1
+                .contains(&"/white_balance/mode")
+        );
     }
 }
