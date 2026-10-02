@@ -92,15 +92,15 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `MaskGroupBasedCorrections` | `/settings/locals/adjustments` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask` | `/settings/locals/adjustments/0/components/0/range` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/Flipped` | `/settings/locals/adjustments/0/components/0/invert` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/CircularGradient",MaskID="synthetic",Left=0.2,Right=0.8,Top=0.1,Bottom=0.9,Flipped=false}}}}` |
-| `MaskGroupBasedCorrections/Mask/Background` | /settings/locals/adjustments (AI kinds; category only, raster fidelity missing) | LR-5 | retained | — |
+| `MaskGroupBasedCorrections/Mask/Background` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Background' } } } }` |
 | `MaskGroupBasedCorrections/Mask/CircularGradient` | `/settings/locals/adjustments/0/components/0/radii` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/CircularGradient",MaskID="synthetic",Left=0.2,Right=0.8,Top=0.1,Bottom=0.9,Flipped=false}}}}` |
 | `MaskGroupBasedCorrections/Mask/Gradient` | `/settings/locals/adjustments/0/components/0/start` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
-| `MaskGroupBasedCorrections/Mask/Image` | MISSING: raster-backed MaskKind and resource reference | LR-5 | unsupported-diagnostic | — |
-| `MaskGroupBasedCorrections/Mask/Object` | /settings/locals/adjustments (AI kinds; category only, raster fidelity missing) | LR-5 | retained | — |
+| `MaskGroupBasedCorrections/Mask/Image` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Image', MaskSubType = 2, MaskDigest = 'synthetic-resource' } } } }` |
+| `MaskGroupBasedCorrections/Mask/Object` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Object', Left = 0.2, Top = 0.2, Right = 0.8, Bottom = 0.8 } } } }` |
 | `MaskGroupBasedCorrections/Mask/Paint` | `/settings/locals/adjustments/0/components/0/strokes` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Paint",Radius=0.1,Flow=0.5,CenterWeight=0.5,MaskValue=1,Dabs={"d 0.5 0.5"}}}}}` |
-| `MaskGroupBasedCorrections/Mask/People` | /settings/locals/adjustments (AI kinds; category only, raster fidelity missing) | LR-5 | retained | — |
-| `MaskGroupBasedCorrections/Mask/Sky` | /settings/locals/adjustments (AI kinds; category only, raster fidelity missing) | LR-5 | retained | — |
-| `MaskGroupBasedCorrections/Mask/Subject` | /settings/locals/adjustments (AI kinds; category only, raster fidelity missing) | LR-5 | retained | — |
+| `MaskGroupBasedCorrections/Mask/People` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/People' } } } }` |
+| `MaskGroupBasedCorrections/Mask/Sky` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Sky' } } } }` |
+| `MaskGroupBasedCorrections/Mask/Subject` | `/settings/locals/adjustments` | LR-5 | approximate | `{ { LocalExposure2012 = 1, CorrectionMasks = { { What = 'Mask/Subject' } } } }` |
 | `MaskGroupBasedCorrections/MaskActive` | `/settings/locals/adjustments/0/components/0/enabled` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0,MaskActive=false}}}}` |
 | `MaskGroupBasedCorrections/MaskBlendMode` | `/settings/locals/adjustments/0/components/0/combine` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0,MaskBlendMode=1}}}}` |
 | `MaskGroupBasedCorrections/Masks` | `/settings/locals/adjustments/0/components/0/group` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Group",Masks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}}}` |
@@ -197,11 +197,12 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   dab flow/hardness and sample colors remain approximations. Legacy flat envelopes
   preserve their pinned bytes and remain retained; new audited forms use the
   approximation contract. New nondefault fields conditionally write schema 4.
-- **LR-5:** Subject/sky/background/person/object/landscape/depth categories and
-  model references exist. `MaskKind` has no imported raster variant/resource
-  handle, and the recipe has no dedicated regenerated-mask diagnostic field.
-  Category decoding alone does not import Adobe Mask/Image pixels. Resource
-  discovery and mask-store integration remain downstream, using synthetic data.
+- **LR-5:** `MaskComponent.adobe_ai` holds opaque resource identity, category,
+  regeneration state and an optional mask-store key. Apply resolves caller-owned
+  grayscale PNG/TIFF into bounded image-owned pins; preview/export read those pins.
+  Missing resources use the existing subject/sky/background/prompted backend.
+  Person sub-parts use subject with a per-part info limitation. Adobe conventions
+  remain approximate, with exact source retained. Unknown subtypes remain opaque.
 - **LR-6:** `LensBlur` has amount, focus_range, bokeh string and depth_model.
   It lacks an imported depth-map handle/calibration, detailed Adobe bokeh controls
   and dedicated regenerated-depth provenance. A model reference is not a depth
@@ -274,8 +275,8 @@ Adobe-schema test; those remain acceptance work for the translation lanes.
 The LR-4b branch rows have been reconciled above. Its earlier translated claims
 for LumRange, Type 2/3 and Flipped are now `approximate`; recognized Dabs and
 Type 1 color samples now populate renderable fields under the same contract.
-Malformed/unknown tokens and LR-5 Mask/Image remain source-retained with an
-unsupported diagnostic. No Adobe-rendered chart was used to assert equivalence.
+Malformed/unknown tokens remain source-retained with an unsupported diagnostic.
+LR-5 now handles recognized Mask/Image forms approximately; see its rows above. No Adobe-rendered chart was used to assert equivalence.
 See [LR-4c handoff](../../tools/orchestrate/wp/LR-4/HANDOFF.md).
 
 LR-4e preserves native/previously saved luminance masks in linear light. Adobe
