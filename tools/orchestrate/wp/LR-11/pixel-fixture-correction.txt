@@ -1,0 +1,7 @@
+Initial full import-to-pixels test: 2 passed, 1 failed.
+Expected first swatch red 0.5225216; full pipeline produced 0.5083064.
+The masked operator reference passed; full rendering included default global
+capture sharpening (40) and color noise reduction (25) across swatch boundaries.
+Synthetic Lua/XMP fixtures now explicitly set Sharpness=0 and
+ColorNoiseReduction=0 to isolate the requested local edits. Reference pixels and
+2e-6 tolerance are unchanged. Subsequent run: all four tests passed.

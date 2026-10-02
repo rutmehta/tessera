@@ -1,0 +1,49 @@
+{
+  "develop_settings_warnings": {
+    "before": 715,
+    "after": 645
+  },
+  "mask_warning_images": {
+    "before": 71,
+    "after": 1,
+    "newly_warning_free": 70
+  },
+  "overlapping_item_warning_images": {
+    "local_tone_curve": {
+      "before": 25,
+      "after": 0
+    },
+    "local_point_color": {
+      "before": 39,
+      "after": 0
+    },
+    "local_color_overlay": {
+      "before": 11,
+      "after": 0
+    },
+    "local_defringe": {
+      "before": 2,
+      "after": 0
+    },
+    "ai_object_instance": {
+      "before": 17,
+      "after": 0
+    },
+    "radial_inversion_conflict": {
+      "before": 1,
+      "after": 1
+    }
+  },
+  "aggregate_audit_exit": 0,
+  "isolated_ffi_profile": {
+    "exit": 0,
+    "images": 21656,
+    "edited": 21615,
+    "missing": 21656,
+    "fidelity_samples": 0,
+    "imported": 0,
+    "skipped": 21656,
+    "develop_settings_warnings": 645,
+    "app_directory_removed": true
+  }
+}
