@@ -6325,3 +6325,20 @@ mod depth_histogram_read_only_contract_tests {
 
 #[cfg(all(test, target_os = "macos"))]
 pub(crate) mod preview_qualification;
+
+#[cfg(test)]
+mod lr10_profile_tests {
+    #[test]
+    fn lr10_adobe_profile_name_survives_develop_admission() {
+        for name in ["Adobe Color", "Adobe Standard", "Adobe Portrait"] {
+            let mut settings = engine_api::recipe::DevelopSettings::default();
+            settings.camera_profile.profile.name = name.into();
+            assert_eq!(
+                super::session_renderable(&settings, true, false)
+                    .camera_profile
+                    .profile,
+                settings.camera_profile.profile
+            );
+        }
+    }
+}
