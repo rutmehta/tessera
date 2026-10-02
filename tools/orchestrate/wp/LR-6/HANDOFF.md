@@ -1,7 +1,7 @@
 # LR-6 — Lens Blur and depth translation
 
-**Current: LR-6d conversion, in the final appendix.** Earlier sections and gate
-results below are historical; the LR-6d appendix supersedes their diagnostics,
+**Current: LR-6e review, in the final appendix.** Earlier sections and gate
+results below are historical; the LR-6e appendix supersedes their diagnostics,
 schema, history, cache, and golden statements.
 
 This handoff describes LR-6c on top of `caee61c2` (no rebase, local only).
@@ -393,3 +393,102 @@ no app or Swift files.
 The requirement-by-requirement audit is `evidence/lr6d-review.md`. Final docs and
 evidence are in the `docs(LR-6d):` commit containing this appendix; resolve its
 hash with `git log -1 --format=%H -- tools/orchestrate/wp/LR-6/HANDOFF.md`.
+
+## LR-6e — Machine A review and LR-7 integration
+
+Rebased the twelve unsquashed LR-6..6d commits onto `52eda533`
+(`origin/wp/LR-7-upright`, main `427ab116` plus LR-7..7e). LR-7 owns the
+first-lane schema checklist: its schema module docs, sidecar/merge roundtrip
+changes, and journal-envelope test were kept. LR-6's duplicate copies were
+removed. All 109 base matrix rows remain; only LensBlur and DepthMapInfo rows
+changed. LR-6 retains its predicate and bumped-only-when-present tests.
+
+- **D1:** the v4 predicate checks only `focus_falloff`, `adobe`, or `depth`.
+  A plain native LensBlur stays schema 3, including on serialization. The new
+  regression was observed failing against the old broad predicate.
+- **D2:** active imported LensBlur without resolved depth records exactly one
+  info-only approximate reason: `regenerated depth: no Adobe depth resource;
+  Tessera estimates depth at render`. Its key is DepthMapInfo when present,
+  otherwise LensBlur; its field is `/settings/effects/lens_blur/depth` and lane
+  is LR-6. `depth.regenerate` remains true. A successful resource attachment
+  removes that pending reason before publication. Rendering writes no history
+  or translation diagnostics and emits no completion assertion.
+- **D3:** the field checker is shared between the matrix and per-subfield tests,
+  and runs inside every LensBlur/DepthMapInfo field loop. It checks the target
+  and exactly one `approximate: <field>:` reason. The duplicate-reason negative
+  control proves an extra reason fails. Diagnostic readers use `as_deref()`.
+- **D4:** removed the separate `prepare_lens_blur_depth` API. The production
+  `LrcatImport::apply_with_depth_resolver` applies resolved bytes through
+  `image_core::depth::import_lens_blur_depth` before writing the sidecar. The
+  existing caller-owned opaque-resource association seam is exposed as the
+  `LrcatDepthResolver` callback; no path guessing or proprietary decoding was
+  added. Ordinary `apply` supplies no resolver and leaves regeneration pending.
+  Source rasters are read-only; destinations are checked by Sidecar's
+  Lightroom-owned-path guard. Depth is attached to the existing Import entry;
+  user edits then retain its key without being rewritten.
+- **Bound and lifetime:** a stable image-ID digest owns one durable raster
+  under Tessera support `previews/depth-cache/pinned`. Maximum per slot is
+  256 MiB (including its 48-byte header/checksum), so N imported image slots
+  occupy at most N × 256 MiB at rest, plus at most one 256 MiB atomic-write
+  temporary per concurrently committing importer. Re-import replaces that slot,
+  or removes it if no
+  usable depth is supplied. Failed sidecar publication restores the prior slot.
+  `Engine::forget_missing` removes it with the image record; an existing image
+  retains it. The independent inference cache retains its 256 MiB eviction cap.
+- **Preview consumption:** rendering now reads full-size imported maps at
+  matching pyramid levels using in-memory downsampling. The explicit preview
+  regression failed before the change (it fell back to an incompatible estimator)
+  and passed afterward, with byte-identical recipe and unchanged stored raster.
+  No derived depth file or completion diagnostic is written.
+- **Rebase interaction:** LR-7 records history after parsing. Depth metadata is
+  now populated before that entry is recorded, rather than silently discarded
+  by the old import-head-only setter. The setter is used only at apply time.
+- **Minors:** unsupported-depth filtering and approximation share the final
+  normalized recipe's active predicate. A duplicate-XMP regression covers both
+  final active states. Tests use `diagnostics::KEY`. Resumed reports read the
+  saved recipe instead of reporting an obsolete pending-depth spool copy.
+
+All inputs are generated fixtures or repository test data. No app, Swift files,
+real catalog, dependency manifest, lockfile, board, or remote branch is changed.
+Original catalog golden remains `d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8`.
+
+The initial broad release run had one failure in the new rollback probe: it
+expected a skip report, but the deliberately invalid XMP destination also caused
+the final catalog scan to propagate an I/O error. The corrected probe checks the
+error and the restored pin; its targeted release rerun passed. Initial logs are
+preserved as `evidence/lr6e-initial-*.log`. During that run, the preview audit
+added a failing regression and the in-memory downsampling fix. A fresh clean
+release gate verifies the final source rather than relying on the earlier binaries.
+
+Final source/test commit: `a086b6b8` (preview implementation: `d5b0b2b3`).
+### Final clean release gate
+
+The final gate exited **0**: `test=0 e2e=0 clippy=0 fmt=0`.
+`gate.sh` uses the requested external target, three Cargo jobs and three Rayon
+threads, plus three Rust test threads. It cleans the touched packages in release
+mode before testing. No command-line skips were passed.
+
+| Gate | Final result | Evidence |
+| --- | --- | --- |
+| Release tests: import-lrcat, engine-api, image-core, mask-store, pipeline-cpu, sidecar, merge, ml-depth, tessera-ffi | Pass; zero failures across all targets and doctests | `evidence/lr6e-test.log` |
+| Full tessera-ffi release suite | **582 passed, 0 failed, 30 upstream opt-in ignored** | `evidence/lr6e-test-summary.json` |
+| Paired synthetic import → saved recipe → CPU render | Pass; explicitly runs the opt-in synthetic test | `evidence/lr6e-e2e.log` |
+| Original catalog golden | **d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8**, unchanged | `evidence/lr6e-test.log` |
+| Liquify 20 MP brush + preview | Median **11.4 ms**, **p95 26.7 ms**, max 61.1 ms; threshold 250 ms | `evidence/lr6e-test.log` |
+| Clippy, release, all targets, `-D warnings` | Pass | `evidence/lr6e-clippy.log` |
+| `cargo fmt --all -- --check` | Pass | `evidence/lr6e-fmt.log` |
+| Clean before final gate | 2,278 files / 3.8 GiB removed | `evidence/lr6e-clean.log` |
+
+The broad run reports 38 upstream unconditional ignores; the paired synthetic
+E2E test is subsequently run explicitly. Every retained opt-in exclusion is
+listed with its reason in `evidence/lr6e-ignored-tests.md` (isolated performance
+benchmarks, prerequisite model/RAW qualification, or the prohibited real-catalog
+acceptance). No new ignores were introduced. Debug-only streaming ignores are
+disabled by release mode: both 20k-image memory/time gates passed. Final FFI
+inspection took 52.102 s, with 63,846,296 bytes tracked peak heap; open/apply
+peaked at 64,983,240 bytes.
+
+The machine-readable summary aggregates harness output, including nested test
+subprocesses. Its filtered counts belong to ml-depth/sidecar internal exact-test
+subprocesses, not command-line filters on the broad gate. The FFI count has zero
+filtered tests. No app/Swift gate was needed because apps/mac was untouched.

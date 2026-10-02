@@ -158,11 +158,34 @@ with exact source retention and per-field info reasons through the shared
 `diagnostics::push_approximate` channel. `Active` is an exact boolean translation
 and produces no approximation record. Inactive Lens Blur and standalone
 DepthMapInfo preserve their old bytes and warnings without adding info records
-or enabling an effect. Active blur writes schema 4, including native falloff,
-Adobe controls, and depth references; unrelated recipes stay schema 3.
-Caller-resolved grayscale depth resources are pinned outside the mask-store
-eviction budget and rendered through image-core's mask-store integration;
-opaque Adobe helper encodings remain unsupported and require regenerated depth.
+or enabling an effect. Only native focus falloff, Adobe controls, or a depth
+reference requires schema 4; plain native blur remains schema 3.
+
+During import apply, `LrcatImport::apply_with_depth_resolver` passes opaque IDs
+and the catalog image ID to the existing caller-owned resource association seam.
+Only independently decodable grayscale PNG/TIFF with the pre-geometry dimensions
+is accepted. Neither resource IDs nor Adobe helper tables are interpreted as paths.
+`apply` without a resolver records an info-only `regenerated depth: no Adobe depth
+resource; Tessera estimates depth at render` reason under DepthMapInfo (or LensBlur
+when DepthMapInfo is absent). Successful resolution removes that pending reason.
+No regeneration-completion diagnostic is emitted by rendering.
+
+Resolved depth is stored before the imported recipe is published. Its key is a
+stable digest of the image ID; ordinary user edits preserve the key. The on-disk
+bound is one raster per imported image, at most **256 MiB including the 48-byte
+header/checksum per raster**, under Tessera Application Support
+`previews/depth-cache/pinned`. This is a steady-state bound; atomic replacement
+uses at most one additional raster-sized temporary file per concurrent writer.
+Re-import atomically replaces that image's slot;
+re-import without usable depth removes its previous slot. `Engine::forget_missing`
+removes the slot with the image record, and retains it when the image still exists.
+This durable storage is separate from the 256 MiB evictable inference cache.
+Rendering reads the imported key, downsamples it in memory for matching preview
+pyramid levels, and never attaches resources to recipe history or writes
+translation diagnostics. No import depth file is written to Lightroom storage.
+Proprietary Adobe resource decoding and automatic catalog/resource association
+remain unavailable; callers must supply independently resolved bytes through the
+resolver callback. The default apply path honestly leaves regeneration pending.
 DCP profiles, arbitrary retouch/Look payloads, and AI pixel blobs are not resolved
 or rendered by this crate. Inspect diagnostics before persisting an import.
 
