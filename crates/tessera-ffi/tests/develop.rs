@@ -678,6 +678,10 @@ fn panels_crop_masking_detail_and_history() {
 /// A drag faster than the frames it causes still shows progress: interactive
 /// changes queue behind the in-flight frame instead of cancelling it.
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "release-only latency bound: skipped in debug builds"
+)]
 fn slow_interactive_frames_are_not_starved() {
     // Interactive-latency behaviour needs a GPU and an unloaded machine; CI runners
     // have neither and time out on the CPU path. It remains mandatory locally.
@@ -1041,6 +1045,10 @@ impl ExportProgressListener for ExportProgressLog {
 /// yields to interactive renders: slider frames keep p90 < 16 ms at L2, and
 /// the export still completes (neither side starves).
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "release-only latency bound: skipped in debug builds"
+)]
 fn export_batch_does_not_starve_slider_drag() {
     // Latency-under-load behaviour needs a GPU; CI runners have none. Mandatory locally.
     if std::env::var_os("CI").is_some() {

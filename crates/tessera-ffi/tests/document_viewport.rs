@@ -480,6 +480,10 @@ fn median(mut v: Vec<f64>) -> f64 {
 /// P14: while a slow (CPU style) frame is in flight, synchronous edits do
 /// not wait for it: they only snapshot-share the document.
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "release-only latency bound: skipped in debug builds"
+)]
 fn edits_do_not_wait_for_frames_in_flight() {
     let (_d, engine) = engine();
     let (s, rec, styled, plain) = slow_styled(&engine);

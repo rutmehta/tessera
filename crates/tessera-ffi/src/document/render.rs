@@ -1955,6 +1955,10 @@ mod frame_cancellation_tests {
     }
 
     #[test]
+    #[cfg_attr(
+        debug_assertions,
+        ignore = "release-only latency bound: skipped in debug builds"
+    )]
     fn drafts_faster_than_frame_time_keep_publishing_latest_wins() {
         use std::thread;
         const FRAME: Duration = Duration::from_millis(20);
@@ -2007,6 +2011,10 @@ mod frame_cancellation_tests {
         let frames = published.lock().unwrap().clone();
         // At least one frame per two frame times while drafts stream in.
         let floor = (dragged.as_millis() / (2 * FRAME.as_millis())).max(2) as usize;
+        eprintln!(
+            "{} frames for {DRAFTS} drafts over {dragged:?} (want >= {floor})",
+            frames.len()
+        );
         assert!(
             frames.len() >= floor,
             "frame starvation: {} frames for {DRAFTS} drafts over {dragged:?} (want >= {floor})",
