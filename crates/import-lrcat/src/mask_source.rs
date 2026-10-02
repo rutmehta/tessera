@@ -564,7 +564,7 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
             if let Some(reason) = match name {
                 "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve" | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve" => Some("local tone curve rendering is not implemented"),
                 "LocalPointColors" => Some("local point-color selection is not implemented"),
-                "LocalColorVariance" => Some("local color-variance adjustment is not implemented"),
+
                 "InstanceBounds" | "InstanceIDs" => Some("individual AI person-instance selection is not implemented"),
                 _ => None,
             } { reasons.insert(reason); }
@@ -572,6 +572,13 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
         if let Some(f) = fields(n) {
             if f.get("What").and_then(Field::scalar).is_some_and(|what| what.starts_with("Mask/") && !matches!(what, "Mask/Image" | "Mask/Subject" | "Mask/Sky" | "Mask/Background" | "Mask/People" | "Mask/Person" | "Mask/Object" | "Mask/Gradient" | "Mask/CircularGradient" | "Mask/Paint" | "Mask/Group" | "Mask/Aggregate" | "Mask/Range" | "Mask/RangeMask")) {
                 reasons.insert("unrecognized mask selection kind");
+            }
+            if let Some(value) = f.get("LocalColorVariance") {
+                let neutral = match value {
+                    Field::Scalar(v) => v.parse::<f64>().ok() == Some(0.),
+                    Field::Structure(n) => sequence(*n).is_some_and(|items| items.iter().all(|n| n.text().and_then(|s|s.trim().parse::<f64>().ok()) == Some(0.))),
+                };
+                if !neutral { reasons.insert("local color-variance adjustment is not implemented"); }
             }
             for (key, label) in [("LocalDefringe", "local defringe rendering is not implemented"), ("LocalToningSaturation", "local color overlay rendering is not implemented")] {
                 if f.get(key).and_then(Field::scalar).and_then(|v|v.parse::<f64>().ok()).is_some_and(|v|v != 0.) { reasons.insert(label); }

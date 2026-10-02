@@ -50,13 +50,26 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | Adobe key | Existing recipe path or missing field | Lane | Status | Synthetic Lua value |
 | --- | --- | --- | --- | --- |
 | `*` | MISSING: unknown future Adobe property; classify before mapping | LR-7 | retained | — |
+| `CropConstrainAspectRatio` | MISSING: saved crop aspect-ratio editing constraint is not imported; explicit crop geometry is imported separately | LR-7 | unsupported-diagnostic; no-op when default | — |
+| `CustomTemperature` | MISSING: saved custom white-balance temperature preset is not imported; active white balance is imported separately | LR-2 | unsupported-diagnostic; explicit feature note | — |
+| `CustomTint` | MISSING: saved custom white-balance tint preset is not imported; active white balance is imported separately | LR-2 | unsupported-diagnostic; explicit feature note | — |
+| `CustomIncrementalTemperature` | MISSING: saved custom relative white balance temperature is not implemented | LR-2 | unsupported-diagnostic; explicit feature note | — |
+| `CustomIncrementalTint` | MISSING: saved custom relative white balance tint is not implemented | LR-2 | unsupported-diagnostic; explicit feature note | — |
+| `CustomLensProfileDigest` | MISSING: custom lens-profile resource resolution is not implemented | LR-7 | unsupported-diagnostic; explicit feature note | — |
+| `CustomLensProfileFilename` | MISSING: custom lens-profile resource resolution is not implemented | LR-7 | unsupported-diagnostic; explicit feature note | — |
+| `CustomLensProfileName` | MISSING: custom lens-profile resource resolution is not implemented | LR-7 | unsupported-diagnostic; explicit feature note | — |
+| `CustomLensProfileIsEmbedded` | MISSING: custom embedded lens-profile selection is not implemented | LR-7 | unsupported-diagnostic; explicit feature note | — |
+| `CustomLensProfileDistortionScale` | MISSING: custom lens-profile distortion scaling is not implemented | LR-7 | unsupported-diagnostic; explicit feature note | — |
+| `CustomLensProfileVignettingScale` | MISSING: custom lens-profile vignetting scaling is not implemented | LR-7 | unsupported-diagnostic; explicit feature note | — |
+| `Preset` | MISSING: saved preset reference is not imported; explicit Develop controls are imported separately | LR-7 | unsupported-diagnostic; no-op when default | — |
+| `RemoveAreas` | MISSING: content-aware removal requires Adobe patch pixels; patch decoding is not implemented | LR-3 | unsupported-diagnostic; explicit feature note | — |
 | `AILook` | MISSING: Adaptive Color payload; empty is inactive | LR-7 | retained; no-op when default | — |
 | `FilterList` | MISSING: AI filter payloads; empty is inactive | LR-7 | retained; no-op when default | — |
 | `AutoTone` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
 | `AutoToneDigest` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `AutoToneDigest*` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `AutoToneDigestNoSat` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
-| `AutoWhiteVersion` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
+| `AutoWhiteVersion` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `Brightness` | `/settings/tone/legacy_pv2010/brightness` | LR-2 | approximate; no-op when default | `75` |
 | `ChromaticAberrationB` | `/settings/lens/legacy_ca_blue` | LR-7 | approximate | `-25` |
 | `ChromaticAberrationR` | `/settings/lens/legacy_ca_red` | LR-7 | approximate | `35` |
@@ -307,3 +320,36 @@ are value- and context-dependent. The guard tests every table key with a synthet
 no-op and, for controls, a non-default that still warns or translates approximately.
 Exact retained source is unchanged. This status suffix does not promote the
 non-default translation or claim Adobe rendering parity.
+
+## LR-9b real-edit dispositions
+
+Modern Adobe PV ignores `Brightness`, `Contrast`, `Shadows`, `Exposure`,
+`FillLight`, `HighlightRecovery`, `Recovery` and `Blacks` regardless of their finite
+numeric value. Non-default remnants have ignored info diagnostics; they do not
+enter the approximation report. PV2003/PV2010 still use LR-2's approximate operator.
+`Preset`, `AutoWhiteVersion` and `CropConstrainAspectRatio` describe provenance or
+editing state; explicit Develop settings/crop geometry remain authoritative.
+
+Mask promotion admits `CorrectionReferenceX/Y`, zero legacy local sliders,
+`LocalCurveRefineSaturation=100`, zero `LocalGrain`/`LocalCorrectedDepth`,
+zero `LocalColorVariance` arrays, radial `Version`, and AI raster provenance
+`FullMaskSize`/`LocalInputDigest`/`LocalInputDigestVersion`. A saved toning hue is
+inactive when saturation is zero. Real local curves, local point color, nonzero
+local overlay/defringe and individual AI-instance selection remain explicitly
+named unsupported features. LR-4/LR-5 geometry, range, nested masks and AI
+regeneration retain their existing approximation contract, including MaskValue.
+
+Retouch accepts `HealVersion`, `MaskID`, `CenterWeight`, and absolute source-Y
+spelling `OffsetY`. Equal uppercase/lowercase aliases are accepted; conflicts
+fail closed. A redundant ellipse is accepted only when its center and both radii
+match the supported flat circular spot and its selection controls are neutral.
+The complete modern `RetouchAreas` list supersedes `RetouchInfo`; independent
+supported `RemoveAreas` operations append with unique IDs. Content-aware Adobe
+patch pixels remain unsupported. Generative/cloud removals record one ignored
+info note per image with the text `requires Adobe cloud; not translatable`.
+
+`lr9b_translation` contains synthetic positive/negative reason-class fixtures.
+`lr9b_named_residuals_have_matrix_rows_and_keep_exact_source` verifies every
+named residual policy against this matrix, its warning text, and retained source.
+See the [LR-9b handoff](../../tools/orchestrate/wp/LR-9b/HANDOFF.md) for aggregate
+measurements, remaining classes, source-contract evidence and clean gates.
