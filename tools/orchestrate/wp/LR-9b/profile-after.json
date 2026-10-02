@@ -1,0 +1,1259 @@
+{
+  "apply": {
+    "app_bytes": 535612145,
+    "app_bytes_added": 535208569,
+    "peak_rss_bytes": 657113088,
+    "wall_seconds": 1.30403
+  },
+  "collection_sets": 3,
+  "collections": 18,
+  "counts": {
+    "approximate_groups_in_spool": 20,
+    "approximate_translation_groups": 0,
+    "develop_rows": 21656,
+    "imported": 0,
+    "indexed": 0,
+    "keys_translated_approximate_retained": {
+      "AILook": [
+        0,
+        0,
+        615
+      ],
+      "AutoLateralCA": [
+        21615,
+        0,
+        0
+      ],
+      "AutoTone": [
+        0,
+        0,
+        27
+      ],
+      "AutoToneDigest": [
+        0,
+        0,
+        1477
+      ],
+      "AutoToneDigestNoSat": [
+        0,
+        0,
+        1477
+      ],
+      "AutoWhiteVersion": [
+        0,
+        0,
+        52
+      ],
+      "Blacks2012": [
+        21615,
+        0,
+        0
+      ],
+      "Brightness": [
+        0,
+        0,
+        21239
+      ],
+      "CameraProfile": [
+        21615,
+        0,
+        0
+      ],
+      "CameraProfileDigest": [
+        21615,
+        0,
+        0
+      ],
+      "Clarity2012": [
+        686,
+        0,
+        0
+      ],
+      "ColorGradeBlending": [
+        21615,
+        0,
+        0
+      ],
+      "ColorGradeGlobalHue": [
+        21615,
+        0,
+        0
+      ],
+      "ColorGradeGlobalLum": [
+        21615,
+        0,
+        0
+      ],
+      "ColorGradeGlobalSat": [
+        21615,
+        0,
+        0
+      ],
+      "ColorGradeHighlightLum": [
+        21615,
+        0,
+        0
+      ],
+      "ColorGradeMidtoneHue": [
+        21615,
+        0,
+        0
+      ],
+      "ColorGradeMidtoneLum": [
+        21615,
+        0,
+        0
+      ],
+      "ColorGradeMidtoneSat": [
+        21615,
+        0,
+        0
+      ],
+      "ColorGradeShadowLum": [
+        21615,
+        0,
+        0
+      ],
+      "ColorNoiseReduction": [
+        19562,
+        0,
+        0
+      ],
+      "ColorNoiseReductionDetail": [
+        9,
+        0,
+        0
+      ],
+      "CompatibleVersion": [
+        0,
+        0,
+        1245
+      ],
+      "Contrast": [
+        0,
+        0,
+        21239
+      ],
+      "Contrast2012": [
+        21615,
+        0,
+        0
+      ],
+      "ConvertToGrayscale": [
+        0,
+        2,
+        21615
+      ],
+      "CropAngle": [
+        177,
+        0,
+        0
+      ],
+      "CropBottom": [
+        808,
+        0,
+        0
+      ],
+      "CropConstrainAspectRatio": [
+        0,
+        0,
+        47
+      ],
+      "CropLeft": [
+        189,
+        0,
+        0
+      ],
+      "CropRight": [
+        215,
+        0,
+        0
+      ],
+      "CropTop": [
+        834,
+        0,
+        0
+      ],
+      "CurveRefineSaturation": [
+        0,
+        0,
+        18248
+      ],
+      "CustomIncrementalTemperature": [
+        0,
+        0,
+        2
+      ],
+      "CustomIncrementalTint": [
+        0,
+        0,
+        2
+      ],
+      "CustomLensProfileDigest": [
+        0,
+        0,
+        2
+      ],
+      "CustomLensProfileDistortionScale": [
+        0,
+        0,
+        2
+      ],
+      "CustomLensProfileFilename": [
+        0,
+        0,
+        2
+      ],
+      "CustomLensProfileIsEmbedded": [
+        0,
+        0,
+        2
+      ],
+      "CustomLensProfileName": [
+        0,
+        0,
+        2
+      ],
+      "CustomLensProfileVignettingScale": [
+        0,
+        0,
+        2
+      ],
+      "CustomTemperature": [
+        0,
+        0,
+        42
+      ],
+      "CustomTint": [
+        0,
+        0,
+        42
+      ],
+      "DefringeGreenAmount": [
+        21615,
+        0,
+        0
+      ],
+      "DefringeGreenHueHi": [
+        21615,
+        0,
+        0
+      ],
+      "DefringeGreenHueLo": [
+        21615,
+        0,
+        0
+      ],
+      "DefringePurpleAmount": [
+        21615,
+        0,
+        0
+      ],
+      "DefringePurpleHueHi": [
+        21615,
+        0,
+        0
+      ],
+      "DefringePurpleHueLo": [
+        21615,
+        0,
+        0
+      ],
+      "Dehaze": [
+        506,
+        0,
+        0
+      ],
+      "DepthBasedCorrections": [
+        0,
+        0,
+        16
+      ],
+      "DepthMapInfo": [
+        0,
+        417,
+        417
+      ],
+      "EnableDistractionRemoval": [
+        0,
+        0,
+        9553
+      ],
+      "Exposure": [
+        0,
+        0,
+        21239
+      ],
+      "Exposure2012": [
+        21615,
+        0,
+        0
+      ],
+      "FillLight": [
+        0,
+        0,
+        27
+      ],
+      "FilterList": [
+        0,
+        0,
+        8029
+      ],
+      "GrainAmount": [
+        10,
+        0,
+        0
+      ],
+      "GrainFrequency": [
+        7,
+        0,
+        0
+      ],
+      "GrainSeed": [
+        0,
+        0,
+        10
+      ],
+      "GrainSize": [
+        21615,
+        0,
+        0
+      ],
+      "GrayMixerAqua": [
+        0,
+        1,
+        1
+      ],
+      "GrayMixerBlue": [
+        0,
+        1,
+        1
+      ],
+      "GrayMixerGreen": [
+        0,
+        1,
+        1
+      ],
+      "GrayMixerMagenta": [
+        0,
+        1,
+        1
+      ],
+      "GrayMixerOrange": [
+        0,
+        1,
+        1
+      ],
+      "GrayMixerPurple": [
+        0,
+        1,
+        1
+      ],
+      "GrayMixerRed": [
+        0,
+        1,
+        1
+      ],
+      "GrayMixerYellow": [
+        0,
+        1,
+        1
+      ],
+      "HDREditMode": [
+        17133,
+        0,
+        0
+      ],
+      "HDRMaxValue": [
+        17133,
+        0,
+        0
+      ],
+      "HighlightRecovery": [
+        0,
+        0,
+        27
+      ],
+      "Highlights2012": [
+        21615,
+        0,
+        0
+      ],
+      "HueAdjustmentAqua": [
+        152,
+        0,
+        0
+      ],
+      "HueAdjustmentBlue": [
+        148,
+        0,
+        0
+      ],
+      "HueAdjustmentGreen": [
+        154,
+        0,
+        0
+      ],
+      "HueAdjustmentMagenta": [
+        21,
+        0,
+        0
+      ],
+      "HueAdjustmentOrange": [
+        57,
+        0,
+        0
+      ],
+      "HueAdjustmentPurple": [
+        136,
+        0,
+        0
+      ],
+      "HueAdjustmentRed": [
+        163,
+        0,
+        0
+      ],
+      "HueAdjustmentYellow": [
+        215,
+        0,
+        0
+      ],
+      "IncrementalTemperature": [
+        0,
+        0,
+        1966
+      ],
+      "IncrementalTint": [
+        0,
+        0,
+        1966
+      ],
+      "LensBlur": [
+        17133,
+        417,
+        17133
+      ],
+      "LensManualDistortionAmount": [
+        21615,
+        0,
+        0
+      ],
+      "LensProfileDigest": [
+        12042,
+        0,
+        0
+      ],
+      "LensProfileDistortionScale": [
+        12042,
+        0,
+        0
+      ],
+      "LensProfileEnable": [
+        21615,
+        0,
+        0
+      ],
+      "LensProfileFilename": [
+        12042,
+        0,
+        0
+      ],
+      "LensProfileIsEmbedded": [
+        0,
+        0,
+        12042
+      ],
+      "LensProfileName": [
+        12042,
+        0,
+        0
+      ],
+      "LensProfileSetup": [
+        21615,
+        0,
+        0
+      ],
+      "LensProfileVignettingScale": [
+        12042,
+        0,
+        0
+      ],
+      "Look": [
+        17032,
+        0,
+        0
+      ],
+      "LuminanceAdjustmentAqua": [
+        145,
+        0,
+        0
+      ],
+      "LuminanceAdjustmentBlue": [
+        154,
+        0,
+        0
+      ],
+      "LuminanceAdjustmentGreen": [
+        156,
+        0,
+        0
+      ],
+      "LuminanceAdjustmentMagenta": [
+        135,
+        0,
+        0
+      ],
+      "LuminanceAdjustmentOrange": [
+        170,
+        0,
+        0
+      ],
+      "LuminanceAdjustmentPurple": [
+        135,
+        0,
+        0
+      ],
+      "LuminanceAdjustmentRed": [
+        150,
+        0,
+        0
+      ],
+      "LuminanceAdjustmentYellow": [
+        186,
+        0,
+        0
+      ],
+      "LuminanceNoiseReductionContrast": [
+        21615,
+        0,
+        0
+      ],
+      "LuminanceNoiseReductionDetail": [
+        11,
+        0,
+        0
+      ],
+      "LuminanceSmoothing": [
+        526,
+        0,
+        0
+      ],
+      "MaskGroupBasedCorrections": [
+        697,
+        626,
+        697
+      ],
+      "OverrideLookVignette": [
+        0,
+        0,
+        21615
+      ],
+      "ParametricDarks": [
+        14,
+        0,
+        0
+      ],
+      "ParametricHighlightSplit": [
+        118,
+        0,
+        0
+      ],
+      "ParametricHighlights": [
+        8,
+        0,
+        0
+      ],
+      "ParametricLights": [
+        5,
+        0,
+        0
+      ],
+      "ParametricMidtoneSplit": [
+        126,
+        0,
+        0
+      ],
+      "ParametricShadowSplit": [
+        126,
+        0,
+        0
+      ],
+      "ParametricShadows": [
+        2,
+        0,
+        0
+      ],
+      "PerspectiveHorizontal": [
+        21615,
+        0,
+        0
+      ],
+      "PerspectiveRotate": [
+        21615,
+        0,
+        0
+      ],
+      "PerspectiveScale": [
+        21615,
+        0,
+        0
+      ],
+      "PerspectiveUpright": [
+        1,
+        0,
+        0
+      ],
+      "PerspectiveVertical": [
+        21615,
+        0,
+        0
+      ],
+      "PerspectiveX": [
+        21615,
+        0,
+        0
+      ],
+      "PerspectiveY": [
+        21615,
+        0,
+        0
+      ],
+      "PointColors": [
+        17132,
+        276,
+        17132
+      ],
+      "PostCropVignetteAmount": [
+        415,
+        0,
+        0
+      ],
+      "PostCropVignetteFeather": [
+        11,
+        0,
+        0
+      ],
+      "PostCropVignetteHighlightContrast": [
+        1,
+        0,
+        0
+      ],
+      "PostCropVignetteMidpoint": [
+        58,
+        0,
+        0
+      ],
+      "PostCropVignetteRoundness": [
+        44,
+        0,
+        0
+      ],
+      "PostCropVignetteStyle": [
+        1,
+        0,
+        0
+      ],
+      "Preset": [
+        0,
+        0,
+        146
+      ],
+      "ProcessVersion": [
+        21615,
+        0,
+        0
+      ],
+      "RangeMaskMapInfo": [
+        0,
+        0,
+        8
+      ],
+      "RedEyeInfo": [
+        0,
+        0,
+        21615
+      ],
+      "RemoveAreas": [
+        0,
+        0,
+        42
+      ],
+      "RetouchAreas": [
+        330,
+        289,
+        330
+      ],
+      "RetouchInfo": [
+        11517,
+        0,
+        11543
+      ],
+      "SDRBlend": [
+        0,
+        0,
+        17133
+      ],
+      "SDRBrightness": [
+        0,
+        0,
+        17133
+      ],
+      "SDRClarity": [
+        0,
+        0,
+        17133
+      ],
+      "SDRContrast": [
+        0,
+        0,
+        17133
+      ],
+      "SDRHighlights": [
+        0,
+        0,
+        17133
+      ],
+      "SDRShadows": [
+        0,
+        0,
+        17133
+      ],
+      "SDRWhites": [
+        0,
+        0,
+        17133
+      ],
+      "Saturation": [
+        21615,
+        0,
+        0
+      ],
+      "SaturationAdjustmentAqua": [
+        150,
+        0,
+        0
+      ],
+      "SaturationAdjustmentBlue": [
+        157,
+        0,
+        0
+      ],
+      "SaturationAdjustmentGreen": [
+        162,
+        0,
+        0
+      ],
+      "SaturationAdjustmentMagenta": [
+        401,
+        0,
+        0
+      ],
+      "SaturationAdjustmentOrange": [
+        196,
+        0,
+        0
+      ],
+      "SaturationAdjustmentPurple": [
+        166,
+        0,
+        0
+      ],
+      "SaturationAdjustmentRed": [
+        189,
+        0,
+        0
+      ],
+      "SaturationAdjustmentYellow": [
+        468,
+        0,
+        0
+      ],
+      "Shadows": [
+        0,
+        0,
+        21239
+      ],
+      "Shadows2012": [
+        21615,
+        0,
+        0
+      ],
+      "SharpenDetail": [
+        21615,
+        0,
+        0
+      ],
+      "SharpenEdgeMasking": [
+        21615,
+        0,
+        0
+      ],
+      "SharpenRadius": [
+        21615,
+        0,
+        0
+      ],
+      "Sharpness": [
+        19648,
+        0,
+        0
+      ],
+      "SplitToningBalance": [
+        19,
+        0,
+        0
+      ],
+      "SplitToningHighlightHue": [
+        28,
+        0,
+        0
+      ],
+      "SplitToningHighlightSaturation": [
+        26,
+        0,
+        0
+      ],
+      "SplitToningShadowHue": [
+        69,
+        0,
+        0
+      ],
+      "SplitToningShadowSaturation": [
+        62,
+        0,
+        0
+      ],
+      "Temperature": [
+        11663,
+        0,
+        0
+      ],
+      "Texture": [
+        671,
+        0,
+        0
+      ],
+      "Tint": [
+        11663,
+        0,
+        0
+      ],
+      "ToggleStyleAmount": [
+        0,
+        0,
+        4
+      ],
+      "ToggleStyleDigest": [
+        0,
+        0,
+        4
+      ],
+      "ToneCurveName2012": [
+        0,
+        0,
+        21615
+      ],
+      "ToneCurvePV2012": [
+        21615,
+        0,
+        0
+      ],
+      "ToneCurvePV2012Blue": [
+        21615,
+        0,
+        0
+      ],
+      "ToneCurvePV2012Green": [
+        21615,
+        0,
+        0
+      ],
+      "ToneCurvePV2012Red": [
+        21615,
+        0,
+        0
+      ],
+      "UprightCenterMode": [
+        0,
+        1,
+        21615
+      ],
+      "UprightCenterNormX": [
+        0,
+        1,
+        21615
+      ],
+      "UprightCenterNormY": [
+        0,
+        1,
+        21615
+      ],
+      "UprightDependentDigest": [
+        0,
+        0,
+        1
+      ],
+      "UprightFocalLength35mm": [
+        0,
+        1,
+        21615
+      ],
+      "UprightFocalMode": [
+        0,
+        1,
+        21615
+      ],
+      "UprightFourSegmentsCount": [
+        0,
+        0,
+        21615
+      ],
+      "UprightPreview": [
+        0,
+        0,
+        21615
+      ],
+      "UprightTransformCount": [
+        0,
+        0,
+        21615
+      ],
+      "UprightTransform_0": [
+        0,
+        0,
+        1
+      ],
+      "UprightTransform_1": [
+        0,
+        1,
+        1
+      ],
+      "UprightTransform_2": [
+        0,
+        0,
+        1
+      ],
+      "UprightTransform_3": [
+        0,
+        0,
+        1
+      ],
+      "UprightTransform_4": [
+        0,
+        0,
+        1
+      ],
+      "UprightTransform_5": [
+        0,
+        0,
+        1
+      ],
+      "UprightVersion": [
+        0,
+        0,
+        21615
+      ],
+      "Version": [
+        0,
+        0,
+        21615
+      ],
+      "Vibrance": [
+        21615,
+        0,
+        0
+      ],
+      "WhiteBalance": [
+        21615,
+        0,
+        0
+      ],
+      "Whites2012": [
+        21615,
+        0,
+        0
+      ]
+    },
+    "not_fully_supported_groups": 70,
+    "skipped": 21656,
+    "suppressed_examples": 59,
+    "unaudited_develop_rows": 0,
+    "unaudited_value_class_rows": 0,
+    "unlisted_retained_key_occurrences": 2977,
+    "value_classes": {
+      "AILook": {
+        "default_empty_inactive_provenance": 615
+      },
+      "AutoToneDigest": {
+        "default_empty_inactive_provenance": 1477
+      },
+      "AutoToneDigestNoSat": {
+        "default_empty_inactive_provenance": 1477
+      },
+      "AutoWhiteVersion": {
+        "default_empty_inactive_provenance": 52
+      },
+      "Brightness": {
+        "default_empty_inactive_provenance": 19343,
+        "non_default": 1896
+      },
+      "CompatibleVersion": {
+        "default_empty_inactive_provenance": 1245
+      },
+      "Contrast": {
+        "default_empty_inactive_provenance": 19343,
+        "non_default": 1896
+      },
+      "ConvertToGrayscale": {
+        "default_empty_inactive_provenance": 21613,
+        "non_default": 2
+      },
+      "CropConstrainAspectRatio": {
+        "default_empty_inactive_provenance": 47
+      },
+      "CurveRefineSaturation": {
+        "default_empty_inactive_provenance": 18248
+      },
+      "EnableDistractionRemoval": {
+        "default_empty_inactive_provenance": 9552,
+        "non_default": 1
+      },
+      "Exposure": {
+        "default_empty_inactive_provenance": 21212,
+        "non_default": 27
+      },
+      "FilterList": {
+        "default_empty_inactive_provenance": 8029
+      },
+      "IncrementalTemperature": {
+        "default_empty_inactive_provenance": 1944,
+        "non_default": 22
+      },
+      "IncrementalTint": {
+        "default_empty_inactive_provenance": 1946,
+        "non_default": 20
+      },
+      "LensBlur": {
+        "default_empty_inactive_provenance": 16716,
+        "non_default": 417
+      },
+      "LensProfileIsEmbedded": {
+        "default_empty_inactive_provenance": 12042
+      },
+      "OverrideLookVignette": {
+        "default_empty_inactive_provenance": 21605,
+        "non_default": 10
+      },
+      "PointColors": {
+        "default_empty_inactive_provenance": 16855,
+        "non_default": 277
+      },
+      "Preset": {
+        "default_empty_inactive_provenance": 146
+      },
+      "RedEyeInfo": {
+        "default_empty_inactive_provenance": 21615
+      },
+      "RetouchInfo": {
+        "default_empty_inactive_provenance": 11517,
+        "non_default": 26
+      },
+      "SDRBlend": {
+        "default_empty_inactive_provenance": 17114,
+        "non_default": 19
+      },
+      "SDRBrightness": {
+        "default_empty_inactive_provenance": 17113,
+        "non_default": 20
+      },
+      "SDRClarity": {
+        "default_empty_inactive_provenance": 17115,
+        "non_default": 18
+      },
+      "SDRContrast": {
+        "default_empty_inactive_provenance": 17115,
+        "non_default": 18
+      },
+      "SDRHighlights": {
+        "default_empty_inactive_provenance": 17113,
+        "non_default": 20
+      },
+      "SDRShadows": {
+        "default_empty_inactive_provenance": 17114,
+        "non_default": 19
+      },
+      "SDRWhites": {
+        "default_empty_inactive_provenance": 17121,
+        "non_default": 12
+      },
+      "Shadows": {
+        "default_empty_inactive_provenance": 19343,
+        "non_default": 1896
+      },
+      "ToneCurveName2012": {
+        "default_empty_inactive_provenance": 21615,
+        "known_Adobe_name": 21615
+      },
+      "UprightCenterMode": {
+        "default_empty_inactive_provenance": 21614,
+        "non_default": 1
+      },
+      "UprightCenterNormX": {
+        "default_empty_inactive_provenance": 21614,
+        "non_default": 1
+      },
+      "UprightCenterNormY": {
+        "default_empty_inactive_provenance": 21614,
+        "non_default": 1
+      },
+      "UprightFocalLength35mm": {
+        "default_empty_inactive_provenance": 21614,
+        "non_default": 1
+      },
+      "UprightFocalMode": {
+        "default_empty_inactive_provenance": 21614,
+        "non_default": 1
+      },
+      "UprightFourSegmentsCount": {
+        "default_empty_inactive_provenance": 21615
+      },
+      "UprightPreview": {
+        "default_empty_inactive_provenance": 21615
+      },
+      "UprightTransformCount": {
+        "default_empty_inactive_provenance": 21615
+      },
+      "UprightVersion": {
+        "default_empty_inactive_provenance": 21615
+      },
+      "Version": {
+        "default_empty_inactive_provenance": 21615
+      }
+    },
+    "warned_images_by_key": {
+      "AutoTone": 27,
+      "Blacks2012": 27,
+      "Contrast2012": 27,
+      "CustomIncrementalTemperature": 2,
+      "CustomIncrementalTint": 2,
+      "CustomLensProfileDigest": 2,
+      "CustomLensProfileDistortionScale": 2,
+      "CustomLensProfileFilename": 2,
+      "CustomLensProfileIsEmbedded": 2,
+      "CustomLensProfileName": 2,
+      "CustomLensProfileVignettingScale": 2,
+      "CustomTemperature": 42,
+      "CustomTint": 42,
+      "DepthBasedCorrections": 16,
+      "Exposure2012": 27,
+      "GrainSeed": 10,
+      "Highlights2012": 27,
+      "IncrementalTemperature": 22,
+      "IncrementalTint": 20,
+      "MaskGroupBasedCorrections": 71,
+      "OverrideLookVignette": 10,
+      "PointColors": 1,
+      "RangeMaskMapInfo": 8,
+      "RemoveAreas": 36,
+      "RetouchAreas": 38,
+      "SDRBlend": 19,
+      "SDRBrightness": 20,
+      "SDRClarity": 18,
+      "SDRContrast": 18,
+      "SDRHighlights": 20,
+      "SDRShadows": 19,
+      "SDRWhites": 12,
+      "Saturation": 27,
+      "Shadows2012": 27,
+      "ToggleStyleAmount": 4,
+      "ToggleStyleDigest": 4,
+      "UprightDependentDigest": 1,
+      "UprightTransform_0": 1,
+      "UprightTransform_2": 1,
+      "UprightTransform_3": 1,
+      "UprightTransform_4": 1,
+      "UprightTransform_5": 1,
+      "Vibrance": 27,
+      "Whites2012": 27
+    },
+    "warning_keys": {
+      "AutoTone": 27,
+      "Blacks2012": 27,
+      "Contrast2012": 27,
+      "CustomIncrementalTemperature": 2,
+      "CustomIncrementalTint": 2,
+      "CustomLensProfileDigest": 2,
+      "CustomLensProfileDistortionScale": 2,
+      "CustomLensProfileFilename": 2,
+      "CustomLensProfileIsEmbedded": 2,
+      "CustomLensProfileName": 2,
+      "CustomLensProfileVignettingScale": 2,
+      "CustomTemperature": 42,
+      "CustomTint": 42,
+      "DepthBasedCorrections": 16,
+      "Exposure2012": 27,
+      "GrainSeed": 10,
+      "Highlights2012": 27,
+      "IncrementalTemperature": 22,
+      "IncrementalTint": 20,
+      "MaskGroupBasedCorrections": 71,
+      "OverrideLookVignette": 10,
+      "PointColors": 1,
+      "RangeMaskMapInfo": 8,
+      "RemoveAreas": 36,
+      "RetouchAreas": 38,
+      "SDRBlend": 19,
+      "SDRBrightness": 20,
+      "SDRClarity": 18,
+      "SDRContrast": 18,
+      "SDRHighlights": 20,
+      "SDRShadows": 19,
+      "SDRWhites": 12,
+      "Saturation": 27,
+      "Shadows2012": 27,
+      "ToggleStyleAmount": 4,
+      "ToggleStyleDigest": 4,
+      "UprightDependentDigest": 1,
+      "UprightTransform_0": 1,
+      "UprightTransform_2": 1,
+      "UprightTransform_3": 1,
+      "UprightTransform_4": 1,
+      "UprightTransform_5": 1,
+      "Vibrance": 27,
+      "Whites2012": 27
+    },
+    "warnings_by_category": {
+      "Catalog": 13,
+      "Develop settings": 715,
+      "Faces": 9293,
+      "History": 30460,
+      "Smart collections": 2,
+      "Stacks": 220
+    }
+  },
+  "edited": 21615,
+  "fidelity_samples": 0,
+  "images": 21656,
+  "inspect_preview": {
+    "app_bytes": 403576,
+    "app_bytes_added": 0,
+    "peak_rss_bytes": 652296192,
+    "wall_seconds": 0.789241792
+  },
+  "keywords": 32,
+  "missing": 21656,
+  "open": {
+    "app_bytes": 403576,
+    "app_bytes_added": 403576,
+    "peak_rss_bytes": 639483904,
+    "wall_seconds": 10.546752667
+  },
+  "report": {
+    "app_bytes": 535612145,
+    "app_bytes_added": 0,
+    "peak_rss_bytes": 684294144,
+    "wall_seconds": 42.937747917
+  },
+  "smart_collections": 3
+}
