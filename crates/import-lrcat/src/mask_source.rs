@@ -178,7 +178,7 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
             }
             (
                 "MaskType" | "MaskSubType" | "MaskSubCategoryID" | "ReferencePoint" | "InputDigest"
-                | "InputDigestVersion" | "ModelVersion" | "WholeImageArea" | "Origin"
+                | "InputDigestVersion" | "FullMaskSize" | "LocalInputDigest" | "LocalInputDigestVersion" | "ModelVersion" | "WholeImageArea" | "Origin"
                 | "ErrorReason" | "MaskDigest" | "Left" | "Top" | "Right" | "Bottom",
                 Field::Scalar(_),
             ) if matches!(
@@ -641,4 +641,28 @@ fn translated_field_paths(
             translated_field_paths(children, &format!("{path}/group"), field, paths);
         }
     }
+}
+
+/// Static feature labels only: never include property values in diagnostics.
+pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
+    let mut reasons = std::collections::BTreeSet::new();
+    for n in root.descendants() {
+        for name in n.attributes().filter(|a| a.namespace() == Some(CRS)).map(|a| a.name())
+            .chain((n.tag_name().namespace() == Some(CRS)).then_some(n.tag_name().name())) {
+            if let Some(reason) = match name {
+                "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve" | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve" => Some("local tone curve rendering is not implemented"),
+                "LocalPointColors" => Some("local point-color selection is not implemented"),
+                "LocalColorVariance" => Some("local color-variance adjustment is not implemented"),
+                "InstanceBounds" | "InstanceIDs" => Some("individual AI person-instance selection is not implemented"),
+                _ => None,
+            } { reasons.insert(reason); }
+        }
+        if let Some(f) = fields(n) {
+            for (key, label) in [("LocalDefringe", "local defringe rendering is not implemented"), ("LocalToningSaturation", "local color overlay rendering is not implemented")] {
+                if f.get(key).and_then(Field::scalar).and_then(|v|v.parse::<f64>().ok()).is_some_and(|v|v != 0.) { reasons.insert(label); }
+            }
+        }
+    }
+    if reasons.is_empty() { reasons.insert("mask geometry, blend mode or selection encoding cannot be rendered"); }
+    reasons.into_iter().collect::<Vec<_>>().join("; ")
 }
