@@ -217,3 +217,43 @@ fn lr12_hdr_presentation_does_not_block_linearraw_scene_pixels() {
         serde_json::json!({"output":{"hdr":true,"hdr_headroom_stops":2.0}}),
     );
 }
+
+/// Machine A ruling: presentation headroom alone is a no-op on an SDR proxy
+/// render and must not produce a per-photo note; HDR output switched on does.
+#[test]
+fn lr13_hdr_note_only_when_hdr_output_is_on() {
+    let dng =
+        raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false, false)))
+            .unwrap()
+            .unwrap();
+    let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng).unwrap();
+    let source = pipeline_cpu::RenderSource::CameraLinear(&proxy);
+    let settings = |value: serde_json::Value| -> engine_api::recipe::DevelopSettings {
+        serde_json::from_value(value).unwrap()
+    };
+    let headroom_only = settings(serde_json::json!({"output":{"hdr_headroom_stops":2.0}}));
+    let (planned, notes) = proxy.render_plan(&headroom_only, false);
+    assert!(
+        !notes.contains(&"/output/hdr"),
+        "headroom without HDR output changes nothing the user sees: {notes:?}"
+    );
+    assert!(!planned.output.hdr);
+    assert_eq!(planned.output.hdr_headroom_stops, 0.);
+    // Still renders, and identically to the default recipe.
+    let default = pipeline_cpu::render_scaled(&Default::default(), &source, 1).unwrap();
+    assert_eq!(
+        pipeline_cpu::render_scaled(&headroom_only, &source, 1).unwrap(),
+        default
+    );
+    for hdr_on in [
+        serde_json::json!({"output":{"hdr":true}}),
+        serde_json::json!({"output":{"hdr":true,"hdr_headroom_stops":2.0}}),
+    ] {
+        let hdr_on = settings(hdr_on);
+        let (planned, notes) = proxy.render_plan(&hdr_on, false);
+        assert!(notes.contains(&"/output/hdr"), "{notes:?}");
+        assert!(!planned.output.hdr);
+        assert_eq!(planned.output.hdr_headroom_stops, 0.);
+        pipeline_cpu::render_scaled(&hdr_on, &source, 1).unwrap();
+    }
+}
