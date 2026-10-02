@@ -2100,6 +2100,52 @@ mod lrcat_resume_tests {
     }
 
     #[test]
+    fn lr9_ignored_diagnostics_are_not_approximate_report_entries() {
+        let mut recipe = Recipe::default();
+        import_lrcat::diagnostics::push_ignored(&mut recipe, "Exposure2012", "LR-2", "inactive");
+        let mut issues = vec![];
+        note_approximate(&mut issues, &recipe, Path::new("/synthetic/photo.jpg"));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn lr9_real_decoder_approximate_apply_and_resume() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+        db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s={ PointColors={{SrcHue=0,SrcSat=0.9,SrcLum=0.5,HueShift=0.5}}, RetouchInfo={'centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType=heal'}, LensBlur={Active=true,BlurAmount=40}, DepthMapInfo={DepthSource='synthetic'} }"]).unwrap();
+        drop(db);
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = import.default_options().unwrap();
+        options.relocations[0].to = fixture
+            .photos
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        options.library_folder = options.relocations[0].to.clone();
+        let report = import.apply(options.clone(), None).unwrap();
+        assert!(report.imported > 0);
+        for key in ["PointColors", "RetouchInfo", "LensBlur", "DepthMapInfo"] {
+            assert!(
+                report
+                    .approximate
+                    .iter()
+                    .any(|issue| issue.category == key && issue.count > 0),
+                "missing {key}"
+            );
+        }
+        assert_eq!(
+            import.apply(options, None).unwrap().approximate,
+            report.approximate
+        );
+    }
+
+    #[test]
     fn approximate_groups_count_every_photo_but_cap_examples_at_five() {
         let mut recipe = Recipe::default();
         import_lrcat::diagnostics::push_approximate(&mut recipe, "K", "/f", "LR-2", "first");
