@@ -341,10 +341,12 @@ named unsupported features. LR-4/LR-5 geometry, range, nested masks and AI
 regeneration retain their existing approximation contract, including MaskValue.
 
 Retouch accepts `HealVersion`, `MaskID`, `CenterWeight`, and absolute source-Y
-spelling `OffsetY`. Equal uppercase/lowercase aliases are accepted; conflicts
+spelling `OffsetY`. Stateful dab commands `r`/`f`/`h` update stamp radius, flow
+and hardness; `CenterWeight` maps to brush feather. Equal uppercase/lowercase aliases are accepted; conflicts
 fail closed. A redundant ellipse is accepted only when its center and both radii
 match the supported flat circular spot and its selection controls are neutral.
-The complete modern `RetouchAreas` list supersedes `RetouchInfo`; independent
+The nonempty modern `RetouchAreas` list supersedes `RetouchInfo`, including when
+unsupported, so stale legacy spots cannot render as a fallback; independent
 supported `RemoveAreas` operations append with unique IDs. Content-aware Adobe
 patch pixels remain unsupported. Generative/cloud removals record one ignored
 info note per image with the text `requires Adobe cloud; not translatable`.

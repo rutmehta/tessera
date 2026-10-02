@@ -218,10 +218,29 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
     if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
         && recipe.process_version.revision >= 3
     {
-        for key in ["Brightness", "Contrast", "Shadows", "Exposure", "FillLight", "HighlightRecovery", "Recovery", "Blacks"] {
-            if values.get(key).is_some_and(|v| number(v, -f32::MAX, f32::MAX).is_some()) {
-                warnings.retain(|w| !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:")));
-                crate::diagnostics::push_ignored(recipe, key, "LR-9b", "legacy process slider is inactive in PV2012 and later");
+        for key in [
+            "Brightness",
+            "Contrast",
+            "Shadows",
+            "Exposure",
+            "FillLight",
+            "HighlightRecovery",
+            "Recovery",
+            "Blacks",
+        ] {
+            if values
+                .get(key)
+                .is_some_and(|v| number(v, -f32::MAX, f32::MAX).is_some())
+            {
+                warnings.retain(|w| {
+                    !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
+                });
+                crate::diagnostics::push_ignored(
+                    recipe,
+                    key,
+                    "LR-9b",
+                    "legacy process slider is inactive in PV2012 and later",
+                );
             }
         }
     }

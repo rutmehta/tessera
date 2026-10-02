@@ -558,7 +558,8 @@ fn lr9_matrix_defaults_are_silent_and_nondefaults_remain_visible() {
                     .unwrap_or(w)
                     .starts_with(&format!("{key}:")))
                     || diagnostics::entries(&recipe).contains_key(key)
-                    || (matches!(rule, Rule::DistractionPanel) && diagnostics::entries(&recipe).contains_key("GenerativeRemove")),
+                    || (matches!(rule, Rule::DistractionPanel)
+                        && diagnostics::entries(&recipe).contains_key("GenerativeRemove")),
                 "nondefault lost: {key}"
             );
         }
@@ -576,12 +577,27 @@ fn lr9_false_grayscale_with_saved_mixer_has_no_grayscale_report_entry() {
 
 #[test]
 fn lr9b_named_residuals_have_matrix_rows_and_keep_exact_source() {
-    let matrix=include_str!("../../../docs/coordination/LR-TRANSLATION-MATRIX.md");
-    for &(key,reason) in import_lrcat::residual::FEATURES {
-        assert!(matrix.contains(&format!("| `{key}` |")),"missing matrix row: {key}");
-        if import_lrcat::noop::RULES.iter().any(|(k,r)| *k == key && matches!(r,import_lrcat::noop::Rule::Provenance)) { continue; }
-        let (r,w)=lua_develop::parse(&format!("s={{HDREditMode=1,{key}='synthetic-invalid'}}"),"15.4").unwrap();
-        assert!(w.iter().any(|w|w.contains(reason)),"{key}: {w:?}");
-        assert_eq!(r.unknown["lrcat_develop_source"]["properties"][key],"'synthetic-invalid'","{key}");
+    let matrix = include_str!("../../../docs/coordination/LR-TRANSLATION-MATRIX.md");
+    for &(key, reason) in import_lrcat::residual::FEATURES {
+        assert!(
+            matrix.contains(&format!("| `{key}` |")),
+            "missing matrix row: {key}"
+        );
+        if import_lrcat::noop::RULES
+            .iter()
+            .any(|(k, r)| *k == key && matches!(r, import_lrcat::noop::Rule::Provenance))
+        {
+            continue;
+        }
+        let (r, w) = lua_develop::parse(
+            &format!("s={{HDREditMode=1,{key}='synthetic-invalid'}}"),
+            "15.4",
+        )
+        .unwrap();
+        assert!(w.iter().any(|w| w.contains(reason)), "{key}: {w:?}");
+        assert_eq!(
+            r.unknown["lrcat_develop_source"]["properties"][key], "'synthetic-invalid'",
+            "{key}"
+        );
     }
 }
