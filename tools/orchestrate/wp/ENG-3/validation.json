@@ -1,0 +1,110 @@
+{
+  "baseline_revision": "f6b572ba2e2f1c3983c29cb0c95a58cdc2a1f930",
+  "test_revision": "a4290282b91c2fd5c100b28ffe330d5f54f04376",
+  "code_revision": "cba7e4d13600d24b0a92cdffade5c3c4ebb7dbce",
+  "evidence_directory": "/Users/rutmehta/tessera-evidence/ENG-3",
+  "gates": [
+    {
+      "gate": "clean",
+      "command": [
+        "cargo",
+        "clean",
+        "--release",
+        "-p",
+        "pipeline-cpu",
+        "-p",
+        "pipeline-gpu",
+        "-p",
+        "filters"
+      ],
+      "exit_code": 0,
+      "seconds": 0.10345697402954102
+    },
+    {
+      "gate": "test",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "pipeline-cpu",
+        "-p",
+        "pipeline-gpu",
+        "-p",
+        "filters",
+        "--release",
+        "--no-fail-fast"
+      ],
+      "exit_code": 0,
+      "seconds": 143.4752368927002
+    },
+    {
+      "gate": "ffi",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "tessera-ffi"
+      ],
+      "exit_code": 0,
+      "seconds": 576.0824728012085
+    },
+    {
+      "gate": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 107.27209305763245
+    },
+    {
+      "gate": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 1.946767807006836
+    }
+  ],
+  "suite_totals": {
+    "test": {
+      "suites": 97,
+      "passed": 488,
+      "failed": 0,
+      "ignored": 24,
+      "measured": 0,
+      "filtered": 0
+    },
+    "ffi": {
+      "suites": 53,
+      "passed": 581,
+      "failed": 0,
+      "ignored": 30,
+      "measured": 0,
+      "filtered": 0
+    }
+  },
+  "logs_sha256": {
+    "red-complete.log": "b9d7a0811c9bc8b5c7118550f3c3eff43b2a44a7f8b5f7162344ebe69dfe504d",
+    "green.log": "52e491ee16900d00e06715929cd981bd3eced30e9973f35ce7ffa49e18d9d66e",
+    "baseline-develop.log": "30953935c7aab72821415bea01d5c80644570c81cba50eaedff9f044f73972dc",
+    "baseline-raw.log": "2d0935f777d66fcc671f6e796e67221e0f1b54f370a09f6ebdbbd7cacd6ef5b7",
+    "after-develop.log": "0620669781fb736359356a32c46df2ee4863fa8f91355d21e74047b9c5956844",
+    "after-raw.log": "0885bae7b0492c93871b608576094c1e90adfd7182e834d4f0d545de0069d951",
+    "clean.log": "127d9c6cb4c93a23130891974306d574e0751b36cdd2018cd8d6388c99e6532f",
+    "test.log": "a35be88961add23de8a259bc9a93403ece14ae0283ded28cd31ed26dd485e6cc",
+    "ffi.log": "a0abdd7d06ac800ab88b5bd4e79b34a50b3c94ac3afdf98fb45a22d3c65173db",
+    "clippy.log": "c7bf47c4a75a590dc7ecc5552022c71a88ff5e3b5bf9ac729eca67c40dda9af0",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

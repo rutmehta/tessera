@@ -91,7 +91,8 @@ by segment endpoints, with monotonicity tested to f32 epsilon.
    In particular an identity mapping has gain exactly one, without a separate
    zero-delta branch. This is a rendering policy for near-black cancellation,
    not a precision-only rewrite. The exact-zero bypass and neutral-black lift
-   remain unchanged, including their pre-existing boundary discontinuity.
+   remain unchanged. The floored positive-grey limit is zero, so a curve that
+   lifts black meets the retained exact-black lift discontinuously at zero.
    Absolute black can lift to neutral
    grey through the luminance curve. Negative component inputs bypass component
    curves; nonpositive nonblack luminance bypasses luminance curves.

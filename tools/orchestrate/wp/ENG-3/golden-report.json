@@ -1,0 +1,142 @@
+[
+  {
+    "golden": "Srgb-1.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "47fe0176537f718f2f499e1761d8efe619139f2310afd14f9bdee19ca2e58788",
+    "after_sha256": "47fe0176537f718f2f499e1761d8efe619139f2310afd14f9bdee19ca2e58788"
+  },
+  {
+    "golden": "Srgb-0.35.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "27ceee9a01c962d83d0bb5ab4b24beb6da77a5b183ab50861ea9ab584076a3cc",
+    "after_sha256": "27ceee9a01c962d83d0bb5ab4b24beb6da77a5b183ab50861ea9ab584076a3cc"
+  },
+  {
+    "golden": "Srgb-0.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "8511f116f963d524b1bb4ccc7a71393f49b149899821e1830698e415ea88556d",
+    "after_sha256": "8511f116f963d524b1bb4ccc7a71393f49b149899821e1830698e415ea88556d"
+  },
+  {
+    "golden": "DisplayP3-1.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "358d878497f4461223c7ffeafab4d475f378e1074d23311e3c12359acf2fc998",
+    "after_sha256": "358d878497f4461223c7ffeafab4d475f378e1074d23311e3c12359acf2fc998"
+  },
+  {
+    "golden": "DisplayP3-0.35.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "30928703598e1aa03470f05c9ea112468743d05cd15adaf705937123ebcbf439",
+    "after_sha256": "30928703598e1aa03470f05c9ea112468743d05cd15adaf705937123ebcbf439"
+  },
+  {
+    "golden": "DisplayP3-0.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "2eb945d40e332bc1ad8b82e798262270ff06bc1a11ffcaf58c5c7aaa2081f7db",
+    "after_sha256": "2eb945d40e332bc1ad8b82e798262270ff06bc1a11ffcaf58c5c7aaa2081f7db"
+  },
+  {
+    "golden": "AdobeRgb-1.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "1fea284ebec8229c60929034ab4daadc3f38871fc9b80820fd53ee802d63ea28",
+    "after_sha256": "1fea284ebec8229c60929034ab4daadc3f38871fc9b80820fd53ee802d63ea28"
+  },
+  {
+    "golden": "AdobeRgb-0.35.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "ed77a1fca06d09a82ddb8eb16dcf4cecb5db42823c7f6ac280dd27ff2ba0dd3c",
+    "after_sha256": "ed77a1fca06d09a82ddb8eb16dcf4cecb5db42823c7f6ac280dd27ff2ba0dd3c"
+  },
+  {
+    "golden": "AdobeRgb-0.rgba",
+    "pixels": 4403,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0.0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "8fa76b18df8c1b5320bbde7be658d7de9dc752d668f9594a089d199c135b5a16",
+    "after_sha256": "8fa76b18df8c1b5320bbde7be658d7de9dc752d668f9594a089d199c135b5a16"
+  },
+  {
+    "golden": "canon-cr3.rgb8",
+    "pixels": 250000,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "b162e74f08e4386d5139149c634204cc4f300a3d42c3f131dab06c4ce5432412",
+    "after_sha256": "b162e74f08e4386d5139149c634204cc4f300a3d42c3f131dab06c4ce5432412"
+  },
+  {
+    "golden": "fuji-raf.rgb8",
+    "pixels": 249696,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "81dc4ea60779a9ba0d4d0ca2f89df3ceff0ebfb055a2409715be498998691f86",
+    "after_sha256": "81dc4ea60779a9ba0d4d0ca2f89df3ceff0ebfb055a2409715be498998691f86"
+  },
+  {
+    "golden": "nikon-nef.rgb8",
+    "pixels": 568568,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "8cfdb18a9ad36aeb7a3784da144b2413fcf18dd401139a5122e9474fbd169cb0",
+    "after_sha256": "8cfdb18a9ad36aeb7a3784da144b2413fcf18dd401139a5122e9474fbd169cb0"
+  },
+  {
+    "golden": "sample.rgb8",
+    "pixels": 282968,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "9781bd8a01e79416cce81cea8bf03ce7c742d994b26748b0a622e9a724fe9d6e",
+    "after_sha256": "9781bd8a01e79416cce81cea8bf03ce7c742d994b26748b0a622e9a724fe9d6e"
+  },
+  {
+    "golden": "sony-arw.rgb8",
+    "pixels": 252150,
+    "changed_pixels": 0,
+    "max_encoded_delta": 0,
+    "max_distance": null,
+    "predicate": "empty change set",
+    "before_sha256": "a2f7f2e73c4887ea0e8dc99e6bb57ea8077144edcf6f952b5a4d3cb738bf72ee",
+    "after_sha256": "a2f7f2e73c4887ea0e8dc99e6bb57ea8077144edcf6f952b5a4d3cb738bf72ee"
+  }
+]
