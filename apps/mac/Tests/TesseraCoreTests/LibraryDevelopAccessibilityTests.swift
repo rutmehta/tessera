@@ -28,10 +28,11 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         let selector = #selector(NSAccessibilityProtocol.accessibilityPerformPress)
         guard (node as? NSObjectProtocol)?.responds(to: selector) == true,
               node.isAccessibilitySelectorAllowed?(selector) ?? true else { return false }
-        // NSView/NSCell inherit a default no-op press method, even on passive elements.
-        // Count actual overrides (including nonstandard roles), not those base stubs.
+        // These bases inherit default/compatibility dispatch methods even on passive elements.
+        // A selector alone does not advertise a press action. Count actual overrides
+        // (including nonstandard roles); the explicit role set still covers native controls.
         let implementation = class_getMethodImplementation(object_getClass(node), selector)
-        for base: AnyClass in [NSView.self, NSCell.self] {
+        for base: AnyClass in [NSView.self, NSCell.self, NSAccessibilityElement.self] {
             if unsafeBitCast(implementation, to: UInt.self)
                 == unsafeBitCast(class_getMethodImplementation(base, selector), to: UInt.self) { return false }
         }
@@ -42,7 +43,6 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         var seen = Set<ObjectIdentifier>()
         var count = 0
         var identifiers: [String: String] = [:]
-        var roles = Set<String>()
         var names: [String: String] = [:]
         func walk(_ node: AnyObject, path: String) {
             guard seen.insert(ObjectIdentifier(node)).inserted else { return }
@@ -64,7 +64,6 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
             // macOS-owned window chrome is outside the app's identifier namespace.
             if let subrole = node.accessibilitySubrole?()?.rawValue,
                ["AXCloseButton", "AXMinimizeButton", "AXZoomButton", "AXFullScreenButton"].contains(subrole) { return }
-            roles.insert(role)
             let offersPress = offersAccessibilityPress(node)
             if interactive.contains(role) || offersPress {
                 count += 1
@@ -87,6 +86,9 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
             }
         }
         walk(root, path: scenario)
+        if scenario == "library.populated" {
+            XCTAssertTrue(names.keys.contains { $0.hasPrefix("library.thumbnail.grid.") }, "Thumbnail cells must be reachable")
+        }
         let required: [String]
         switch scenario {
         case "library.populated": required = ["library.filter.rule", "library.toolbar.open", "library.sidebar.row.src:all"]
@@ -101,30 +103,40 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
     }
 
 
-    private func windowButton(_ window: NSWindow?, _ kind: NSWindow.ButtonType) -> NSButton? {
-        window?.standardWindowButton(kind)
-    }
-
-    private func inspect(_ window: NSWindow, scenario: String) async throws {
+    private func inspect(_ window: NSWindow, scenario: String, press: [String] = []) async throws {
         defer { LayoutProbeHarness.dispose(window) }
         let application = NSApp as AnyObject
         let previous = try XCTUnwrap(application.isAccessibilityEnhancedUserInterface?())
         application.setAccessibilityEnhancedUserInterface?(true)
         defer { application.setAccessibilityEnhancedUserInterface?(previous) }
         await LayoutProbeHarness.settleAsync(try XCTUnwrap(window.contentView))
+        for identifier in press {
+            var visited = Set<ObjectIdentifier>()
+            func find(_ node: AnyObject) -> AnyObject? {
+                guard visited.insert(ObjectIdentifier(node)).inserted else { return nil }
+                if node.accessibilityIdentifier?() == identifier { return node }
+                for child in node.accessibilityChildren?() ?? [] {
+                    if let result = find(child as AnyObject) { return result }
+                }
+                return nil
+            }
+            let control = try XCTUnwrap(find(window), "\(scenario): missing action \(identifier)")
+            XCTAssertTrue(control.accessibilityPerformPress?() ?? false, "\(scenario): press failed: \(identifier)")
+            await LayoutProbeHarness.settleAsync(try XCTUnwrap(window.contentView))
+        }
         XCTAssertFalse(window.isKeyWindow)
         XCTAssertFalse(NSApp.isActive)
         XCTAssertGreaterThan(audit(window, scenario: scenario), 0)
     }
 
-    private func host<V: View>(_ view: V, scenario: String) async throws {
+    private func host<V: View>(_ view: V, scenario: String, press: [String] = []) async throws {
         let bounds = NSRect(x: 0, y: 0, width: 1000, height: 1800)
         let host = NSHostingView(rootView: LayoutProbeHarness.root(view))
         let window = LayoutProbeHarness.window(contentRect: bounds, styleMask: .titled, backing: .buffered, defer: false)
         window.contentView = host
         host.frame = bounds
         window.orderBack(nil)
-        try await inspect(window, scenario: scenario)
+        try await inspect(window, scenario: scenario, press: press)
     }
 
     func testLibraryAndDevelopWindows() async throws {
@@ -157,7 +169,22 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         let controller = try XCTUnwrap(model.develop)
         controller.set(.exposure, 0.5, interactive: false)
         try controller.snapshot(named: "AX snapshot")
-        let tools = DevelopTools(model: model)
+        let support = FileManager.default.temporaryDirectory.appendingPathComponent("ax-presets-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: support) }
+        let tools: DevelopTools = {
+            let previous = ProcessInfo.processInfo.environment["TESSERA_APP_DIR"]
+            setenv("TESSERA_APP_DIR", support.path, 1)
+            defer {
+                if let previous { setenv("TESSERA_APP_DIR", previous, 1) }
+                else { unsetenv("TESSERA_APP_DIR") }
+            }
+            return DevelopTools(model: model)
+        }()
+        guard tools.presetStore.folder.standardizedFileURL.path == support.appendingPathComponent("Presets").standardizedFileURL.path else {
+            return XCTFail("Preset fixtures must use the disposable support directory")
+        }
+        tools.savePreset(name: "AX preset", groups: [.basicTone])
+        XCTAssertEqual(tools.presets.count, 1)
         tools.refreshHistory()
         for title in ["Editing target", "Histogram", "Basic", "Tone Curve", "HSL / Color", "Color Grading", "Detail", "Transform", "Effects", "Lens Blur", "Crop & Straighten", "HDR", "Soft Proofing", "Presets", "Snapshots", "History", "Masks"] {
             let key = "InspectorPanel." + title
@@ -189,6 +216,14 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         for (name, panel) in panels {
             try await host(panel.frame(width: 380).developContext(model, tools), scenario: "develop." + name)
         }
+        for index in 0..<3 {
+            try await host(HSLPanel(model: model, tools: tools).developContext(model, tools),
+                           scenario: "develop.hsl.\(index)", press: ["develop.hsl.property.\(index)"])
+        }
+        for index in 1..<5 {
+            try await host(ColorGradingPanel(model: model, tools: tools).developContext(model, tools),
+                           scenario: "develop.grading.\(index)", press: ["develop.grading.mode.\(index)"])
+        }
         tools.beginCrop()
         try await host(CropPanel(model: model, tools: tools).developContext(model, tools), scenario: "develop.cropActive")
         tools.cancelCrop()
@@ -196,6 +231,8 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         try await host(ToneCurvePanel(model: model, tools: tools).developContext(model, tools), scenario: "develop.pointCurve")
         let masks = MaskTools(model: model)
         let group = try XCTUnwrap(controller.addMask(LinearGradientShape(start: (0.2, 0.2), end: (0.8, 0.8)).json))
+        controller.addMaskComponent(group, LinearGradientShape(start: (0.1, 0.8), end: (0.7, 0.2)).json,
+                                    combine: .subtract)
         masks.refresh()
         masks.select(group)
         XCTAssertNotNil(masks.selected)
@@ -205,9 +242,52 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         try await host(MasksPanel(model: model, masks: masks).frame(width: 380), scenario: "develop.selectedMask")
     }
 
+    func testSidebarNativeSelectionAndDisclosureArePreserved() async throws {
+        LayoutProbeHarness.prepare()
+        let model = AppModel()
+        model.install(StubLibrary.synthetic(count: 4))
+        let controller = SidebarController(model: model)
+        var snapshot = SidebarSnapshot(model: model)
+        snapshot.engineBacked = true
+        snapshot.nodes = CollectionNode.tree([
+            LibraryNode(id: 1, kind: .group, name: "AX group", parent: nil, depth: 0, handle: nil, imageCount: 0, rule: nil, scoped: false),
+            LibraryNode(id: 2, kind: .album, name: "AX album", parent: 1, depth: 1, handle: "AX album", imageCount: 0, rule: nil, scoped: false),
+        ])
+        controller.apply(snapshot)
+        let bounds = NSRect(x: 0, y: 0, width: 380, height: 900)
+        let window = LayoutProbeHarness.window(contentRect: bounds, styleMask: .titled, backing: .buffered, defer: false)
+        window.contentView = controller.scrollView
+        controller.scrollView.frame = bounds
+        window.orderBack(nil)
+        defer { LayoutProbeHarness.dispose(window) }
+        await LayoutProbeHarness.settleAsync(controller.scrollView)
+        let outline = controller.outline
+        let rows = outline.accessibilityChildren()?.compactMap { $0 as? SidebarRowView } ?? []
+        let all = try XCTUnwrap(rows.first { $0.accessibilityIdentifier() == "library.sidebar.row.src:all" })
+        outline.deselectAll(nil)
+        all.setAccessibilitySelected(true)
+        XCTAssertTrue(outline.isRowSelected(outline.row(for: all)))
+        all.setAccessibilitySelected(false)
+        XCTAssertFalse(outline.isRowSelected(outline.row(for: all)))
+        let header = try XCTUnwrap(rows.first { $0.accessibilityIdentifier() == "library.sidebar.row.node:1" })
+        let item = try XCTUnwrap(outline.item(atRow: outline.row(for: header)))
+        header.setAccessibilityDisclosed(false)
+        XCTAssertFalse(outline.isItemExpanded(item))
+        header.setAccessibilityDisclosed(true)
+        XCTAssertTrue(outline.isItemExpanded(item))
+        XCTAssertFalse(window.isKeyWindow)
+        XCTAssertFalse(NSApp.isActive)
+    }
+
     func testPressActionIsAuditedRegardlessOfRole() {
         XCTAssertEqual(audit(LibraryPressableFixture(), scenario: "library.pressable"), 1)
         XCTAssertFalse(offersAccessibilityPress(NSView()))
+        XCTAssertFalse(offersAccessibilityPress(NSAccessibilityElement()))
+        let element = LibraryPressableElement()
+        element.setAccessibilityRole(.group)
+        element.setAccessibilityIdentifier("library.test.pressableElement")
+        element.setAccessibilityLabel("Pressable element")
+        XCTAssertEqual(audit(element, scenario: "library.pressableElement"), 1)
         XCTAssertFalse(offersAccessibilityPress(NSTextField(labelWithString: "Passive")))
     }
 
@@ -231,7 +311,12 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
             albums: 5, albumGroups: 6, smartAlbums: 7, keywords: 8,
             selection: LrcatSelectionCounts(rejects: 0, keeps: 0, undecided: 0, grade1: 0, grade2: 0, grade3: 0, marked: 0),
             libraryPath: "/Photos/library.json", bundlePath: "/Photos/bundle", indexed: 5, seconds: 0.1)
-        try await host(ReportStep(report: report, reportURL: nil, reportMarkdown: "Synthetic report", fidelity: nil), scenario: "library.import.reportGroups")
+        importer.publishReport(report, markdown: "Synthetic report", url: URL(fileURLWithPath: "/Synthetic import-report.md"))
+        try await host(LightroomImportSheet(importer: importer), scenario: "library.import.reportGroups")
+        var cancelled = report
+        cancelled.cancelled = true
+        importer.publishReport(cancelled, markdown: "Synthetic cancelled report", url: nil)
+        try await host(LightroomImportSheet(importer: importer), scenario: "library.import.cancelledReport")
     }
 }
 
@@ -240,4 +325,8 @@ private final class LibraryPressableFixture: NSObject {
     @objc func accessibilityIdentifier() -> String { "library.test.pressable" }
     @objc func accessibilityLabel() -> String { "Pressable group" }
     @objc func accessibilityPerformPress() -> Bool { true }
+}
+
+private final class LibraryPressableElement: NSAccessibilityElement {
+    override func accessibilityPerformPress() -> Bool { true }
 }

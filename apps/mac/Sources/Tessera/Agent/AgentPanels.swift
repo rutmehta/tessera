@@ -28,7 +28,7 @@ struct AgentGroupSection: View {
             .frame(height: Theme.Height.regular)
             AmountSlider(group: group, tools: tools)
                 .frame(height: Theme.Height.slider)
-                .accessibilityIdentifier("agent-group-amount")
+                .accessibilityIdentifier("develop.history.group.\(group.groupId).amount")
             ForEach(group.steps, id: \.self) { id in
                 if let item = tools.historyItems.first(where: { $0.id == id }) {
                     AgentStepRow(item: item, tools: tools)
@@ -40,8 +40,9 @@ struct AgentGroupSection: View {
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
                         .onSubmit { redo(target) }
-                        .accessibilityIdentifier("agent-group-instruction")
-                    Button("Redo") { redo(target) }
+                        .accessibilityIdentifier("develop.history.group.\(group.groupId).instruction")
+                        .accessibilityLabel("Redo instruction")
+                    Button("Redo") { redo(target) }.accessibilityIdentifier("develop.history.group.\(group.groupId).submit")
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || model.agent.isRunning || !model.agent.busy.isEmpty)
                 }
@@ -50,7 +51,7 @@ struct AgentGroupSection: View {
                 Button("Redo with Instruction…") { redoOpen = true }
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                     .disabled(model.agent.isRunning || !model.agent.busy.isEmpty)
-                    .accessibilityIdentifier("agent-group-redo")
+                    .accessibilityIdentifier("develop.history.group.\(group.groupId).redo")
             }
         }
         .padding(.bottom, Theme.Space.s)
@@ -87,7 +88,8 @@ private struct AgentStepRow: View {
                 .frame(width: Theme.Space.l)
                 .disabled(!item.applied)
                 .help(item.enabled ? "Turn this step off (recorded as a new step)" : "Turn this step back on")
-                .accessibilityIdentifier("agent-step-toggle-\(item.id)")
+                .accessibilityIdentifier("develop.history.step.\(item.id).enabled")
+                .accessibilityLabel("Enable \(item.label)")
             VStack(alignment: .leading, spacing: Theme.Space.xxs) {
                 Text(item.label)
                     .font(Theme.Fonts.caption)
@@ -117,6 +119,8 @@ private struct AmountSlider: NSViewRepresentable {
     func makeNSView(context: Context) -> ValueSlider {
         let s = ValueSlider(frame: .zero)
         s.title = "Amount"
+        s.setAccessibilityLabel("Agent group amount")
+        s.setAccessibilityIdentifier("develop.history.group.\(group.groupId).amount")
         s.minValue = 0
         s.maxValue = 100
         s.defaultValue = 100
@@ -176,26 +180,27 @@ struct AgentEditPanel: View {
                     }
                 }
                 HStack(spacing: Theme.Space.xs) {
-                    Button("Accept") { model.agent.accept(target) }
+                    Button("Accept") { model.agent.accept(target) }.accessibilityIdentifier("library.agent.accept")
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .disabled(entry.status == .accepted)
-                    Button("Revert") { model.agent.revert(target) }
+                    Button("Revert") { model.agent.revert(target) }.accessibilityIdentifier("library.agent.revert")
                         .buttonStyle(.theme(.destructive, height: Theme.Height.small))
                         .disabled(entry.status == .reverted || entry.groupID == nil)
                 }
                 HStack(spacing: Theme.Space.xs) {
                     TextField("Redo with instruction…", text: $instruction)
+                        .accessibilityIdentifier("library.agent.instruction").accessibilityLabel("Redo instruction")
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
                         .onSubmit { redo(target) }
-                    Button("Redo") { redo(target) }
+                    Button("Redo") { redo(target) }.accessibilityIdentifier("library.agent.redo")
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || model.agent.isRunning || !model.agent.busy.isEmpty)
                 }
             } else {
                 Hint(model.isEngineBacked ? "No agent edit on this photo. Develop ▸ Auto Edit… (⇧⌘A) makes one."
                      : "Auto Edit needs a folder opened on the engine.")
-                Button("Auto Edit…") { model.agent.present() }
+                Button("Auto Edit…") { model.agent.present() }.accessibilityIdentifier("library.agent.autoEdit")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .disabled(!model.isEngineBacked || model.agent.isRunning || !model.agent.busy.isEmpty)
             }

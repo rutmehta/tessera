@@ -34,12 +34,14 @@ struct KeywordsPanel: View {
                     entry = ""
                 }
                 .disabled(model.focusedItem == nil)
-                .accessibilityIdentifier("keywordEntry")
+                .accessibilityIdentifier("library.keywords.entry")
+                .accessibilityLabel("Add keywords")
             SuggestedKeywordsSection(model: model, understanding: library.understanding)
             HStack {
                 SubHeader("Keyword List")
                 Spacer()
                 Button("New…") { library.newKeyword(parent: nil) }
+                    .accessibilityIdentifier("library.keywords.new")
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                     .padding(.top, Theme.Space.s)
             }
@@ -75,6 +77,7 @@ struct KeywordChip: View {
             .buttonStyle(.plain)
             .help("Remove from the selected photos")
             .accessibilityLabel("Remove \(name)")
+            .accessibilityIdentifier("library.keywords.remove.\(AccessibilityKey.component(name))")
             .fixedSize()
         }
         .padding(.horizontal, Theme.Space.s - Theme.Space.xxs)
@@ -109,8 +112,10 @@ private struct KeywordTreeRow: View {
             }
             IconButton(symbol: "plus", help: "Add to \(selectionCount) selected photo\(selectionCount == 1 ? "" : "s")",
                        size: Theme.Height.small) { library.applyKeywords([keyword.name], add: true) }
+                .accessibilityIdentifier("library.keywords.add.\(AccessibilityKey.component(keyword.name))")
             IconButton(symbol: "minus", help: "Remove from \(selectionCount) selected photo\(selectionCount == 1 ? "" : "s")",
                        size: Theme.Height.small) { library.applyKeywords([keyword.name], add: false) }
+                .accessibilityIdentifier("library.keywords.removeTree.\(AccessibilityKey.component(keyword.name))")
         }
         .frame(height: Theme.Height.regular)
         .contentShape(Rectangle())
@@ -250,7 +255,8 @@ struct MetadataPanel: View {
                 .controlSize(.small)
                 .focused($focus, equals: f)
                 .onSubmit { commit(f) }
-                .accessibilityIdentifier("iptc-\(key)")
+                .accessibilityIdentifier("library.metadata.\(key)")
+                .accessibilityLabel(label)
         }
     }
 

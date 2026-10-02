@@ -116,7 +116,7 @@ struct SidebarOutline: NSViewRepresentable {
 final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate, NSTextFieldDelegate {
     let model: AppModel
     let scrollView = NSScrollView()
-    let outline = NSOutlineView()
+    let outline = SidebarAccessibilityOutline()
     private var roots: [SidebarRow] = []
     private var snapshot: SidebarSnapshot?
     private var collapsed: Set<String> = []
@@ -149,7 +149,8 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         let menu = NSMenu()
         menu.delegate = self
         outline.menu = menu
-        outline.setAccessibilityIdentifier("sidebarOutline")
+        outline.setAccessibilityIdentifier("library.sidebar.outline")
+        outline.setAccessibilityLabel("Library sources and collections")
         scrollView.documentView = outline
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -532,7 +533,71 @@ final class ClosureMenuItem: NSMenuItem {
 
 /// Selection: the subtle accent fill with the control radius (not the system accent slab), so
 /// text keeps its own colour and the sidebar has one accent.
+/// Keep native row selection/disclosure while exposing modern metadata and realized controls.
+final class SidebarAccessibilityOutline: NSOutlineView {
+    override func accessibilityChildren() -> [Any]? {
+        let rows = (super.accessibilityRows() as NSArray?) ?? []
+        // Object-personality keys use the proxies' hash/isEqual, preserving NSArray's
+        // value matching even though AppKit recreates proxies for each query.
+        let positions = NSMapTable<AnyObject, NSNumber>(keyOptions: [.strongMemory, .objectPersonality],
+                                                       valueOptions: .strongMemory)
+        for (index, row) in rows.enumerated() where positions.object(forKey: row as AnyObject) == nil {
+            positions.setObject(NSNumber(value: index), forKey: row as AnyObject)
+        }
+        return super.accessibilityChildren()?.enumerated().map { index, child in
+            let proxy = child as AnyObject
+            // Native proxies lack modern role/index getters; look up their native order.
+            let nativeIndex = positions.object(forKey: proxy)?.intValue
+            guard nativeIndex != nil || proxy.accessibilityRole?() == .row else { return child }
+            let number = nativeIndex ?? proxy.accessibilityIndex?() ?? index
+            guard let row = rowView(atRow: number, makeIfNecessary: false) else { return child }
+            guard let item = item(atRow: number) as? SidebarRow else { return child }
+            let label = item.title
+            let identifier = "library.sidebar.row.\(AccessibilityKey.component(item.key))"
+            row.setAccessibilityElement(true)
+            row.setAccessibilityRole(.row)
+            row.setAccessibilityParent(self)
+            row.setAccessibilityIdentifier(identifier)
+            row.setAccessibilityLabel(label)
+            row.setAccessibilityIndex(number)
+            row.setAccessibilityDisclosureLevel(level(forRow: number))
+            for case let button as NSButton in row.subviews
+                where button.identifier?.rawValue == "NSOutlineViewDisclosureButtonKey" {
+                button.setAccessibilityIdentifier(identifier + ".disclosure")
+                button.setAccessibilityLabel("Expand or collapse " + label)
+            }
+            return row
+        }
+    }
+
+}
+
 final class SidebarRowView: NSTableRowView {
+    private var outline: NSOutlineView? { superview as? NSOutlineView }
+
+    override func accessibilityChildren() -> [Any]? {
+        NSAccessibility.unignoredChildren(from: subviews.filter { !$0.isHidden })
+    }
+
+    // The modern row vends the same selection/disclosure operations as AppKit's legacy proxy.
+    override func isAccessibilitySelected() -> Bool { isSelected }
+    override func setAccessibilitySelected(_ selected: Bool) {
+        guard let outline else { return }
+        let index = outline.row(for: self)
+        guard index >= 0 else { return }
+        if selected { outline.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: true) }
+        else { outline.deselectRow(index) }
+    }
+    override func isAccessibilityDisclosed() -> Bool {
+        guard let outline else { return false }
+        return outline.isItemExpanded(outline.item(atRow: outline.row(for: self)))
+    }
+    override func setAccessibilityDisclosed(_ disclosed: Bool) {
+        guard let outline, let item = outline.item(atRow: outline.row(for: self)) else { return }
+        if disclosed { outline.expandItem(item) } else { outline.collapseItem(item) }
+    }
+
+
     override var isEmphasized: Bool { get { false } set {} }
 
     override func drawSelection(in dirtyRect: NSRect) {
@@ -558,7 +623,8 @@ final class SidebarHeaderCell: NSTableCellView {
         add.isBordered = false
         add.controlSize = .small
         (add.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
-        add.setAccessibilityIdentifier("sidebarAddMenu")
+        add.setAccessibilityIdentifier("library.sidebar.add")
+        add.setAccessibilityLabel("New album, album group or smart album")
         add.toolTip = "New album, album group or smart album"
         addSubview(label)
         addSubview(add)
@@ -671,6 +737,8 @@ final class SidebarCell: NSTableCellView {
     func configure(_ row: SidebarRow) {
         guard let title = textField else { return }
         title.stringValue = row.title
+        title.setAccessibilityIdentifier("library.sidebar.row.\(AccessibilityKey.component(row.key)).name")
+        title.setAccessibilityLabel(row.title)
         title.isEditable = false
         let group = row.node?.kind == .group
         let secondary: Bool = switch row.kind {

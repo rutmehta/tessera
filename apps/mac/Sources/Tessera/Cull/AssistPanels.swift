@@ -16,13 +16,13 @@ struct AssistPanel: View {
                     .toggleStyle(.checkbox)
                     .font(Theme.Fonts.caption)
                     .disabled(!model.isEngineBacked)
-                    .accessibilityIdentifier("assist-panel-toggle")
+                    .accessibilityIdentifier("library.assist.assist-panel-toggle")
                 Spacer(minLength: Theme.Space.xs)
                 SegmentedPicker(selection: Binding(get: { model.agent.preferences.assistAutomated },
                                                    set: { assist.setAutomated($0) }), segments: [
                     .init(value: false, title: "Assisted", help: "Predictions and a confidence order; nothing pre-filled"),
                     .init(value: true, title: "Automated", help: "Pre-filled decisions outside the thresholds, to confirm with Y"),
-                ], height: Theme.Height.small, fill: false)
+                ], height: Theme.Height.small, fill: false, accessibilityPrefix: "library.assist.mode")
                 .fixedSize()
             }
             if assist.enabled, let item = model.focusedItem {
@@ -32,7 +32,7 @@ struct AssistPanel: View {
                         Spacer()
                         Text("\(Int((p.pKeep * 100).rounded())) %").font(Theme.Fonts.captionNumeric)
                             .foregroundStyle(Theme.textPrimary)
-                            .accessibilityIdentifier("assist-pkeep")
+                            .accessibilityIdentifier("library.assist.assist-pkeep")
                     }
                     ProgressView(value: p.pKeep).progressViewStyle(.linear).controlSize(.small).tint(Theme.textSecondary)
                     if !p.explanation.isEmpty {
@@ -50,27 +50,27 @@ struct AssistPanel: View {
                                 }
                             }
                         }
-                        .accessibilityIdentifier("assist-explanation")
+                        .accessibilityIdentifier("library.assist.assist-explanation")
                     }
                     if let s = assist.suggestion(for: item.id) {
                         HStack(spacing: Theme.Space.xs) {
                             Chip(text: s == .keep ? "Keep?" : "Reject?",
                                  color: s == .keep ? Theme.keep : Theme.reject, style: .outlined)
                             Spacer()
-                            Button("Dismiss") { assist.dismiss([item.id]) }
+                            Button("Dismiss") { assist.dismiss([item.id]) }.accessibilityIdentifier("library.assist.dismiss")
                                 .help("Reject this suggestion (N); nothing is decided")
                                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                             Button("Confirm All") { assist.confirmAll() }
                                 .help("Confirm every suggested decision in view as one undo step (Y)")
                                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                                .accessibilityIdentifier("assist-confirm-all")
+                                .accessibilityIdentifier("library.assist.assist-confirm-all")
                         }
                     }
                 } else {
                     Hint("No prediction for this photo yet.")
                 }
                 Hint("\(assist.suggestionCount) suggested · learner has \(assist.labels) confirmed label\(assist.labels == 1 ? "" : "s"). Keep and reject decisions teach it.")
-                    .accessibilityIdentifier("assist-status")
+                    .accessibilityIdentifier("library.assist.assist-status")
             } else {
                 Hint(model.isEngineBacked
                      ? "Assist predicts keepers from sharpness, blur, exposure, faces and your past decisions, and sorts likely rejects last."
@@ -93,7 +93,7 @@ struct PeoplePanel: View {
                     Spacer()
                     Button("Show All") { assist.clearPersonFilter() }
                         .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                        .accessibilityIdentifier("people-clear-filter")
+                        .accessibilityIdentifier("library.assist.people-clear-filter")
                 }
             }
             if assist.people.isEmpty {
@@ -105,17 +105,17 @@ struct PeoplePanel: View {
                     Text("\(person.items.count) frame\(person.items.count == 1 ? "" : "s")")
                         .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
                     Spacer()
-                    Button("Frames") { assist.filter(person: person, eyesClosed: false) }
+                    Button("Frames") { assist.filter(person: person, eyesClosed: false) }.accessibilityIdentifier("library.assist.frames.\(person.id)")
                         .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                         .help("Show frames with \(person.name)")
                     Button("Eyes closed") { assist.filter(person: person, eyesClosed: true) }
                         .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                         .help("Show frames where \(person.name)'s eyes read closed (a geometric proxy)")
-                        .accessibilityIdentifier("people-eyes-closed-\(person.id)")
+                        .accessibilityIdentifier("library.assist.people-eyes-closed-\(person.id)")
                 }
                 .frame(height: Theme.Height.regular)
             }
-            Button("Analyze Faces") { assist.analyze(faces: true, force: false, title: "Finding faces") }
+            Button("Analyze Faces") { assist.analyze(faces: true, force: false, title: "Finding faces") }.accessibilityIdentifier("library.assist.analyzeFaces")
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                 .disabled(!model.isEngineBacked || assist.isRunning)
         }
@@ -128,11 +128,11 @@ struct AssistProgressBar: View {
     var body: some View {
         if let p = assist.progress {
             ProgressStrip(title: p.title, done: p.done, total: p.total, current: p.current) {
-                Button("Stop") { assist.cancel() }
+                Button("Stop") { assist.cancel() }.accessibilityIdentifier("library.assist.stop")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("analysis-progress")
+            .accessibilityIdentifier("library.assist.analysis-progress")
         }
     }
 }

@@ -25,7 +25,7 @@ struct MaskToolbar: View {
                     separator
                     overlayControls
                     separator
-                    Button("Done") { masks.setActive(false) }
+                    Button("Done") { masks.setActive(false) }.accessibilityIdentifier("develop.maskToolbar.done")
                         .buttonStyle(.theme(.borderless, height: Theme.Height.large))
                         .help("Leave masking (M)")
                 }
@@ -64,6 +64,7 @@ struct MaskToolbar: View {
             masks.target = nil
             masks.tool = masks.tool == t ? nil : t
         }
+        .accessibilityIdentifier("develop.maskToolbar.tool.\(t.rawValue)")
     }
 
     private func aiButton(_ title: String, _ symbol: String, _ request: AiMaskRequest) -> some View {
@@ -73,6 +74,7 @@ struct MaskToolbar: View {
             Label(title, systemImage: symbol).labelStyle(.titleAndIcon)
         }
         .buttonStyle(.theme(.borderless, height: Theme.Height.large))
+        .accessibilityIdentifier("develop.maskToolbar.ai.\(title.lowercased())")
         .help("Select the \(title.lowercased()) with the on-device model (⌥ subtracts from the selected mask)")
     }
 
@@ -82,6 +84,7 @@ struct MaskToolbar: View {
                        on: masks.overlayOn, size: Theme.Height.large) {
                 masks.overlayOn.toggle()
             }
+            .accessibilityIdentifier("develop.maskToolbar.overlay")
             Menu {
                 ForEach(MaskOverlayColor.allCases, id: \.self) { c in
                     Button(c.rawValue.capitalized) { masks.overlayColor = c; masks.overlayOn = true }
@@ -99,6 +102,7 @@ struct MaskToolbar: View {
             }
             .menuStyle(IconMenuStyle())
             .help("Overlay colour (⇧O)")
+            .accessibilityIdentifier("develop.maskToolbar.overlayColor").accessibilityLabel("Overlay colour")
         }
     }
 
@@ -115,6 +119,7 @@ struct MaskToolbar: View {
         HStack(spacing: Theme.Space.s - Theme.Space.xxs) {
             Text(title).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
             Slider(value: value, in: range).controlSize(.mini).frame(width: 80)
+                .accessibilityIdentifier("develop.maskToolbar.brush.\(title.lowercased())").accessibilityLabel("\(title)")
             Text(String(format: format, value.wrappedValue))
                 .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textPrimary).frame(width: 40, alignment: .leading)
         }

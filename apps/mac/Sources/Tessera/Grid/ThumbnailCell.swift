@@ -43,6 +43,7 @@ final class ThumbnailCell: NSCollectionViewItem {
                    focused: Bool, style: CellStyle, loader: ThumbnailLoader, suggestion: Decision? = nil, smartPreviewBadge: String? = nil) {
         let v = cellView
         v.style = style
+        v.setAccessibilityIdentifier("library.thumbnail.\(style == .grid ? "grid" : "filmstrip").\(item.id)")
         v.isFocusedCell = focused
         v.altGroup = item.groupID % 2 == 1
         v.overlay.set(item: item, state: state, status: status, basketTarget: basketTarget,

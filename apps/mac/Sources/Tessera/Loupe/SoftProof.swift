@@ -154,32 +154,34 @@ struct SoftProofPanel: View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
             Toggle("Soft proofing", isOn: Binding(get: { proof.enabled }, set: { _ in proof.toggle() }))
                 .help("Soft proofing (S)")
-                .accessibilityIdentifier("softproof-toggle")
+                .accessibilityIdentifier("develop.proof.enabled")
             HStack(spacing: Theme.Space.s) {
                 Text("Profile").foregroundStyle(Theme.textSecondary).frame(width: Theme.Width.label - Theme.Space.l, alignment: .leading)
                 MenuPicker(selection: Binding(get: { proof.profilePath ?? "" },
                                               set: { proof.profilePath = $0.isEmpty ? nil : $0 }),
                            options: proof.profiles.isEmpty ? [("", "None")] : proof.profiles.map { ($0.path, $0.name) })
+                    .accessibilityIdentifier("develop.proof.profile").accessibilityLabel("Proof profile")
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                     .help(proof.profiles.first { $0.path == proof.profilePath }.map { "\($0.name): printer / press profile to simulate" }
                           ?? "Printer / press profile to simulate")
                 // M2-56: the menu (which truncates a long profile name) gives way, never Other….
-                Button("Other…") { proof.chooseProfileFile() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                Button("Other…") { proof.chooseProfileFile() }.accessibilityIdentifier("develop.proof.chooseProfile").buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .fixedSize()
             }
             HStack(spacing: Theme.Space.s) {
                 Text("Intent").foregroundStyle(Theme.textSecondary).frame(width: Theme.Width.label - Theme.Space.l, alignment: .leading)
                 SegmentedPicker(selection: $proof.intent, segments: SoftProof.Intent.allCases.map { .init(value: $0, title: $0.title) },
-                                height: Theme.Height.small)
+                                height: Theme.Height.small, accessibilityPrefix: "develop.proof.intent")
             }
-            Toggle("Simulate paper and ink", isOn: $proof.simulatePaper)
-            Toggle("Black point compensation", isOn: $proof.blackPointCompensation)
+            Toggle("Simulate paper and ink", isOn: $proof.simulatePaper).accessibilityIdentifier("develop.proof.paper")
+            Toggle("Black point compensation", isOn: $proof.blackPointCompensation).accessibilityIdentifier("develop.proof.blackPoint")
             HStack {
-                Toggle("Gamut warning", isOn: $proof.gamutWarning)
+                Toggle("Gamut warning", isOn: $proof.gamutWarning).accessibilityIdentifier("develop.proof.gamut")
                     .help("Gamut warning (⇧S)")
                 Spacer()
                 ColorPicker("", selection: $proof.warningColor, supportsOpacity: false).labelsHidden()
                     .help("Gamut warning colour")
+                    .accessibilityIdentifier("develop.proof.warningColor").accessibilityLabel("Gamut warning colour")
             }
             if !proof.status.isEmpty {
                 Text(proof.status).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)

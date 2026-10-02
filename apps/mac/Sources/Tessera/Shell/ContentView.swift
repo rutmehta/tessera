@@ -25,24 +25,24 @@ struct ContentView: View {
         .frame(minWidth: ShellBudget.minWindow.width, minHeight: ShellBudget.minWindow.height)
     }
 
+    private var axMode: String { model.viewMode == .document ? "document" : model.isPhotoEditing ? "develop" : "library" }
+
     var body: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView(model: model)
-                .toolbar(removing: model.viewMode == .document ? .sidebarToggle : nil)
+                .toolbar(removing: .sidebarToggle)
                 .toolbar {
-                    if model.viewMode == .document {
-                        // SwiftUI's automatic item has no hook for AX metadata. Keep its native
-                        // responder-chain action and symbol in an explicitly labelled item.
-                        ToolbarItem(id: "document-sidebar", placement: .navigation) {
-                            Button {
-                                NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
-                            } label: {
-                                Label(columnVisibility.wrappedValue == .detailOnly ? "Show Sidebar" : "Hide Sidebar",
-                                      systemImage: "sidebar.left")
-                            }
-                            .help("Toggle sidebar")
-                            .accessibilityIdentifier("document.toolbar.sidebar")
+                    // SwiftUI's automatic item has no hook for AX metadata. Keep its native
+                    // responder-chain action and symbol in an explicitly labelled item.
+                    ToolbarItem(id: "document-sidebar", placement: .navigation) {
+                        Button {
+                            NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
+                        } label: {
+                            Label(columnVisibility.wrappedValue == .detailOnly ? "Show Sidebar" : "Hide Sidebar",
+                                  systemImage: "sidebar.left")
                         }
+                        .help("Toggle sidebar")
+                        .accessibilityIdentifier("\(axMode).toolbar.sidebar")
                     }
                 }
                 .containedColumn()
@@ -56,9 +56,9 @@ struct ContentView: View {
                             Text("Could not finish saving \(recovery.displayName): \(message)")
                                 .lineLimit(2)
                             Spacer(minLength: Theme.Space.m)
-                            Button("Retry Save") { model.retryDevelopRecovery(recovery.id) }
+                            Button("Retry Save") { model.retryDevelopRecovery(recovery.id) }.accessibilityIdentifier("develop.recovery.retry.\(recovery.id)")
                             if model.canKeepEditingDevelopRecovery(recovery.id) {
-                                Button("Keep Editing") { model.keepEditingDevelopRecovery() }
+                                Button("Keep Editing") { model.keepEditingDevelopRecovery() }.accessibilityIdentifier("develop.recovery.keepEditing")
                             }
                         }
                         .font(Theme.Fonts.caption)
@@ -297,7 +297,7 @@ struct ContentView: View {
             }
             .buttonStyle(ToolbarButtonStyle())
             .help("Open a folder of JPEG / RAW images (⌘O)")
-            .accessibilityIdentifierIfPresent(model.viewMode == .document ? "document.toolbar.open" : nil)
+            .accessibilityIdentifier("\(axMode).toolbar.open")
         }
         .flatToolbarItem()
         ToolbarItem(id: "mode", placement: .principal) {
@@ -319,7 +319,7 @@ struct ContentView: View {
                     .init(value: "library", title: "Library", symbol: "square.grid.2x2"),
                     .init(value: "edit", title: "Edit photo", symbol: "slider.horizontal.3"),
                     .init(value: "review", title: "Review", symbol: "checklist"),
-                ], fill: false)
+                ], fill: false, accessibilityPrefix: "\(axMode).toolbar.workspace")
                 .accessibilityLabel("Workspace")
                 .help("Library, one-photo editing, or the agent review queue")
             }
@@ -335,7 +335,7 @@ struct ContentView: View {
                     .init(value: ViewMode.grid, title: "Grid", symbol: "square.grid.2x2", help: "Grid (G)"),
                     .init(value: ViewMode.loupe, title: "Loupe", symbol: "photo", help: "Loupe (E or Return)"),
                     .init(value: ViewMode.compare, title: "Compare", symbol: "rectangle.split.2x1", help: "Compare (C)"),
-                ], fill: false)
+                ], fill: false, accessibilityPrefix: "library.toolbar.view")
                 .accessibilityLabel("Library view")
             }
         }
@@ -353,6 +353,7 @@ struct ContentView: View {
                 HStack(spacing: Theme.Space.xs) {
                     Image(systemName: "square.grid.3x3").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
                     Slider(value: $model.thumbnailSize, in: 110...360)
+                        .accessibilityIdentifier("library.toolbar.thumbnailSize").accessibilityLabel("Thumbnail size")
                         .controlSize(.mini)
                         .frame(width: Theme.Width.thumbnailSlider)
                     Image(systemName: "square.grid.2x2").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
@@ -368,7 +369,7 @@ struct ContentView: View {
             }
             .toggleStyle(ToolbarToggleStyle())
             .help("Show or hide the inspector (⌥⌘I)")
-            .accessibilityIdentifierIfPresent(model.viewMode == .document ? "document.toolbar.inspector" : nil)
+            .accessibilityIdentifier("\(axMode).toolbar.inspector")
         }
         .flatToolbarItem()
     }
@@ -383,7 +384,7 @@ struct ContentView: View {
                 }
                 .toggleStyle(ToolbarToggleStyle())
                 .help("Assisted culling: keep predictions, a confidence order and suggested decisions (Y confirms, N dismisses)")
-                .accessibilityIdentifier("toolbar-assist")
+                .accessibilityIdentifier("library.toolbar.assist")
                 if model.assist.enabled {
                     Menu {
                         Picker("Mode", selection: Binding(get: { model.agent.preferences.assistAutomated },
@@ -392,17 +393,21 @@ struct ContentView: View {
                             Text("Predictions only (assisted)").tag(false)
                         }
                         .pickerStyle(.inline)
+                        .accessibilityIdentifier("library.toolbar.assistMode").accessibilityLabel("Assist mode")
                         Divider()
                         Toggle("Sort by Keep Confidence", isOn: Binding(get: { model.assist.sortByConfidence },
                                                                          set: { model.assist.sortByConfidence = $0 }))
+                            .accessibilityIdentifier("library.toolbar.sortConfidence")
                         Button("Confirm \(model.assist.suggestionCount) Suggested    (Y)") { model.assist.confirmAll() }
+                            .accessibilityIdentifier("library.toolbar.confirmSuggestions")
                             .disabled(model.assist.suggestionCount == 0)
                     } label: {
                         Image(systemName: "chevron.down").font(Theme.Fonts.iconSmall)
                     }
                     .menuStyle(IconMenuStyle())
                     .help("Assist mode and sort")
-                    .accessibilityIdentifier("toolbar-assist-menu")
+                    .accessibilityLabel("Assist mode and sort")
+                    .accessibilityIdentifier("library.toolbar.assistMenu")
                 }
             }
             }
@@ -416,7 +421,7 @@ struct ContentView: View {
                 .buttonStyle(ToolbarButtonStyle())
                 .disabled(!model.people.canMerge || model.people.detailID != nil)
                 .help("Merge the selected people into one (a named person's name wins). Select tiles with ⌘-click.")
-                .accessibilityIdentifier("toolbar-people-merge")
+                .accessibilityIdentifier("library.toolbar.mergePeople")
             }
         }
         .flatToolbarItem()
@@ -428,7 +433,7 @@ struct ContentView: View {
             .buttonStyle(ToolbarButtonStyle())
             .disabled(!model.isEngineBacked || model.agent.isRunning)
             .help("Auto Edit: the agent makes a non-generative base edit (⇧⌘A)")
-            .accessibilityIdentifier("toolbar-auto-edit")
+            .accessibilityIdentifier("library.toolbar.autoEdit")
             }
         }
         .flatToolbarItem()
@@ -439,7 +444,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(ToolbarButtonStyle())
                 .help("Agent review queue, least confident first")
-                .accessibilityIdentifier("toolbar-agent-review")
+                .accessibilityIdentifier("\(axMode).toolbar.review")
             }
         }
         .flatToolbarItem()
@@ -450,6 +455,7 @@ struct ContentView: View {
             }
             .toggleStyle(ToolbarToggleStyle())
             .help("Move to the next image after X / U / P / 1–3 (A)")
+            .accessibilityIdentifier("library.toolbar.autoAdvance")
             }
         }
         .flatToolbarItem()
@@ -658,11 +664,11 @@ struct EmptyStateView: View {
                           title: model.isLoading ? "Reading folder…" : (model.isCachedPreviewLibrary ? "No cached Smart Previews" : "No images"),
                           message: model.isCachedPreviewLibrary ? LibraryAccessMode.cachedSmartPreviews.emptyMessage
                             : "Open a folder of JPEG or RAW files to start culling.") {
-            Button("Open Folder…") { model.presentOpenPanel() }
+            Button("Open Folder…") { model.presentOpenPanel() }.accessibilityIdentifier("library.empty.openFolder")
                 .buttonStyle(.theme(.primary, height: Theme.Height.large))
                 .keyboardShortcut(.defaultAction)
             if StubLibraryDiagnostics.isEnabled {
-                Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }
+                Button("Load 20,000 Stub Items") { model.loadStubItems(count: 20_000) }.accessibilityIdentifier("library.empty.loadStubs")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.large))
             }
         }
