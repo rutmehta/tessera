@@ -1,0 +1,54 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/import-lrcat)
+    Finished `release` profile [optimized] target(s) in 7.03s
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/golden-8c35de7979cda501)
+
+running 3 tests
+golden digest: 87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5
+test synthetic_catalog_output_including_retained_source ... ok
+LR-6f active golden digest: 141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0
+
+thread 'lr6f_active_blur_and_inactive_depth_catalog_golden' (60017025) panicked at crates/import-lrcat/tests/golden.rs:119:5:
+assertion `left == right` failed
+  left: "141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0"
+ right: "RECOMPUTE"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test lr6f_active_blur_and_inactive_depth_catalog_golden ... FAILED
+test streaming_matches_import_and_plan_json_is_byte_identical ... ok
+
+failures:
+
+failures:
+    lr6f_active_blur_and_inactive_depth_catalog_golden
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+error: test failed, to rerun pass `-p import-lrcat --test golden`
+     Running tests/lr1_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr1_compat-9639191d023d0e2c)
+
+running 1 test
+test untranslated_recipe_bytes_match_pre_lr1 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lr6_lens_blur.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr6_lens_blur-9f0481c5a6f982e5)
+
+running 14 tests
+test lr6_lua_lens_blur_approximates_with_exact_source ... ok
+test lr6_export_synthetic_recipe_for_cpu_gate ... ok
+test focal_range_preserves_outer_endpoints_and_shapes_have_renderable_interpretations ... ok
+test lr6_missing_adobe_depth_records_regeneration_in_recipe ... ok
+test lr6_xmp_lens_blur_approximates_with_exact_source ... ok
+test lr6c_import_has_one_import_authored_history_entry ... ok
+test lr6c_diagnostics_describe_only_translated_fields ... ok
+test lr6d_exact_active_boolean_has_no_approximation ... ok
+test lr6c_inactive_and_depth_only_do_not_enable_blur ... ok
+test lr6e_missing_depth_has_one_explicit_regeneration_reason ... ok
+test lr6e_duplicate_xmp_uses_final_active_state_for_depth_diagnostics ... ok
+test xmp_depth_attributes_retain_exact_fragment_without_warnings ... ok
+test untranslated_inputs_preserve_recipe_bytes_and_main_depth_warnings ... ok
+test every_documented_adobe_field_is_present_and_source_is_exact ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: 1 target failed:
+    `-p import-lrcat --test golden`

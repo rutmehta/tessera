@@ -1,7 +1,7 @@
 # LR-6 — Lens Blur and depth translation
 
-**Current: LR-6e review, in the final appendix.** Earlier sections and gate
-results below are historical; the LR-6e appendix supersedes their diagnostics,
+**Current: LR-6f integration, in the final appendix.** Earlier sections and gate
+results below are historical; the LR-6f appendix supersedes their diagnostics,
 schema, history, cache, and golden statements.
 
 This handoff describes LR-6c on top of `caee61c2` (no rebase, local only).
@@ -492,3 +492,217 @@ The machine-readable summary aggregates harness output, including nested test
 subprocesses. Its filtered counts belong to ml-depth/sidecar internal exact-test
 subprocesses, not command-line filters on the broad gate. The FFI count has zero
 filtered tests. No app/Swift gate was needed because apps/mac was untouched.
+
+
+## LR-6f — final-stack rebase and combined integration (2026-10-02)
+
+Local-only rebase from `75085381` onto `origin/wp/LR-3-retouch`
+`85af5278b1fe297c23993c7147096dbd011d7022` (main `486d069f` plus LR-2,
+LR-1, LR-4, LR-5 and LR-3). All 20 LR-6..6e commits remain unsquashed.
+No new feature semantics, Cargo delta, board edits, GUI launch, or real catalog
+access. The temporary isolated main checkout used only generated test catalogs
+and has been removed.
+
+### Every conflict and its resolution
+
+Commit IDs in this list are the original replayed IDs.
+
+- `82c6cd98`: golden.rs retained predecessor digest provisionally pending merged-tree recomputation; matrix retained LR-4/LR-5 prose and every base row, applied LR-6 rows/prose.
+- `832673ff`: sidecar/UNMAPPED.md kept LR-1 PointColors and LR-6 LensBlur descriptions.
+- `c63d2cda`: golden.rs kept predecessor digest provisionally; historical restoration must not erase LR-3 changes. Recompute after full rebase.
+- `d04bab01`: recipe/mod.rs retained both set_imported_masks and set_lens_blur_depth; independent attachments fold into the same Import history.
+- `97ea265e`: golden provisional predecessor value; matrix kept LR-4/LR-5 prose and updated LR-6c prose only.
+- `5650976d`: schema_version.rs retained LR-2 tests plus LR-6 active/inactive/depth-only tests. schema.rs auto-merged union retained.
+- `8eed0461`: recipe/mod.rs kept mask setter plus updated depth contract; schema.rs union of all predicates; mask-store kept predecessor bounded pin reads (MAX_PINNED_BYTES), not unbounded historical depth pins.
+- `8a9096e5`: golden remains provisional; matrix kept predecessor LR-4/LR-5 prose and adopted LR-6d prose.
+- `6b2df335`: lrcat.rs includes both mask and depth test modules.
+- `aaf46a64`: recipe/mod.rs kept both setters and final depth docs; schema.rs retained all predicates with narrowed LR-6 extension predicate; mask-store unified duplicate bounded put/remove methods and retained pinned_revision, added removal lock; changes.rs removes both lanes pins on forget; lrcat.rs retained both callback traits and entry points, added combined apply_with_resolvers (no preexisting options struct), depth preparation then transactional mask apply/publication with depth rollback, shared resumed diagnostics.
+- `75085381`: matrix retained predecessor LR-4/LR-5 prose and final LR-6e prose; all base rows preserved.
+
+The final matrix audit compares all 118 predecessor row keys and complete row
+text: only LensBlur and DepthMapInfo differ. The first-lane schema checklist and
+shared approximate guard remain the main/LR-7 implementations. LR-6 adds its
+extension predicate and field checks; all other lanes' predicates/tests remain.
+LR-7's shared finish creates the one Import entry; both resource setters enrich
+that entry without creating another.
+
+There was no shared resolver-options struct. Both public single-resolver entry
+points remain, delegating to `apply_with_resolvers(mask_resolver, depth_resolver)`.
+The combined implementation prepares depth, then performs LR-5's transactional
+mask apply and publication; a mask/publication failure restores the previous
+depth pin too. Image forgetting removes both classes. Mask slots remain bounded
+at 256 slots and 256 MiB total per image; depth remains one slot, at most 256 MiB
+including its header/checksum. The existing pin revision/read bounds are retained.
+
+### Golden justification
+
+Recomputed the original 2,000-image golden from the merged source; it is
+`87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5`.
+It equals LR-3's value because the original fixture has **no active Lens Blur**.
+This is a measured result, not a choice of conflict side. Main is `486d069f`.
+A temporary identical probe compiled on main and on the merged tree serialized
+every ImportedImage with only recipe.image_id normalized, as in the golden.
+Raw JSON substring comparisons found exactly these changed original rows:
+`catalog_id = 1003 + 10*k`, for every integer `k` from 0 through 199 inclusive
+(1003, 1013, ..., 2993; the complete explicit list is in
+`evidence/lr6f-golden-diff.txt`). Every such row uses structures.lua. LR-3
+translates its explicit-source heal spot, adds the retouch history delta and
+shared approximate diagnostics, consumes the top-level crs:RetouchInfo retained
+fallback while retaining exact lrcat_develop_source, and writes schema 4.
+Their inactive LensBlur and DepthMapInfo behavior is unchanged. All remaining
+1,800 complete image rows are byte-identical to main.
+
+A second golden preserves the original and adds active coverage by replacing
+only the develop text of four synthetic rows (history source cells stay as
+originally generated):
+
+- 1004: active LensBlur with BlurAmount=37 and FocalRange='10 20 60 80'. LR-6
+  adds translated focus/optics, pending depth state, per-field approximation and
+  regeneration diagnostics, schema 4 and the shared Import history entry.
+- 1005: active LensBlur with BlurAmount=37 and BaseRawDepthTable='synthetic-depth'.
+  LR-6 attaches opaque depth metadata and pending regeneration to the existing
+  Import entry, replaces top-level retained fallback with exact source plus
+  shared info diagnostics, removes the metadata-only warning, and writes schema 4.
+- 1006: standalone DepthMapInfo with DepthSource=1. Entire serialized image is
+  byte-identical to main, including source, schema and history. The develop warning remains main's
+  LR-2 metadata-only wording.
+- 1007: inactive LensBlur plus DepthMapInfo with DepthSource=1. Entire serialized
+  image is byte-identical to main. Both exact main byte strings are checked in
+  `crates/import-lrcat/tests/data/lr6f-main-inactive.json` and asserted without reserialization.
+
+Thus the augmented fixture changes exactly the 200 LR-3 IDs above plus 1004 and
+1005 relative to the same augmented fixture on main. No other row changes.
+The augmented digest, recomputed after the baseline cleanup, is
+`141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0`.
+The digest function and its normalization are unchanged.
+
+One existing LR-1 compatibility pin also necessarily changes: only `pending`,
+whose literal is `s = { LensBlur = { Active = true }, RetouchInfo = { 'opaque' } }`.
+Its opaque retouch stays untouched; active blur gains LR-6 depth pending state,
+shared regeneration info and schema 4 (11,717 → 12,169 bytes; digest
+`2678608afc35568412c6c26bce7acae5815954ded18022c41a587689ac81d444`).
+All nine other LR-1 compatibility rows retain their predecessor pins, including
+the LR-3-adjusted `structures` row. The failed-then-recomputed values are in
+`evidence/lr6f-golden-recompute-clean.log`.
+
+The first post-baseline targeted run reused artifacts from the isolated main
+build in the shared target: it reported main's original golden. Those digest
+results are superseded. The accompanying depth warning was subsequently confirmed
+as a separate semantic merge interaction (documented below), not dismissed as a
+cache issue. The isolated checkout was removed, then
+all touched release packages were cleaned again (469 files, 2.9 GiB); the clean
+rebuild restored the measured merged-tree digest and exposed only the intended
+new active golden/pending compatibility pin changes.
+
+### Combined test
+
+`lrcat::combined_tests::lr6f_all_lanes_one_apply_both_resources_and_both_absent`
+uses generated fixture photographs, an invented develop row covering all seven
+lanes, and caller-supplied grayscale PNG masks/depth. It checks schema 4, one
+Import-authored entry, replay, diagnostics via entries(), both pin contents and
+bounds, the CPU graph with real brush retouch and pinned-mask composition, and
+stored-depth reuse with a deliberately incompatible fallback (no model inference).
+It also covers joint publication rollback and reimport with both resolvers absent,
+checking both regenerated diagnostics and removal of both obsolete pin classes.
+
+Gate results and final commit references follow after validation.
+
+
+Additional semantic merge conflict found by the full tests: LR-2's metadata
+hook re-added its generic DepthMapInfo warning after LR-6 had translated active
+depth. Its fallback now defers only when the final normalized LensBlur is active;
+inactive/standalone fallback bytes remain exactly main's behavior. This is a
+resolution between existing lane contracts, not a new translation feature.
+The older LR-6 standalone/inactive warning baselines (two rows) and the duplicate
+XMP expectation now use main's existing LR-2 wording; their recipe-byte pins
+remain unchanged. All 14 LR-6 import regressions passed after the correction.
+The augmented golden was recomputed again after row 1005 correctly lost the
+metadata-only report warning; its digest is unchanged because the established
+digest covers ImportedImage, not the enclosing report warnings. No serialized
+image row changed in this correction. The direct develop tests cover warnings.
+
+
+### Gate commands and environment
+
+All commands run locally; there are no command-level test exclusions. Existing
+model/benchmark/real-catalog ignores remain opt-in; no model inference was enabled.
+Repository RAW fixtures use the existing `fixtures/raw` link. The new combined
+test is an ordinary, non-ignored test. Generated Swift/CTesseraFFI bindings are
+included with the test commit; no app feature or dependency change is introduced.
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/LR-4-parametric-masks"
+export CARGO_BUILD_JOBS=4
+export RAYON_NUM_THREADS=4
+export RUST_TEST_THREADS=4
+export MACOSX_DEPLOYMENT_TARGET=15.0
+cargo clean --release -p engine-api -p image-core -p import-lrcat -p mask-store \
+  -p ml-depth -p pipeline-cpu -p sidecar -p tessera-ffi -p blake3
+cargo test --release --no-fail-fast -p import-lrcat -p engine-api -p image-core \
+  -p mask-store -p mask-ai -p pipeline-cpu -p pipeline-gpu -p brush -p sidecar \
+  -p merge -p export -p previews -p tessera-mcp -p tessera-ffi
+cargo clippy --release --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
+(cd apps/mac && ./build-ffi.sh)
+tools/orchestrate/swift-gate.sh
+(cd apps/mac && swift build -c release --product Tessera \
+  -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors)
+```
+
+The initial broad run had seven failed assertions across three targets
+(lr6_lens_blur, translation_matrix, tessera-ffi's combined test), all due to the
+LR-2 metadata warning interaction and stale pre-main warning expectations.
+The subsequent focused LR-6 import suite and the complete new combined test pass.
+Initial fmt also flagged the newly substituted golden digest's line wrapping;
+`cargo fmt --all` corrected it. Initial workspace clippy and Swift gate pass.
+Those initial logs are retained, and the final clean run below supersedes them.
+
+
+The semantic LR-2/LR-6 resolution and conflict formatting were folded into the
+replayed `aaf46a64` integration commit (`209f5f6e`) by editing that rebase step;
+no original commits were squashed. All pending source/test/evidence file hashes
+were verified unchanged across the amendment and restoration. The rebase retains
+exactly 20 original lane commits, followed by one LR-6f test commit and one docs
+commit. The initial strict Swift release build passed, but its linker reported
+one cached Blake3 NEON object built for macOS 26.2 while linking macOS 15. The
+final clean also rebuilds blake3 with `MACOSX_DEPLOYMENT_TARGET=15.0` (the same
+setting used by build-ffi.sh), to avoid carrying that incompatible cache artifact.
+
+
+### Final source and completed Rust/Swift test gates
+
+Rebased lane tip: `3cc5e644` (20 individual commits over `85af5278`).
+Single new test/bindings commit:
+`0b3b8074f75601e4511db1816495e362458c4419`.
+`evidence/lr6f-history.txt` maps every original commit to its rebased commit and
+verifies each requested co-author footer. Source/test/bindings remain unchanged
+through the final gates. Final clean removed 3,091 files / 7.2 GiB.
+
+| Final gate | Result | Evidence |
+| --- | --- | --- |
+| All 14 requested packages, release, no command-level exclusions | **Pass: 1,844 passed, 0 failed, 60 existing opt-in ignored, 0 filtered** | `evidence/lr6f-test.log`, `evidence/lr6f-test-summary.json` |
+| Combined all-seven-lane apply → pins → CPU render → rollback → absent resolvers | **Pass**, included in the full FFI suite | `evidence/lr6f-test.log` |
+| Original and augmented goldens; main inactive-depth bytes; LR-1 compatibility; full matrix | **Pass**, included in full import-lrcat suite | `evidence/lr6f-test.log` |
+| Workspace clippy, release, all targets, `-D warnings` | **Pass** | `evidence/lr6f-clippy.log` |
+| `cargo fmt --all -- --check` | **Pass** | `evidence/lr6f-fmt.log` |
+| `apps/mac/build-ffi.sh` | **Pass**, regenerated arm64 bridge/archive | `evidence/lr6f-build-ffi.log` |
+| Swift gate | **SWIFT GATE OK**; 920 XCTest tests, 3 skipped, 0 failures; 5 Swift Testing tests pass | `evidence/lr6f-swift-gate.log`, `evidence/lr6f-swift-test-detail.log` |
+| Strict release product build, complete concurrency, warnings as errors | **Pass**; no warnings, including no deployment-version linker warning | `evidence/lr6f-swift-release.log` |
+
+The Rust summary counts the last (top-level) harness result for each Cargo target,
+so helper subprocesses are not double-counted. Every retained ignore appears in
+`evidence/lr6f-ignored-tests.txt`; none was introduced by LR-6f. Both release
+streaming memory/time tests ran and passed. Repository RAW fixtures ran; real
+catalog acceptance and actual model inference remain opt-in. No GUI was opened.
+Cargo manifests and Cargo.lock have zero delta against both `85af5278` and the
+original `75085381` tip. No board.json changes or remote push occurred.
+
+
+All six final statuses are zero in `evidence/lr6f-gate-status.log`:
+`test=0 clippy=0 fmt=0 build_ffi=0 swift_gate=0 swift_release=0`.
+The final strict release product build completed in 167.35 s with no warnings.
+The rebuilt macOS 15 Blake3 object removed the initial deployment-version linker
+warning. No source or generated-binding changes followed the final gate.
+The final docs/evidence commit is the commit containing this appendix; resolve
+its full hash with `git log -1 --format=%H -- tools/orchestrate/wp/LR-6/HANDOFF.md`.
