@@ -105,7 +105,7 @@ fn eng3_curve_zero_delta_vs_one_ulp() {
     assert!(gap <= 1e-8);
 }
 #[test]
-fn eng3_curve_signed_floor_boundaries() {
+fn eng3c_curve_cancelling_pixel_signed_floor_boundaries() {
     use engine_api::recipe::settings::ToneCurves;
     let s = ToneSettings {
         curves_extended: Some(ToneCurves {
@@ -123,22 +123,33 @@ fn eng3_curve_signed_floor_boundaries() {
     for lum in [
         -0.002_f32, -0.001001, -0.000999, -1e-6, 1e-6, 0.000999, 0.001001, 0.002,
     ] {
-        let rgb = [lum; 3];
+        let rgb = [16., -16. * 0.2627 / 0.678, lum / 0.0593];
         let input = patch(rgb);
         let cpu = CpuStageOp
             .run(StageId::Tone, &Op::ToneExtra(&s), input.clone())
             .unwrap();
         let actual = gpu.run(StageId::Tone, &Op::ToneExtra(&s), input).unwrap();
-        // Neutral signed greys do not cancel: retain the original ratio.
-        let expected = mapped;
+        let y = (0.2627 * rgb[0] + 0.678 * rgb[1] + 0.0593 * rgb[2]) as f64;
+        let a = (0.2627 * rgb[0].abs() + 0.678 * rgb[1].abs() + 0.0593 * rgb[2].abs()) as f64;
+        let d = y.abs().max(0.001 * (1. - y.abs() / a / 0.25).clamp(0., 1.));
+        assert_eq!(d > y.abs(), lum.abs() < 0.001);
+        let gain = if d == y.abs() {
+            mapped / y
+        } else {
+            1. + (mapped - y) / d.copysign(y)
+        };
         for c in 0..3 {
+            let expected = rgb[c] as f64 * gain;
             let a = cpu.samples::<f32>().unwrap()[c * 9];
             let b = actual.samples::<f32>().unwrap()[c * 9];
             assert!(
-                (f64::from(a) - expected).abs() < 1e-7,
+                (f64::from(a) - expected).abs() < 2e-3,
                 "CPU L={lum}: {a} vs {expected}"
             );
-            assert!((a - b).abs() < 1e-7, "GPU L={lum}: {a} vs {b}");
+            assert!(
+                (a - b).abs() < 1e-4 * a.abs().max(1.),
+                "GPU L={lum}: {a} vs {b}"
+            );
         }
     }
 }
@@ -260,6 +271,41 @@ fn eng3b_lifted_black_raw_monotone() {
     pixels.insert(0, [0.; 3]);
     eprintln!("ENG3b RAW exposure multiplier={scale:e}");
     monotone_evidence("photographic RAW darkest 255 + black", &pixels);
+    // Synthetic signed-channel stress transform of fixture RAW samples. Preserve
+    // their positive Y while adding opposing red/green contributions.
+    let gpu = GpuStageOp::new(Arc::new(GpuContext::new().unwrap()));
+    let mut floored = 0;
+    let mut max_error = 0_f64;
+    for original in pixels.iter().skip(1).step_by(8) {
+        let y = luma64(*original) as f32;
+        let rgb = [
+            original[0] + 0.02,
+            (y - 0.2627 * (original[0] + 0.02)) / 0.678,
+            0.,
+        ];
+        let y = luma64(rgb);
+        let d = denominator(rgb);
+        floored += usize::from(d > y.abs());
+        let f = 0.18 * (0.1 * (1_f64 / 0.18).ln_1p() + 0.9 * (y / 0.18).ln_1p()).exp_m1();
+        let gain = 1. + (f - y) / d;
+        let input = patch(rgb);
+        let cpu = CpuStageOp
+            .run(StageId::Tone, &Op::ToneExtra(&lifted()), input.clone())
+            .unwrap();
+        let metal = gpu
+            .run(StageId::Tone, &Op::ToneExtra(&lifted()), input)
+            .unwrap();
+        for c in 0..3 {
+            let expected = rgb[c] as f64 * gain;
+            for out in [&cpu, &metal] {
+                let error = (out.samples::<f32>().unwrap()[c * 9] as f64 - expected).abs();
+                max_error = max_error.max(error);
+                assert!(error < 2e-6, "RAW floor oracle error={error}");
+            }
+        }
+    }
+    assert!(floored > 0);
+    eprintln!("ENG3c RAW floored samples={floored} max RGB oracle error={max_error:e}");
 }
 #[test]
 fn eng3b_coloured_curve_zero_crossing_documented() {
@@ -291,42 +337,61 @@ fn eng3b_coloured_curve_zero_crossing_documented() {
     assert!(gains[0] < -30. && gains[1] > 30.); // Retained signed-floor discontinuity.
 }
 
+fn luma64(p: [f32; 3]) -> f64 {
+    0.2627 * p[0] as f64 + 0.678 * p[1] as f64 + 0.0593 * p[2] as f64
+}
+fn denominator(p: [f32; 3]) -> f64 {
+    let y = luma64(p).abs();
+    let a = luma64(p.map(f32::abs));
+    if a == 0. {
+        return 0.;
+    }
+    y.max(0.001 * (1. - y / a / 0.25).clamp(0., 1.))
+}
 #[test]
-fn eng3b_curve_relative_cancellation_boundary() {
-    use engine_api::recipe::settings::ToneCurves;
-    let s = ToneSettings {
-        curves_extended: Some(ToneCurves {
-            luminance: Curve(vec![
-                CurvePoint { x: -1., y: 0.1 },
-                CurvePoint { x: 1., y: 0.1 },
-            ]),
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
+fn eng3c_primary_shadow_ramps() {
+    for (c, name) in [(2, "blue"), (0, "red"), (1, "green")] {
+        let pixels: Vec<_> = (0..256)
+            .map(|i| {
+                let mut p = [0.; 3];
+                p[c] = i as f32 * 0.02 / 255.;
+                p
+            })
+            .collect();
+        monotone_evidence(name, &pixels);
+    }
+}
+#[test]
+fn eng3c_curve_chroma_boundary_continuity() {
     let gpu = GpuStageOp::new(Arc::new(GpuContext::new().unwrap()));
-    let mapped = 0.18_f64 * ((0.1_f32 as f64) * (1.0_f64 / 0.18).ln_1p()).exp_m1();
-    for sign in [-1., 1.] {
-        for ratio in [0.249, 0.251] {
-            let r = sign * 0.002;
-            let g = (ratio * r - 0.2627 * r) / 0.678;
-            let rgb = [r, g, 0.];
-            let y = 0.2627 * r + 0.678 * g;
-            let gain = if ratio < 0.25 {
-                1. + (mapped - y as f64) / 0.001_f64.copysign(y as f64)
-            } else {
-                mapped / y as f64
-            };
+    let s = lifted();
+    // Cross both the old Y/max boundary and the new rho=k boundary at fixed Y.
+    for center in [0.25_f32, 0.25 / (2. * 0.2627 - 0.25)] {
+        let mut ys = Vec::new();
+        let mut gs = Vec::new();
+        for i in 0..201 {
+            let rho = center + (i as f32 - 100.) * 0.00002;
+            let y = 0.0005;
+            let a = y / rho;
+            let rgb = [(a + y) / (2. * 0.2627), (y - a) / (2. * 0.678), 0.];
             let input = patch(rgb);
-            let a = CpuStageOp
+            let cpu = CpuStageOp
                 .run(StageId::Tone, &Op::ToneExtra(&s), input.clone())
                 .unwrap();
-            let b = gpu.run(StageId::Tone, &Op::ToneExtra(&s), input).unwrap();
-            for (c, channel) in rgb.iter().enumerate() {
-                let actual = a.samples::<f32>().unwrap()[c * 9];
-                assert!((actual as f64 - *channel as f64 * gain).abs() < 1e-7);
-                assert!((actual - b.samples::<f32>().unwrap()[c * 9]).abs() < 1e-7);
+            let metal = gpu.run(StageId::Tone, &Op::ToneExtra(&s), input).unwrap();
+            for (out, list) in [(&cpu, &mut ys), (&metal, &mut gs)] {
+                let d = out.samples::<f32>().unwrap();
+                list.push(luma64([d[0], d[9], d[18]]));
             }
         }
+        let step = |v: &[f64]| v.windows(2).map(|p| (p[1] - p[0]).abs()).fold(0., f64::max);
+        eprintln!(
+            "ENG3c boundary rho={center}: CPU endpoints={:?} max_step={} Metal max_step={}",
+            [ys[0], ys[200]],
+            step(&ys),
+            step(&gs)
+        );
+        assert!(step(&ys) < 1e-6);
+        assert!(step(&gs) < 1e-6);
     }
 }

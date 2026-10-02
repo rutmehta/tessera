@@ -183,3 +183,74 @@ fn eng3b_coloured_photo_zero_crossing_documented() {
     eprintln!("ENG3b coloured photo crossing red={red:?}");
     assert!(red[0] < -250. && red[1] > 250.); // Retained signed-floor discontinuity.
 }
+
+#[test]
+fn eng3c_photo_chroma_continuity_and_primary_ramps() {
+    use compositor::{
+        geom::Rect,
+        raster::{Depth, Raster},
+    };
+    use engine_api::tile::Extent;
+    use filters::{Effect, Filter, FilterParams, gpu::GpuFilters};
+    let params = FilterParams {
+        amount: 1.,
+        adjust: Adjustment::PhotoFilter {
+            colour: [0.5, 0.8, 0.5],
+            density: 1.,
+            preserve_luminosity: true,
+        },
+        ..Default::default()
+    };
+    let gpu = GpuFilters::new().unwrap();
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    for mode in 0..5 {
+        let mut input = Raster::new(Extent::new(257, 1), 4, Depth::F32, 0.);
+        input
+            .edit_region(Rect::of_extent(input.extent()), 1, |x, _, p| {
+                *p = [0., 0., 0., 0.7];
+                if mode < 3 {
+                    p[mode] = x as f32 * 0.02 / 256.;
+                } else {
+                    let center = if mode == 3 {
+                        0.25
+                    } else {
+                        0.25 / (2. * 0.2627 - 0.25)
+                    };
+                    let rho = center + (x as f32 - 128.) * 0.00002;
+                    let y = 0.0005;
+                    let a = y / rho;
+                    p[0] = (a + y) / (2. * 0.2627) / 0.5;
+                    p[1] = (y - a) / (2. * 0.678) / 0.8;
+                }
+            })
+            .unwrap();
+        let cpu = Effect::Adjust.apply(&input, &params, &cancel).unwrap();
+        let metal = gpu.apply(Effect::Adjust, &input, &params, &cancel).unwrap();
+        let luma = |p: [f32; 4]| 0.2627 * p[0] + 0.678 * p[1] + 0.0593 * p[2];
+        let mut max_step = 0_f32;
+        for x in 0..257 {
+            let a = cpu.pixel(x, 0);
+            let b = metal.pixel(x, 0);
+            for c in 0..4 {
+                assert!((a[c] - b[c]).abs() < 2e-7);
+            }
+            assert_eq!(a[3], 0.7);
+            assert_eq!(b[3], 0.7);
+            if mode < 3 {
+                assert!((luma(a) - luma(input.pixel(x, 0))).abs() < 1e-8);
+            }
+            if x > 0 {
+                for out in [&cpu, &metal] {
+                    let step = luma(out.pixel(x, 0)) - luma(out.pixel(x - 1, 0));
+                    max_step = max_step.max(step.abs());
+                    if mode < 3 {
+                        assert!(step >= -1e-9);
+                    } else {
+                        assert!(step.abs() < 1e-6, "mode={mode} jump={step}");
+                    }
+                }
+            }
+        }
+        eprintln!("ENG3c Photo mode={mode} CPU/Metal max adjacent Y step={max_step:e}");
+    }
+}
