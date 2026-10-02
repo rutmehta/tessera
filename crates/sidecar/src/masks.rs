@@ -329,7 +329,9 @@ pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<V
     let mut next = 0u64;
     for n in t.items(root) {
         let mut v = serde_json::to_value(LocalAdjustment::default())?;
-        v["id"] = if let Some(id) = extension(t, n, "LocalId")? {
+        let native_id = extension(t, n, "LocalId")?;
+        let native_local = native_id.is_some();
+        v["id"] = if let Some(id) = native_id {
             id
         } else {
             while used.contains(&next) {
@@ -358,7 +360,9 @@ pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<V
                 number(hue.as_deref().unwrap_or("0"))?,
                 number(sat.as_deref().unwrap_or("0"))?,
             ];
-            if !foreign_extensions || overlay != [0., 0.] {
+            // Native optional presence is lossless, including Some([0, 0]).
+            // Adobe's inactive zero controls still keep the prior None shape.
+            if native_local || !foreign_extensions || overlay != [0., 0.] {
                 v["params"]["color_overlay"] = json!(overlay);
             }
         }
