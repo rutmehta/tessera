@@ -644,6 +644,10 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         let second = "ObjectIdentifier(0x98765432) ObjectIdentifier(0x123456)"
         XCTAssertEqual(Self.normalizeAddresses(first), Self.normalizeAddresses(second))
         XCTAssertEqual(Self.normalizeAddresses(first), "ObjectIdentifier(<address>) ObjectIdentifier(<address>)")
+        // SwiftUI prints addresses as `$` followed by hexadecimal digits.
+        XCTAssertEqual(Self.normalizeAddresses("SwiftUI.AccessibilityNode $600003a4c0e0 at $1b"),
+                       "SwiftUI.AccessibilityNode <address> at <address>")
+        XCTAssertEqual(Self.normalizeAddresses("H0=192.0 pt"), "H0=192.0 pt")
     }
 
     private func writeResults(fka: Bool,
