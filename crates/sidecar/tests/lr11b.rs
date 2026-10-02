@@ -116,3 +116,48 @@ fn b3_native_extended_local_curve_still_round_trips() {
             .is_some()
     );
 }
+
+/// S9: the codec accepts Adobe's signed local defringe range and round-trips it.
+#[test]
+fn s9_local_defringe_accepts_the_signed_adobe_range() {
+    for value in [-100.0, -50.0, 0.0, 100.0] {
+        let xml = packet(serde_json::json!([{
+            "params":{"defringe":value},
+            "components":[{"kind":"linear","start":[0,0],"end":[1,0]}]
+        }]));
+        let imported = XmpPacket::parse(xml).unwrap().to_recipe().unwrap();
+        assert!(
+            imported.warnings.is_empty(),
+            "{value}: {:?}",
+            imported.warnings
+        );
+        assert_eq!(
+            imported.recipe.settings.locals.adjustments[0]
+                .params
+                .defringe,
+            value as f32
+        );
+    }
+    for value in ["-100.5", "100.5"] {
+        let xml = packet(serde_json::json!([{
+            "params":{"defringe":50.0},
+            "components":[{"kind":"linear","start":[0,0],"end":[1,0]}]
+        }]));
+        let anchor = "<crs:LocalDefringe>50</crs:LocalDefringe>";
+        assert_eq!(xml.matches(anchor).count(), 1, "{xml}");
+        let edited = xml.replace(
+            anchor,
+            &format!("<crs:LocalDefringe>{value}</crs:LocalDefringe>"),
+        );
+        let imported = XmpPacket::parse(edited).unwrap().to_recipe().unwrap();
+        assert!(
+            imported
+                .warnings
+                .iter()
+                .any(|w| w.contains("invalid local defringe")),
+            "{value}: {:?}",
+            imported.warnings
+        );
+        assert!(imported.recipe.settings.locals.adjustments.is_empty());
+    }
+}

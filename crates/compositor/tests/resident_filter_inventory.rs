@@ -523,6 +523,8 @@ fn lr11_local_operators_choose_cpu_fallback_with_identical_pixels() {
         serde_json::json!({"point_colors":[{"source_lch":[0.6,0.1,30],"range":100,"hue_shift":30}]}),
         serde_json::json!({"color_overlay":[120,50]}),
         serde_json::json!({"defringe":100}),
+        // LR-11b S9: a negative local defringe is valid and still CPU-only.
+        serde_json::json!({"defringe":-50}),
     ] {
         let settings = serde_json::json!({"lens":{"profile":{"kind":"none"},"remove_chromatic_aberration":false}, "locals":{"adjustments":[{"params":params,"components":[{"kind":"linear","start":[0,0],"end":[1,0]}]}]}});
         assert!(

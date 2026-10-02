@@ -2461,6 +2461,12 @@ mod tests {
             (r.params.defringe, r.params.color_overlay),
             (20.0, Some([10.0, 20.0]))
         );
+        // LR-11b S9: the preview keeps Adobe's signed local defringe range.
+        for (value, expected) in [(-40.0, -40.0), (-400.0, -100.0), (400.0, 100.0)] {
+            let mut signed = g.clone();
+            signed.params.defringe = value;
+            assert_eq!(renderable_group(&signed).params.defringe, expected);
+        }
         let kinds: Vec<_> = r
             .components
             .iter()
