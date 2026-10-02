@@ -268,7 +268,12 @@ fn render_linear_impl(
                 out.put(&tile)?;
             }
             let crop = [0, 0, out.width(), out.height()];
-            (out, crop, proxy.correction().clone())
+            let correction = if proxy.is_external_dng() {
+                crate::resolve_lens(&out, &settings.lens, Some(metadata), context)?
+            } else {
+                proxy.correction().clone()
+            };
+            (out, crop, correction)
         }
         RenderSource::Cfa { image, metadata } => {
             let (mut out, correction, embedded, use_embedded) =

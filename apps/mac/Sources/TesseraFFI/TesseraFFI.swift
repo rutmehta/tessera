@@ -18600,6 +18600,7 @@ public func FfiConverterTypeImageStatus_lower(_ value: ImageStatus) -> RustBuffe
 
 
 public struct ImageSummary: Equatable, Hashable {
+    public var lightroomSmartPreview: Bool
     public var id: String
     public var path: String
     /**
@@ -18612,10 +18613,11 @@ public struct ImageSummary: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, path: String, 
+    public init(lightroomSmartPreview: Bool, id: String, path: String,
         /**
          * RAW: Unix seconds; EXIF JPEG/TIFF: ISO local date-time without a timezone.
          */captureTime: String?, orientation: UInt16, selection: Selection, recipeHash: String) {
+        self.lightroomSmartPreview = lightroomSmartPreview
         self.id = id
         self.path = path
         self.captureTime = captureTime
@@ -18640,6 +18642,7 @@ public struct FfiConverterTypeImageSummary: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImageSummary {
         return
             try ImageSummary(
+                lightroomSmartPreview: FfiConverterBool.read(from: &buf),
                 id: FfiConverterString.read(from: &buf), 
                 path: FfiConverterString.read(from: &buf), 
                 captureTime: FfiConverterOptionString.read(from: &buf), 
@@ -18650,6 +18653,7 @@ public struct FfiConverterTypeImageSummary: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: ImageSummary, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.lightroomSmartPreview, into: &buf)
         FfiConverterString.write(value.id, into: &buf)
         FfiConverterString.write(value.path, into: &buf)
         FfiConverterOptionString.write(value.captureTime, into: &buf)
@@ -20990,6 +20994,8 @@ public struct LrcatOptions: Equatable, Hashable {
      * Replace edits made in Tessera since (or before) the import.
      */
     public var overwriteExistingEdits: Bool
+    public var importSmartPreviews: Bool
+    public var copyProxies: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -20999,11 +21005,13 @@ public struct LrcatOptions: Equatable, Hashable {
          */libraryFolder: String, relocations: [LrcatRelocation], marks: [LrcatMarkMapping], 
         /**
          * Replace edits made in Tessera since (or before) the import.
-         */overwriteExistingEdits: Bool) {
+         */overwriteExistingEdits: Bool, importSmartPreviews: Bool, copyProxies: Bool) {
         self.libraryFolder = libraryFolder
         self.relocations = relocations
         self.marks = marks
         self.overwriteExistingEdits = overwriteExistingEdits
+        self.importSmartPreviews = importSmartPreviews
+        self.copyProxies = copyProxies
     }
 
     
@@ -21025,7 +21033,9 @@ public struct FfiConverterTypeLrcatOptions: FfiConverterRustBuffer {
                 libraryFolder: FfiConverterString.read(from: &buf), 
                 relocations: FfiConverterSequenceTypeLrcatRelocation.read(from: &buf), 
                 marks: FfiConverterSequenceTypeLrcatMarkMapping.read(from: &buf), 
-                overwriteExistingEdits: FfiConverterBool.read(from: &buf)
+                overwriteExistingEdits: FfiConverterBool.read(from: &buf),
+                importSmartPreviews: FfiConverterBool.read(from: &buf),
+                copyProxies: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -21034,6 +21044,8 @@ public struct FfiConverterTypeLrcatOptions: FfiConverterRustBuffer {
         FfiConverterSequenceTypeLrcatRelocation.write(value.relocations, into: &buf)
         FfiConverterSequenceTypeLrcatMarkMapping.write(value.marks, into: &buf)
         FfiConverterBool.write(value.overwriteExistingEdits, into: &buf)
+        FfiConverterBool.write(value.importSmartPreviews, into: &buf)
+        FfiConverterBool.write(value.copyProxies, into: &buf)
     }
 }
 
@@ -21054,6 +21066,9 @@ public func FfiConverterTypeLrcatOptions_lower(_ value: LrcatOptions) -> RustBuf
 
 
 public struct LrcatPlanPreview: Equatable, Hashable {
+    public var onlineOriginals: UInt32
+    public var offlineWithSmartPreview: UInt32
+    public var offlineWithoutSmartPreview: UInt32
     public var roots: [LrcatRootRow]
     public var folders: [LrcatFolderRow]
     public var selectionRows: [LrcatSelectionRow]
@@ -21082,7 +21097,7 @@ public struct LrcatPlanPreview: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(roots: [LrcatRootRow], folders: [LrcatFolderRow], selectionRows: [LrcatSelectionRow], selection: LrcatSelectionCounts, marks: [LrcatMarkRow], keywords: [LrcatKeywordRow], 
+    public init(onlineOriginals: UInt32, offlineWithSmartPreview: UInt32, offlineWithoutSmartPreview: UInt32, roots: [LrcatRootRow], folders: [LrcatFolderRow], selectionRows: [LrcatSelectionRow], selection: LrcatSelectionCounts, marks: [LrcatMarkRow], keywords: [LrcatKeywordRow],
         /**
          * Photos that will get sidecars.
          */toImport: UInt32, missing: UInt32, virtualCopies: UInt32, 
@@ -21092,6 +21107,9 @@ public struct LrcatPlanPreview: Equatable, Hashable {
         /**
          * Photos outside the library folder.
          */outsideLibrary: UInt32, libraryPath: String, libraryExists: Bool, unsupported: [LrcatIssue], estimatedBytes: UInt64) {
+        self.onlineOriginals = onlineOriginals
+        self.offlineWithSmartPreview = offlineWithSmartPreview
+        self.offlineWithoutSmartPreview = offlineWithoutSmartPreview
         self.roots = roots
         self.folders = folders
         self.selectionRows = selectionRows
@@ -21126,6 +21144,9 @@ public struct FfiConverterTypeLrcatPlanPreview: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatPlanPreview {
         return
             try LrcatPlanPreview(
+                onlineOriginals: FfiConverterUInt32.read(from: &buf),
+                offlineWithSmartPreview: FfiConverterUInt32.read(from: &buf),
+                offlineWithoutSmartPreview: FfiConverterUInt32.read(from: &buf),
                 roots: FfiConverterSequenceTypeLrcatRootRow.read(from: &buf), 
                 folders: FfiConverterSequenceTypeLrcatFolderRow.read(from: &buf), 
                 selectionRows: FfiConverterSequenceTypeLrcatSelectionRow.read(from: &buf), 
@@ -21146,6 +21167,9 @@ public struct FfiConverterTypeLrcatPlanPreview: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: LrcatPlanPreview, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.onlineOriginals, into: &buf)
+        FfiConverterUInt32.write(value.offlineWithSmartPreview, into: &buf)
+        FfiConverterUInt32.write(value.offlineWithoutSmartPreview, into: &buf)
         FfiConverterSequenceTypeLrcatRootRow.write(value.roots, into: &buf)
         FfiConverterSequenceTypeLrcatFolderRow.write(value.folders, into: &buf)
         FfiConverterSequenceTypeLrcatSelectionRow.write(value.selectionRows, into: &buf)
@@ -25380,6 +25404,7 @@ public func FfiConverterTypeSelection_lower(_ value: Selection) -> RustBuffer {
  * One image of the review queue, in queue order.
  */
 public struct SessionImage: Equatable, Hashable {
+    public var lightroomSmartPreview: Bool
     public var id: String
     public var path: String
     /**
@@ -25396,13 +25421,14 @@ public struct SessionImage: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, path: String, 
+    public init(lightroomSmartPreview: Bool, id: String, path: String,
         /**
          * As stored by the index (see `ImageSummary::capture_time`).
          */captureTime: String?, orientation: UInt16, selection: Selection, inBasket: Bool, 
         /**
          * Index into `CullSession::groups`.
          */group: UInt32) {
+        self.lightroomSmartPreview = lightroomSmartPreview
         self.id = id
         self.path = path
         self.captureTime = captureTime
@@ -25428,6 +25454,7 @@ public struct FfiConverterTypeSessionImage: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionImage {
         return
             try SessionImage(
+                lightroomSmartPreview: FfiConverterBool.read(from: &buf),
                 id: FfiConverterString.read(from: &buf), 
                 path: FfiConverterString.read(from: &buf), 
                 captureTime: FfiConverterOptionString.read(from: &buf), 
@@ -25439,6 +25466,7 @@ public struct FfiConverterTypeSessionImage: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: SessionImage, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.lightroomSmartPreview, into: &buf)
         FfiConverterString.write(value.id, into: &buf)
         FfiConverterString.write(value.path, into: &buf)
         FfiConverterOptionString.write(value.captureTime, into: &buf)

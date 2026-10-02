@@ -400,3 +400,28 @@ INSERT INTO AgHarvestedExifMetadata VALUES(30,40.7,-74.0);
         previews,
     })
 }
+
+/// Add synthetic smart previews to the fixture, including its offline photo.
+/// Existing fixture callers opt in so historical missing-file tests stay intact.
+pub fn write_smart_previews(fixture: &Fixture) -> EngineResult<()> {
+    let c = Connection::open(&fixture.catalog).map_err(err)?;
+    c.execute("ALTER TABLE AgLibraryFile ADD COLUMN id_global TEXT", [])
+        .map_err(err)?;
+    let index = crate::smart_previews::SmartPreviewIndex::new(&fixture.catalog);
+    for p in PHOTOS {
+        let uuid = format!("00000000-0000-4000-8000-{:012x}", p.file);
+        c.execute(
+            "UPDATE AgLibraryFile SET id_global=?1 WHERE id_local=?2",
+            rusqlite::params![uuid, p.file],
+        )
+        .map_err(err)?;
+        let path = index.expected_path(&uuid).expect("synthetic UUID");
+        std::fs::create_dir_all(path.parent().unwrap()).map_err(err)?;
+        std::fs::write(
+            &path,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient.dng"),
+        )
+        .map_err(err)?;
+    }
+    Ok(())
+}

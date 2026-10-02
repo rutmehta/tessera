@@ -15,8 +15,12 @@ impl Renderer {
         settings: &DevelopSettings,
     ) -> EngineResult<()> {
         use engine_api::recipe::{MaskKind, ProcessFamily};
-        if self.config.process_version.family != ProcessFamily::Native
-            || self.config.process_version.revision != 2
+        let external_dng = image
+            .camera_linear_proxy()
+            .is_some_and(|p| p.is_external_dng());
+        if !external_dng
+            && (self.config.process_version.family != ProcessFamily::Native
+                || self.config.process_version.revision != 2)
         {
             return Err(original_required("Native revision 2 required"));
         }
@@ -52,7 +56,7 @@ impl Renderer {
                 }
             }
         }
-        pipeline_cpu::validate_settings(settings)
+        self.validate_settings(settings)
             .map_err(|error| original_required(&format!("unsupported CPU settings: {error}")))
     }
 
@@ -103,11 +107,17 @@ impl Renderer {
         // Prefix validation, original calibration/WB, captured optics, manual
         // masks and geometry all run once in their scalar reference order.
         // EXIF orientation remains the caller's responsibility, as for RAW.
-        let developed = pipeline_cpu::render_linear_scaled(
-            settings,
-            &pipeline_cpu::RenderSource::CameraLinear(image.camera_linear_proxy().unwrap()),
-            1 << level,
-        )?;
+        let source = pipeline_cpu::RenderSource::CameraLinear(image.camera_linear_proxy().unwrap());
+        let developed = if self.is_adobe() {
+            pipeline_adobe::render_linear_scaled_with_profile(
+                settings,
+                &source,
+                1 << level,
+                self.dcp.as_ref().map(|(p, _)| p.as_ref()),
+            )?
+        } else {
+            pipeline_cpu::render_linear_scaled(settings, &source, 1 << level)?
+        };
         cancel.check()?;
         let mut seen = HashSet::new();
         for &coord in coords {

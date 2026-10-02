@@ -991,7 +991,7 @@ impl Engine {
     /// without opening an editable Develop session.
     pub fn depth_histogram(self: Arc<Self>, image_id: String) -> Result<Vec<u64>> {
         let snapshot = self.develop_disk_snapshot(&image_id, false)?;
-        let image = RawImage::open(snapshot.image_id, &snapshot.path)?;
+        let image = catalog::open_image(snapshot.image_id, &snapshot.path)?;
         let mut recipe = snapshot.recipe;
         recipe.source_kind = if image.source_kind() == "rgb" {
             engine_api::recipe::SourceKind::Rgb
@@ -1065,7 +1065,7 @@ impl Engine {
         } else {
             self.require_smart_preview_synced(id)?;
             let snapshot = self.develop_disk_snapshot(&image_id, true)?;
-            let image = RawImage::open(id, &snapshot.path)?;
+            let image = catalog::open_image(id, &snapshot.path)?;
             let persistence = DevelopPersistence::Original(
                 snapshot.lease.as_ref().expect("original lease").authority(),
             );

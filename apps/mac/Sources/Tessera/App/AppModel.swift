@@ -2220,6 +2220,7 @@ final class AppModel {
 
     func smartPreviewBadge(for item: PhotoItem) -> String? {
         guard let ref = item.engineImage else { return nil }
+        if ref.lightroomSmartPreview { return "Smart Preview" }
         return smartPreviews.libraryBadge(imageID: ref.imageID)
     }
 

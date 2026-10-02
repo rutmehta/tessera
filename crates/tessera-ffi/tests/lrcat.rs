@@ -973,7 +973,8 @@ fn offline_proxy_import_develop_copy_and_relink_preserve_lightroom() {
         let rows = s.engine.list_images(ImageQuery::default()).unwrap();
         let proxy = rows.iter().find(|r| r.lightroom_smart_preview).unwrap();
         assert_eq!(
-            Path::new(&proxy.path).starts_with(s._temp.path().join("support")),
+            Path::new(&proxy.path)
+                .starts_with(s._temp.path().join("support").canonicalize().unwrap()),
             copy
         );
         let session = s
@@ -986,17 +987,17 @@ fn offline_proxy_import_develop_copy_and_relink_preserve_lightroom() {
             .clone()
             .open_develop_session(proxy.id.clone())
             .unwrap();
-        let mut recipe: engine_api::recipe::Recipe =
-            serde_json::from_str(&s.engine.get_recipe(proxy.id.clone()).unwrap()).unwrap();
-        recipe
-            .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
-                s.tone.exposure = 0.7
-            })
+        develop
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
             .unwrap();
-        s.engine
-            .set_recipe_json(proxy.id.clone(), serde_json::to_string(&recipe).unwrap())
-            .unwrap();
+        develop.flush().unwrap();
         drop(develop);
+        let recipe_json = s.engine.get_recipe(proxy.id.clone()).unwrap();
+        let recipe: engine_api::recipe::Recipe = serde_json::from_str(&recipe_json).unwrap();
+        assert_eq!(recipe.settings.tone.exposure, 0.7);
+        let exported = s.engine.export_batch(ExportTarget::Images { image_ids: vec![proxy.id.clone()] }, serde_json::json!({"destination":s._temp.path().join("export"), "format":"png", "metadata":"none"}).to_string(), None, None).unwrap();
+        assert_eq!((exported.exported, exported.failed), (1, 0), "{exported:?}");
+
         assert_eq!(snapshot(s.fixture.catalog.parent().unwrap()), before);
         let original = recipe.unknown["lightroom_smart_preview"]["original_path"]
             .as_str()
@@ -1012,14 +1013,30 @@ fn offline_proxy_import_develop_copy_and_relink_preserve_lightroom() {
         let relinked = rows.iter().find(|r| r.id == proxy.id).unwrap();
         assert!(!relinked.lightroom_smart_preview);
         assert_eq!(relinked.path, original);
-        assert_eq!(
-            s.engine.get_recipe(proxy.id.clone()).unwrap(),
-            serde_json::to_string(&recipe).unwrap()
-        );
+        assert_eq!(s.engine.get_recipe(proxy.id.clone()).unwrap(), recipe_json);
         s.engine
             .clone()
             .open_develop_session(proxy.id.clone())
             .unwrap();
         assert_eq!(snapshot(s.fixture.catalog.parent().unwrap()), before);
+        if copy {
+            std::fs::remove_file(original).unwrap();
+            std::fs::rename(
+                s.fixture.catalog.parent().unwrap(),
+                s._temp.path().join("moved-catalog"),
+            )
+            .unwrap();
+            let reopened =
+                Engine::open(s._temp.path().join("support").to_string_lossy().into()).unwrap();
+            let copied = reopened.list_images(ImageQuery::default()).unwrap();
+            assert!(
+                copied
+                    .iter()
+                    .find(|r| r.id == proxy.id)
+                    .unwrap()
+                    .lightroom_smart_preview
+            );
+            reopened.open_develop_session(proxy.id.clone()).unwrap();
+        }
     }
 }

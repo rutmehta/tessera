@@ -336,6 +336,9 @@ impl CameraLinearProxy {
     /// Encode a bounded snapshot. Original length/digest are assertions made by the caller.
     /// F16 is selected only if every sample meets |error| <= 0.0005*|value| + 3e-8.
     pub fn encode_persistent(&self, original_byte_length: u64) -> EngineResult<Vec<u8>> {
+        if self.is_external_dng() {
+            return Err(invalid("external DNG must remain a DNG source"));
+        }
         let half_ok = self.pixels.planes().iter().flatten().all(|v| {
             let h = half::f16::from_f32(*v).to_f32();
             v.is_finite()
@@ -569,6 +572,7 @@ impl CameraLinearProxy {
             container_digest,
             encoding: s.encoding,
             proxy: Self {
+                external_dng: false,
                 pixels,
                 metadata,
                 correction,
@@ -615,6 +619,7 @@ mod tests {
         };
         let s = DevelopSettings::default();
         CameraLinearProxy {
+            external_dng: false,
             pixels: Image::new(2, 2, vec![values.to_vec(); 3]).unwrap(),
             metadata,
             correction: ResolvedLens {

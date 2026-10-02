@@ -31,6 +31,8 @@ final class LightroomImportController {
     private(set) var summary: LrcatSummary?
     var folders: FolderMappingTable? { didSet { if folders != oldValue { schedulePlan() } } }
     var marks: MarkMappingTable? { didSet { if marks != oldValue { schedulePlan() } } }
+    var importSmartPreviews = true { didSet { if importSmartPreviews != oldValue { schedulePlan() } } }
+    var copyProxies = false { didSet { if copyProxies != oldValue { schedulePlan() } } }
     var overwriteExistingEdits = false { didSet { if overwriteExistingEdits != oldValue { schedulePlan() } } }
     private(set) var preview: LrcatPlanPreview?
 
@@ -58,7 +60,7 @@ final class LightroomImportController {
 
     var options: LrcatOptions? {
         guard let folders, let marks else { return nil }
-        return folders.options(marks: marks.mappings, overwrite: overwriteExistingEdits)
+        return folders.options(marks: marks.mappings, overwrite: overwriteExistingEdits, importSmartPreviews: importSmartPreviews, copyProxies: copyProxies)
     }
 
     // MARK: Steps
@@ -70,6 +72,7 @@ final class LightroomImportController {
         catalogURL = nil; summary = nil; folders = nil; marks = nil; preview = nil
         fidelity = nil; fidelityResult = nil; fidelityOptions = nil
         report = nil; reportURL = nil; reportMarkdown = nil; reportOptions = nil
+        importSmartPreviews = true; copyProxies = false
         overwriteExistingEdits = false
         error = nil; busy = nil
         step = .choose

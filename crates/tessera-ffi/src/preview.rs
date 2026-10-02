@@ -138,9 +138,14 @@ impl Engine {
         max_px: u32,
         recipe_hash: String,
     ) -> Result<PreviewResponse> {
-        let revision = previews::PreviewKey::for_source(Path::new(&path), max_px, 0, [0; 32])
-            .map_err(failure)?
-            .file_hash;
+        let revision = previews::PreviewKey::for_source(
+            &catalog::source_path(Path::new(&path)),
+            max_px,
+            0,
+            [0; 32],
+        )
+        .map_err(failure)?
+        .file_hash;
         let default_hash = core::Recipe::default().recipe_hash().to_string();
         let request = RequestKey {
             image_id,
@@ -214,6 +219,34 @@ impl PreviewJob {
             .unwrap_or_default();
         ctx.check_cancelled().map_err(|e| e.to_string())?;
         let hash = recipe.recipe_hash();
+        if catalog::lightroom_proxy(path).is_some() {
+            let source = crate::export::Source::open(path, 1).map_err(|e| e.to_string())?;
+            let render_source = source.render_source();
+            let orientation = match &render_source {
+                pipeline_cpu::RenderSource::CameraLinear(p) => p.original_metadata().orientation,
+                pipeline_cpu::RenderSource::Cfa { metadata, .. } => metadata.orientation,
+                pipeline_cpu::RenderSource::Rgb(_) => 1,
+            };
+            let image = if recipe.process_version.family == core::ProcessFamily::Adobe {
+                image_core::pipeline_adobe::render_scaled(&recipe.settings, &render_source, 1)
+            } else {
+                pipeline_cpu::render_scaled(&recipe.settings, &render_source, 1)
+            }
+            .map_err(|e| e.to_string())?;
+            let key = previews::PreviewKey::for_source(
+                &catalog::source_path(path),
+                self.request.max_px,
+                orientation as u8,
+                hash.0.0,
+            )
+            .map_err(|e| e.to_string())?;
+            engine
+                .previews
+                .put_image_cancellable(&key, &image, self.request.max_px, &|| ctx.check_cancelled())
+                .map_err(|e| e.to_string())?;
+            return Ok(key);
+        }
+
         if hash == core::Recipe::default().recipe_hash() {
             return engine
                 .previews

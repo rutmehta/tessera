@@ -40,6 +40,9 @@ pub type SourceRow = BTreeMap<String, Value>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportedImage {
+    /// Lightroom file UUID, distinct from the image UUID.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_uuid: Option<String>,
     pub catalog_id: i64,
     pub path: PathBuf,
     /// Virtual copies share the original path, but have independent identities/names.
@@ -753,7 +756,12 @@ pub fn import_each_with_storage(
     // Only the columns a path needs are kept per file.
     let mut files = rows_with_storage(&c, "AgLibraryFile", true, &mut report, storage)?;
     for f in &mut files {
-        f.retain(|k, _| matches!(k.as_str(), "id_local" | "folder" | "baseName" | "extension"));
+        f.retain(|k, _| {
+            matches!(
+                k.as_str(),
+                "id_local" | "id_global" | "folder" | "baseName" | "extension"
+            )
+        });
     }
     // Images and develop settings are streamed below; only the master lookup
     // for virtual copies (id -> rootFile) is loaded.
@@ -1074,6 +1082,7 @@ pub fn import_each_with_storage(
                 filename
             };
             batch.push(Pending {
+                file_uuid: text(file, "id_global"),
                 id,
                 image,
                 path,
@@ -1113,6 +1122,7 @@ struct PerImage {
 
 /// An image whose source rows are gathered, waiting for translation.
 struct Pending {
+    file_uuid: Option<String>,
     id: i64,
     image: SourceRow,
     path: PathBuf,
@@ -1155,6 +1165,7 @@ fn flush(
             ])
         });
         visit(ImportedImage {
+            file_uuid: p.file_uuid,
             catalog_id: p.id,
             path: p.path,
             master_image: p.master_image,

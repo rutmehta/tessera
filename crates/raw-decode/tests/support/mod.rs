@@ -48,7 +48,9 @@ pub fn lossy_dng_with_opcodes(be: bool, strips: bool, jpeg: &[u8], opcodes: &[u8
         (50728, 5, 3, longs(&[1, 2, 1, 1, 2, 3])),
         (50778, 3, 1, shorts(&[21])),
     ];
-    if !opcodes.is_empty() { tags.push((51009, 7, opcodes.len() as u32, opcodes.to_vec())); }
+    if !opcodes.is_empty() {
+        tags.push((51009, 7, opcodes.len() as u32, opcodes.to_vec()));
+    }
     tags.extend(if strips {
         vec![
             (273, 4, 1, longs(&[0])),

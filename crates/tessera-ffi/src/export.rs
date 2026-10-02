@@ -863,11 +863,23 @@ impl Engine {
 
 /// Decoded pixels for the renderer (RAW CFA or linear Rec.2020 from RGB files).
 pub(crate) enum Source {
+    LinearDng(Box<pipeline_cpu::CameraLinearProxy>),
     Rgb(pipeline_cpu::Image),
     Raw(Box<(raw_decode::CfaImage, raw_decode::RawMetadata)>),
 }
 impl Source {
     pub(crate) fn open(path: &Path, _orientation: u16) -> Result<Self> {
+        let source = catalog::source_path(path);
+        let path = source.as_path();
+        if path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
+            && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(path)?)?
+        {
+            return Ok(Self::LinearDng(Box::new(
+                pipeline_cpu::CameraLinearProxy::from_dng(dng)?,
+            )));
+        }
         if !image_core::RgbSource::recognizes(path) {
             let mut raw = raw_decode::RawSource::open(path)?;
             let cfa = raw.decode_cfa()?;
@@ -877,6 +889,7 @@ impl Source {
     }
     pub(crate) fn render_source(&self) -> pipeline_cpu::RenderSource<'_> {
         match self {
+            Self::LinearDng(proxy) => pipeline_cpu::RenderSource::CameraLinear(proxy),
             Self::Rgb(image) => pipeline_cpu::RenderSource::Rgb(image),
             Self::Raw(raw) => pipeline_cpu::RenderSource::Cfa {
                 image: &raw.0,
@@ -887,6 +900,14 @@ impl Source {
     /// Displayed size before crop (after orientation).
     fn display_size(&self) -> (u32, u32) {
         match self {
+            Self::LinearDng(proxy) => {
+                let p = proxy.pixels();
+                if proxy.original_metadata().orientation >= 5 {
+                    (p.height(), p.width())
+                } else {
+                    (p.width(), p.height())
+                }
+            }
             Self::Rgb(image) => (image.width(), image.height()),
             Self::Raw(raw) => {
                 let [_, _, w, h] = raw.1.default_crop;

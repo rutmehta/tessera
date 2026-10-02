@@ -63,7 +63,7 @@ impl<R: Read + Seek> Tiff<'_, R> {
             let kind = self.u16(&e[2..]);
             // Only pixel-layout and calibration tags are retained. In particular,
             // embedded originals, maker notes, XMP and profile tables are never allocated.
-            if !matches!(id,254|256..=259|262|271..=274|277..=279|284|322..=325|330|50712..=50717|50719..=50722|50728|50730|50778|50779|50829|50964|50965|51008|51009|51022)
+            if !matches!(id,254|256..=259|262|271..=274|277..=279|284|322..=325|330|339|50712..=50717|50719..=50722|50728|50730|50778|50779|50829|50964|50965|51008|51009|51022)
             {
                 continue;
             }
@@ -102,7 +102,8 @@ impl<R: Read + Seek> Tiff<'_, R> {
         let unit = match t.kind {
             1 => 1,
             3 => 2,
-            4 | 9 | 13 => 4,
+            4 | 9 | 11 | 13 => 4,
+            12 => 8,
             5 | 10 => 8,
             _ => return Err(invalid("non-numeric TIFF field")),
         };
@@ -114,6 +115,12 @@ impl<R: Read + Seek> Tiff<'_, R> {
                     3 => self.u16(b) as f64,
                     4 | 13 => self.u32(b) as f64,
                     9 => (self.u32(b) as i32) as f64,
+                    11 => f32::from_bits(self.u32(b)) as f64,
+                    12 => f64::from_bits(if self.le {
+                        u64::from_le_bytes(b.try_into().unwrap())
+                    } else {
+                        u64::from_be_bytes(b.try_into().unwrap())
+                    }),
                     5 | 10 => {
                         let (a, b) = if t.kind == 10 {
                             (
@@ -207,17 +214,7 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
         }
         if t.scalar(&tags, 254, 0.)? == 0.
             && t.scalar(&tags, 262, 0.)? == 34892.
-            && t.scalar(&tags, 277, 0.)? == 3.
-            && t.scalar(&tags, 259, 0.)? == 52546.
-        {
-            return Err(io::Error::new(
-                io::ErrorKind::Unsupported,
-                "JPEG XL-compressed LinearRaw DNG requires a JPEG XL decoder",
-            ));
-        }
-        if t.scalar(&tags, 254, 0.)? == 0.
-            && t.scalar(&tags, 262, 0.)? == 34892.
-            && t.scalar(&tags, 259, 0.)? == 34892.
+            && matches!(t.scalar(&tags, 259, 0.)? as u32, 34892 | 52546)
             && t.scalar(&tags, 277, 0.)? == 3.
         {
             if selected.is_some() {
@@ -236,7 +233,19 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
     for (id, tag) in root.unwrap_or_default() {
         if matches!(
             id,
-            271 | 272 | 274 | 50721 | 50722 | 50728 | 50730 | 50778 | 50779 | 50964 | 50965
+            271 | 272
+                | 274
+                | 50721
+                | 50722
+                | 50728
+                | 50730
+                | 50778
+                | 50779
+                | 50964
+                | 50965
+                | 51008
+                | 51009
+                | 51022
         ) {
             tags.entry(id).or_insert(tag);
         }
@@ -259,10 +268,26 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
     if t.scalar(&tags, 284, 1.)? != 1. {
         return Err(invalid("planar JPEG unsupported"));
     }
+    let jxl = t.scalar(&tags, 259, 0.)? == 52546.;
     let bits = t.ints(&tags, 258)?;
-    if !matches!(bits.len(), 1 | 3) || bits.iter().any(|&v| v != 8) {
-        return Err(invalid("8-bit JPEG codes required"));
+    if !matches!(bits.len(), 1 | 3) || bits.iter().any(|&v| v != bits[0]) {
+        return Err(invalid("uniform BitsPerSample required"));
     }
+    let bits = bits[0];
+    let formats = t.ints(&tags, 339)?;
+    let format = formats.first().copied().unwrap_or(1);
+    if !matches!(formats.len(), 0 | 1 | 3)
+        || formats.iter().any(|&v| v != format)
+        || !(format == 1 && (1..=16).contains(&bits) || format == 3 && matches!(bits, 16 | 32))
+        || (!jxl && (bits != 8 || format != 1))
+    {
+        return Err(invalid("unsupported BitsPerSample/SampleFormat"));
+    }
+    let max_code = if format == 3 {
+        1.
+    } else {
+        ((1u64 << bits) - 1) as f64
+    };
     if tags.contains_key(&50715) || tags.contains_key(&50716) {
         return Err(invalid("BlackLevelDelta unsupported"));
     }
@@ -279,13 +304,13 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
         std::array::from_fn(|c| v.get(c).or(v.first()).copied().unwrap_or(default))
     };
     let black = levels(&black, 0.);
-    let white = levels(&white, 255.);
+    let white = levels(&white, max_code);
     if (0..3).any(|c| white[c] <= black[c]) {
         return Err(invalid("invalid black/white interval"));
     }
     let lut = t.numbers(&tags, 50712)?;
-    if !lut.is_empty() && lut.len() != 256 {
-        return Err(invalid("256-entry linearization table required"));
+    if !lut.is_empty() && (format != 1 || lut.len() != 1usize << bits) {
+        return Err(invalid("complete integer linearization table required"));
     }
     let (tw, th, offsets, counts) = if tags.contains_key(&324) {
         (
@@ -307,34 +332,50 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
     if offsets.len() != across * down || offsets.len() != counts.len() {
         return Err(invalid("invalid tile/strip count"));
     }
+    let mut polynomials = Vec::new();
+    for id in [51008, 51009, 51022] {
+        let (ops, retained) = polynomial_list(tags.get(&id).map(|t| t.bytes.as_slice()))?;
+        polynomials.push(ops);
+        if !retained {
+            tags.remove(&id);
+        }
+    }
     let mut pixels = vec![[0.; 3]; width * height];
     for (i, (&offset, &count)) in offsets.iter().zip(&counts).enumerate() {
         if count > 32 * 1024 * 1024 {
             return Err(invalid("JPEG tile budget exceeded"));
         }
         let bytes = t.at(offset as u64, count)?;
-        let jpeg = without_adobe(&bytes)?;
-        let mut decoder = JpegDecoder::new_with_options(
-            ZCursor::new(&jpeg),
-            DecoderOptions::default()
-                .set_max_width(tw)
-                .set_max_height(th),
-        );
-        decoder.decode_headers().map_err(invalid)?;
-        let info = decoder
-            .info()
-            .ok_or_else(|| invalid("JPEG header missing"))?;
-        let space = decoder
-            .input_colorspace()
-            .ok_or_else(|| invalid("JPEG colorspace missing"))?;
-        if info.components != 3 || space.num_components() != 3 {
-            return Err(invalid("three JPEG components required"));
-        }
-        // Equal input/output ColorSpace selects zune's component interleave path,
-        // not YCbCr->RGB. RGB component IDs are likewise preserved without conversion.
-        decoder.set_options((*decoder.options()).jpeg_set_out_colorspace(space));
-        let decoded = decoder.decode().map_err(invalid)?;
-        let (dw, dh) = (info.width as usize, info.height as usize);
+        let (dw, dh, decoded) = if jxl {
+            decode_jxl(&bytes, tw, th, bits, format, max_code)?
+        } else {
+            let jpeg = without_adobe(&bytes)?;
+            let mut decoder = JpegDecoder::new_with_options(
+                ZCursor::new(&jpeg),
+                DecoderOptions::default()
+                    .set_max_width(tw)
+                    .set_max_height(th),
+            );
+            decoder.decode_headers().map_err(invalid)?;
+            let info = decoder
+                .info()
+                .ok_or_else(|| invalid("JPEG header missing"))?;
+            let space = decoder
+                .input_colorspace()
+                .ok_or_else(|| invalid("JPEG colorspace missing"))?;
+            if info.components != 3 || space.num_components() != 3 {
+                return Err(invalid("three JPEG components required"));
+            }
+            // Equal input/output ColorSpace selects zune's component interleave path,
+            // not YCbCr->RGB. RGB component IDs are likewise preserved without conversion.
+            decoder.set_options((*decoder.options()).jpeg_set_out_colorspace(space));
+            let decoded = decoder.decode().map_err(invalid)?;
+            (
+                info.width as usize,
+                info.height as usize,
+                decoded.into_iter().map(f64::from).collect::<Vec<_>>(),
+            )
+        };
         let (ox, oy) = ((i % across) * tw, (i / across) * th);
         let (cw, ch) = (tw.min(width - ox), th.min(height - oy));
         if dw < cw || dh < ch || dw > tw || dh > th || decoded.len() != dw * dh * 3 {
@@ -343,10 +384,29 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
         for y in 0..ch {
             for x in 0..cw {
                 for c in 0..3 {
-                    let code = decoded[(y * dw + x) * 3 + c] as usize;
-                    let linear = lut.get(code).copied().unwrap_or(code as f64);
+                    let mut code = decoded[(y * dw + x) * 3 + c];
+                    for op in &polynomials[0] {
+                        code = op.map(code, ox + x, oy + y, c, max_code);
+                    }
+                    if !code.is_finite() {
+                        return Err(invalid("nonfinite camera sample"));
+                    }
+                    let linear = if lut.is_empty() {
+                        code
+                    } else {
+                        lut[code.round().clamp(0., (lut.len() - 1) as f64) as usize]
+                    };
                     pixels[(oy + y) * width + ox + x][c] =
                         ((linear - black[c]) / (white[c] - black[c])) as f32;
+                }
+            }
+        }
+    }
+    for ops in &polynomials[1..] {
+        for (i, pixel) in pixels.iter_mut().enumerate() {
+            for (c, v) in pixel.iter_mut().enumerate() {
+                for op in ops {
+                    *v = op.map(f64::from(*v), i % width, i / width, c, 1.) as f32;
                 }
             }
         }
@@ -511,4 +571,181 @@ fn without_adobe(bytes: &[u8]) -> io::Result<Vec<u8>> {
         p += len;
     }
     Err(invalid("JPEG scan missing"))
+}
+
+/// Same-encoding f32 output: integer codes are divided by (2^bits - 1),
+/// floating samples are returned as floats. Restore integer code units before
+/// DNG linearization/black/white normalization. Never request display sRGB or
+/// linear-sRGB: DNG, not the codestream colour label, defines these channels.
+fn decode_jxl(
+    bytes: &[u8],
+    tw: usize,
+    th: usize,
+    bits: usize,
+    format: usize,
+    max_code: f64,
+) -> io::Result<(usize, usize, Vec<f64>)> {
+    use jxl_oxide::{
+        JxlImage, NullCms,
+        image::{BitDepth, color::ColourEncoding},
+    };
+    let mut image = JxlImage::builder()
+        .alloc_tracker(jxl_oxide::AllocTracker::with_limit(512 * 1024 * 1024))
+        .read(bytes)
+        .map_err(invalid)?;
+    let meta = &image.image_header().metadata;
+    if image.width() as usize > tw || image.height() as usize > th {
+        return Err(invalid("JXL tile size exceeds TIFF tile"));
+    }
+    if meta.orientation != 1 {
+        return Err(invalid("JXL tile orientation must be identity"));
+    }
+    if meta.bit_depth.bits_per_sample() as usize != bits {
+        return Err(invalid("JXL and TIFF bit depths differ"));
+    }
+    if matches!(meta.bit_depth, BitDepth::FloatSample { .. }) != (format == 3) {
+        return Err(invalid("JXL and TIFF sample formats differ"));
+    }
+    if !meta.ec_info.is_empty() {
+        return Err(invalid("JXL extra channels unsupported"));
+    }
+    let encoding = meta.colour_encoding.clone();
+    image.set_cms(NullCms);
+    match encoding {
+        ColourEncoding::Enum(encoding) => image.request_color_encoding(encoding),
+        ColourEncoding::IccProfile(_) => {
+            let icc = image
+                .original_icc()
+                .ok_or_else(|| invalid("missing JXL ICC"))?
+                .to_vec();
+            image.request_icc(&icc).map_err(invalid)?;
+        }
+    }
+    let rendered = image.render_frame(0).map_err(invalid)?;
+    let frame = rendered.image_all_channels();
+    if frame.buf().len() != frame.width() * frame.height() * 3 {
+        return Err(invalid("three JXL camera channels required"));
+    }
+    Ok((
+        frame.width(),
+        frame.height(),
+        frame
+            .buf()
+            .iter()
+            .map(|&v| f64::from(v) * max_code)
+            .collect(),
+    ))
+}
+
+struct Polynomial {
+    area: [usize; 4],
+    plane: usize,
+    planes: usize,
+    pitch: [usize; 2],
+    coefficients: Vec<f64>,
+}
+impl Polynomial {
+    fn map(&self, value: f64, x: usize, y: usize, c: usize, max: f64) -> f64 {
+        let [top, left, bottom, right] = self.area;
+        if y < top
+            || y >= bottom
+            || x < left
+            || x >= right
+            || c < self.plane
+            || c >= self.plane + self.planes
+            || !(y - top).is_multiple_of(self.pitch[0])
+            || !(x - left).is_multiple_of(self.pitch[1])
+        {
+            return value;
+        }
+        // Stage 1 coefficients operate on native code units; stages 2/3 on 0..1.
+        self.coefficients
+            .iter()
+            .rev()
+            .fold(0., |sum, k| sum * value + k)
+            .clamp(0., max)
+    }
+}
+/// A bounded MapPolynomial list. Mixed operations fail closed to preserve order.
+fn polynomial_list(bytes: Option<&[u8]>) -> io::Result<(Vec<Polynomial>, bool)> {
+    let Some(bytes) = bytes else {
+        return Ok((Vec::new(), false));
+    };
+    let word = |p: usize| -> io::Result<u32> {
+        Ok(u32::from_be_bytes(
+            bytes
+                .get(p..p + 4)
+                .ok_or_else(|| invalid("truncated opcode"))?
+                .try_into()
+                .unwrap(),
+        ))
+    };
+    let count = word(0)? as usize;
+    if count > 4096 {
+        return Err(invalid("opcode budget exceeded"));
+    }
+    let mut cursor = 4usize;
+    let mut ops = Vec::new();
+    let mut other = false;
+    for _ in 0..count {
+        let id = word(cursor)?;
+        let version = word(cursor + 4)?;
+        let flags = word(cursor + 8)?;
+        let length = word(cursor + 12)? as usize;
+        cursor += 16;
+        let end = cursor
+            .checked_add(length)
+            .filter(|&p| p <= bytes.len())
+            .ok_or_else(|| invalid("opcode length"))?;
+        if id == 8 {
+            if version > 0x01030000 || flags & !3 != 0 {
+                return Err(invalid("polynomial opcode version or flags"));
+            }
+            let degree = word(cursor + 32)? as usize;
+            if degree > 8 || length != 36 + (degree + 1) * 8 {
+                return Err(invalid("polynomial degree/length"));
+            }
+            let area = [
+                word(cursor)? as usize,
+                word(cursor + 4)? as usize,
+                word(cursor + 8)? as usize,
+                word(cursor + 12)? as usize,
+            ];
+            let plane = word(cursor + 16)? as usize;
+            let planes = word(cursor + 20)? as usize;
+            let pitch = [word(cursor + 24)? as usize, word(cursor + 28)? as usize];
+            if plane >= 3
+                || planes == 0
+                || plane + planes > 3
+                || pitch.contains(&0)
+                || area[0] > area[2]
+                || area[1] > area[3]
+            {
+                return Err(invalid("polynomial area"));
+            }
+            let coefficients: Vec<f64> = bytes[cursor + 36..end]
+                .as_chunks::<8>()
+                .0
+                .iter()
+                .map(|b| f64::from_be_bytes(*b))
+                .collect();
+            if coefficients.iter().any(|v| !v.is_finite()) {
+                return Err(invalid("nonfinite polynomial"));
+            }
+            ops.push(Polynomial {
+                area,
+                plane,
+                planes,
+                pitch,
+                coefficients,
+            });
+        } else {
+            other = true;
+        }
+        cursor = end;
+    }
+    if cursor != bytes.len() || other && !ops.is_empty() {
+        return Err(invalid("mixed or trailing polynomial opcodes unsupported"));
+    }
+    Ok((ops, other))
 }
