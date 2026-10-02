@@ -623,10 +623,14 @@ fn pair_pixels(path: &Path, app: &Path) -> SafeResult<(image::RgbImage, bool)> {
         renderer.render_region(&source, &settings, level, PixelRect::full(extent)),
     )?;
     let pixels = pair_checked(app, 7, crate::lrcat_fidelity::stitch(extent, &tiles))?;
-    Ok((
-        image::imageops::thumbnail(&pixels, 1024, 1024),
-        unavailable_lens,
-    ))
+    Ok((contact_thumbnail(&pixels), unavailable_lens))
+}
+
+fn contact_thumbnail(pixels: &image::RgbImage) -> image::RgbImage {
+    let scale = 1024. / f64::from(pixels.width().max(pixels.height()).max(1));
+    let width = (f64::from(pixels.width()) * scale).round().max(1.) as u32;
+    let height = (f64::from(pixels.height()) * scale).round().max(1.) as u32;
+    image::imageops::thumbnail(pixels, width, height)
 }
 
 fn pair_measurement(a: &image::RgbImage, b: &image::RgbImage) -> Value {
