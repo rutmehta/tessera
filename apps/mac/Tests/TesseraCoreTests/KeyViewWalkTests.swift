@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import XCTest
 @testable import Tessera
 
@@ -7,13 +9,13 @@ import XCTest
 /// between the Layers list and History −, in both pinned variants.
 @MainActor
 final class KeyViewWalkTests: XCTestCase {
-    private final class View {}
-    private let outline = View(), disclosure = View(), eye = View(), decrease = View(), increase = View()
+    private final class Fake {}
+    private let outline = Fake(), disclosure = Fake(), eye = Fake(), decrease = Fake(), increase = Fake()
 
     private func stop(_ object: AnyObject?, _ name: String, controlled: Bool = true) -> KeyViewWalk.Stop {
         KeyViewWalk.Stop(object: object, name: name, controlled: controlled)
     }
-    private func proxy(_ object: AnyObject? = View()) -> KeyViewWalk.Stop { stop(object, "KeyViewProxy", controlled: false) }
+    private func proxy(_ object: AnyObject? = Fake()) -> KeyViewWalk.Stop { stop(object, "KeyViewProxy", controlled: false) }
 
     /// Replays `script` (repeating its last stop for ever, as a stalled walk would).
     private func walk(_ script: [KeyViewWalk.Stop?], budget: Int = 4, limit: Int = KeyViewWalk.uncontrolledLimit,
@@ -56,7 +58,7 @@ final class KeyViewWalkTests: XCTestCase {
     /// The trail does not say whether consecutive proxy stops are one view or several. One proxy that
     /// keeps the keyboard for several presses (focus moving inside SwiftUI) is not a closed loop.
     func testOneProxyHoldingSeveralPressesIsNotTakenForALoop() {
-        let held = View()
+        let held = Fake()
         let script = (0..<6).map { _ in proxy(held) } + [stop(decrease, "document.history.height.decrease")]
         let (result, _) = walk(script, to: decrease)
         XCTAssertEqual(result.outcome, .reached, "\(result)")
@@ -64,7 +66,7 @@ final class KeyViewWalkTests: XCTestCase {
     }
 
     func testProxyStopsThatNeverEndAreBounded() {
-        let (result, presses) = walk([proxy(View())], limit: 16, to: decrease)
+        let (result, presses) = walk([proxy(Fake())], limit: 16, to: decrease)
         XCTAssertEqual(result.outcome, .uncontrolledLimit, "\(result)")
         XCTAssertEqual(presses, 17, "the walk gives up one press past the limit")
         XCTAssertEqual(result.controlledStops, 0)
@@ -87,7 +89,7 @@ final class KeyViewWalkTests: XCTestCase {
     }
 
     func testControlledStopsBeyondTheBudgetFail() {
-        let script = (0..<10).map { stop(View(), "button \($0)") }
+        let script = (0..<10).map { stop(Fake(), "button \($0)") }
         let (result, presses) = walk(script, budget: 4, to: decrease)
         XCTAssertEqual(result.outcome, .overBudget, "\(result)")
         XCTAssertEqual(presses, 5, "the fifth controlled stop is over a budget of four")
@@ -109,5 +111,86 @@ final class KeyViewWalkTests: XCTestCase {
         let (result, _) = walk([proxy(), stop(decrease, "document.history.height.decrease")], to: decrease)
         XCTAssertEqual(result.description, "reached after 2 presses (1 controlled, 1 uncontrolled): "
             + "document.layers.outline → KeyViewProxy → document.history.height.decrease")
+    }
+
+    // MARK: AppKit adapter
+
+    func testStopsAreClassifiedByWhatThePinControls() {
+        let button = NSButton(frame: .zero)
+        button.setAccessibilityIdentifier("document.layers.row.0.visibility")
+        let stop = KeyViewWalk.stop(button, in: nil)
+        XCTAssertTrue(stop.controlled && stop.object === button)
+        XCTAssertEqual(stop.name, "document.layers.row.0.visibility")
+        XCTAssertTrue(KeyViewWalk.isControlled(NSTextField(frame: .zero)))
+        XCTAssertTrue(KeyViewWalk.isControlled(NSOutlineView(frame: .zero)))
+        XCTAssertTrue(KeyViewWalk.isControlled(HistoryHeightButton(frame: .zero)))
+        XCTAssertFalse(KeyViewWalk.isControlled(NSSlider(frame: .zero)), "AppKit sliders follow the real setting")
+        XCTAssertFalse(KeyViewWalk.isControlled(NSSegmentedControl(frame: .zero)))
+        XCTAssertEqual(KeyViewWalk.stop(nil, in: nil).name, "nil")
+    }
+
+    private struct OneButton: View {
+        var body: some View {
+            Button("Press") {}.frame(width: 80, height: 24).padding(20)
+        }
+    }
+
+    /// A window hosting one SwiftUI button, and the proxy SwiftUI made for it.
+    private func hostedProxy() throws -> (NSWindow, NSView, NSView) {
+        let controller = NSHostingController(rootView: LayoutProbeHarness.root(OneButton()))
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 120, height: 64),
+                                               styleMask: .titled, backing: .buffered, defer: false)
+        window.contentViewController = controller
+        window.orderBack(nil)
+        LayoutProbeHarness.settle(controller.view, timeout: 5)
+        window.recalculateKeyViewLoop()
+        func views(_ root: NSView) -> [NSView] { [root] + root.subviews.flatMap { views($0) } }
+        let proxy = try XCTUnwrap(views(controller.view).first { KeyViewWalk.isSwiftUIProxy($0) },
+                                  "SwiftUI made no KeyViewProxy for a button on this system")
+        return (window, controller.view, proxy)
+    }
+
+    /// A real SwiftUI proxy is an uncontrolled stop, named by the control it stands for: its
+    /// accessibility identity when it has one, else the control's frame in the host.
+    func testASwiftUIProxyIsNamedByTheControlItStandsFor() throws {
+        let (window, host, proxy) = try hostedProxy()
+        defer { LayoutProbeHarness.dispose(window) }
+        let stop = KeyViewWalk.stop(proxy, in: host)
+        XCTAssertFalse(stop.controlled)
+        XCTAssertTrue(stop.object === proxy)
+        let frame = proxy.convert(proxy.bounds, to: host)
+        XCTAssertEqual(stop.name, "KeyViewProxy(\(Int(frame.minX)),\(Int(frame.minY)) \(Int(frame.width))×\(Int(frame.height)))")
+        XCTAssertTrue(frame.width > 0 && frame.height > 0 && host.bounds.contains(frame), "the proxy has its control's frame: \(frame)")
+        proxy.setAccessibilityIdentifier("document.layers.add")
+        XCTAssertEqual(KeyViewWalk.stop(proxy, in: host).name, "KeyViewProxy(document.layers.add)")
+    }
+
+    func testForcedProxiesJoinAndLeaveTheKeyViewLoopAndRestore() throws {
+        let (window, _, proxy) = try hostedProxy()
+        defer { LayoutProbeHarness.dispose(window) }
+        let natural = proxy.acceptsFirstResponder
+        XCTAssertEqual(KeyboardAccessHarness.withSwiftUIProxies(focusable: true) { proxy.canBecomeKeyView }, true)
+        XCTAssertEqual(KeyboardAccessHarness.withSwiftUIProxies(focusable: false) { proxy.canBecomeKeyView }, false)
+        XCTAssertEqual(proxy.acceptsFirstResponder, natural, "the scope restores SwiftUI's own answer")
+        XCTAssertFalse(NSView(frame: .zero).acceptsFirstResponder, "only the proxy class is touched")
+    }
+
+    /// L3: AppKit may ask the exchanged accessor from any thread; the pin must answer without
+    /// touching main-actor state.
+    func testPinnedAccessorAnswersOffTheMainThread() {
+        nonisolated(unsafe) let application: AnyObject = NSApplication.shared
+        for mode in [true, false] {
+            KeyboardAccessHarness.withMode(mode) {
+                nonisolated(unsafe) var answer: Bool?
+                let done = DispatchSemaphore(value: 0)
+                Thread.detachNewThread {
+                    answer = application.value(forKey: "fullKeyboardAccessEnabled") as? Bool
+                    done.signal()
+                }
+                XCTAssertEqual(done.wait(timeout: .now() + 10), .success)
+                XCTAssertEqual(answer, mode)
+                XCTAssertEqual(NSApplication.shared.isFullKeyboardAccessEnabled, mode)
+            }
+        }
     }
 }

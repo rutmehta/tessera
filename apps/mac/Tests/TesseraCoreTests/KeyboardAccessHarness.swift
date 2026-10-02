@@ -1,5 +1,6 @@
 import AppKit
 import ObjectiveC
+import os
 @testable import Tessera
 
 /// Process-local Full Keyboard Access pin (B5-49c). No defaults domain or persistent preference
@@ -9,14 +10,24 @@ import ObjectiveC
 /// and `NSButton.canBecomeKeyView` (so every plain or subclassed button without its own override).
 /// What it cannot: AppKit decides the key-view membership of its other control classes, and SwiftUI
 /// that of its focus proxies, from the real system setting through private state. A test that needs
-/// those must say so (N/A with the reason) rather than assume either machine.
+/// those must say so (N/A with the reason) rather than assume either machine. `withSwiftUIProxies`
+/// can move SwiftUI's proxies in or out of the key-view loop; walks that may cross such stops are
+/// judged with `KeyViewWalk`, which does not assume how many there are.
 @MainActor
 enum KeyboardAccessHarness {
+    /// What the exchanged getters read. They can be called by AppKit on any thread, so this is
+    /// lock-protected state, never main-actor state (`KeyboardAccessPolicy.override` mirrors `pin`).
+    private struct State {
+        var pin: Bool?
+        var proxies: Bool?
+    }
+    nonisolated private static let state = OSAllocatedUnfairLock(initialState: State())
+
     /// Stands in for the other machine's system setting in suites that do not pin a mode themselves:
     /// `TESSERA_TEST_SYSTEM_FKA=1|0`, or `-AppleKeyboardUIMode <n>` passed to the xctest process. AppKit
     /// itself ignores that argument-domain value (measured on macOS 26: the accessor and button
     /// eligibility do not change), so the harness applies it through the same pinned accessors.
-    static var simulatedSystem: Bool? {
+    nonisolated static let simulatedSystem: Bool? = {
         if let value = ProcessInfo.processInfo.environment["TESSERA_TEST_SYSTEM_FKA"] {
             precondition(value == "0" || value == "1")
             return value == "1"
@@ -26,8 +37,9 @@ enum KeyboardAccessHarness {
             return (Int(args[index + 1]) ?? 0) & 2 != 0
         }
         return nil
-    }
-    static var controlledMode: Bool? { KeyboardAccessPolicy.override ?? simulatedSystem }
+    }()
+    nonisolated static var controlledMode: Bool? { state.withLock { $0.pin } ?? simulatedSystem }
+    nonisolated fileprivate static var proxyMode: Bool? { state.withLock { $0.proxies } }
     static func install() {
         _ = installation
     }
@@ -60,21 +72,69 @@ enum KeyboardAccessHarness {
         install()
         let previous = KeyboardAccessPolicy.override
         KeyboardAccessPolicy.override = enabled
-        defer { KeyboardAccessPolicy.override = previous }
+        state.withLock { $0.pin = enabled }
+        defer {
+            KeyboardAccessPolicy.override = previous
+            state.withLock { $0.pin = previous }
+        }
+        return try body()
+    }
+
+    // MARK: SwiftUI focus proxies
+
+    /// SwiftUI adds one `KeyViewProxy` view per focusable SwiftUI control and lets it take the keyboard
+    /// only under the real system setting. Its `acceptsFirstResponder` is the gate AppKit's key-view
+    /// loop asks. Nil when this SwiftUI has no such class or method.
+    private static let proxyGate: Method? = {
+        guard let proxy = NSClassFromString("SwiftUI.KeyViewProxy") else { return nil }
+        let selector = #selector(getter: NSView.acceptsFirstResponder)
+        var count: UInt32 = 0
+        guard let methods = class_copyMethodList(proxy, &count) else { return nil }
+        defer { free(methods) }
+        // Only the class's own override: never replace NSView's implementation.
+        guard let method = (0..<Int(count)).map({ methods[$0] }).first(where: { method_getName($0) == selector })
+        else { return nil }
+        typealias Getter = @convention(c) (AnyObject, Selector) -> Bool
+        let original = unsafeBitCast(method_getImplementation(method), to: Getter.self)
+        let block: @convention(block) (AnyObject) -> Bool = { view in
+            KeyboardAccessHarness.proxyMode ?? original(view, selector)
+        }
+        method_setImplementation(method, imp_implementationWithBlock(block))
+        return method
+    }()
+    static var canControlSwiftUIProxies: Bool { proxyGate != nil }
+
+    /// Makes SwiftUI's focus proxies Tab stops (`true`, as on a machine whose real setting is on) or
+    /// not (`false`, as on one where it is off) for a scope, on either machine. Returns nil without
+    /// running `body` when the proxy class cannot be controlled.
+    ///
+    /// This moves the proxies in and out of AppKit's key-view loop. It does not change what SwiftUI
+    /// itself believes the setting is, so the number of proxy stops a walk meets need not equal the
+    /// number on a machine with the real setting.
+    static func withSwiftUIProxies<T>(focusable: Bool, _ body: () throws -> T) rethrows -> T? {
+        guard canControlSwiftUIProxies else { return nil }
+        let previous = state.withLock { state in
+            defer { state.proxies = focusable }
+            return state.proxies
+        }
+        defer { state.withLock { $0.proxies = previous } }
         return try body()
     }
 }
 
 extension NSApplication {
-    @objc fileprivate func tesseraTestFullKeyboardAccess() -> Bool {
+    /// Exchanged with `isFullKeyboardAccessEnabled`. Reads no main-actor state: safe on any thread.
+    @objc nonisolated fileprivate func tesseraTestFullKeyboardAccess() -> Bool {
         KeyboardAccessHarness.controlledMode ?? tesseraTestFullKeyboardAccess()
     }
 }
 
 extension NSButton {
-    @objc fileprivate func tesseraTestCanBecomeKeyView() -> Bool {
-        guard let mode = KeyboardAccessHarness.controlledMode else { return tesseraTestCanBecomeKeyView() }
-        return mode && isEnabled && acceptsFirstResponder && !isHiddenOrHasHiddenAncestor
+    /// Exchanged with `canBecomeKeyView`. The pinned answer reads view state, so it is given only on
+    /// the main thread; anywhere else the call goes straight to AppKit's own implementation.
+    @objc nonisolated fileprivate func tesseraTestCanBecomeKeyView() -> Bool {
+        guard Thread.isMainThread, let mode = KeyboardAccessHarness.controlledMode else { return tesseraTestCanBecomeKeyView() }
+        return MainActor.assumeIsolated { mode && isEnabled && acceptsFirstResponder && !isHiddenOrHasHiddenAncestor }
     }
 }
 
