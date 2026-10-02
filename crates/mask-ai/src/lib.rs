@@ -87,10 +87,20 @@ pub fn resample(src: &AlphaPlane, width: u32, height: u32) -> Vec<f32> {
 }
 
 /// Compose external AI planes and procedural masks with the recipe semantics.
+#[allow(dead_code)] // Also compiled privately by FFI, which uses component identity.
 pub fn compose(
     input: &pipeline_cpu::Image,
     group: &LocalAdjustment,
     mut ai: impl FnMut(&MaskKind, u32, u32) -> engine_api::EngineResult<Arc<[f32]>>,
+) -> engine_api::EngineResult<Vec<f32>> {
+    compose_with_components(input, group, |c, w, h| ai(&c.kind, w, h))
+}
+
+/// Compose with component identity, including imported raster references.
+pub fn compose_with_components(
+    input: &pipeline_cpu::Image,
+    group: &LocalAdjustment,
+    mut ai: impl FnMut(&MaskComponent, u32, u32) -> engine_api::EngineResult<Arc<[f32]>>,
 ) -> engine_api::EngineResult<Vec<f32>> {
     group.validate_mask_tree()?;
     let mut out = compose_components(input, &group.components, &mut ai)?;
@@ -104,7 +114,7 @@ pub fn compose(
 fn compose_components(
     input: &pipeline_cpu::Image,
     components: &[MaskComponent],
-    ai: &mut impl FnMut(&MaskKind, u32, u32) -> engine_api::EngineResult<Arc<[f32]>>,
+    ai: &mut impl FnMut(&MaskComponent, u32, u32) -> engine_api::EngineResult<Arc<[f32]>>,
 ) -> engine_api::EngineResult<Vec<f32>> {
     let (w, h) = (input.width(), input.height());
     let mut out: Option<Vec<f32>> = None;
@@ -116,7 +126,7 @@ fn compose_components(
         let plane: std::borrow::Cow<'_, [f32]> = if let Some(children) = &c.group {
             compose_components(input, children, ai)?.into()
         } else if c.kind.is_ai() {
-            external = ai(&c.kind, w, h)?;
+            external = ai(c, w, h)?;
             std::borrow::Cow::Borrowed(external.as_ref())
         } else {
             let mut leaf = c.clone();
@@ -285,4 +295,17 @@ pub fn load_segmenter(support: &std::path::Path) -> anyhow::Result<Box<dyn MaskS
         ml_runtime::SessionOptions::default(),
         store,
     )?))
+}
+
+/// Read a durable Adobe alpha plane without loading an inference model.
+pub fn imported_plane(support: &std::path::Path, key: &[u8; 32]) -> anyhow::Result<AlphaPlane> {
+    let store = ml_segment::MaskStore::new(support.join("imported-masks"), 0)?;
+    let raster = store
+        .get(key)
+        .ok_or_else(|| anyhow::anyhow!("missing imported mask raster"))?;
+    Ok(AlphaPlane {
+        width: raster.width(),
+        height: raster.height(),
+        data: raster.data().to_vec(),
+    })
 }

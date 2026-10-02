@@ -143,7 +143,14 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
     let kind = f.get("What")?.scalar()?;
     if !matches!(
         kind,
-        "Mask/Gradient"
+        "Mask/Image"
+            | "Mask/People"
+            | "Mask/Person"
+            | "Mask/Object"
+            | "Mask/Subject"
+            | "Mask/Sky"
+            | "Mask/Background"
+            | "Mask/Gradient"
             | "Mask/Paint"
             | "Mask/CircularGradient"
             | "Mask/Group"
@@ -170,6 +177,21 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
                     return None;
                 }
             }
+            (
+                "MaskType" | "MaskSubType" | "MaskSubCategoryID" | "ReferencePoint" | "InputDigest"
+                | "InputDigestVersion" | "ModelVersion" | "WholeImageArea" | "Origin"
+                | "ErrorReason" | "MaskDigest" | "Left" | "Top" | "Right" | "Bottom",
+                Field::Scalar(_),
+            ) if matches!(
+                kind,
+                "Mask/Image"
+                    | "Mask/People"
+                    | "Mask/Person"
+                    | "Mask/Object"
+                    | "Mask/Subject"
+                    | "Mask/Sky"
+                    | "Mask/Background"
+            ) => {}
             ("What" | "MaskActive" | "MaskInverted" | "MaskBlendMode", Field::Scalar(_)) => (),
             ("FullX" | "FullY" | "ZeroX" | "ZeroY", Field::Scalar(_))
                 if kind == "Mask/Gradient" => {}
@@ -258,7 +280,9 @@ pub(crate) fn audited_approximation(root: Node<'_, '_>) -> bool {
     // Do not change the bytes or allocate audit maps for previously supported
     // flat shapes (the 29c baseline), even though their geometry already maps.
     let new_shape = root.descendants().any(|n| {
-        [
+        n.attribute((CRS,"What")).or_else(|| n.has_tag_name((CRS,"What")).then(|| n.text()).flatten()).is_some_and(|what| matches!(what, "Mask/Image" | "Mask/Subject" | "Mask/Sky" | "Mask/Background" | "Mask/People" | "Mask/Person" | "Mask/Object")) || [
+            "MaskType",
+            "MaskDigest",
             "Dabs",
             "Masks",
             "CorrectionRangeMask",
@@ -349,6 +373,10 @@ pub(crate) fn renderable(groups: &[engine_api::recipe::LocalAdjustment]) -> bool
                             && bounded(*amount, 0., 100.)
                             && samples.iter().flatten().all(|v| v.is_finite())
                     }
+                    MaskKind::Subject { .. }
+                    | MaskKind::Sky { .. }
+                    | MaskKind::Background { .. }
+                    | MaskKind::Object { .. } => c.adobe_ai.is_some(),
                     _ => false,
                 })
     })
@@ -360,6 +388,69 @@ pub(crate) fn record_approximation_diagnostics(
     recipe: &mut engine_api::recipe::Recipe,
     root: Node<'_, '_>,
 ) {
+    let mut categories = Vec::new();
+    let mut stack: Vec<_> = recipe
+        .settings
+        .locals
+        .adjustments
+        .iter()
+        .flat_map(|g| &g.components)
+        .collect();
+    while let Some(c) = stack.pop() {
+        if let Some(children) = &c.group {
+            stack.extend(children);
+        }
+        if let Some(state) = &c.adobe_ai {
+            categories.push(state.category.clone());
+        }
+    }
+    if !categories.is_empty() {
+        for f in root.descendants().filter_map(fields) {
+            if let Some(what) = f.get("What").and_then(Field::scalar).filter(|s| {
+                matches!(
+                    *s,
+                    "Mask/Image"
+                        | "Mask/Subject"
+                        | "Mask/Sky"
+                        | "Mask/Background"
+                        | "Mask/Object"
+                        | "Mask/People"
+                        | "Mask/Person"
+                )
+            }) {
+                crate::diagnostics::push_approximate(
+                    recipe,
+                    &format!("MaskGroupBasedCorrections/{what}"),
+                    "/settings/locals/adjustments",
+                    "LR-5",
+                    "AI category and sensor-coordinate interpretation are approximate; Adobe model and raster codec are unverified",
+                );
+            }
+        }
+    }
+    for category in categories {
+        crate::diagnostics::push_approximate(
+            recipe,
+            "MaskGroupBasedCorrections",
+            "/settings/locals/adjustments",
+            "LR-5",
+            "regenerated: no Adobe mask raster; Tessera re-segments at render",
+        );
+        if !matches!(
+            category.as_str(),
+            "Subject" | "Sky" | "Background" | "Object" | "Objects"
+        ) {
+            crate::diagnostics::push_approximate(
+                recipe,
+                "MaskGroupBasedCorrections",
+                "/settings/locals/adjustments",
+                "LR-5",
+                &format!(
+                    "{category}: person sub-part segmentation unavailable; regeneration uses the closest available subject category"
+                ),
+            );
+        }
+    }
     let shape_value = root.descendants().filter_map(fields).any(|f| {
         matches!(
             f.get("What").and_then(Field::scalar),

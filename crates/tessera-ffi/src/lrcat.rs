@@ -222,6 +222,13 @@ pub trait LrcatProgressListener: Send + Sync {
     fn on_progress(&self, progress: LrcatProgress);
 }
 
+/// Caller-owned opaque resource association. Supply a full sensor-aligned
+/// grayscale PNG/TIFF, including any Adobe crop/origin expansion.
+#[uniffi::export(with_foreign)]
+pub trait LrcatMaskResolver: Send + Sync {
+    fn resolve(&self, catalog_image_id: i64, resource_id: String) -> Option<Vec<u8>>;
+}
+
 /// Caller-owned association of opaque Adobe resource IDs with this catalog image.
 /// Return None for missing/proprietary resources; IDs are never filesystem paths.
 #[uniffi::export(with_foreign)]
@@ -1202,7 +1209,17 @@ impl LrcatImport {
         options: LrcatOptions,
         listener: Option<Arc<dyn LrcatProgressListener>>,
     ) -> Result<LrcatReport> {
-        self.apply_with_depth_resolver(options, listener, None)
+        self.apply_with_resolvers(options, listener, None, None)
+    }
+
+    /// Apply with caller-associated AI mask resources.
+    pub fn apply_with_mask_resolver(
+        &self,
+        options: LrcatOptions,
+        listener: Option<Arc<dyn LrcatProgressListener>>,
+        resolver: Option<Arc<dyn LrcatMaskResolver>>,
+    ) -> Result<LrcatReport> {
+        self.apply_with_resolvers(options, listener, resolver, None)
     }
 
     /// Apply with caller-associated depth resources.
@@ -1212,7 +1229,17 @@ impl LrcatImport {
         listener: Option<Arc<dyn LrcatProgressListener>>,
         resolver: Option<Arc<dyn LrcatDepthResolver>>,
     ) -> Result<LrcatReport> {
-        let depth_resolver = resolver;
+        self.apply_with_resolvers(options, listener, None, resolver)
+    }
+
+    /// Apply both independent resource resolvers before publishing one recipe.
+    pub fn apply_with_resolvers(
+        &self,
+        options: LrcatOptions,
+        listener: Option<Arc<dyn LrcatProgressListener>>,
+        mask_resolver: Option<Arc<dyn LrcatMaskResolver>>,
+        depth_resolver: Option<Arc<dyn LrcatDepthResolver>>,
+    ) -> Result<LrcatReport> {
         self.cancel.store(false, Ordering::SeqCst);
         let started = Instant::now();
         let mut progress = Progress::new(listener);
@@ -1456,7 +1483,7 @@ impl LrcatImport {
                 }
                 image.recipe.image_id = Some(id);
                 // Resolution is read-only and is never inferred from resource ID text.
-                let extent = if depth_resolver.is_some() {
+                let extent = if mask_resolver.is_some() || depth_resolver.is_some() {
                     image::image_dimensions(&r.path)
                         .ok()
                         .or_else(|| {
@@ -1487,14 +1514,26 @@ impl LrcatImport {
                 if imported.is_some() {
                     clear_pending_depth_diagnostic(&mut image.recipe);
                 }
-                let result = write_image(
-                    &r.path,
-                    id,
-                    &image.recipe,
-                    &selection,
-                    &keywords,
-                    &admission,
-                );
+                let result = (|| {
+                    let root = self.engine.support_dir()?.join("imported-masks");
+                    Sidecar::ensure_destination(&root, "imported masks")?;
+                    Sidecar::ensure_destination(root.join("pinned"), "imported masks")?;
+                    let store = ml_segment::MaskStore::new(root, 0)?;
+                    crate::lrcat_masks::apply(
+                        &mut image.recipe,
+                        id,
+                        extent,
+                        &store,
+                        |resource| {
+                            mask_resolver.as_ref().and_then(|resolver| {
+                                resolver.resolve(image.catalog_id, resource.into())
+                            })
+                        },
+                        |recipe| {
+                            write_image(&r.path, id, recipe, &selection, &keywords, &admission)
+                        },
+                    )
+                })();
                 if result.is_err() {
                     let key = image_core::depth::imported_depth_key(id);
                     if let Some(prior) = prior {
@@ -2332,6 +2371,10 @@ mod lrcat_resume_tests {
 #[cfg(all(test, target_os = "macos"))]
 #[path = "lrcat_profile.rs"]
 mod lrcat_profile;
+
+#[cfg(test)]
+#[path = "lrcat_mask_tests.rs"]
+mod lrcat_mask_tests;
 
 #[cfg(test)]
 #[path = "lrcat_depth_tests.rs"]

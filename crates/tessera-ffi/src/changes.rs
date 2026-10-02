@@ -196,6 +196,7 @@ impl Engine {
                 state.index.image_info(*id),
                 Err(engine_api::EngineError::NotFound { .. })
             ) {
+                crate::lrcat_masks::remove_image(self.support_dir()?, *id)?;
                 store.remove_pinned(&image_core::depth::imported_depth_key(*id))?;
             }
         }

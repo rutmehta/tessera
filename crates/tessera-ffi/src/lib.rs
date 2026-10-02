@@ -16,6 +16,7 @@ mod export;
 mod image_edit_admission;
 mod lrcat;
 mod lrcat_fidelity;
+mod lrcat_masks;
 mod merge;
 mod metadata;
 mod models;

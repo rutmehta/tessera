@@ -126,6 +126,27 @@ fn push(recipe: &mut Recipe, adobe_key: &str, entry: Value) {
     }
 }
 
+/// Remove an exact pending approximation after an import resource resolves.
+/// Other keys, lanes, reasons and malformed foreign entries remain untouched.
+pub fn remove_approximate(recipe: &mut Recipe, adobe_key: &str, lane: &str, reason: &str) {
+    if let Some(Value::Object(groups)) = recipe.unknown.get_mut(KEY) {
+        if let Some(Value::Array(list)) = groups.get_mut(adobe_key) {
+            list.retain(|e| {
+                !(e["status"] == "approximate"
+                    && e["level"] == "info"
+                    && e["lane"] == lane
+                    && e["reason"] == reason)
+            });
+            if list.is_empty() {
+                groups.remove(adobe_key);
+            }
+        }
+        if groups.is_empty() {
+            recipe.unknown.remove(KEY);
+        }
+    }
+}
+
 /// Every well-formed diagnostics entry, by Adobe key. Malformed entries
 /// (e.g. from a foreign writer) are skipped; keys with none are omitted.
 pub fn entries(recipe: &Recipe) -> BTreeMap<String, Vec<Entry>> {

@@ -208,6 +208,9 @@ fn export_component(c: &Value) -> EngineResult<String> {
         },
     ) + &scalar("crs:MaskInverted", &c["invert"])
         + &text("crs:MaskBlendMode", blend);
+    if !c["adobe_ai"].is_null() {
+        b += &native("ts:adobe_ai", &c["adobe_ai"]);
+    }
     if let Some(children) = c["group"].as_array() {
         b += &text("crs:What", "Mask/Group");
         let component: MaskComponent = serde_json::from_value(c.clone())?;
@@ -408,10 +411,93 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
             "Mask/Subject" => "subject",
             "Mask/Background" => "background",
             "Mask/Paint" if foreign_extensions => "adobe_brush",
+            "Mask/Image" | "Mask/People" | "Mask/Person" | "Mask/Object" if foreign_extensions => {
+                "adobe_ai"
+            }
             _ => "unsupported",
         });
     let mut c = json!({"kind":kind});
     match kind {
+        "adobe_ai" => {
+            let category = if let Some(category) = get(t, n, CRS, "MaskType") {
+                category
+            } else if what != "Mask/Image" {
+                what.trim_start_matches("Mask/").to_string()
+            } else {
+                match get(t, n, CRS, "MaskSubType").as_deref() {
+                    Some("1") => "Subject".into(),
+                    Some("2") => "Sky".into(),
+                    Some("3") => "People".into(),
+                    Some("0")
+                        if get(t, n, CRS, "ReferencePoint").is_some()
+                            || get(t, n, CRS, "Left").is_some() =>
+                    {
+                        "Object".into()
+                    }
+                    _ => return Err(error("unknown Adobe AI mask subtype")),
+                }
+            };
+            let category = if matches!(category.as_str(), "People" | "Person") {
+                match get(t, n, CRS, "MaskSubCategoryID").as_deref() {
+                    None | Some("0") => category,
+                    Some("2") => "FaceSkin".into(),
+                    Some("4") => "BodySkin".into(),
+                    Some("5") => "Hair".into(),
+                    Some("6") => "Lips".into(),
+                    Some("11") => "Clothes".into(),
+                    Some(id) if id.parse::<u32>().is_ok() => format!("PersonSubPart:{id}"),
+                    _ => return Err(error("invalid person subcategory")),
+                }
+            } else {
+                category
+            };
+            let native_kind = match category.as_str() {
+                "Subject" | "People" | "Person" | "Hair" | "FaceSkin" | "BodySkin" | "Eyebrows"
+                | "EyeSclera" | "Sclera" | "Iris" | "Lips" | "Teeth" | "Clothes" | "Clothing"
+                | "Body" => "subject",
+                "Sky" => "sky",
+                "Background" => "background",
+                "Object" | "Objects" => "object",
+                value if value.starts_with("PersonSubPart:") => "subject",
+                _ => return Err(error("unknown Adobe AI mask category")),
+            };
+            c = json!({"kind":native_kind, "model":null});
+            if native_kind == "object" {
+                let bounds = [
+                    num(t, n, "Left", 0.)?,
+                    num(t, n, "Top", 0.)?,
+                    num(t, n, "Right", 1.)?,
+                    num(t, n, "Bottom", 1.)?,
+                ];
+                if !bounds.iter().all(|v| (0.0..=1.0).contains(v))
+                    || bounds[0] >= bounds[2]
+                    || bounds[1] >= bounds[3]
+                {
+                    return Err(error("invalid object bounds"));
+                }
+                if get(t, n, CRS, "Left").is_some()
+                    && get(t, n, CRS, "Top").is_some()
+                    && get(t, n, CRS, "Right").is_some()
+                    && get(t, n, CRS, "Bottom").is_some()
+                {
+                    c["region"] = json!({"left":bounds[0],"top":bounds[1],"right":bounds[2],"bottom":bounds[3]});
+                } else if let Some(point) = get(t, n, CRS, "ReferencePoint") {
+                    let point: Vec<f64> = point
+                        .split_whitespace()
+                        .map(number)
+                        .collect::<EngineResult<_>>()?;
+                    if point.len() != 2 || !point.iter().all(|v| (0.0..=1.0).contains(v)) {
+                        return Err(error("invalid object reference point"));
+                    }
+                    c["points"] = json!([point]);
+                } else {
+                    return Err(error(
+                        "object regeneration requires a box or reference point",
+                    ));
+                }
+            }
+            c["adobe_ai"] = json!({"category":category,"resource_id":get(t,n,CRS,"MaskDigest"),"mask_key":null,"regenerate":true});
+        }
         "range" => {
             let r = child(t, n, CRS, "CorrectionRangeMask")
                 .ok_or_else(|| error("missing range mask"))?;
@@ -516,6 +602,12 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
         }
         "subject" | "sky" | "background" | "person" | "object" | "landscape" => {
             c["model"] = extension(t, n, "model")?.unwrap_or(Value::Null);
+            if foreign_extensions
+                && native_kind.is_none()
+                && matches!(kind, "subject" | "sky" | "background")
+            {
+                c["adobe_ai"] = json!({"category":what.trim_start_matches("Mask/"),"resource_id":get(t,n,CRS,"MaskDigest"),"mask_key":null,"regenerate":true});
+            }
             let keys: &[&str] = match kind {
                 "person" => &["person", "parts"],
                 "object" => &["prompt", "region", "points"],
@@ -567,6 +659,9 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
         c = json!({"kind":"brush", "strokes":[], "combine":combine,
             "enabled":enabled, "invert":false,
             "group":[seed, import_range(t, range, foreign_extensions)?]});
+    }
+    if let Some(state) = extension(t, n, "adobe_ai")? {
+        c["adobe_ai"] = state;
     }
     if let Some(bounds) = extension(t, n, "luminance_bounds")? {
         c["luminance_bounds"] = bounds;

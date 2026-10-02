@@ -393,6 +393,35 @@ impl Recipe {
         Ok(id)
     }
 
+    /// Attach import-time mask references to the single existing Import entry.
+    /// A caller cannot silently rewrite a user-authored history step.
+    pub fn set_imported_masks(&mut self, adjustments: Vec<LocalAdjustment>) -> EngineResult<()> {
+        let head = self
+            .history
+            .head
+            .ok_or_else(|| EngineError::invalid("mask import", "missing import history"))?;
+        let entry = self
+            .history
+            .entry(head)
+            .ok_or_else(|| EngineError::internal("missing history head"))?;
+        if !matches!(entry.meta.author, Author::Import { .. }) {
+            return Err(EngineError::invalid(
+                "mask import",
+                "resource attachment requires Import history head",
+            ));
+        }
+        let before = self.history.state_at(entry.parent)?;
+        let mut next = self.clone();
+        next.settings.locals.adjustments = adjustments;
+        next.history.entries[head.0 as usize - 1].changes = history::diff(
+            &serde_json::to_value(before)?,
+            &serde_json::to_value(&next.settings)?,
+        );
+        next.validate()?;
+        *self = next;
+        Ok(())
+    }
+
     /// Attach Lens Blur resources during import apply without creating an edit.
     /// A user-authored head (or no head) is left untouched. The importer must
     /// call this before publishing the recipe; rendering never calls it.

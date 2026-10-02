@@ -121,6 +121,7 @@ pub(crate) fn render(
             denoiser,
             provider,
             &mut warnings,
+            Some(support),
         )?;
         return Ok((rgb, warnings));
     }

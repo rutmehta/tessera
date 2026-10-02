@@ -348,6 +348,7 @@ impl ExportOptions {
     }
     fn settings(&self, output_dir: PathBuf) -> Result<export::ExportSettings> {
         Ok(export::ExportSettings {
+            mask_support: None,
             retouch: Some(Arc::new(brush::render_retouch)),
             format: match self.format {
                 FileFormat::Jpeg => export::Format::Jpeg {
@@ -1229,6 +1230,7 @@ impl Engine {
                 }
                 let crop = recipe.settings.geometry.crop.rect;
                 let settings = export::ExportSettings {
+                    mask_support: Some(self.support_dir()?.to_path_buf()),
                     naming,
                     original_raw: options.embed_original_raw.then(|| item.path.clone()),
                     metadata_sources: [(image.sequence, item.path.clone())].into(),
@@ -1495,6 +1497,7 @@ impl Engine {
                 Some(s) => Some(s.as_mut()),
                 None => None,
             },
+            Some(self.support_dir()?),
             Some(Arc::new(brush::render_retouch)),
         )?;
         let (width, height) = rgb.dimensions();
