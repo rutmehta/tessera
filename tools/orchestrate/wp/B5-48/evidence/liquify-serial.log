@@ -1,0 +1,20 @@
+Process exit: 101
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running tests/document_liquify_ui.rs (/Users/rutmehta/.cache/tessera-target/B5-48/debug/deps/document_liquify_ui-077037b42a9ee237)
+
+running 1 test
+test brush_latency_on_a_20_megapixel_layer ... LIQUIFY 20MP (5472x3648, cell 16, proxy 1824x1216 /3): open 3264 ms; brush+preview per event median 259.5 ms, p95 343.2 ms, max 390.6 ms (brush 7.6 ms, preview 252.9 ms median); full-res apply 3266 ms
+
+thread 'brush_latency_on_a_20_megapixel_layer' (56879383) panicked at crates/tessera-ffi/tests/document_liquify_ui.rs:1064:5:
+brush latency p95 343.2 ms
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    brush_latency_on_a_20_megapixel_layer
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 49.42s
+
+error: test failed, to rerun pass `-p tessera-ffi --test document_liquify_ui`
