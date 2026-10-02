@@ -1564,6 +1564,13 @@ impl LrcatImport {
                     image::image_dimensions(&r.path)
                         .ok()
                         .or_else(|| {
+                            let metadata = raw_decode::lossy_dng::read_metadata(
+                                &mut std::fs::File::open(&r.path).ok()?,
+                            )
+                            .ok()??;
+                            Some((metadata.width, metadata.height))
+                        })
+                        .or_else(|| {
                             raw_decode::RawSource::open(&r.path).ok().map(|raw| {
                                 let meta = raw.metadata();
                                 // image-core renders the active area before geometry.
