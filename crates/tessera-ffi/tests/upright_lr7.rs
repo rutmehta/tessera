@@ -4,7 +4,7 @@ fn catalog_upright_renders_known_projective_corners_and_reports_cloud_features()
     let dir = tempfile::tempdir().unwrap();
     let fixture = import_lrcat::fixture::write(dir.path()).unwrap();
     let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
-    db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s = { PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0.2,0,1', EnableDistractionRemoval = true }"]).unwrap();
+    db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s = { PerspectiveUpright = 1, UprightTransform_1 = '1,0,0,0,1,0,0.2,0,1', EnableDistractionRemoval = true, FilterList={{What='synthetic-filter'}} }"]).unwrap();
     drop(db);
     let plan = import_lrcat::import(&fixture.catalog).unwrap();
     assert!(
