@@ -6,9 +6,6 @@ fn lr5_ai_categories_are_approximate_and_source_is_retained() {
         "Subject",
         "Sky",
         "Background",
-        "People",
-        "Hair",
-        "FaceSkin",
         "Object",
     ] {
         let source = format!(
@@ -27,7 +24,7 @@ fn lr5_ai_categories_are_approximate_and_source_is_retained() {
             import_lrcat::diagnostics::entries(&recipe)
                 .values()
                 .flatten()
-                .any(|e| e.reason.contains("regenerated"))
+                .all(|e| !e.reason.contains("regenerated"))
         );
         let restored = Recipe::from_json(&recipe.to_json().unwrap()).unwrap();
         assert_eq!(restored.settings, recipe.settings);
@@ -40,9 +37,6 @@ fn lr5_numeric_subtypes_and_unknown_byte_retention() {
     for (subtype, part, category) in [
         (1, 0, "Subject"),
         (2, 0, "Sky"),
-        (3, 4, "BodySkin"),
-        (3, 6, "Lips"),
-        (3, 99, "PersonSubPart:99"),
         (0, 0, "Object"),
     ] {
         let source = format!(
@@ -69,4 +63,15 @@ fn lr5_numeric_subtypes_and_unknown_byte_retention() {
             .unwrap()
             .contains("exact-source")
     );
+}
+
+#[test]
+fn lr5b_person_parts_and_specific_people_are_unsupported() {
+    for fields in ["MaskType='Hair'", "MaskType='Lips'", "MaskType='Teeth'", "MaskSubType=3,MaskSubCategoryID=4", "MaskType='People',PersonID=2", "MaskType='Person'"] {
+        let source = format!("s={{MaskGroupBasedCorrections={{{{LocalExposure2012=1,CorrectionMasks={{{{What='Mask/Image',{fields}}}}}}}}}}}");
+        let (r, warnings) = import_lrcat::develop(1, &source, "15.4").unwrap();
+        assert!(r.settings.locals.adjustments.is_empty(), "{fields}");
+        assert!(!warnings.is_empty(), "{fields}");
+        assert!(r.unknown.contains_key("lrcat_develop_source"));
+    }
 }
