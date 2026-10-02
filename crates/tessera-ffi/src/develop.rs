@@ -852,6 +852,16 @@ pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
     // into the sanitized interactive recipe.
     let mut optics = r.clone();
     optics.lens = s.lens.clone();
+    // The viewport has no external LCP/database resolver. Keep the identity in
+    // the saved recipe and expose it through ignored_settings, but do not let
+    // an unavailable named profile block all other imported edits. In particular,
+    // do not silently substitute Auto (a different calibration).
+    if matches!(
+        optics.lens.profile,
+        engine_api::recipe::settings::LensProfileSource::Database { .. }
+    ) {
+        optics.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+    }
     if pipeline_cpu::validate_settings(&optics).is_ok() {
         r.lens = optics.lens;
     }
