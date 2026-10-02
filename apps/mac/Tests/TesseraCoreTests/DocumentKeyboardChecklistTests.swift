@@ -491,8 +491,17 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         na("22b", "Application Quit/save prompts require the running application lifecycle; terminating the XCTest host is not an application Quit check.")
     }
 
-    private func writeResults(fka: Bool) throws {
-        let directory = ShellHarness.repoRoot.appendingPathComponent("tools/orchestrate/wp/B5-49")
+    func testResultArtifactsRequireExplicitOptIn() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try writeResults(fka: false, directory: directory, environment: [:])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), [])
+    }
+
+    private func writeResults(fka: Bool,
+                              directory: URL = ShellHarness.repoRoot.appendingPathComponent("tools/orchestrate/wp/B5-49"),
+                              environment: [String: String] = ProcessInfo.processInfo.environment) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let defaults = Process(), pipe = Pipe()
         defaults.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
