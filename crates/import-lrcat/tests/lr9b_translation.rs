@@ -76,3 +76,12 @@ fn saved_overlay_hue_with_zero_saturation_is_inactive() {
     assert_eq!(r.settings.locals.adjustments[0].params.color_overlay,None);
     assert_eq!(r.settings.locals.adjustments[0].params.exposure,0.5);
 }
+
+#[test]
+fn retouch_offsety_is_the_absolute_source_y_spelling() {
+    let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='clone',SourceX=0.7,OffsetY=0.6,Masks={{What='Mask/Paint',Radius=0.03,Dabs={'d 0.2 0.4'}}}}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    let engine_api::recipe::mask::RetouchKind::Clone{source_offset}=r.settings.locals.retouch[0].kind else { panic!("clone required") };
+    assert!((source_offset[0]-0.5).abs()<1e-6);
+    assert!((source_offset[1]-0.2).abs()<1e-6);
+}
