@@ -73,8 +73,7 @@ impl LrcatImport {
         let with_preview = |id: i64| {
             self.previews
                 .as_ref()
-                .and_then(|p| p.lrprev_path(id))
-                .is_some_and(|f| f.is_file())
+                .is_some_and(|p| p.has_preview(id).unwrap_or(false))
         };
         // Candidates: originals present (virtual copies render their own recipe
         // from the master's file). Edited images with previews first.

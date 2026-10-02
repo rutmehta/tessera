@@ -925,7 +925,7 @@ fn summarize(
         previews: previews.map_or(0, |p| {
             plan.images
                 .iter()
-                .filter(|i| p.lrprev_path(i.catalog_id).is_some_and(|f| f.is_file()))
+                .filter(|i| p.has_preview(i.catalog_id).unwrap_or(false))
                 .count() as u32
         }),
         unsupported: unsupported(plan, stats.history),
