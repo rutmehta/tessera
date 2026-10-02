@@ -213,11 +213,22 @@ impl CameraLinearProxy {
         settings: &DevelopSettings,
     ) -> EngineResult<Option<crate::LensPlan>> {
         self.validate_prefix(settings)?;
-        if self.external_dng || self.metadata.catalog_orientation.is_some() {
+        if self.metadata.catalog_orientation.is_some_and(|o| o != 1) {
             return Ok(None);
-        } // explicit CPU fallback: resolve DNG optics per recipe
-        self.correction.camera_linear_tail_plan(
-            settings,
+        }
+        let planned = self.render_plan(settings, false).0;
+        let correction = if self.external_dng {
+            crate::resolve_lens(
+                &self.working_rgb(&planned)?,
+                &planned.lens,
+                Some(&self.metadata),
+                &LensContext::default(),
+            )?
+        } else {
+            self.correction.clone()
+        };
+        correction.camera_linear_tail_plan(
+            &planned,
             &self.metadata,
             [self.pixels.width(), self.pixels.height()],
         )
