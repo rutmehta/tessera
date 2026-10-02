@@ -355,3 +355,98 @@ fn seeded_full_jpeg_and_16bit_jxl_mutations_are_bounded() {
         max_time.as_micros()
     );
 }
+
+fn large_original(width: u32, height: u32) -> Vec<u8> {
+    let tile = include_bytes!("fixtures/solid-512.jpg");
+    let mut b = support::lossy_dng_with_jpeg(false, false, tile);
+    for (tag, value) in [(256, width), (257, height), (322, 512), (323, 512)] {
+        set(&mut b, tag, value);
+    }
+    array(&mut b, 50719, &[0, 0]);
+    array(&mut b, 50720, &[width, height]);
+    let count = width.div_ceil(512) * height.div_ceil(512);
+    let mut offsets = Vec::new();
+    for _ in 0..count {
+        offsets.push(b.len() as u32);
+        b.extend_from_slice(tile);
+    }
+    array(&mut b, 324, &offsets);
+    array(&mut b, 325, &vec![tile.len() as u32; count as usize]);
+    b
+}
+
+#[test]
+fn lr8g_full_resolution_24mp_original_decodes() {
+    let b = large_original(6144, 4096);
+    let d = raw_decode::lossy_dng::read(&mut Cursor::new(b))
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (d.width, d.height, d.pixels.len()),
+        (6144, 4096, 25_165_824)
+    );
+    for pixel in &d.pixels {
+        for (&v, code) in pixel.iter().zip([48., 69., 84.]) {
+            assert!((v - (code - 1.) / 254.).abs() < 2. / 254.);
+        }
+    }
+}
+
+#[test]
+fn lr8g_output_budget_admits_100mp_and_exact_cap_rejects_next_column() {
+    for (width, height) in [(10000, 10000), (32768, 4096)] {
+        let b = large_original(width, height);
+        let m = raw_decode::lossy_dng::read_metadata(&mut Cursor::new(b))
+            .unwrap()
+            .unwrap();
+        assert_eq!((m.width, m.height), (width, height));
+    }
+    let b = large_original(32769, 4096);
+    for metadata in [false, true] {
+        let error = if metadata {
+            raw_decode::lossy_dng::read_metadata(&mut Cursor::new(&b))
+                .err()
+                .unwrap()
+        } else {
+            raw_decode::lossy_dng::read(&mut Cursor::new(&b))
+                .err()
+                .unwrap()
+        };
+        assert_eq!(error.to_string(), "total decoded byte budget exceeded");
+    }
+}
+
+#[test]
+fn lr8g_ycck_and_contradictory_adobe_markers_fail_closed() {
+    for transforms in [&[2][..], &[0, 1], &[1, 0], &[0, 2], &[2, 0]] {
+        let mut jpeg = marker_jpeg(None);
+        for &t in transforms {
+            jpeg.splice(
+                2..2,
+                [
+                    255, 238, 0, 14, b'A', b'd', b'o', b'b', b'e', 0, 100, 0, 0, 0, 0, t,
+                ],
+            );
+        }
+        let b = support::lossy_dng_with_jpeg(false, false, &jpeg);
+        assert!(
+            raw_decode::lossy_dng::read(&mut Cursor::new(b)).is_err(),
+            "transforms={transforms:?}"
+        );
+    }
+}
+
+#[test]
+fn lr8g_multi_frame_jxl_is_rejected() {
+    let tile = include_bytes!("fixtures/two-frame.jxl");
+    let image = jxl_oxide::JxlImage::builder()
+        .read(Cursor::new(tile))
+        .unwrap();
+    assert_eq!(image.num_loaded_keyframes(), 2);
+    let mut b = support::lossy_dng_with_jpeg(false, false, tile);
+    set(&mut b, 259, 52546);
+    let error = raw_decode::lossy_dng::read(&mut Cursor::new(b))
+        .err()
+        .expect("multi-frame tile rejected");
+    assert!(error.to_string().contains("multi-frame JXL"), "{error}");
+}
