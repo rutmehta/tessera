@@ -20,3 +20,13 @@ fn genuine_legacy_controls_still_translate() {
         assert_eq!(legacy.exposure,Some(0.75));
     }
 }
+
+#[test]
+fn documented_mask_controls_promote_without_discarding_real_edits() {
+    let source = "s={MaskGroupBasedCorrections={{What='Correction',CorrectionReferenceX=0.3,CorrectionReferenceY=0.4,LocalBrightness=0,LocalContrast=0,LocalExposure=0,LocalClarity=0,LocalCurveRefineSaturation=100,LocalGrain=0,LocalCorrectedDepth=0,LocalColorVariance=0,LocalPointColors={},LocalExposure2012=0.5,CorrectionMasks={{What='Mask/CircularGradient',Version=2,MaskID='synthetic',Left=0.2,Top=0.2,Right=0.8,Bottom=0.8,Feather=50}}}}}";
+    let (r,w)=lua_develop::parse(source,"15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    assert_eq!(r.settings.locals.adjustments[0].params.exposure,0.5);
+    assert_eq!(diagnostics::entries(&r)["MaskGroupBasedCorrections"][0].status,"approximate");
+    assert!(r.unknown["lrcat_develop_source"]["properties"].get("MaskGroupBasedCorrections").is_some());
+}
