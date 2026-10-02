@@ -15,17 +15,17 @@ packages=(-p import-lrcat -p engine-api -p image-core -p mask-store -p sidecar -
 # All ordinary tests, including the entire FFI suite: no command-line skips.
 # Rust #[ignore] tests retain their upstream reasons (benchmarks, optional model
 # inference, real catalog, or paired E2E). The synthetic paired E2E runs below.
-cargo clean "${packages[@]}"
+cargo clean --release "${packages[@]}" > "$logs/lr6e-clean.log" 2>&1
 set +e
-cargo test --locked "${packages[@]}" --no-fail-fast > "$logs/lr6d-test.log" 2>&1
+cargo test --release --locked "${packages[@]}" --no-fail-fast -- --nocapture > "$logs/lr6e-test.log" 2>&1
 test_status=$?
-cargo test --locked -p image-core --test lr6_depth_import synthetic_import_to_cpu_render \
-  -- --ignored --exact > "$logs/lr6d-e2e.log" 2>&1
+cargo test --release --locked -p image-core --test lr6_depth_import synthetic_import_to_cpu_render \
+  -- --ignored --exact > "$logs/lr6e-e2e.log" 2>&1
 e2e_status=$?
-cargo clippy --locked "${packages[@]}" --all-targets -- -D warnings > "$logs/lr6d-clippy.log" 2>&1
+cargo clippy --release --locked "${packages[@]}" --all-targets -- -D warnings > "$logs/lr6e-clippy.log" 2>&1
 clippy_status=$?
-cargo fmt --all -- --check > "$logs/lr6d-fmt.log" 2>&1
+cargo fmt --all -- --check > "$logs/lr6e-fmt.log" 2>&1
 
 fmt_status=$?
-printf "test=%s e2e=%s clippy=%s fmt=%s\n" "$test_status" "$e2e_status" "$clippy_status" "$fmt_status"
+printf "test=%s e2e=%s clippy=%s fmt=%s\n" "$test_status" "$e2e_status" "$clippy_status" "$fmt_status" | tee "$logs/lr6e-gate-status.log"
 exit $((test_status || e2e_status || clippy_status || fmt_status))
