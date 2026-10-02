@@ -330,37 +330,55 @@ fn export_component(c: &Value) -> EngineResult<String> {
     Ok(b)
 }
 
+/// The stable `LocalAdjustment::id` of every mask group in one packet, in
+/// source order. A native `ts:LocalId` is kept; every other group takes the
+/// lowest id that no native group and no earlier group uses. `None` when a
+/// native id repeats or the id space is exhausted. Callers that need to pair a
+/// recipe group with its source group use this rule, never the group's index.
+pub fn assign_local_ids(native: &[Option<u64>]) -> Option<Vec<u64>> {
+    let mut used = std::collections::BTreeSet::new();
+    for id in native.iter().flatten() {
+        if !used.insert(*id) {
+            return None;
+        }
+    }
+    let mut next = 0u64;
+    native
+        .iter()
+        .map(|id| match id {
+            Some(id) => Some(*id),
+            None => {
+                while used.contains(&next) {
+                    next = next.checked_add(1)?;
+                }
+                used.insert(next);
+                Some(next)
+            }
+        })
+        .collect()
+}
+
 pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<Value> {
     let Some(Property::Node(root)) = t.property(CRS, "MaskGroupBasedCorrections") else {
         return Err(error("masks require a sequence"));
     };
     let mut locals = Vec::new();
-    let mut used = std::collections::BTreeSet::new();
-    // Reserve native IDs before assigning IDs to foreign corrections.
+    let mut native_ids = Vec::new();
     for n in t.items(root) {
-        if let Some(id) = extension(t, n, "LocalId")? {
-            let id = id.as_u64().ok_or_else(|| error("invalid local id"))?;
-            if !used.insert(id) {
-                return Err(error("duplicate local id"));
-            }
-        }
+        native_ids.push(match extension(t, n, "LocalId")? {
+            Some(id) => Some(id.as_u64().ok_or_else(|| error("invalid local id"))?),
+            None => None,
+        });
     }
-    let mut next = 0u64;
-    for n in t.items(root) {
+    let mut seen = std::collections::BTreeSet::new();
+    if native_ids.iter().flatten().any(|id| !seen.insert(*id)) {
+        return Err(error("duplicate local id"));
+    }
+    let ids = assign_local_ids(&native_ids).ok_or_else(|| error("mask id overflow"))?;
+    for (n, (id, native_id)) in t.items(root).into_iter().zip(ids.iter().zip(&native_ids)) {
         let mut v = serde_json::to_value(LocalAdjustment::default())?;
-        let native_id = extension(t, n, "LocalId")?;
         let native_local = native_id.is_some();
-        v["id"] = if let Some(id) = native_id {
-            id
-        } else {
-            while used.contains(&next) {
-                next = next
-                    .checked_add(1)
-                    .ok_or_else(|| error("mask id overflow"))?;
-            }
-            used.insert(next);
-            json!(next)
-        };
+        v["id"] = json!(id);
         v["name"] = json!(get(t, n, CRS, "CorrectionName").unwrap_or_default());
         v["enabled"] = json!(flag(get(t, n, CRS, "CorrectionActive"), true)?);
         v["amount"] = json!(num(t, n, "CorrectionAmount", 1.0)? * 100.0);

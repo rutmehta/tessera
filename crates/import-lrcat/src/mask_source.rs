@@ -411,6 +411,30 @@ pub(crate) fn renderable(groups: &[engine_api::recipe::LocalAdjustment]) -> bool
     })
 }
 
+/// Stable group ids of the source groups, in source order, by the shared
+/// codec's rule (`sidecar::assign_mask_group_ids`). `None` if a native id is
+/// malformed or repeated; no group is then paired with a source.
+fn source_group_ids(groups: &[Node<'_, '_>]) -> Option<Vec<u64>> {
+    let native = groups
+        .iter()
+        .map(|group| {
+            let resource = group
+                .children()
+                .find(|c| c.has_tag_name((RDF, "Description")))
+                .unwrap_or(*group);
+            let mut ids = resource
+                .children()
+                .filter(|c| c.has_tag_name((engine_api::recipe::crs::TS_NAMESPACE, "LocalId")));
+            match (ids.next(), ids.next()) {
+                (None, _) => Some(None),
+                (Some(id), None) => id.text()?.trim().parse::<u64>().ok().map(Some),
+                _ => None,
+            }
+        })
+        .collect::<Option<Vec<_>>>()?;
+    sidecar::assign_mask_group_ids(&native)
+}
+
 /// Machine A's approximation contract. This envelope is informational only:
 /// it is never copied into ImportedImage warnings or the unsupported UI count.
 pub(crate) fn record_approximation_diagnostics(
@@ -418,10 +442,17 @@ pub(crate) fn record_approximation_diagnostics(
     root: Node<'_, '_>,
 ) {
     let mut extra_notes = Vec::new();
+    // Pair each recipe group with its source group by the codec's stable group
+    // id. Position is not an identity: a group whose id has no source group
+    // gets no source-keyed note.
+    let source_groups = sequence(root).unwrap_or_default();
+    let source_ids = source_group_ids(&source_groups);
     for (i, g) in recipe.settings.locals.adjustments.iter().enumerate() {
         let p = &g.params;
-        let source_fields =
-            sequence(root).and_then(|groups| groups.get(i).and_then(|n| fields(*n)));
+        let source_fields = source_ids
+            .as_ref()
+            .and_then(|ids| ids.iter().position(|id| *id == u64::from(g.id.0)))
+            .and_then(|j| fields(source_groups[j]));
         let has_source = |key: &str| source_fields.as_ref().is_some_and(|f| f.contains_key(key));
         for (present, key, field, reason) in [
             (
