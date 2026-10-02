@@ -253,6 +253,7 @@ reference tolerance. This is not a claim of Lightroom render parity.
 When B&W is enabled, Point Color selects and adjusts colour before the B&W
 conversion and tone curves; grading follows. Resident/fused GPU dispatch declines
 point lists and the shared CPU fallback preserves this order.
+
 ## LR-5 AI masks and resource injection
 
 Recognized AI masks inside `MaskGroupBasedCorrections` translate approximately,
