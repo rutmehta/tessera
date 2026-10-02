@@ -82,8 +82,9 @@ fn decode(bytes: &[u8], extent: (u32, u32)) -> Option<MaskRaster> {
     MaskRaster::new(extent.0, extent.1, decoded.to_luma32f().into_raw()).ok()
 }
 
-/// At most 256 rasters and 256 MiB per apply. Immutable content keys keep
-/// earlier recipes valid; owner records retain history references until pruning.
+/// At most 256 rasters and 256 MiB per apply. Immutable content keys mean a
+/// failed or interrupted apply can never change pixels an existing recipe
+/// references. The owner record lists what the published recipe references.
 pub(crate) fn apply(
     recipe: &mut Recipe,
     id: ImageId,
@@ -156,23 +157,32 @@ pub(crate) fn apply(
     // never different pixels under a key that an existing recipe already owns.
     let owner = owner_path(store, id);
     let prior = owner_keys(&owner)?;
-    let mut keys = prior.clone();
+    let mut current = Vec::new();
     for raster in &rasters {
         let key = store.put_content_pinned(raster)?;
-        if !keys.contains(&key) {
-            keys.push(key);
+        if !current.contains(&key) {
+            current.push(key);
         }
     }
-    if !keys.is_empty() {
+    // Until publication decides, the image owns both generations.
+    let mut keys = prior.clone();
+    keys.extend(current.iter().filter(|key| !prior.contains(key)));
+    if keys != prior {
         write_owner(&owner, &keys)?;
     }
     if let Err(original) = publish(&next) {
         // Cleanup must never mask the original publication error. Unreferenced
         // content remains safe and is reclaimed by prune_missing.
-        if !keys.is_empty() {
+        if keys != prior {
             let _ = write_owner(&owner, &prior);
         }
         return Err(original);
+    }
+    // The published recipe is now the only reference. Superseded content
+    // becomes an orphan for explicit pruning; nothing is deleted or listed
+    // here. A failed trim leaves a superset, which is safe.
+    if keys != current {
+        let _ = write_owner(&owner, &current);
     }
     *recipe = next;
     Ok(())
