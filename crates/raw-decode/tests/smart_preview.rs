@@ -20,8 +20,5 @@ fn lightroom_smart_preview_libraw_decode() {
         panic!("decodes: no, dimensions: unavailable");
     };
     assert!(!decoded.pixels.is_empty());
-    eprintln!(
-        "decodes: yes, dimensions: {}x{}",
-        decoded.width, decoded.height
-    );
+    eprintln!("decodes: yes, {} × {}", decoded.width, decoded.height);
 }

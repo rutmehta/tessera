@@ -25,7 +25,7 @@ pub fn render_linear_scaled_with_profile(
     scale: u32,
     profile: Option<&DcpProfile>,
 ) -> EngineResult<Image> {
-    if matches!(source, RenderSource::CameraLinear(_)) {
+    if matches!(source, RenderSource::CameraLinear(proxy) if !proxy.is_external_dng()) {
         return Err(EngineError::Unsupported {
             what: "Adobe rendering: original required; camera-linear Smart Previews use Native revision 2".into(),
         });
@@ -76,7 +76,12 @@ pub fn render_linear_scaled_with_profile(
         base.detail.noise_reduction.color = 0.;
     }
     let mut rgb = pipeline_cpu::render_linear_scaled(&base, source, 1)?;
-    if let (Some(profile), RenderSource::Cfa { metadata, .. }) = (profile, source) {
+    let camera_metadata = match source {
+        RenderSource::Cfa { metadata, .. } => Some(*metadata),
+        RenderSource::CameraLinear(proxy) => Some(proxy.original_metadata()),
+        RenderSource::Rgb(_) => None,
+    };
+    if let (Some(profile), Some(metadata)) = (profile, camera_metadata) {
         let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
             metadata.cam_xyz[r].map(f64::from)
         })))?;

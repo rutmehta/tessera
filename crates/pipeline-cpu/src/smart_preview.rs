@@ -45,6 +45,7 @@ impl SmartPreviewTier {
 /// with payload/container digests and an explicit original-source assertion.
 #[derive(Clone, Debug)]
 pub struct CameraLinearProxy {
+    external_dng: bool,
     pixels: Image,
     metadata: RawMetadata,
     correction: ResolvedLens,
@@ -58,6 +59,44 @@ pub struct CameraLinearProxy {
     tier: SmartPreviewTier,
 }
 impl CameraLinearProxy {
+    /// DNG camera channels are a source, not a cached Tessera RAW prefix.
+    /// They may use either process family and remain exportable at their own size.
+    pub fn from_dng(dng: raw_decode::lossy_dng::LossyDng) -> EngineResult<Self> {
+        if dng.metadata.opcode_lists.iter().any(Option::is_some) {
+            return Err(EngineError::Unsupported {
+                what: "LinearRaw DNG contains unconsumed correction opcodes".into(),
+            });
+        }
+        let gain = 2.0_f32.powf(dng.baseline_exposure);
+        let planes = (0..3)
+            .map(|c| dng.pixels.iter().map(|p| p[c] * gain).collect())
+            .collect();
+        let pixels = Image::new(dng.width as u32, dng.height as u32, planes)?;
+        let s = DevelopSettings::default();
+        let correction = crate::resolve_lens(
+            &pixels,
+            &s.lens,
+            Some(&dng.metadata),
+            &LensContext::default(),
+        )?;
+        Ok(Self {
+            external_dng: true,
+            pixels,
+            metadata: dng.metadata,
+            correction,
+            decode: s.decode,
+            linearize: s.linearize,
+            demosaic: s.demosaic,
+            denoise: s.denoise,
+            lens: s.lens,
+            original_content_digest: [0; 32],
+            scale: 1,
+            tier: SmartPreviewTier::Detail2560,
+        })
+    }
+    pub fn is_external_dng(&self) -> bool {
+        self.external_dng
+    }
     pub const GENERATOR_REVISION: u32 = 2;
     pub const MAX_EDGE: u32 = 2560;
     /// Caller supplies the verified original byte digest, not a path identity.
@@ -129,6 +168,7 @@ impl CameraLinearProxy {
         // overflowed; retain signed/HDR values rather than clamp/quantize them.
         let pixels = Image::new(pixels.width(), pixels.height(), pixels.planes().to_vec())?;
         Ok(Self {
+            external_dng: false,
             pixels,
             metadata: metadata.clone(),
             correction,
@@ -150,6 +190,9 @@ impl CameraLinearProxy {
         settings: &DevelopSettings,
     ) -> EngineResult<Option<crate::LensPlan>> {
         self.validate_prefix(settings)?;
+        if self.external_dng {
+            return Ok(None);
+        } // explicit CPU fallback: resolve DNG optics per recipe
         self.correction.camera_linear_tail_plan(
             settings,
             &self.metadata,
@@ -175,6 +218,12 @@ impl CameraLinearProxy {
         &self.correction
     }
     pub fn validate_prefix(&self, s: &DevelopSettings) -> EngineResult<()> {
+        if self.external_dng {
+            if !matches!(s.denoise.method, DenoiseMethod::Off) {
+                return Err(required("mosaic denoise is unavailable for LinearRaw DNG"));
+            }
+            return Ok(());
+        }
         if self.decode != s.decode
             || self.linearize != s.linearize
             || self.demosaic != s.demosaic

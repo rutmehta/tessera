@@ -122,6 +122,26 @@ impl MetadataProvider for EmbeddedMetadata {
                     ..Default::default()
                 });
             }
+            if let Ok(source) = raw_decode::RawSource::open(path) {
+                let m = source.metadata();
+                return Ok(Metadata {
+                    capture_time: Some(m.capture_time.to_string()),
+                    camera: Some(m.model),
+                    lens: m.lens,
+                    values: vec![("orientation".into(), m.orientation.to_string())],
+                    ..Default::default()
+                });
+            }
+            if path
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("dng"))
+                && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(path)?)?
+            {
+                return Ok(Metadata {
+                    values: vec![("orientation".into(), dng.metadata.orientation.to_string())],
+                    ..Default::default()
+                });
+            }
             let source = raw_decode::RawSource::open(path)?;
             let m = source.metadata();
             return Ok(Metadata {
@@ -199,6 +219,40 @@ pub(crate) fn photo_stack(db: &Path, id: &str) -> crate::Result<Vec<String>> {
     Ok(stmt
         .query_map([id], |r| r.get(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+/// Stable recipe owner stays at the proxy path; only the pixel source switches.
+/// No index migration, sidecar move, or copy into Lightroom is involved.
+pub(crate) fn lightroom_proxy(path: &Path) -> Option<serde_json::Value> {
+    let document = Sidecar::read_recipe(Sidecar::paths(path).recipe).ok()?;
+    document
+        .recipe
+        .unknown
+        .get("lightroom_smart_preview")
+        .cloned()
+}
+pub(crate) fn source_path(path: &Path) -> PathBuf {
+    lightroom_proxy(path)
+        .and_then(|v| {
+            v.get("original_path")
+                .and_then(|p| p.as_str())
+                .map(PathBuf::from)
+        })
+        .filter(|p| p.is_file())
+        .unwrap_or_else(|| path.to_path_buf())
+}
+pub(crate) fn is_offline_proxy(path: &Path) -> bool {
+    lightroom_proxy(path).is_some() && source_path(path) == path
+}
+
+pub(crate) fn open_image(id: ImageId, owner_path: &Path) -> EngineResult<image_core::RawImage> {
+    let source = source_path(owner_path);
+    let render_id = if source != owner_path {
+        crate::lrcat::app_image_id(&source).unwrap_or(id)
+    } else {
+        id
+    };
+    Ok(image_core::RawImage::open(render_id, source)?.with_recipe_owner(id))
 }
 
 #[cfg(test)]

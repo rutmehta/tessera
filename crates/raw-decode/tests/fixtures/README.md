@@ -22,3 +22,7 @@ with the full image in a SubIFD. It tests tile/strip layout, a 256-entry code-to
 linear table, black/white levels, crop, orientation metadata, camera calibration,
 and Adobe APP14 / RGB component-ID invariance. The gradient tolerance is
 2.1 JPEG code values divided by the normalized black-to-white interval (254).
+
+`linear-gradient.dng` is the synthetic JPEG above wrapped by
+`tests/support::lossy_dng(false, false)`. It is used by the opt-in catalog fixture
+builder, with no dependency on a RAW encoder or any photographic input.

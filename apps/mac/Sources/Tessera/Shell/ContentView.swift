@@ -90,6 +90,21 @@ struct ContentView: View {
                             .allowsHitTesting(model.viewMode == .loupe)
                         if model.viewMode == .loupe {
                             LoupeOverlay(model: model)
+                            if model.focusedItem?.engineImage?.lightroomSmartPreview == true {
+                                VStack {
+                                    HStack {
+                                        Text("Smart Preview").font(Theme.Fonts.caption)
+                                            .padding(Theme.Space.s)
+                                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.chip))
+                                            .accessibilityIdentifier("loupe.smart-preview-badge")
+                                            .accessibilityLabel("Smart Preview, original offline")
+                                        Spacer()
+                                    }
+                                    Spacer()
+                                }
+                                .padding(Theme.Space.m)
+                                .allowsHitTesting(false)
+                            }
                             if model.isPhotoEditing { MaskToolbar(model: model, masks: .shared) }
                         }
                         if model.viewMode == .compare, model.compare != nil {

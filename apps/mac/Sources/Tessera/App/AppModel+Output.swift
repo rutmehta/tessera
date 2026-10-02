@@ -35,7 +35,7 @@ extension AppModel {
             let ids = items.compactMap { $0.engineImage?.imageID }
             guard let first = items.first, !ids.isEmpty else { return nil }
             return ExportController.Target(kind: kind, title: title, target: .images(imageIds: ids),
-                                           count: ids.count, firstName: first.name, firstDate: first.captureDate)
+                                           count: ids.count, firstName: first.name, firstDate: first.captureDate, hasLightroomSmartPreviews: items.contains { $0.engineImage?.lightroomSmartPreview == true })
         }
         var result: [ExportController.Target] = []
         let selected = selectedItems

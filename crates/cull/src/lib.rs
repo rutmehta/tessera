@@ -439,10 +439,16 @@ fn admit(
     declared: Option<&HashSet<ImageId>>,
 ) -> EngineResult<Vec<ImageId>> {
     // Folder matching uses Path components rather than SQLite glob metacharacters.
+    let imported = folder
+        .and_then(|p| Library::read(p.join("library.json")).ok())
+        .and_then(|library| library.unknown.get("lightroom_proxy_members").cloned());
     let mut images = Vec::new();
     for id in ids {
         let info = index.image_info(id)?;
-        if folder.is_some_and(|p| !info.path.starts_with(p)) {
+        let external_member = imported
+            .as_ref()
+            .is_some_and(|v| v.get(id.to_string()).is_some());
+        if folder.is_some_and(|p| !info.path.starts_with(p)) && !external_member {
             continue;
         }
         if let Some(declared) = declared {

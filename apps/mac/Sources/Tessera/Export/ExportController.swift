@@ -18,6 +18,7 @@ final class ExportController {
         let count: Int
         let firstName: String
         let firstDate: Date
+        var hasLightroomSmartPreviews: Bool = false
         var id: String { "\(kind)-\(title)" }
         static func == (a: Target, b: Target) -> Bool { a.id == b.id && a.count == b.count }
     }

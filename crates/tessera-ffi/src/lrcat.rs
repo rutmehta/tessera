@@ -101,6 +101,8 @@ pub struct LrcatOptions {
     pub marks: Vec<LrcatMarkMapping>,
     /// Replace edits made in Tessera since (or before) the import.
     pub overwrite_existing_edits: bool,
+    pub import_smart_previews: bool,
+    pub copy_proxies: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
@@ -171,6 +173,9 @@ pub struct LrcatKeywordRow {
 
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct LrcatPlanPreview {
+    pub online_originals: u32,
+    pub offline_with_smart_preview: u32,
+    pub offline_without_smart_preview: u32,
     pub roots: Vec<LrcatRootRow>,
     pub folders: Vec<LrcatFolderRow>,
     pub selection_rows: Vec<LrcatSelectionRow>,
@@ -308,6 +313,7 @@ pub(crate) struct CatalogMetadata {
 }
 
 pub(crate) struct ImageMetadata {
+    smart_preview: Option<PathBuf>,
     pub(crate) catalog_id: i64,
     path: PathBuf,
     master_image: Option<i64>,
@@ -459,6 +465,7 @@ const IMAGE_EXTENSIONS: &[&str] = &[
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Outcome {
     Import,
+    OfflineProxy,
     VirtualCopy,
     Missing,
     Skip(String),
@@ -466,6 +473,8 @@ pub(crate) enum Outcome {
 
 #[derive(Clone, Debug)]
 pub(crate) struct Resolved {
+    pub original_path: PathBuf,
+    pub smart_preview_available: bool,
     pub index: usize,
     pub path: PathBuf,
     pub folder: PathBuf,
@@ -478,12 +487,19 @@ pub(crate) fn resolve(plan: &CatalogMetadata, options: &LrcatOptions) -> Result<
     let mut stems: HashMap<(PathBuf, String), String> = HashMap::new();
     let mut out = Vec::with_capacity(plan.images.len());
     for (index, image) in plan.images.iter().enumerate() {
-        let path = relocate(&image.path, &roots, &moves);
+        let original_path = relocate(&image.path, &roots, &moves);
+        let mut path = original_path.clone();
+        let smart_preview_available = image.smart_preview.as_ref().is_some_and(|p| p.is_file());
         let folder = path.parent().map(Path::to_path_buf).unwrap_or_default();
         let outcome = if image.master_image.is_some() {
             Outcome::VirtualCopy
         } else if !path.is_file() {
-            Outcome::Missing
+            if options.import_smart_previews && smart_preview_available {
+                path = image.smart_preview.clone().unwrap();
+                Outcome::OfflineProxy
+            } else {
+                Outcome::Missing
+            }
         } else {
             let stem = path
                 .file_stem()
@@ -508,9 +524,11 @@ pub(crate) fn resolve(plan: &CatalogMetadata, options: &LrcatOptions) -> Result<
             }
         };
         out.push(Resolved {
+            original_path,
+            smart_preview_available,
             index,
-            path,
-            folder,
+            path: path.clone(),
+            folder: path.parent().map(Path::to_path_buf).unwrap_or(folder),
             outcome,
         });
     }
@@ -824,6 +842,9 @@ fn stream_catalog(
                     + 2048;
             }
             images.push(ImageMetadata {
+                smart_preview: image.file_uuid.as_deref().and_then(|uuid| {
+                    import_lrcat::smart_previews::SmartPreviewIndex::new(path).find(uuid)
+                }),
                 catalog_id: image.catalog_id,
                 path: image.path,
                 master_image: image.master_image,
@@ -1017,7 +1038,7 @@ impl LrcatImport {
                     "original not found (relocate its folder if the drive moved)".into(),
                 )),
                 Outcome::Skip(reason) => Some(self.skip_row(r, reason.clone())),
-                Outcome::Import => app_image_id(&r.path)
+                Outcome::Import | Outcome::OfflineProxy => app_image_id(&r.path)
                     .and_then(|id| {
                         existing_edit_conflict(&r.path, id, options.overwrite_existing_edits)
                     })
@@ -1039,7 +1060,10 @@ impl LrcatImport {
     pub fn default_options(&self) -> Result<LrcatOptions> {
         let roots = root_paths(&self.plan);
         let library = match common_ancestor(&roots)
-            .filter(|p| p.components().count() > 1)
+            .filter(|p| {
+                p.components().count() > 1
+                    && (p.is_dir() || !self.plan.images.iter().any(|i| i.smart_preview.is_some()))
+            })
             .or_else(|| self.catalog.parent().map(Path::to_path_buf))
             .filter(|p| !Sidecar::is_lightroom_owned(p))
         {
@@ -1077,6 +1101,8 @@ impl LrcatImport {
                 })
                 .collect(),
             overwrite_existing_edits: false,
+            import_smart_previews: true,
+            copy_proxies: false,
         })
     }
 
@@ -1132,7 +1158,10 @@ impl LrcatImport {
                 let root = root_by_id.get(&f.get("rootFolder")?.as_i64()?)?;
                 let catalog_path = root.join(f.get("pathFromRoot")?.as_str()?);
                 let path = relocate(&catalog_path, &roots, &moves);
-                let here: Vec<&Resolved> = resolved.iter().filter(|r| r.folder == path).collect();
+                let here: Vec<&Resolved> = resolved
+                    .iter()
+                    .filter(|r| r.original_path.parent() == Some(path.as_path()))
+                    .collect();
                 let copies = here
                     .iter()
                     .filter(|r| r.outcome == Outcome::VirtualCopy)
@@ -1197,7 +1226,7 @@ impl LrcatImport {
         let to_import = resolved
             .iter()
             .filter(|r| {
-                r.outcome == Outcome::Import
+                matches!(r.outcome, Outcome::Import | Outcome::OfflineProxy)
                     && !skipped_paths.contains(r.path.to_str().unwrap_or(""))
             })
             .count();
@@ -1207,6 +1236,26 @@ impl LrcatImport {
             .count();
         let library_path = library_folder.join("library.json");
         Ok(LrcatPlanPreview {
+            online_originals: resolved
+                .iter()
+                .filter(|r| r.outcome != Outcome::VirtualCopy && r.original_path.is_file())
+                .count() as u32,
+            offline_with_smart_preview: resolved
+                .iter()
+                .filter(|r| {
+                    r.outcome != Outcome::VirtualCopy
+                        && !r.original_path.is_file()
+                        && r.smart_preview_available
+                })
+                .count() as u32,
+            offline_without_smart_preview: resolved
+                .iter()
+                .filter(|r| {
+                    r.outcome != Outcome::VirtualCopy
+                        && !r.original_path.is_file()
+                        && !r.smart_preview_available
+                })
+                .count() as u32,
             roots: root_rows,
             folders,
             selection_rows,
@@ -1364,7 +1413,31 @@ impl LrcatImport {
         }
         state.catalog = self.catalog.to_string_lossy().into_owned();
 
-        let resolved = resolve(&self.plan, &options)?;
+        let mut resolved = resolve(&self.plan, &options)?;
+        if options.copy_proxies {
+            for row in resolved
+                .iter_mut()
+                .filter(|r| r.outcome == Outcome::OfflineProxy)
+            {
+                if std::fs::metadata(&row.path)?.len() > 64 * 1024 * 1024 {
+                    return Err(failure("smart preview exceeds copy budget"));
+                }
+                let bytes = std::fs::read(&row.path)?;
+                let digest = blake3::hash(&bytes);
+                let destination = self
+                    .engine
+                    .support_dir()?
+                    .join("Lightroom Proxies")
+                    .join(format!("{digest}.dng"));
+                Sidecar::ensure_writable_destination(&destination)?;
+                std::fs::create_dir_all(destination.parent().unwrap())?;
+                if !destination.is_file() {
+                    write_atomic(&destination, &bytes)?;
+                }
+                row.path = destination;
+                row.folder = row.path.parent().unwrap().to_path_buf();
+            }
+        }
         for row in &resolved {
             Sidecar::register_store(
                 &Sidecar::resolved_destination(&row.folder),
@@ -1373,7 +1446,7 @@ impl LrcatImport {
         }
         let existing = Library::read(&library_path)?;
         let ids: HashMap<ImageId, ImageId> = self.app_ids(&resolved);
-        let merge = merge_library(
+        let mut merge = merge_library(
             existing,
             &self.plan,
             &self.catalog,
@@ -1419,7 +1492,7 @@ impl LrcatImport {
         };
         let work: Vec<&Resolved> = resolved
             .iter()
-            .filter(|r| r.outcome == Outcome::Import)
+            .filter(|r| matches!(r.outcome, Outcome::Import | Outcome::OfflineProxy))
             .collect();
         report
             .skipped
@@ -1455,6 +1528,15 @@ impl LrcatImport {
                     return Err(error);
                 }
             };
+            if r.outcome == Outcome::OfflineProxy {
+                image.recipe.unknown.insert(
+                    "lightroom_smart_preview".into(),
+                    serde_json::json!({
+                        "origin": "Lightroom smart preview", "proxy_path": r.path,
+                        "original_path": r.original_path
+                    }),
+                );
+            }
             progress.tick(
                 LrcatPhase::WritingEdits,
                 n as u32,
@@ -1638,8 +1720,27 @@ impl LrcatImport {
             return Ok(report);
         }
 
+        // Membership lives in the existing library document, never a new index schema.
+        let members = merge
+            .library
+            .unknown
+            .entry("lightroom_proxy_members".into())
+            .or_insert_with(|| serde_json::json!({}));
+        if let Some(members) = members.as_object_mut() {
+            for row in resolved
+                .iter()
+                .filter(|r| r.outcome == Outcome::OfflineProxy)
+            {
+                if let Some(id) = app_image_id(&row.path) {
+                    members.insert(id.to_string(), serde_json::json!(row.original_path));
+                }
+            }
+        }
         progress.phase(LrcatPhase::Library, 0, 1, "Writing library.json");
-        if !merge.already_merged || merge.roots_added {
+        if !merge.already_merged
+            || merge.roots_added
+            || resolved.iter().any(|r| r.outcome == Outcome::OfflineProxy)
+        {
             merge.library.write(&library_path)?;
         }
         if merge.already_merged {
@@ -1703,7 +1804,10 @@ impl LrcatImport {
     /// copies map to their master's photo.
     fn app_ids(&self, resolved: &[Resolved]) -> HashMap<ImageId, ImageId> {
         let mut by_catalog: HashMap<i64, ImageId> = HashMap::new();
-        for r in resolved.iter().filter(|r| r.outcome == Outcome::Import) {
+        for r in resolved
+            .iter()
+            .filter(|r| matches!(r.outcome, Outcome::Import | Outcome::OfflineProxy))
+        {
             if let Some(id) = app_image_id(&r.path) {
                 by_catalog.insert(self.plan.images[r.index].catalog_id, id);
             }
@@ -2117,7 +2221,7 @@ mod lrcat_resume_tests {
         let first = resolve(&import.plan, &options)
             .unwrap()
             .into_iter()
-            .find(|r| r.outcome == Outcome::Import)
+            .find(|r| matches!(r.outcome, Outcome::Import | Outcome::OfflineProxy))
             .unwrap();
         {
             let import = Arc::get_mut(&mut import).unwrap();
