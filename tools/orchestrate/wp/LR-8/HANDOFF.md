@@ -533,3 +533,63 @@ No bound, assertion or command was changed between attempts.
 `cargo clippy --locked --release --workspace --all-targets -- -D warnings`:
 PASS. `cargo fmt --all -- --check`: PASS. `git diff --check`: PASS.
 Cargo.lock and board.json untouched.
+
+### LR-8h (on top of 2ef6ab56) — compressed budget follows file size and decoded budget
+
+Machine A's ruling: the fixed 128 MiB aggregate compressed cap is wrong;
+bound Σ compressed ≤ min(file size, decoded budget), keep the aliasing
+protection, so a large original is not refused on compressed size alone.
+
+- **Done as ruled.** `read_identified` now rejects only when
+  `compressed_total > size.min(MAX_DECODED_BYTES)` (1.5 GiB); the single
+  production change is in `crates/raw-decode/src/lossy_dng.rs`, with the
+  `MAX_DECODED_BYTES` doc comment extended to cover the compressed bound.
+  Unchanged: tile count ≤ 65,536, ≤ 32 MiB per compressed tile, every tile
+  range inside the file, output budget, codec limits before decode.
+- **Aliasing protection kept** through the file-size term: tiles that share
+  or overlap byte ranges cannot declare more bytes in total than the file
+  holds. There is no separate pairwise overlap check (there was none before
+  either): overlapping ranges whose sum still fits the file size are not
+  detected, and each such tile is read and decoded once as declared.
+- **Memory consequence for Machine A:** the pixel reader keeps all compressed
+  tiles resident while decoding (each tile is read exactly once), so resident
+  compressed bytes can now reach min(file size, 1.5 GiB) instead of 128 MiB,
+  alongside the 1.5 GiB output cap.
+
+Tests (all in `crates/raw-decode/tests/lr8f_safety.rs`, using a sparse
+in-memory `Read + Seek` so no large file is materialised):
+
+| Test | Covers |
+| --- | --- |
+| `lr8h_compressed_total_above_128mib_is_not_refused_alone` | 10000×10000, 400 tiles × 512 KiB = 200 MiB admitted by the metadata reader; 64 tiles × 24 MiB = exactly 1.5 GiB admitted; 2048×2048 with 16 tiles × 9 MiB = 144 MiB fully decoded, every pixel checked |
+| `lr8h_compressed_total_above_decoded_budget_is_rejected` | 64 tiles × (24 MiB + 1) rejected by both readers, "total compressed byte budget exceeded" |
+| `lr8h_compressed_total_above_file_size_and_aliased_ranges_are_rejected` | sum one byte above the file size; 400 tiles aliasing one range; ranges overlapping by half a tile — all rejected by both readers with the same error |
+
+RED `b8f128f8`: the first test failed with "total compressed byte budget
+exceeded"; the two rejection tests passed. Fix `54df428a`. One test
+correction is in the fix commit: the RED file-size case had passed only
+because of the old 128 MiB cap (its sparse file was larger than the declared
+sum once the TIFF structures were counted, so after the fix it reported
+"TIFF tile range outside file"); it now trims the whole file to one byte
+below the sum. No assertion was weakened.
+
+**Seeded mutation re-run** (seed `0x8f5eed1234567890`, 512 invocations):
+maximum tracked allocation **2,452,291 bytes** (unchanged); slowest case
+**694 µs**, JXL case 8, pixel reader, in the gate run (369 µs, JXL case 0,
+in the focused run). Bounds unchanged and passing.
+
+**Gates on `54df428a`** (`CARGO_BUILD_JOBS=5`, `RAYON_NUM_THREADS=5`, target
+`$HOME/.cache/tessera-target/LR-8e`) after `cargo clean -p raw-decode`
+(0 files) and `cargo clean --release -p raw-decode` (204 files, 101.4 MiB):
+
+- `cargo test --locked --release -p raw-decode -p image-core -p pipeline-cpu
+  --no-fail-fast -- --test-threads=1`: **PASS, first attempt — 73 suites,
+  486 passed, 0 failed, 11 ignored.**
+- `cargo clippy --locked --release --workspace --all-targets -- -D warnings`:
+  PASS. `cargo fmt --all -- --check`: PASS. `git diff --check`: PASS.
+
+The private parity check was not re-run for LR-8h (not requested; the change
+only relaxes an admission bound that the smart-preview sample never reached).
+Cargo.lock and board.json untouched.
+
+Cherry-pick order: `b8f128f8` (RED), `54df428a` (fix), then this docs commit.
