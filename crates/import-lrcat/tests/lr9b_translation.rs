@@ -175,3 +175,9 @@ fn independent_remove_areas_append_to_retouch_with_unique_ids() {
     assert_eq!(r.settings.locals.retouch.len(),2);
     assert_ne!(r.settings.locals.retouch[0].id,r.settings.locals.retouch[1].id);
 }
+
+#[test]
+fn conflicting_radial_inversion_is_a_named_mask_limitation() {
+    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',CorrectionMasks={{What='Mask/CircularGradient',MaskID='synthetic',Left=0.2,Top=0.2,Right=0.8,Bottom=0.8,Flipped=false,MaskInverted=false}}}}}","15.4").unwrap();
+    assert!(w.iter().any(|w|w.contains("radial mask inversion")),"{w:?}");
+}
