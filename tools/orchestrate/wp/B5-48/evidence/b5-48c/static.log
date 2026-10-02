@@ -1,0 +1,5 @@
+cargo clippy --locked -p tessera-ffi --all-targets -- -D warnings: exit 0
+cargo fmt --all -- --check: exit 0
+git diff --check: exit 0
+Source comparison against e4e51c87: only six debug-ignore attributes and one measurement print.
+Clippy includes existing libraw C deprecation diagnostics; no Rust warning failures.

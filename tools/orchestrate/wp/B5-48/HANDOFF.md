@@ -244,3 +244,104 @@ unchanged. No GUI foreground launch, installation, push, merge, or rebase.
 The final local `docs(B5-48b):` commit contains this appendix and compact evidence;
 full command logs remain at `/tmp/B5-48b-*.log`. All three follow-up commits end
 with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+
+## B5-48c — Release-only latency gates (2026-10-01)
+
+Local follow-up on `wp/B5-48`, directly on B5-48b HEAD `e4e51c87`; no rebase.
+Machine A closed ENG-5 as **debug profile × host load**, with no regression.
+Machine A reports quiet-host release runs of
+`brush_latency_on_a_20_megapixel_layer`: **main `486d069f`: 3/3 pass** and
+**base `e0f9141d`: 3/3 pass**, using fresh target directories. These are Machine
+A's supplied results; no per-run millisecond values were supplied.
+
+Each test below now uses `#[cfg_attr(debug_assertions, ignore =
+"release-only latency bound: skipped in debug builds")]`. The standard debug
+harness visibly reports the reason and counts the test as ignored. In release,
+the attribute disappears and every existing assertion and threshold remains
+unchanged. The latest-wins test also prints its observed frame count and floor
+so successful release evidence includes the numbers.
+
+| Test | Unchanged release bound |
+| --- | --- |
+| `brush_latency_on_a_20_megapixel_layer` | Liquify brush + preview p95 < 250 ms |
+| `export_batch_does_not_starve_slider_drag` | At least 90% at L2 (108/120), render p90 < 16 ms, 5 successful exports and 0 failures |
+| `slow_interactive_frames_are_not_starved` | At least 1 frame delivered during the 40-edit, 4 ms-gap burst |
+| `drafts_faster_than_frame_time_keep_publishing_latest_wins` | Frames >= max(2, elapsed drag milliseconds / 40), for 100 drafts at 4 ms gaps; last draft delivered and monotonic frame order |
+| `begin_is_cheap_and_edits_continue_during_run` | Snapshot begin < 50 ms and worst edit < 50 ms |
+| `edits_do_not_wait_for_frames_in_flight` | Median edit time × 20 < median frame time; interactive pressure observed |
+
+The requested Develop L2 frame-delivery bound is inside
+`export_batch_does_not_starve_slider_drag`, not a separate test. Audit covered
+`crates/tessera-ffi/src` and `tests` for elapsed/Instant/Duration measurements,
+percentiles, frame counts and timing assertions. Additional active wall-clock
+frame-count gates are the slow-interactive and latest-wins tests above; the
+flat-export and viewport median latency tests are also gated consistently.
+Measurement-only ignored benchmarks (including `eng2_publication_latency` and
+`document_perf` p95 reporting) have no asserted latency threshold and retain
+their existing opt-in behavior. Existing release-only streaming memory/time
+and fallback-preview latency checks retain their existing gating. Lock-held
+synchronization tests and receive/poll deadlines remain active: their deadlines
+are deadlock/hang guards, not percentile or throughput gates. No numeric bounds,
+fixtures, CI behavior, or functional assertions were edited.
+
+Validation results and reproduction follow below.
+
+All commands used `PATH="$HOME/.cargo/bin:$PATH"`,
+`CARGO_TARGET_DIR="$HOME/.cache/tessera-target/B5-48"`, `CARGO_BUILD_JOBS=3`.
+`CI`, `RAYON_NUM_THREADS`, and `TESSERA_FILTER_PERF` were unset. Release timing
+tests ran serially after the debug aggregate, final viewport rerun, release
+compilation, and static checks finished; no other B5-48c workload overlapped.
+This is a shared host, not a claim of machine-wide quiescence.
+
+- Full debug aggregate: **exit 0; 572 passed, 0 failed, 36 ignored**, 51 result
+  blocks including doc-tests. Five new skips appear explicitly. This invocation
+  started before the final viewport annotation was added, so its already-built
+  viewport binary ran all five tests successfully. To verify the final source,
+  rebuilt and reran the entire viewport target: **exit 0; 4 passed, 0 failed,
+  1 ignored**, with the exact requested skip reason. Across these runs, all six
+  new debug skips are verified and every active test passed. No synthetic
+  combined aggregate is substituted for the observed command results.
+- Release selected gates: **exit 0; 6 passed, 0 failed, 0 ignored** across five
+  test binaries. Fixtures were present; no runtime skip messages occurred.
+- Clippy all targets with `-D warnings`: **exit 0**.
+- `cargo fmt --all -- --check`: **exit 0**.
+- `git diff --check`: **exit 0**. A source comparison with B5-48b verified that
+  removing only the six new attributes and the new diagnostic print recovers
+  the original test source byte-for-byte; all release bounds remain unchanged.
+
+| Release test | Observed result |
+| --- | --- |
+| Liquify 20 MP | Median 7.0 ms, **p95 20.0 ms**, max 38.4 ms; full-resolution apply 51 ms |
+| Export / Develop L2 | **120/120 at L2**, render p50 1.5 ms / **p90 2.4 ms** / max 6.7 ms; set-to-frame p90 2.9 ms; 5 exports, 0 failures, 5.096 s total (0 completed during the 2.614 s drag) |
+| Slow interactive burst | **39 frames** during 245.013 ms, final L1 |
+| Latest-wins drafts | **27 frames**, required floor **13**, 100 drafts over 542.797 ms |
+| Flat export begin / edits | Begin **10.625 microseconds**; worst edit **152.875 microseconds** |
+| Viewport edit / frame median | Edit **0.007 ms**, frame **383.3 ms**, maximum edit 0.03 ms |
+
+Reproduction:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/B5-48"
+export CARGO_BUILD_JOBS=3
+cargo test --locked -p tessera-ffi
+cargo test --locked -p tessera-ffi --test document_viewport
+cargo test --locked --release -p tessera-ffi \
+  --lib --test develop --test document_liquify_ui \
+  --test document_export_flat --test document_viewport -- \
+  brush_latency_on_a_20_megapixel_layer \
+  export_batch_does_not_starve_slider_drag \
+  slow_interactive_frames_are_not_starved \
+  drafts_faster_than_frame_time_keep_publishing_latest_wins \
+  begin_is_cheap_and_edits_continue_during_run \
+  edits_do_not_wait_for_frames_in_flight --nocapture --test-threads=1
+cargo clippy --locked -p tessera-ffi --all-targets -- -D warnings
+cargo fmt --all -- --check
+```
+
+Compact debug result blocks, full selected release output, final viewport debug
+output, and static-check results are in `evidence/b5-48c/`. Full command logs
+remain at `/tmp/B5-48c-*.log`. No Swift/API changes, app build or launch,
+Cargo.lock/board.json edits, push, merge, or rebase. The test and documentation
+commits both end with the requested Claude Opus 5.5 co-author trailer.
