@@ -6,6 +6,7 @@ use engine_api::recipe::{ProcessFamily, ProcessVersion};
 #[derive(Clone, Copy, Debug)]
 pub enum Rule {
     Provenance,
+    DistractionPanel,
     False,
     Empty,
     Upright(f64),
@@ -19,6 +20,9 @@ pub enum Rule {
 }
 /// One policy table, shared by both adapters, the aggregate audit and matrix guard.
 pub const RULES: &[(&str, Rule)] = &[
+    ("EnableDistractionRemoval", Rule::DistractionPanel),
+    ("FilterList", Rule::Empty),
+    ("AILook", Rule::Empty),
     ("Version", Rule::Provenance),
     ("CompatibleVersion", Rule::Provenance),
     ("UprightVersion", Rule::Provenance),
@@ -64,6 +68,13 @@ fn get<'a>(t: &'a LuaTable, key: &str) -> Option<&'a LuaValue> {
     let v = found.next()?;
     found.next().is_none().then_some(v)
 }
+fn absent_or_empty(table: &LuaTable, key: &str) -> bool {
+    !table
+        .fields
+        .iter()
+        .any(|(k, _)| matches!(k,LuaKey::Str(k) if k == key))
+        || get(table, key).is_some_and(empty)
+}
 fn off_or_absent(table: &LuaTable, key: &str) -> bool {
     !table
         .fields
@@ -94,14 +105,19 @@ fn placeholder(v: &LuaValue) -> bool {
             let ns: Vec<_> = s.split(',').map(str::trim).collect();
             ns.len() == 19 && ns.iter().all(|n| n.parse::<f64>() == Ok(-1.))
         }
+        LuaValue::Table(t) if t.items.is_empty() && t.fields.len() == 10 => {
+            ["SrcHue", "SrcSat", "SrcLum", "HueShift", "SatScale", "LumScale", "RangeAmount"]
+                .iter().all(|k| get(t,k).and_then(number) == Some(-1.))
+                && ["HueRange", "SatRange", "LumRange"].iter().all(|k| {
+                    matches!(get(t,k), Some(LuaValue::Table(range)) if range.items.is_empty() && range.fields.len() == 4 &&
+                        ["LowerNone", "LowerFull", "UpperFull", "UpperNone"].iter().all(|k| get(range,k).and_then(number) == Some(-1.)))
+                })
+        }
         _ => false,
     }
 }
 /// No source values (especially preset names) may be printed by callers of this audit API.
 pub fn is_noop(key: &str, table: &LuaTable, version: &ProcessVersion) -> bool {
-    let Some(v) = get(table, key) else {
-        return false;
-    };
     let Some((_, rule)) = RULES.iter().find(|(k, _)| *k == key).or_else(|| {
         RULES
             .iter()
@@ -109,8 +125,25 @@ pub fn is_noop(key: &str, table: &LuaTable, version: &ProcessVersion) -> bool {
     }) else {
         return false;
     };
+    let Some(v) = get(table, key) else {
+        return false;
+    };
     match rule {
         Rule::Provenance => true,
+        // This is a panel switch, not an instruction to run removal. Active
+        // filter/resource payloads still take the unsupported path.
+        Rule::DistractionPanel => {
+            off(v)
+                || (matches!(v, LuaValue::Bool(true))
+                    && [
+                        "FilterList",
+                        "RemoveAreas",
+                        "GenerativeRemove",
+                        "GenerativeFill",
+                    ]
+                    .iter()
+                    .all(|key| absent_or_empty(table, key)))
+        }
         Rule::False => off(v),
         Rule::Empty => empty(v),
         Rule::Zero => zero(v),

@@ -50,6 +50,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | Adobe key | Existing recipe path or missing field | Lane | Status | Synthetic Lua value |
 | --- | --- | --- | --- | --- |
 | `*` | MISSING: unknown future Adobe property; classify before mapping | LR-7 | retained | — |
+| `AILook` | MISSING: Adaptive Color payload; empty is inactive | LR-7 | retained; no-op when default | — |
+| `FilterList` | MISSING: AI filter payloads; empty is inactive | LR-7 | retained; no-op when default | — |
 | `AutoTone` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
 | `AutoToneDigest` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `AutoToneDigest*` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
@@ -65,7 +67,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `CurveRefineSaturation` | MISSING: tone-curve saturation refinement | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic | — |
 | `DepthMapInfo` | `/settings/effects/lens_blur/depth` | LR-6 | approximate | `{ DepthSource = "synthetic", BaseRawDepthTable = "synthetic-id" }` |
-| `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic | — |
+| `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic; no-op when default | — |
 | `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
 | `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
 | `Exposure` | `/settings/tone/legacy_pv2010/exposure` | LR-2 | approximate; no-op when default | `1` |

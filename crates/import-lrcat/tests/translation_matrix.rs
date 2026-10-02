@@ -509,7 +509,7 @@ fn lr9_matrix_defaults_are_silent_and_nondefaults_remain_visible() {
         );
         let (default, nondefault, context) = match rule {
             Rule::Provenance => ("'synthetic-metadata'".into(), None, ""),
-            Rule::False => ("false".into(), Some("true".into()), ""),
+            Rule::DistractionPanel | Rule::False => ("false".into(), Some("true".into()), ""),
             Rule::Empty => ("{}".into(), Some("{'synthetic-unhandled'}".into()), ""),
             Rule::Zero => ("0".into(), Some("9".into()), ""),
             Rule::Number(n) | Rule::Legacy(n) | Rule::Upright(n) | Rule::Sdr(n) => (
@@ -545,10 +545,19 @@ fn lr9_matrix_defaults_are_silent_and_nondefaults_remain_visible() {
             "lost source: {key}"
         );
         if let Some(value) = nondefault {
+            let context = if matches!(rule, Rule::DistractionPanel) {
+                "FilterList={{What='synthetic-filter'}},"
+            } else {
+                context
+            };
             let (recipe, warnings) =
                 lua_develop::parse(&format!("s={{{context}{key}={value}}}"), "15.4").unwrap();
             assert!(
-                !warnings.is_empty() || diagnostics::entries(&recipe).contains_key(key),
+                warnings.iter().any(|w| w
+                    .strip_prefix("crs:")
+                    .unwrap_or(w)
+                    .starts_with(&format!("{key}:")))
+                    || diagnostics::entries(&recipe).contains_key(key),
                 "nondefault lost: {key}"
             );
         }

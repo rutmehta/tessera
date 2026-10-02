@@ -68,7 +68,14 @@ fn cloud_wording_is_verbatim() {
         "GenerativeRemove",
         "GenerativeFill",
     ] {
-        let (_, warnings) = lua_develop::parse(&format!("s = {{ {key} = true }}"), "15.4").unwrap();
+        // An enabled panel alone has no effect; exercise actual cloud payload.
+        let payload = if key == "EnableDistractionRemoval" {
+            "FilterList={{What='synthetic-filter'}},"
+        } else {
+            ""
+        };
+        let (_, warnings) =
+            lua_develop::parse(&format!("s = {{ {payload} {key} = true }}"), "15.4").unwrap();
         assert!(
             warnings
                 .iter()
