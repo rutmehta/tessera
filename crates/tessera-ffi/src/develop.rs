@@ -3878,6 +3878,44 @@ impl DevelopSession {
 }
 
 #[cfg(test)]
+mod proxy_notice_tests {
+    use super::proxy_notice_text;
+
+    /// Machine A ruling: lens blur and retouch are not blocked by the missing
+    /// original; they need a depth map / retouch renderer the proxy route lacks.
+    #[test]
+    fn lr13_lens_blur_and_retouch_notices_do_not_blame_the_original() {
+        assert_eq!(
+            proxy_notice_text("/effects/lens_blur"),
+            "Lens Blur is not rendered on Smart Preview yet."
+        );
+        assert_eq!(
+            proxy_notice_text("/locals/retouch"),
+            "Retouch is not rendered on Smart Preview yet."
+        );
+        for field in [
+            "/decode",
+            "/linearize",
+            "/demosaic",
+            "/denoise",
+            "/white_balance/mode",
+            "/camera_profile/look",
+            "/lens/profile",
+            "/effects/lens_blur",
+            "/locals/retouch",
+            "/locals/adjustments",
+            "/output/hdr",
+            "/anything/else",
+        ] {
+            assert!(
+                !proxy_notice_text(field).contains("needs the original"),
+                "{field}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::thread;
