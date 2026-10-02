@@ -584,6 +584,7 @@ impl CameraLinearProxy {
             encoding: s.encoding,
             proxy: Self {
                 external_dng: false,
+                external_profile: None,
                 pixels,
                 metadata,
                 correction,
@@ -633,6 +634,7 @@ mod tests {
         let s = DevelopSettings::default();
         CameraLinearProxy {
             external_dng: false,
+            external_profile: None,
             pixels: Image::new(2, 2, vec![values.to_vec(); 3]).unwrap(),
             metadata,
             correction: ResolvedLens {
