@@ -164,3 +164,27 @@ fn mixed_batch_rejects_before_any_original_output_or_progress() {
     assert_eq!(count.get(), 0);
     assert!(!settings.output_dir.exists());
 }
+
+#[test]
+fn lr13_external_proxy_optional_settings_export_with_warning_and_adobe_pixels() {
+    let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"))).unwrap().unwrap();
+    let proxy = CameraLinearProxy::from_dng(dng).unwrap().with_catalog_orientation(6).unwrap();
+    let mut recipe = Recipe { process_version: ProcessVersion::adobe(6), ..Default::default() };
+    let settings = serde_json::from_value(serde_json::json!({"tone":{"exposure":0.7,"contrast":20.0},"camera_profile":{"look":{"style":"unavailable","amount":100.0}},"output":{"hdr":true,"hdr_headroom_stops":2.0},"effects":{"lens_blur":{}}})).unwrap();
+    recipe.edit(engine_api::recipe::EditMeta::user("Proxy settings", 1), |s| *s = settings).unwrap();
+    let retained = recipe.clone();
+    let dir = tempfile::tempdir().unwrap();
+    let settings = ExportSettings { output_dir: dir.path().into(), metadata: export::Metadata::None, ..Default::default() };
+    let rendered = export::render_one_cancellable(&input(&proxy), &recipe, &settings, &CancellationToken::new(), None, None).unwrap();
+    assert!(rendered.warnings().iter().any(|w| w.contains("proxy")), "proxy quality warning is required");
+    let path = rendered.finish(&CancellationToken::new()).unwrap();
+    assert!(path.is_file());
+    assert_eq!(recipe, retained);
+    // The pixel-only API must take the same optional-feature policy.
+    let actual = export::render_pixels(&input(&proxy), &recipe, &RenderRequest { color_space: ColorSpace::Srgb, resize: Resize::None, sharpen_for: SharpenFor::None, scale: 1 }, &CancellationToken::new(), None).unwrap();
+    let expected = image_core::pipeline_adobe::render_scaled(&recipe.settings, &RenderSource::CameraLinear(&proxy), 1).unwrap();
+    assert_eq!(actual.dimensions(), expected.dimensions());
+    for (a, b) in actual.as_raw().iter().zip(expected.as_raw()) {
+        assert!((a * 255.0 - f32::from(*b)).abs() <= 2.0, "Adobe export parity: {a} vs {b}");
+    }
+}

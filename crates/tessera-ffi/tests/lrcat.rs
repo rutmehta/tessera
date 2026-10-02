@@ -1100,15 +1100,36 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
     let importer = s.engine.clone().open_lrcat(s.fixture.catalog.to_string_lossy().into()).unwrap();
     let mut options = relocated(&s);
     options.import_smart_previews = true;
+    let folder = options.library_folder.clone();
     importer.apply(options, None).unwrap();
     let row = s.engine.list_images(ImageQuery::default()).unwrap().into_iter().find(|r| r.lightroom_smart_preview).unwrap();
+    let mut recipe: engine_api::recipe::Recipe = serde_json::from_str(&s.engine.get_recipe(row.id.clone()).unwrap()).unwrap();
+    recipe.process_version = engine_api::recipe::ProcessVersion::adobe(6);
+    recipe.edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| s.tone.exposure = 0.7).unwrap();
+    s.engine.set_recipe_json(row.id.clone(), serde_json::to_string(&recipe).unwrap()).unwrap();
     let mut failures = Vec::new();
+    let cull = s.engine.open_cull_session(folder).unwrap();
+    if !cull.preview_errors().unwrap().is_empty() { failures.push("culling proxy preview failed".into()); }
     for max_px in [256, 2048] {
         let start = std::time::Instant::now();
         loop {
             match s.engine.clone().embedded_preview(row.id.clone(), max_px) {
                 Ok(p) if p.pending && start.elapsed().as_secs() < 30 => std::thread::sleep(std::time::Duration::from_millis(10)),
-                Ok(p) if p.bytes.is_some() => break,
+                Ok(p) if p.bytes.is_some() => {
+                    use previews::Codec;
+                    let actual = previews::Jpeg.decode(&p.bytes.unwrap()).unwrap();
+                    let raw = image_core::RawImage::open_with_catalog_orientation(engine_api::id::ImageId(9), &row.path, None).unwrap();
+                    let renderer = image_core::Renderer::new(Default::default()).for_recipe(&recipe);
+                    let extent = image_core::Renderer::output_extent(&raw, &recipe.settings, 0).unwrap();
+                    let tiles = renderer.render_region(&raw, &recipe.settings, 0, image_core::PixelRect::full(extent)).unwrap();
+                    let tile = &tiles[0];
+                    let data = tile.samples::<u8>().unwrap();
+                    // JPEG error is bounded; missing DCP's base curve is much larger.
+                    let expected_mean = data.iter().map(|v| f64::from(*v)).sum::<f64>() / data.len() as f64;
+                    let actual_mean = actual.as_raw().iter().map(|v| f64::from(*v)).sum::<f64>() / actual.as_raw().len() as f64;
+                    if (expected_mean - actual_mean).abs() > 3.0 { failures.push(format!("preview Adobe mean: {actual_mean} vs Develop {expected_mean}")); }
+                    break;
+                },
                 other => { failures.push(format!("preview {max_px}: {other:?}")); break; }
             }
         }
