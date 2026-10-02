@@ -2506,6 +2506,11 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func renderDetailPreview(iosurfaceId: UInt32, width: UInt32, height: UInt32, centerX: Float, centerY: Float) throws  -> DetailPreview
     
     /**
+     * Informational per-photo omissions; no saved setting is changed.
+     */
+    func renderNotices() throws  -> [String]
+    
+    /**
      * Resets every setting to its default as one undo step.
      */
     func reset() throws  -> Bool
@@ -3052,6 +3057,18 @@ open func renderDetailPreview(iosurfaceId: UInt32, width: UInt32, height: UInt32
         FfiConverterUInt32.lower(height),
         FfiConverterFloat.lower(centerX),
         FfiConverterFloat.lower(centerY),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Informational per-photo omissions; no saved setting is changed.
+     */
+open func renderNotices()throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_developsession_render_notices(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -18613,7 +18630,7 @@ public struct ImageSummary: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(lightroomSmartPreview: Bool, id: String, path: String,
+    public init(lightroomSmartPreview: Bool, id: String, path: String, 
         /**
          * RAW: Unix seconds; EXIF JPEG/TIFF: ISO local date-time without a timezone.
          */captureTime: String?, orientation: UInt16, selection: Selection, recipeHash: String) {
@@ -18642,7 +18659,7 @@ public struct FfiConverterTypeImageSummary: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImageSummary {
         return
             try ImageSummary(
-                lightroomSmartPreview: FfiConverterBool.read(from: &buf),
+                lightroomSmartPreview: FfiConverterBool.read(from: &buf), 
                 id: FfiConverterString.read(from: &buf), 
                 path: FfiConverterString.read(from: &buf), 
                 captureTime: FfiConverterOptionString.read(from: &buf), 
@@ -21033,8 +21050,8 @@ public struct FfiConverterTypeLrcatOptions: FfiConverterRustBuffer {
                 libraryFolder: FfiConverterString.read(from: &buf), 
                 relocations: FfiConverterSequenceTypeLrcatRelocation.read(from: &buf), 
                 marks: FfiConverterSequenceTypeLrcatMarkMapping.read(from: &buf), 
-                overwriteExistingEdits: FfiConverterBool.read(from: &buf),
-                importSmartPreviews: FfiConverterBool.read(from: &buf),
+                overwriteExistingEdits: FfiConverterBool.read(from: &buf), 
+                importSmartPreviews: FfiConverterBool.read(from: &buf), 
                 copyProxies: FfiConverterBool.read(from: &buf)
         )
     }
@@ -21097,7 +21114,7 @@ public struct LrcatPlanPreview: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(onlineOriginals: UInt32, offlineWithSmartPreview: UInt32, offlineWithoutSmartPreview: UInt32, roots: [LrcatRootRow], folders: [LrcatFolderRow], selectionRows: [LrcatSelectionRow], selection: LrcatSelectionCounts, marks: [LrcatMarkRow], keywords: [LrcatKeywordRow],
+    public init(onlineOriginals: UInt32, offlineWithSmartPreview: UInt32, offlineWithoutSmartPreview: UInt32, roots: [LrcatRootRow], folders: [LrcatFolderRow], selectionRows: [LrcatSelectionRow], selection: LrcatSelectionCounts, marks: [LrcatMarkRow], keywords: [LrcatKeywordRow], 
         /**
          * Photos that will get sidecars.
          */toImport: UInt32, missing: UInt32, virtualCopies: UInt32, 
@@ -21144,9 +21161,9 @@ public struct FfiConverterTypeLrcatPlanPreview: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LrcatPlanPreview {
         return
             try LrcatPlanPreview(
-                onlineOriginals: FfiConverterUInt32.read(from: &buf),
-                offlineWithSmartPreview: FfiConverterUInt32.read(from: &buf),
-                offlineWithoutSmartPreview: FfiConverterUInt32.read(from: &buf),
+                onlineOriginals: FfiConverterUInt32.read(from: &buf), 
+                offlineWithSmartPreview: FfiConverterUInt32.read(from: &buf), 
+                offlineWithoutSmartPreview: FfiConverterUInt32.read(from: &buf), 
                 roots: FfiConverterSequenceTypeLrcatRootRow.read(from: &buf), 
                 folders: FfiConverterSequenceTypeLrcatFolderRow.read(from: &buf), 
                 selectionRows: FfiConverterSequenceTypeLrcatSelectionRow.read(from: &buf), 
@@ -25421,7 +25438,7 @@ public struct SessionImage: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(lightroomSmartPreview: Bool, id: String, path: String,
+    public init(lightroomSmartPreview: Bool, id: String, path: String, 
         /**
          * As stored by the index (see `ImageSummary::capture_time`).
          */captureTime: String?, orientation: UInt16, selection: Selection, inBasket: Bool, 
@@ -25454,7 +25471,7 @@ public struct FfiConverterTypeSessionImage: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionImage {
         return
             try SessionImage(
-                lightroomSmartPreview: FfiConverterBool.read(from: &buf),
+                lightroomSmartPreview: FfiConverterBool.read(from: &buf), 
                 id: FfiConverterString.read(from: &buf), 
                 path: FfiConverterString.read(from: &buf), 
                 captureTime: FfiConverterOptionString.read(from: &buf), 
@@ -37821,6 +37838,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview() != 3279) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_developsession_render_notices() != 49590) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_reset() != 11852) {

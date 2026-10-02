@@ -491,6 +491,7 @@ private final class CloseFaultSession: DevelopSession, @unchecked Sendable {
     override func getSettingsJson() throws -> String { try wrapped.getSettingsJson() }
     override func getHistogram() throws -> Histogram { try wrapped.getHistogram() }
     override func ignoredSettings() throws -> [String] { try wrapped.ignoredSettings() }
+    override func renderNotices() throws -> [String] { try wrapped.renderNotices() }
     override func setListener(listener: DevelopListener?) {
         if listener == nil { lock.withLock { listenerDetaches += 1 } }
         wrapped.setListener(listener: listener)

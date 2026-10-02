@@ -163,6 +163,7 @@ private final class CloseCountingSession: DevelopSession, @unchecked Sendable {
     override func getSettingsJson() throws -> String { try wrapped.getSettingsJson() }
     override func getHistogram() throws -> Histogram { try wrapped.getHistogram() }
     override func ignoredSettings() throws -> [String] { try wrapped.ignoredSettings() }
+    override func renderNotices() throws -> [String] { try wrapped.renderNotices() }
     override func setListener(listener: DevelopListener?) { wrapped.setListener(listener: listener) }
     override func setMaskListener(listener: MaskListener?) { wrapped.setMaskListener(listener: listener) }
     override func setSettings(jsonPatch: String, interactive: Bool) throws {

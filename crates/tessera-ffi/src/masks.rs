@@ -749,6 +749,16 @@ impl MaskShared {
         })
     }
 
+    pub(crate) fn unavailable(&self, settings: &DevelopSettings) -> bool {
+        let entries = self.ai.lock().unwrap_or_else(|e| e.into_inner());
+        settings.locals.adjustments.iter().filter(|g| g.enabled && g.amount != 0.).flat_map(|g| &g.components).flat_map(MaskComponent::active_leaves).any(|c| {
+            let Some(key) = component_raster_key(c) else { return false; };
+            if c.adobe_ai.as_ref().and_then(|a| a.mask_key).is_some() {
+                !matches!(entries.get(&key), Some(AiEntry::Ready(plane)) if self.extents.first() == Some(&(plane.width, plane.height)))
+            } else { matches!(entries.get(&key), Some(AiEntry::Failed(_))) }
+        })
+    }
+
     /// Keep every available imported raster; missing optional rasters are skipped
     /// by the external-proxy renderer without preventing the other local edits.
     pub(crate) fn load_available_imported(

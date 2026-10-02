@@ -1263,6 +1263,7 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
             {
                 failures.push("Develop optional settings failed".into());
             }
+            assert!(!session.render_notices().unwrap().is_empty());
             session.set_listener(None);
             session.close().unwrap();
         }
