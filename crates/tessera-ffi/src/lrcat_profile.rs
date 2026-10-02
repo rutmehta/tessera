@@ -116,6 +116,13 @@ fn safe_options(import: &LrcatImport, app: &Path) -> SafeResult<LrcatOptions> {
     Ok(options)
 }
 
+fn open_audit_catalog(catalog: &Path) -> SafeResult<rusqlite::Connection> {
+    safe(rusqlite::Connection::open_with_flags(
+        catalog,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    ))
+}
+
 fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
     let mut keys = BTreeMap::<&'static str, [u64; 3]>::new();
     let mut unknown_retained = 0u64;
@@ -157,10 +164,7 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
     }
     // Read-only aggregate audit of source rows. No rows or errors escape this function.
     // The bounded projection avoids materializing oversized develop cells.
-    let db = safe(rusqlite::Connection::open_with_flags(
-        &import.catalog,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    ))?;
+    let db = open_audit_catalog(&import.catalog)?;
     let develop_rows: i64 = safe(db.query_row(
         "SELECT count(*) FROM Adobe_imageDevelopSettings",
         [],
@@ -336,6 +340,92 @@ fn profile_synthetic_fixture() {
     assert_eq!(warnings(&[hostile]), json!({"Other": 3}));
     assert_eq!(allowed_key("private-key"), None);
     assert!(profile(&fixture.catalog, &app).is_err());
+}
+
+#[test]
+#[cfg_attr(debug_assertions, ignore = "requires release profile")]
+fn profile_rejects_tmpdir_widening() {
+    const CHILD: &str = "TESSERA_PROFILE_TMPDIR_TEST_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        let root = std::env::temp_dir();
+        let fixture = import_lrcat::fixture::write(&root.join("fixture")).unwrap();
+        let app = root.join("app");
+        std::fs::create_dir(&app).unwrap();
+        assert!(profile(&fixture.catalog, &app).is_err());
+        assert!(std::fs::read_dir(app).unwrap().next().is_none());
+        return;
+    }
+    // A synthetic directory outside OS scratch roots; mutate only the child's env.
+    let root = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "lrcat::lrcat_profile::profile_rejects_tmpdir_widening",
+        ])
+        .env(CHILD, "1")
+        .env("TMPDIR", root.path())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "child rejected widened temp root test failed"
+    );
+}
+
+#[test]
+#[cfg_attr(debug_assertions, ignore = "requires release profile")]
+fn profile_rejects_lightroom_bundle_app_dirs() {
+    let root = tempfile::tempdir_in("/tmp").unwrap();
+    let fixture = import_lrcat::fixture::write(&root.path().join("fixture")).unwrap();
+    for bundle in [
+        "synthetic.lrdata",
+        "synthetic.lrcat",
+        "synthetic.LRDATA",
+        "synthetic.LRCAT",
+    ] {
+        let app = root.path().join(bundle).join("nested/app");
+        std::fs::create_dir_all(&app).unwrap();
+        assert!(profile(&fixture.catalog, &app).is_err());
+        assert!(std::fs::read_dir(app).unwrap().next().is_none());
+    }
+}
+
+#[test]
+fn audit_catalog_is_immutable_and_read_only() {
+    let root = tempfile::tempdir_in("/tmp").unwrap();
+    let path = root.path().join("synthetic ?#%.lrcat");
+    let writer = rusqlite::Connection::open(&path).unwrap();
+    writer
+        .execute_batch(
+            "CREATE TABLE probe (value INTEGER); INSERT INTO probe VALUES (51); BEGIN EXCLUSIVE;",
+        )
+        .unwrap();
+    let reader = open_audit_catalog(&path).unwrap();
+    reader.busy_timeout(std::time::Duration::ZERO).unwrap();
+    assert_eq!(
+        reader
+            .query_row("SELECT value FROM probe", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        51
+    );
+    assert!(reader.execute("INSERT INTO probe VALUES (52)", []).is_err());
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+}
+
+#[test]
+#[cfg(debug_assertions)]
+fn debug_runner_lists_synthetic_profile_as_ignored() {
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--ignored", "--list"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let listing = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        listing
+            .lines()
+            .any(|line| line == "lrcat::lrcat_profile::profile_synthetic_fixture: test")
+    );
 }
 
 // The opt-in test must run alone: redirect dependency output too, not just errors.
