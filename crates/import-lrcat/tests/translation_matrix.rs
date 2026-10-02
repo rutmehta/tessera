@@ -2,8 +2,8 @@
 use std::collections::BTreeSet;
 
 use engine_api::recipe::{CrsKey, Recipe};
-use import_lrcat::diagnostics;
 use import_lrcat::lua_develop::{self, EXTENDED_TONE_CURVE_KEYS, KEY_MAP};
+use import_lrcat::{LR2_APPROXIMATE_FIELDS, diagnostics};
 
 type Import = dyn Fn(&str, &str) -> Result<(Recipe, Vec<String>), String>;
 
@@ -22,7 +22,18 @@ fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
         String::new()
     };
     // Replace the context value instead of creating duplicate Adobe properties.
-    let version = if key.starts_with("ChromaticAberration") {
+    let version = if key.starts_with("ChromaticAberration")
+        || matches!(
+            key,
+            "Exposure"
+                | "Brightness"
+                | "Contrast"
+                | "FillLight"
+                | "HighlightRecovery"
+                | "Recovery"
+                | "Shadows"
+                | "Blacks"
+        ) {
         "5.7"
     } else {
         "15.4"
@@ -44,8 +55,17 @@ fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
     } else {
         context
     };
-    lua_develop::parse(&format!("s = {{ {context} {key} = {value} }}"), version)
-        .map_err(|e| format!("{key}: {e}"))
+    let hdr = if EXTENDED_TONE_CURVE_KEYS.contains(&key) {
+        "HDREditMode=1,"
+    } else {
+        ""
+    };
+    let root = key.split('/').next().unwrap();
+    lua_develop::parse(
+        &format!("s = {{ {context} {hdr} {root} = {value} }}"),
+        version,
+    )
+    .map_err(|e| format!("{key}: {e}"))
 }
 
 /// A synthetic import of an empty develop row: every field at its default.
@@ -61,6 +81,7 @@ struct Counts {
 
 /// Whether the exact source of `key` is in a retained-source container.
 fn retained_in(recipe: &Recipe, container: &str, key: &str) -> bool {
+    let key = key.split('/').next().unwrap();
     recipe
         .unknown
         .get(container)
@@ -94,7 +115,10 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
             "approximate" => true,
             _ => return Err(format!("invalid status: {line}")),
         };
-        if key.contains('*') || key.contains('/') || cells[5] == "—" {
+        if key.contains('*')
+            || (key.contains('/') && !key.starts_with("MaskGroupBasedCorrections/"))
+            || cells[5] == "—"
+        {
             return Err(format!(
                 "{} row needs a concrete key and synthetic Lua value: {key}",
                 cells[4]
@@ -200,6 +224,23 @@ fn translation_matrix_matches_synthetic_import() {
     );
     let matrix = std::fs::read_to_string(path).expect("translation matrix must exist");
     let counts = check_matrix(&matrix).unwrap();
+    let lr2_rows = matrix
+        .lines()
+        .filter(|line| line.contains("| LR-2 | approximate |"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let (lr2_counts, keys) = check_rows(&lr2_rows, &lua_import).unwrap();
+    assert_eq!(lr2_counts.approximate, 21);
+    assert_eq!(LR2_APPROXIMATE_FIELDS.len(), 21);
+    for &(key, path) in LR2_APPROXIMATE_FIELDS {
+        assert!(keys.contains(key), "missing LR-2 row: {key}");
+        assert!(
+            lr2_rows
+                .lines()
+                .any(|line| line.starts_with(&format!("| `{key}` | `{path}` |"))),
+            "matrix path differs from shared LR-2 table: {key}"
+        );
+    }
     eprintln!("matrix guard checked {counts:?} synthetic imports");
 }
 
@@ -207,7 +248,10 @@ fn translation_matrix_matches_synthetic_import() {
 fn matrix_guard_rejects_a_retained_key_claimed_as_translated() {
     let matrix = "| `PointColors` | `/settings/color/point_colors` | LR-1 | translated | `{}` |";
     let error = check_matrix(matrix).unwrap_err();
-    assert!(error.contains("still retained"), "{error}");
+    assert_eq!(
+        error,
+        "PointColors: translated key is still retained in lrcat_develop_source"
+    );
 }
 
 // --- `approximate` status: test-only fixture rows and a synthetic lane. ---

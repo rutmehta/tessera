@@ -1,11 +1,9 @@
 //! Mask-group translation. CRS geometry/adjustments are interoperable; native-only
 //! semantics live in individually named `ts:` fields, never a recipe JSON shadow.
 //!
-//! Adobe's dab payloads, colour sample colour space and AI raster/model formats
-//! are not specified by ExifTool's tag table. We deliberately do not invent those
-//! encodings: native strokes, OkLab samples and AI prompts/models use typed RDF
-//! extensions. Other consumers cannot render those placeholders. Foreign opaque
-//! masks fail atomically so the caller can retain their original XMP untouched.
+//! Foreign dabs and color models decode with explicit approximations. The catalog
+//! adapter retains exact source plus info diagnostics; native typed RDF keeps
+//! its precise Tessera interpretation. Unknown/malformed payloads still fail.
 use crate::xml::*;
 use engine_api::error::EngineResult;
 use engine_api::recipe::{LocalAdjustment, MaskComponent};
@@ -163,6 +161,7 @@ pub(super) fn export_masks(v: &Value) -> EngineResult<String> {
     let locals: Vec<LocalAdjustment> = serde_json::from_value(v.clone())?;
     let mut groups = String::new();
     for local in locals {
+        local.validate_mask_tree()?;
         let v = serde_json::to_value(local)?;
         let mut b = text("crs:What", "Correction")
             + &scalar("crs:CorrectionName", &v["name"])
@@ -200,9 +199,32 @@ fn export_component(c: &Value) -> EngineResult<String> {
         Some("intersect") => "2",
         _ => return Err(error("unknown mask combination")),
     };
-    let mut b = text("crs:MaskActive", "true")
-        + &scalar("crs:MaskInverted", &c["invert"])
+    let mut b = text(
+        "crs:MaskActive",
+        if c["enabled"] == false {
+            "false"
+        } else {
+            "true"
+        },
+    ) + &scalar("crs:MaskInverted", &c["invert"])
         + &text("crs:MaskBlendMode", blend);
+    if let Some(children) = c["group"].as_array() {
+        b += &text("crs:What", "Mask/Group");
+        let component: MaskComponent = serde_json::from_value(c.clone())?;
+        b += &native("ts:GroupFallback", &serde_json::to_value(component.kind)?);
+        let mut body = String::new();
+        for child in children {
+            body += &structure("rdf:li", &export_component(child)?);
+        }
+        b += &seq("crs:Masks", &body);
+        return Ok(b);
+    }
+    if !c["luminance_domain"].is_null() {
+        b += &native("ts:luminance_domain", &c["luminance_domain"]);
+    }
+    if !c["luminance_bounds"].is_null() {
+        b += &native("ts:luminance_bounds", &c["luminance_bounds"]);
+    }
     match kind {
         "linear" => {
             b += &text("crs:What", "Mask/Gradient");
@@ -289,7 +311,7 @@ fn export_component(c: &Value) -> EngineResult<String> {
     Ok(b)
 }
 
-pub(super) fn import_masks(t: &Tree) -> EngineResult<Value> {
+pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<Value> {
     let Some(Property::Node(root)) = t.property(CRS, "MaskGroupBasedCorrections") else {
         return Err(error("masks require a sequence"));
     };
@@ -332,48 +354,80 @@ pub(super) fn import_masks(t: &Tree) -> EngineResult<Value> {
         let hue = get(t, n, CRS, "LocalToningHue");
         let sat = get(t, n, CRS, "LocalToningSaturation");
         if hue.is_some() || sat.is_some() {
-            v["params"]["color_overlay"] = json!([
+            let overlay = [
                 number(hue.as_deref().unwrap_or("0"))?,
-                number(sat.as_deref().unwrap_or("0"))?
-            ]);
+                number(sat.as_deref().unwrap_or("0"))?,
+            ];
+            if !foreign_extensions || overlay != [0., 0.] {
+                v["params"]["color_overlay"] = json!(overlay);
+            }
         }
         let mut components = Vec::new();
         if let Some(masks) = child(t, n, CRS, "CorrectionMasks") {
             for c in t.items(masks) {
-                // There is no per-component enabled bit in the recipe. Do not
-                // silently drop it and later overwrite a foreign disabled mask.
-                if !flag(get(t, c, CRS, "MaskActive"), true)? {
-                    return Err(error("disabled mask component retained in XMP"));
-                }
-                components.push(import_component(t, c)?);
+                components.push(import_component(t, c, foreign_extensions)?);
             }
         }
-        if child(t, n, CRS, "CorrectionRangeMask").is_some() {
-            return Err(error("group-level range constraint retained in XMP"));
+        if let Some(range) = child(t, n, CRS, "CorrectionRangeMask") {
+            components.push(import_range(t, range, foreign_extensions)?);
         }
         v["components"] = json!(components);
         let local: LocalAdjustment = serde_json::from_value(v)?;
+        local.validate_mask_tree()?;
         locals.push(local);
     }
     Ok(serde_json::to_value(locals)?)
 }
-fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
+fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResult<Value> {
+    let mut parent = n.parent;
+    let mut depth = 0;
+    while let Some(i) = parent {
+        if t.nodes[i].ns == CRS && t.nodes[i].local == "Masks" {
+            depth += 1;
+        }
+        if depth >= 8 {
+            return Err(error("mask tree exceeds 8 levels"));
+        }
+        parent = t.nodes[i].parent;
+    }
     let what = get(t, n, CRS, "What").unwrap_or_default();
     let native_kind = extension(t, n, "kind")?;
     let kind = native_kind
         .as_ref()
         .and_then(Value::as_str)
         .unwrap_or(match what.as_str() {
+            "Mask/Group" | "Mask/Aggregate" => "group",
+            "Mask/Range" | "Mask/RangeMask" => "range",
             "Mask/Gradient" => "linear",
             "Mask/CircularGradient" => "radial",
             "Mask/Sky" => "sky",
             "Mask/Subject" => "subject",
             "Mask/Background" => "background",
-            // The geometry of Adobe paint dabs is intentionally not guessed.
+            "Mask/Paint" if foreign_extensions => "adobe_brush",
             _ => "unsupported",
         });
     let mut c = json!({"kind":kind});
     match kind {
+        "range" => {
+            let r = child(t, n, CRS, "CorrectionRangeMask")
+                .ok_or_else(|| error("missing range mask"))?;
+            c = import_range(t, r, foreign_extensions)?;
+        }
+        "group" => {
+            let masks = child(t, n, CRS, "Masks").ok_or_else(|| error("missing nested masks"))?;
+            c = if let Some(fallback) = extension(t, n, "GroupFallback")? {
+                let kind: engine_api::recipe::MaskKind = serde_json::from_value(fallback)?;
+                serde_json::to_value(kind)?
+            } else {
+                json!({"kind":"brush", "strokes":[]})
+            };
+            c["group"] = json!(
+                t.items(masks)
+                    .into_iter()
+                    .map(|n| import_component(t, n, foreign_extensions))
+                    .collect::<EngineResult<Vec<_>>>()?
+            );
+        }
         "linear" => {
             c["start"] = json!([num(t, n, "FullX", 0.0)?, num(t, n, "FullY", 0.0)?]);
             c["end"] = json!([num(t, n, "ZeroX", 1.0)?, num(t, n, "ZeroY", 1.0)?]);
@@ -408,9 +462,20 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
             }
             c["angle"] = json!(num(t, n, "Angle", 0.0)?);
             c["feather"] = json!(num(t, n, "Feather", 0.0)?);
-            if get(t, n, CRS, "Flipped").is_some() {
-                return Err(error("radial Flipped semantics retained in XMP"));
+            if let Some(flipped) = get(t, n, CRS, "Flipped") {
+                if !foreign_extensions {
+                    return Err(error("radial Flipped semantics retained in XMP"));
+                }
+                let inverted = !flag(Some(flipped), true)?;
+                if get(t, n, CRS, "MaskInverted").is_some()
+                    && flag(get(t, n, CRS, "MaskInverted"), false)? != inverted
+                {
+                    return Err(error("radial Flipped semantics retained in XMP"));
+                }
             }
+        }
+        "adobe_brush" => {
+            c = json!({"kind":"brush", "strokes":import_dabs(t, n)?});
         }
         "brush" => {
             let root =
@@ -459,12 +524,7 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
         }
         _ => return Err(error(format!("unsupported mask kind {what}"))),
     }
-    if !matches!(kind, "luminance_range" | "color_range" | "depth")
-        && child(t, n, CRS, "CorrectionRangeMask").is_some()
-    {
-        return Err(error("nested range constraint retained in XMP"));
-    }
-    if child(t, n, CRS, "Masks").is_some() {
+    if kind != "group" && child(t, n, CRS, "Masks").is_some() {
         return Err(error("nested mask group retained in XMP"));
     }
     c["combine"] = json!(
@@ -475,7 +535,254 @@ fn import_component(t: &Tree, n: &Node) -> EngineResult<Value> {
             _ => return Err(error("unsupported mask blend mode")),
         }
     );
-    c["invert"] = json!(flag(get(t, n, CRS, "MaskInverted"), false)?);
+    if kind == "adobe_brush"
+        && get(t, n, CRS, "MaskBlendMode").is_none()
+        && num(t, n, "MaskValue", 1.)? == 0.
+    {
+        // A zero-value Paint removes from earlier components. Erasing an
+        // isolated, initially empty native brush plane would do nothing.
+        c["combine"] = json!("subtract");
+    }
+    c["enabled"] = json!(flag(get(t, n, CRS, "MaskActive"), true)?);
+    let component_invert = if kind == "radial" && get(t, n, CRS, "Flipped").is_some() {
+        !flag(get(t, n, CRS, "Flipped"), true)?
+    } else {
+        flag(get(t, n, CRS, "MaskInverted"), false)?
+    };
+    c["invert"] = json!(c["invert"].as_bool().unwrap_or(false) ^ component_invert);
+    if !matches!(kind, "range" | "luminance_range" | "color_range" | "depth")
+        && let Some(range) = child(t, n, CRS, "CorrectionRangeMask")
+    {
+        // Component inversion belongs to the seed, not its range constraint:
+        // (not seed) intersect range, never not (seed intersect range).
+        let combine = c["combine"].clone();
+        let enabled = c["enabled"].clone();
+        c["combine"] = json!("add");
+        c["enabled"] = json!(true);
+        let seed: MaskComponent = serde_json::from_value(c)?;
+        c = json!({"kind":"brush", "strokes":[], "combine":combine,
+            "enabled":enabled, "invert":false,
+            "group":[seed, import_range(t, range, foreign_extensions)?]});
+    }
+    if let Some(bounds) = extension(t, n, "luminance_bounds")? {
+        c["luminance_bounds"] = bounds;
+    }
+    if let Some(domain) = extension(t, n, "luminance_domain")? {
+        c["luminance_domain"] = domain;
+    }
     let c: MaskComponent = serde_json::from_value(c)?;
     Ok(serde_json::to_value(c)?)
+}
+
+// Explicit scalar and four-bound luminance ranges. Type codes dispatch only
+// with matching geometry; color models remain opaque until their color space
+// and selection kernel can be represented faithfully.
+fn import_range(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResult<Value> {
+    let lum = get(t, n, CRS, "LumMin").is_some() && get(t, n, CRS, "LumMax").is_some();
+    let depth = get(t, n, CRS, "DepthMin").is_some() && get(t, n, CRS, "DepthMax").is_some();
+    let four = get(t, n, CRS, "LumRange");
+    let subtype = get(t, n, CRS, "Type");
+    if !foreign_extensions && (four.is_some() || subtype.is_some()) {
+        return Err(error("opaque or ambiguous range mask retained in XMP"));
+    }
+    let selected = match subtype.as_deref().map(str::trim) {
+        None => None,
+        Some("1") => Some("color_range"),
+        Some("2") => Some("luminance_range"),
+        Some("3") => Some("depth"),
+        _ => return Err(error("opaque or ambiguous range mask retained in XMP")),
+    };
+    let color =
+        child(t, n, CRS, "PointModels").is_some() || child(t, n, CRS, "AreaModels").is_some();
+    if color || selected == Some("color_range") {
+        if !foreign_extensions
+            || !color
+            || lum
+            || depth
+            || four.is_some()
+            || selected.is_some_and(|s| s != "color_range")
+        {
+            return Err(error("mixed or incomplete color range"));
+        }
+        return import_color_range(t, n);
+    }
+    if let Some(value) = four {
+        if selected == Some("depth")
+            || [
+                "LumMin",
+                "LumMax",
+                "LumFeather",
+                "DepthMin",
+                "DepthMax",
+                "DepthFeather",
+                "ColorAmount",
+            ]
+            .iter()
+            .any(|key| get(t, n, CRS, key).is_some())
+            || child(t, n, CRS, "AreaModels").is_some()
+            || child(t, n, CRS, "PointModels").is_some()
+        {
+            return Err(error("opaque or ambiguous range mask retained in XMP"));
+        }
+        let bounds = value
+            .split_whitespace()
+            .map(number)
+            .collect::<EngineResult<Vec<_>>>()?;
+        if bounds.len() != 4
+            || bounds.iter().any(|v| !(0. ..=1.).contains(v))
+            || bounds.windows(2).any(|p| p[0] > p[1])
+        {
+            return Err(error("opaque or ambiguous range mask retained in XMP"));
+        }
+        return Ok(
+            json!({"kind":"luminance_range", "luminance_domain":"display", "range":[bounds[1],bounds[2]],
+            "luminance_bounds":bounds,"combine":"intersect", "smoothness":0.,
+            "invert":flag(get(t,n,CRS,"Invert"),false)?}),
+        );
+    }
+    if lum == depth
+        || selected == Some("luminance_range") && !lum
+        || selected == Some("depth") && !depth
+        || child(t, n, CRS, "AreaModels").is_some()
+    {
+        return Err(error("opaque or ambiguous range mask retained in XMP"));
+    }
+    let (kind, lo, hi, feather, key) = if lum {
+        (
+            "luminance_range",
+            "LumMin",
+            "LumMax",
+            "LumFeather",
+            "smoothness",
+        )
+    } else {
+        ("depth", "DepthMin", "DepthMax", "DepthFeather", "feather")
+    };
+    let low = num(t, n, lo, 0.)?;
+    let high = num(t, n, hi, 1.)?;
+    let feather = num(t, n, feather, 0.)?;
+    if !(0. ..=1.).contains(&low) || !(low..=1.).contains(&high) || !(0. ..=100.).contains(&feather)
+    {
+        return Err(error("invalid explicit range bounds"));
+    }
+    let mut c = json!({"kind":kind,"range":[low,high],"combine":"intersect",
+        "invert":flag(get(t,n,CRS,"Invert"),false)?});
+    c[key] = json!(feather);
+    if lum {
+        c["luminance_domain"] = json!("display");
+    }
+    if depth {
+        c["model"] = Value::Null;
+    }
+    Ok(c)
+}
+
+// LR-4c approximations: exact foreign source and assumptions are retained by
+// import-lrcat. Each `d` is one stamp (never a connected native stroke).
+fn import_dabs(t: &Tree, n: &Node) -> EngineResult<Vec<engine_api::recipe::mask::BrushStroke>> {
+    use engine_api::recipe::mask::BrushStroke;
+    let root = child(t, n, CRS, "Dabs").ok_or_else(|| error("missing Adobe Dabs"))?;
+    let tokens = t.items(root);
+    if tokens.is_empty() || tokens.len() > 65_536 {
+        return Err(error("empty or oversized Adobe Dabs"));
+    }
+    let mut radius = num(t, n, "Radius", 0.02)?;
+    let mut flow = num(t, n, "Flow", 1.)?;
+    let mut hardness = num(t, n, "CenterWeight", 0.5)?;
+    let value = num(t, n, "MaskValue", 1.)?;
+    if !(0. ..=1.).contains(&value) {
+        return Err(error("invalid Adobe MaskValue"));
+    }
+    let mut strokes = Vec::new();
+    for token in tokens {
+        if token.text.len() > 256 || !token.children.is_empty() || !token.attrs.is_empty() {
+            return Err(error("invalid Adobe dab token"));
+        }
+        let mut parts = token.text.split_whitespace();
+        let command = parts.next().ok_or_else(|| error("empty dab token"))?;
+        let values = parts.map(number).collect::<EngineResult<Vec<_>>>()?;
+        match (command, values.as_slice()) {
+            ("r", [r]) => radius = *r,
+            ("f", [f]) => flow = *f,
+            ("h", [h]) => hardness = *h,
+            ("d", [x, y]) if (-16. ..=16.).contains(x) && (-16. ..=16.).contains(y) => {
+                strokes.push(BrushStroke {
+                    points: vec![[
+                        *x as f32,
+                        *y as f32,
+                        if value == 0. { 1. } else { value as f32 },
+                    ]],
+                    radius: radius as f32,
+                    feather: ((1. - hardness) * 100.) as f32,
+                    flow: (flow * 100.) as f32,
+                    erase: false,
+                });
+            }
+            _ => return Err(error("unknown or malformed Adobe dab token")),
+        }
+        if !(1e-6..=16.).contains(&radius)
+            || !(0. ..=1.).contains(&flow)
+            || !(0. ..=1.).contains(&hardness)
+        {
+            return Err(error("invalid Adobe dab radius/flow/hardness"));
+        }
+    }
+    if strokes.is_empty() {
+        return Err(error("Adobe Dabs contain no stamps"));
+    }
+    Ok(strokes)
+}
+
+fn import_color_range(t: &Tree, n: &Node) -> EngineResult<Value> {
+    let mut samples = Vec::new();
+    for name in ["PointModels", "AreaModels"] {
+        if let Some(root) = child(t, n, CRS, name) {
+            for sample in t.items(root) {
+                if samples.len() >= 65_536
+                    || sample.text.len() > 4096
+                    || !sample.attrs.is_empty()
+                    || !sample.children.is_empty()
+                {
+                    return Err(error("invalid color sample model"));
+                }
+                let values = sample
+                    .text
+                    .split_whitespace()
+                    .map(number)
+                    .collect::<EngineResult<Vec<_>>>()?;
+                if values.len() < 3 || values[..3].iter().any(|v| !(0. ..=1.).contains(v)) {
+                    return Err(error("color model needs an RGB sample triple"));
+                }
+                // Assumption: leading triple is display-encoded sRGB D65;
+                // remaining sample/area coordinates do not limit selection.
+                samples.push(srgb_to_oklab([values[0], values[1], values[2]]));
+            }
+        }
+    }
+    let amount = num(t, n, "ColorAmount", 0.5)?;
+    if samples.is_empty() || !(0. ..=1.).contains(&amount) {
+        return Err(error("empty color samples or invalid ColorAmount"));
+    }
+    Ok(
+        json!({"kind":"color_range", "samples":samples, "amount":amount*100.,
+        "combine":"intersect", "invert":flag(get(t,n,CRS,"Invert"),false)?}),
+    )
+}
+
+fn srgb_to_oklab(rgb: [f64; 3]) -> [f64; 3] {
+    let [r, g, b] = rgb.map(|v| {
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    });
+    let l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b).cbrt();
+    let m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b).cbrt();
+    let s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b).cbrt();
+    [
+        0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+        1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+        0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
+    ]
 }

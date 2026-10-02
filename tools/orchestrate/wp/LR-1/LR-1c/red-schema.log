@@ -1,0 +1,33 @@
+   Compiling num-traits v0.2.19
+   Compiling bitflags v2.13.2
+   Compiling rustybuzz v0.20.1
+   Compiling euclid v0.22.14
+   Compiling lyon_geom v1.0.19
+   Compiling lyon_path v1.0.19
+   Compiling lyon_algorithms v1.0.21
+   Compiling lyon_tessellation v1.0.22
+   Compiling lyon v1.0.19
+   Compiling vector v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/vector)
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/typography)
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/engine-api)
+    Finished `release` profile [optimized] target(s) in 1m 02s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/engine_api-6761888d48b5dc80)
+
+running 1 test
+test recipe::schema::v4_feature_predicates::lr1c_point_colors_bumps_only_when_present ... FAILED
+
+failures:
+
+---- recipe::schema::v4_feature_predicates::lr1c_point_colors_bumps_only_when_present stdout ----
+
+thread 'recipe::schema::v4_feature_predicates::lr1c_point_colors_bumps_only_when_present' (58136948) panicked at crates/engine-api/src/recipe/schema.rs:151:9:
+point_colors is not in V4_FEATURE_PREDICATES
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    recipe::schema::v4_feature_predicates::lr1c_point_colors_bumps_only_when_present
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p engine-api --lib`

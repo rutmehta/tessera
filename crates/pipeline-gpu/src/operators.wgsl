@@ -309,26 +309,32 @@ fn curve_decode(v: f32) -> f32 {
     if e >= 80.0 { return min(exp(e + log(0.18)), 3.402823466e38); }
     return 0.18 * exp_minus_one(e);
 }
+fn curve_decode_domain(v: f32) -> f32 {
+    if p[25] != 0.0 { return sign(v) * curve_decode(abs(v)); }
+    return curve_decode(v);
+}
 fn curve_value(v: f32, curve: u32) -> f32 {
     let offset = u32(p[19u + curve]);
-    if offset == 0u || v < 0.0 { return v; }
-    let x = curve_encode(v);
+    if offset == 0u || (p[25] == 0.0 && v < 0.0) { return v; }
+    var x = 0.0;
+    if p[25] != 0.0 { x = sign(v) * curve_encode(abs(v)); }
+    else { x = curve_encode(v); }
     let count = u32(p[offset]);
     let first = offset + 1u;
     let last = first + (count - 1u) * 3u;
-    if x >= p[last] { return curve_decode(x + p[last + 1u] - p[last]); }
-    if x <= 0.0 { return curve_decode(p[first + 1u] + x); }
+    if x >= p[last] { return curve_decode_domain(x + p[last + 1u] - p[last]); }
+    if x <= p[first] { return curve_decode_domain(p[first + 1u] + x - p[first]); }
     var i = first;
     while i + 3u < last && p[i + 3u] <= x { i += 3u; }
     let h = p[i + 3u] - p[i];
     let t = (x - p[i]) / h;
     let y0 = p[i + 1u];
     let y1 = p[i + 4u];
-    if y0 == y1 { return curve_decode(y0); }
+    if y0 == y1 { return curve_decode_domain(y0); }
     let blend = t * t * (3.0 - 2.0 * t);
     let y = y0 + (y1 - y0) * blend + t * (1.0 - t) * (1.0 - t) * (h * p[i + 2u])
         - t * t * (1.0 - t) * (h * p[i + 5u]);
-    return curve_decode(clamp(y, y0, y1));
+    return curve_decode_domain(clamp(y, y0, y1));
 }
 fn curves(input: vec3<f32>) -> vec3<f32> {
     if p[9] == 0.0 && p[19] == 0.0 && p[20] == 0.0 && p[21] == 0.0 && p[22] == 0.0 && p[23] == 0.0 {
@@ -349,7 +355,7 @@ fn curves(input: vec3<f32>) -> vec3<f32> {
     }
     for (var c = 0u; c < 3u; c += 1u) { rgb[c] = curve_value(curve_value(rgb[c], 0u), c + 1u); }
     y = 0.2627 * rgb.x + 0.678 * rgb.y + 0.0593 * rgb.z;
-    if y > 0.0 { rgb *= curve_value(y, 4u) / y; }
+    if y > 0.0 || (p[25] != 0.0 && y < 0.0) { rgb *= curve_value(y, 4u) / y; }
     else if all(rgb == vec3<f32>(0.0)) { rgb = vec3<f32>(curve_value(0.0, 4u)); }
     return clamp(rgb, vec3<f32>(-3.402823466e38), vec3<f32>(3.402823466e38));
 }
@@ -376,7 +382,26 @@ fn from_lab(lab: vec3<f32>) -> vec3<f32> {
         -0.8847359 * q.x + 2.163231 * q.y - 0.2784951 * q.z,
         -0.0485738 * q.x - 0.4545031 * q.y + 1.5030769 * q.z);
 }
-fn creative_color(rgb: vec3<f32>) -> vec3<f32> {
+fn monochrome(rgb: vec3<f32>) -> vec3<f32> {
+    let hi=max(rgb.x,max(rgb.y,rgb.z));
+    let lo=min(rgb.x,min(rgb.y,rgb.z));
+    let span=hi-lo;
+    let y=0.2627*rgb.x+0.6780*rgb.y+0.0593*rgb.z;
+    if span<=1e-7 || hi<=1e-7 { return vec3<f32>(y); }
+    var hue=(rgb.x-rgb.y)/span+4.0;
+    if hi==rgb.x { hue=(rgb.y-rgb.z)/span; }
+    else if hi==rgb.y { hue=(rgb.z-rgb.x)/span+2.0; }
+    hue=wrap(hue*60.0);
+    let centers=array<f32,9>(0.,30.,60.,120.,180.,240.,270.,300.,360.);
+    var i=0u;
+    while i<7u && hue>centers[i+1u] { i+=1u; }
+    let t=(hue-centers[i])/(centers[i+1u]-centers[i]);
+    let amount=unit(p[11u+i])*(1.-t)+unit(p[11u+(i+1u)%8u])*t;
+    return vec3<f32>(y*(1.+amount*clamp(span/hi,0.,1.)));
+}
+fn creative_color(input: vec3<f32>) -> vec3<f32> {
+    var rgb=input;
+    if p[10] != 0.0 { rgb=monochrome(rgb); }
     if p[9] == 0.0 { return rgb; }
     let original = to_lab(rgb);
     var l = original.x;

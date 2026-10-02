@@ -1,0 +1,51 @@
+    Blocking waiting for file lock on build directory
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/engine-api)
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/index)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/sidecar)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/import-lrcat)
+    Finished `release` profile [optimized] target(s) in 4m 42s
+     Running tests/lr1_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/lr1_compat-9639191d023d0e2c)
+
+running 1 test
+test untranslated_recipe_bytes_match_pre_lr1 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/point_colors.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/point_colors-e31d2c61ef2bcf27)
+
+running 12 tests
+test point_color_success_has_no_unsupported_warning ... ok
+test point_color_defaults_missing_ranges ... ok
+test point_color_requires_pv3_or_later ... ok
+test point_color_lua_maps_shifts_and_all_feathers_with_exact_source ... ok
+test point_color_skips_placeholder_among_real_records ... ok
+test point_color_list_extensions_and_mixed_invalid_items_are_retained ... ok
+test point_color_xmp_numeric_sequence_matches_lua ... ok
+test point_color_resource_wrapper_extensions_are_not_discarded ... ok
+test point_color_explicit_lua_array_indices_translate_without_losing_order ... ok
+test lr1c_shared_approximation_diagnostics_and_single_combined_import ... ok
+test point_color_partial_or_unknown_shape_stays_atomic_and_retained ... ok
+test point_color_units_multiple_points_and_native_roundtrip ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/translation_matrix.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/translation_matrix-c0ae092f8379a841)
+
+running 13 tests
+test matrix_guard_rejects_an_approximate_row_without_a_synthetic_value ... ok
+test matrix_guard_rejects_a_retained_key_claimed_as_translated ... ok
+test lr7e_ignored_notes_do_not_count_as_approximate ... ok
+test matrix_guard_rejects_approximate_diagnostic_naming_another_field ... ok
+test matrix_guard_rejects_approximate_with_warnings ... ok
+test matrix_guard_rejects_a_translated_row_carrying_an_approximate_diagnostic ... ok
+test lr7e_translated_row_can_carry_an_ignored_note ... ok
+test matrix_guard_rejects_approximate_without_retained_source ... ok
+test matrix_guard_accepts_a_complete_approximate_row ... ok
+test matrix_guard_rejects_approximate_without_a_diagnostic ... ok
+test matrix_guard_rejects_the_fixture_row_against_the_unconverted_parser ... ok
+test matrix_guard_rejects_approximate_without_the_recipe_field ... ok
+test translation_matrix_matches_synthetic_import ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

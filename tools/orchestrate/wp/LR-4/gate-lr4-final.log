@@ -1,0 +1,2214 @@
+    Blocking waiting for file lock on build directory
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/write/file_write.cpp:78:3: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:    78 |   sprintf(th->date, "%04d:%02d:%02d %02d:%02d:%02d", t->tm_year + 1900,
+warning: libraw-ffi@0.1.0:       |   ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decompressors/losslessjpeg.cpp:24:9: warning: 'ZERO' macro redefined [-Wmacro-redefined]
+warning: libraw-ffi@0.1.0:    24 | #define ZERO(a) do { memset(a,0,sizeof(a));} while(0)
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decompressors/../../internal/libraw_cxx_defs.h:117:9: note: previous definition is here
+warning: libraw-ffi@0.1.0:   117 | #define ZERO(a) memset(&a, 0, sizeof(a))
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decompressors/losslessjpeg.cpp:375:17: warning: comparison of integers of different signs: 'int' and 'uint32_t' (aka 'unsigned int') [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   375 |           if (h >= tsize)
+warning: libraw-ffi@0.1.0:       |               ~ ^  ~~~~~
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/libraw_datastream.cpp:138:48: warning: unused parameter 'jpegdata' [-Wunused-parameter]
+warning: libraw-ffi@0.1.0:   138 | int LibRaw_abstract_datastream::jpeg_src(void *jpegdata)
+warning: libraw-ffi@0.1.0:       |                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/libraw_datastream.cpp:452:46: warning: unused parameter 'jpegdata' [-Wunused-parameter]
+warning: libraw-ffi@0.1.0:   452 | int LibRaw_buffer_datastream::jpeg_src(void *jpegdata)
+warning: libraw-ffi@0.1.0:       |                                              ^
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/integration/dngsdk_glue.cpp:527:33: warning: unused parameter 'p' [-Wunused-parameter]
+warning: libraw-ffi@0.1.0:   527 | void LibRaw::set_dng_host(void *p)
+warning: libraw-ffi@0.1.0:       |                                 ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/utils/open.cpp:476:11: warning: unused variable 'foveon_count' [-Wunused-const-variable]
+warning: libraw-ffi@0.1.0:   476 | const int foveon_count = sizeof(foveon_data) / sizeof(foveon_data[0]);
+warning: libraw-ffi@0.1.0:       |           ^~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/utils/thumb_utils.cpp:35:41: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:    35 |   if(INT64(T.theight) * INT64(T.twidth) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB)
+warning: libraw-ffi@0.1.0:       |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/utils/thumb_utils.cpp:38:42: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:    38 |   if (INT64(T.theight) * INT64(T.twidth) < 64ULL)
+warning: libraw-ffi@0.1.0:       |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/postprocessing/postprocessing_utils_dcrdefs.cpp:65:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:    65 |     sprintf(prof_desc.data(), "%s gamma %g toe slope %g", name[output_color - 1], floor(1000. / gamm[0] + .5) / 1000.,
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/postprocessing/mem_image.cpp:43:24: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:    43 |   if (INT64(T.tlength) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB)
+warning: libraw-ffi@0.1.0:       |       ~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:225:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   225 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:70:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    70 |     if (INT64(W)*INT64(H) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB) return LIBRAW_UNSUPPORTED_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:225:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   225 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:71:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    71 |     if (INT64(W)*INT64(H) < 64ULL)        return LIBRAW_NO_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:266:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   266 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:70:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    70 |     if (INT64(W)*INT64(H) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB) return LIBRAW_UNSUPPORTED_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:266:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   266 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:71:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    71 |     if (INT64(W)*INT64(H) < 64ULL)        return LIBRAW_NO_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:298:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   298 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:70:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    70 |     if (INT64(W)*INT64(H) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB) return LIBRAW_UNSUPPORTED_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:298:9: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   298 |         THUMB_SIZE_CHECKWH(T.twidth, T.theight);
+warning: libraw-ffi@0.1.0:       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:71:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    71 |     if (INT64(W)*INT64(H) < 64ULL)        return LIBRAW_NO_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:383:3: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   383 |                 THUMB_SIZE_CHECKWH(T.twidth, (INT64(T.theight)*INT64(o_bps)));
+warning: libraw-ffi@0.1.0:       |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:70:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    70 |     if (INT64(W)*INT64(H) > 1024ULL * 1024ULL * LIBRAW_MAX_THUMBNAIL_MB) return LIBRAW_UNSUPPORTED_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:383:3: warning: comparison of integers of different signs: 'INT64' (aka 'long long') and 'unsigned long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   383 |                 THUMB_SIZE_CHECKWH(T.twidth, (INT64(T.theight)*INT64(o_bps)));
+warning: libraw-ffi@0.1.0:       |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/unpack_thumb.cpp:71:27: note: expanded from macro 'THUMB_SIZE_CHECKWH'
+warning: libraw-ffi@0.1.0:    71 |     if (INT64(W)*INT64(H) < 64ULL)        return LIBRAW_NO_THUMBNAIL; \
+warning: libraw-ffi@0.1.0:       |         ~~~~~~~~~~~~~~~~~ ^ ~~~~~
+warning: libraw-ffi@0.1.0: 8 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/decoders_libraw.cpp:894:2: warning: definition of implicit copy assignment operator for 'p1_row_info_t' is deprecated because it has a user-provided copy constructor [-Wdeprecated-copy-with-user-provided-copy]
+warning: libraw-ffi@0.1.0:   894 |         p1_row_info_t(const p1_row_info_t& q): row(q.row),offset(q.offset){}
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/sift_down.h:61:14: note: in implicit copy assignment operator for 'p1_row_info_t' first required here
+warning: libraw-ffi@0.1.0:    61 |     *__start = _Ops::__iter_move(__child_i);
+warning: libraw-ffi@0.1.0:       |              ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/make_heap.h:39:12: note: in instantiation of function template specialization 'std::__sift_down<std::_ClassicAlgPolicy, std::__less<void, void> &, p1_row_info_t *>' requested here
+warning: libraw-ffi@0.1.0:    39 |       std::__sift_down<_AlgPolicy>(__first, __comp_ref, __n, __first + __start);
+warning: libraw-ffi@0.1.0:       |            ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/partial_sort.h:41:8: note: in instantiation of function template specialization 'std::__make_heap<std::_ClassicAlgPolicy, std::__less<void, void> &, p1_row_info_t *>' requested here
+warning: libraw-ffi@0.1.0:    41 |   std::__make_heap<_AlgPolicy>(__first, __middle, __comp);
+warning: libraw-ffi@0.1.0:       |        ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/partial_sort.h:65:12: note: in instantiation of function template specialization 'std::__partial_sort_impl<std::_ClassicAlgPolicy, std::__less<void, void> &, p1_row_info_t *, p1_row_info_t *>' requested here
+warning: libraw-ffi@0.1.0:    65 |       std::__partial_sort_impl<_AlgPolicy>(__first, __middle, __last, static_cast<__comp_ref_type<_Compare> >(__comp));
+warning: libraw-ffi@0.1.0:       |            ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/sort.h:950:10: note: in instantiation of function template specialization 'std::__partial_sort<std::_ClassicAlgPolicy, std::__less<void, void>, p1_row_info_t *, p1_row_info_t *>' requested here
+warning: libraw-ffi@0.1.0:   950 |     std::__partial_sort<_AlgPolicy>(
+warning: libraw-ffi@0.1.0:       |          ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/sort.h:961:8: note: in instantiation of function template specialization 'std::__sort_impl<std::_ClassicAlgPolicy, std::__wrap_iter<p1_row_info_t *>, std::__less<void, void>>' requested here
+warning: libraw-ffi@0.1.0:   961 |   std::__sort_impl<_ClassicAlgPolicy>(std::move(__first), std::move(__last), __comp);
+warning: libraw-ffi@0.1.0:       |        ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/sort.h:967:8: note: in instantiation of function template specialization 'std::sort<std::__wrap_iter<p1_row_info_t *>, std::__less<void, void>>' requested here
+warning: libraw-ffi@0.1.0:   967 |   std::sort(__first, __last, __less<>());
+warning: libraw-ffi@0.1.0:       |        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/decoders_libraw.cpp:911:7: note: in instantiation of function template specialization 'std::sort<std::__wrap_iter<p1_row_info_t *>>' requested here
+warning: libraw-ffi@0.1.0:   911 |         std::sort(stripes.begin(), stripes.end());
+warning: libraw-ffi@0.1.0:       |              ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/olympus14.cpp:242:30: warning: comparison of integers of different signs: 'uint32_t' (aka 'unsigned int') and 'const int32_t' (aka 'const int') [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   242 |                 for (uint32_t col = 0; col < raw_width; col++)
+warning: libraw-ffi@0.1.0:       |                                        ~~~ ^ ~~~~~~~~~
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/load_mfbacks.cpp:534:45: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   534 |                         if (j == 0 || j == head[1] || k < 1 || k >= w0+w1)
+warning: libraw-ffi@0.1.0:       |                                                                ~ ^  ~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/load_mfbacks.cpp:541:10: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   541 |                         if (k < w0 + w1)
+warning: libraw-ffi@0.1.0:       |                             ~ ^ ~~~~~~~
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/fp_dng.cpp:361:21: warning: comparison of integers of different signs: 'int' and 'size_type' (aka 'unsigned long') [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   361 |   for (int i = 1; i < tiles.tBytes.size(); i++)
+warning: libraw-ffi@0.1.0:       |                   ~ ^ ~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/fp_dng.cpp:528:31: warning: comparison of integers of different signs: 'unsigned long long' and 'long long' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   528 |   if (pixcnt * sizeof(ushort) > INT64(imgdata.rawparams.max_raw_memory_mb) * 1024LL * 1024LL)
+warning: libraw-ffi@0.1.0:       |       ~~~~~~~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/fp_dng.cpp:560:24: warning: comparison of integers of different signs: 'size_t' (aka 'unsigned long') and 'INT64' (aka 'long long') [-Wsign-compare]
+warning: libraw-ffi@0.1.0:   560 |   for (size_t i = 0; i < pixcnt; ++i)
+warning: libraw-ffi@0.1.0:       |                      ~ ^ ~~~~~~
+warning: libraw-ffi@0.1.0: 3 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/decoders/decoders_dcraw.cpp:545:14: warning: variable 'jhigh' set but not used [-Wunused-but-set-variable]
+warning: libraw-ffi@0.1.0:   545 |   int jwide, jhigh, jrow, jcol, val, jidx, i, j, row = 0, col = 0;
+warning: libraw-ffi@0.1.0:       |              ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:280:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   280 |           { 786432,   1024,  768, 0, 0,  0, 0,  0, 0x94, 0, 0, "AVT", "F-080C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:281:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   281 |           { 1447680,  1392, 1040, 0, 0,  0, 0,  0, 0x94, 0, 0, "AVT", "F-145C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:282:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   282 |           { 1920000,  1600, 1200, 0, 0,  0, 0,  0, 0x94, 0, 0, "AVT", "F-201C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:283:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   283 |           { 5067304,  2588, 1958, 0, 0,  0, 0,  0, 0x94, 0, 0, "AVT", "F-510C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:285:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   285 |           { 10134608, 2588, 1958, 0, 0,  0, 0,  9, 0x94, 0, 0, "AVT", "F-510C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:287:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   287 |           { 16157136, 3272, 2469, 0, 0,  0, 0,  9, 0x94, 0, 0, "AVT", "F-810C" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:288:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   288 |           { 3995136,  1632, 1224, 0, 0,  0, 0,  8, 0x61, 0, 1, "AgfaPhoto", "DC-833m" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:289:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   289 |           { 15980544, 3264, 2448, 0, 0,  0, 0,  8, 0x61, 0, 1, "AgfaPhoto", "DC-833m" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:290:76: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   290 |           { 9631728,  2532, 1902, 0, 0,  0, 0, 96, 0x61, 0, 0, "Alcatel", "5035D" },
+warning: libraw-ffi@0.1.0:       |                                                                                   ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:291:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   291 |           { 31850496, 4608, 3456, 0, 0,  0, 0,  0, 0x94, 0, 0, "GITUP", "GIT2 4:3" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:292:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   292 |           { 23887872, 4608, 2592, 0, 0,  0, 0,  0, 0x94, 0, 0, "GITUP", "GIT2 16:9" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:293:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   293 |           { 32257024, 4624, 3488, 8, 2, 16, 2,  0, 0x94, 0, 0, "GITUP", "GIT2P 4:3" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:294:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   294 |           { 24192768, 4624, 2616, 8, 2, 16, 2,  0, 0x94, 0, 0, "GITUP", "GIT2P 16:9" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:295:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   295 |           { 18016000, 4000, 2252, 0, 0,  0, 0,  0, 0x94, 0, 0, "GITUP", "G3DUO 16:9" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:302:74: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   302 |           {  1540857, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "Samsung", "S3" },
+warning: libraw-ffi@0.1.0:       |                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:303:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   303 |           {  2658304, 1212, 1096,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G3FrontMipi" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:304:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   304 |           {  2842624, 1296, 1096,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G3FrontQCOM" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:305:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   305 |           {  2969600, 1976, 1200,   0, 0, 0, 0,  1, 0x16, 0, 0, "Xiaomi", "MI3wMipi" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:306:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   306 |           {  3170304, 1976, 1200,   0, 0, 0, 0,  1, 0x16, 0, 0, "Xiaomi", "MI3wQCOM" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:307:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   307 |           {  3763584, 1584, 1184,   0, 0, 0, 0, 96, 0x61, 0, 0, "I_Mobile", "I_StyleQ6" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:308:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   308 |           {  5107712, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "UltraPixel1" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:309:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   309 |           {  5382640, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "UltraPixel2" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:310:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   310 |           {  5664912, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "4688" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:311:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   311 |           {  5664912, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "4688" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:312:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   312 |           {  5364240, 2688, 1520,   0, 0, 0, 0,  1, 0x61, 0, 0, "OmniVisi", "4688" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:313:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   313 |           {  6299648, 2592, 1944,   0, 0, 0, 0,  1, 0x16, 0, 0, "OmniVisi", "OV5648" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:314:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   314 |           {  6721536, 2592, 1944,   0, 0, 0, 0,  0, 0x16, 0, 0, "OmniVisi", "OV56482" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:315:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   315 |           {  6746112, 2592, 1944,   0, 0, 0, 0,  0, 0x16, 0, 0, "HTC", "OneSV" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:316:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   316 |           {  9631728, 2532, 1902,   0, 0, 0, 0, 96, 0x61, 0, 0, "Sony", "5mp" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:317:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   317 |           {  9830400, 2560, 1920,   0, 0, 0, 0, 96, 0x61, 0, 0, "NGM", "ForwardArt" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:318:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   318 |           { 10186752, 3264, 2448,   0, 0, 0, 0,  1, 0x94, 0, 0, "Sony", "IMX219-mipi 8mp" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:319:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   319 |           { 10223360, 2608, 1944,   0, 0, 0, 0, 96, 0x16, 0, 0, "Sony", "IMX" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:320:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   320 |           { 10782464, 3282, 2448,   0, 0, 0, 0,  0, 0x16, 0, 0, "HTC", "MyTouch4GSlide" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:321:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   321 |           { 10788864, 3282, 2448,   0, 0, 0, 0,  0, 0x16, 0, 0, "Xperia", "L" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:322:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   322 |           { 15967488, 3264, 2446,   0, 0, 0, 0, 96, 0x16, 0, 0, "OmniVison", "OV8850" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:323:74: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   323 |           { 16224256, 4208, 3082,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G3MipiL" },
+warning: libraw-ffi@0.1.0:       |                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:324:76: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   324 |           { 16424960, 4208, 3120,   0, 0, 0, 0,  1, 0x16, 0, 0, "IMX135", "MipiL" },
+warning: libraw-ffi@0.1.0:       |                                                                                   ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:325:74: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   325 |           { 17326080, 4164, 3120,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G3LQCom" },
+warning: libraw-ffi@0.1.0:       |                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:326:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   326 |           { 17522688, 4212, 3120,   0, 0, 0, 0,  0, 0x16, 0, 0, "Sony", "IMX135-QCOM" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:327:76: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   327 |           { 19906560, 4608, 3456,   0, 0, 0, 0,  1, 0x16, 0, 0, "Gione", "E7mipi" },
+warning: libraw-ffi@0.1.0:       |                                                                                   ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:328:69: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   328 |           { 19976192, 5312, 2988,   0, 0, 0, 0,  1, 0x16, 0, 0, "LG", "G4" },
+warning: libraw-ffi@0.1.0:       |                                                                            ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:329:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   329 |           { 20389888, 4632, 3480,   0, 0, 0, 0,  1, 0x16, 0, 0, "Xiaomi", "RedmiNote3Pro" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:330:85: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   330 |           { 20500480, 4656, 3496,   0, 0, 0, 0,  1, 0x94, 0, 0, "Sony", "IMX298-mipi 16mp" },
+warning: libraw-ffi@0.1.0:       |                                                                                            ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:331:76: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   331 |           { 21233664, 4608, 3456,   0, 0, 0, 0,  1, 0x16, 0, 0, "Gione", "E7qcom" },
+warning: libraw-ffi@0.1.0:       |                                                                                   ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:332:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   332 |           { 26023936, 4192, 3104,   0, 0, 0, 0, 96, 0x94, 0, 0, "THL", "5000" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:333:75: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   333 |           { 26257920, 4208, 3120,   0, 0, 0, 0, 96, 0x94, 0, 0, "Sony", "IMX214" },
+warning: libraw-ffi@0.1.0:       |                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:334:72: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   334 |           { 26357760, 4224, 3120,   0, 0, 0, 0, 96, 0x61, 0, 0, "OV", "13860" },
+warning: libraw-ffi@0.1.0:       |                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:335:73: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   335 |           { 41312256, 5248, 3936,   0, 0, 0, 0, 96, 0x61, 0, 0, "Meizu", "MX4" },
+warning: libraw-ffi@0.1.0:       |                                                                                ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:336:75: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   336 |           { 42923008, 5344, 4016,   0, 0, 0, 0, 96, 0x61, 0, 0, "Sony", "IMX230" },
+warning: libraw-ffi@0.1.0:       |                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:340:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   340 |           {  6553440, 2664, 1968,   4,  4, 44,  4, 40, 0x94, 0, 2, "Canon", "PowerShot A460" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:341:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   341 |           {  9243240, 3152, 2346,  12,  7, 44, 13, 40, 0x49, 0, 2, "Canon", "PowerShot A470" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:342:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   342 |           {  6653280, 2672, 1992,  10,  6, 42,  2, 40, 0x94, 0, 2, "Canon", "PowerShot A530" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:343:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   343 |           {  6573120, 2672, 1968,  12,  8, 44,  0, 40, 0x94, 0, 2, "Canon", "PowerShot A610" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:344:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   344 |           {  9219600, 3152, 2340,  36, 12,  4,  0, 40, 0x94, 0, 2, "Canon", "PowerShot A620" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:345:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   345 |           { 10383120, 3344, 2484,  12,  6, 44,  6, 40, 0x94, 0, 2, "Canon", "PowerShot A630" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:346:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   346 |           { 12945240, 3736, 2772,  12,  6, 52,  6, 40, 0x94, 0, 2, "Canon", "PowerShot A640" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:347:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   347 |           { 15636240, 4104, 3048,  48, 12, 24, 12, 40, 0x94, 0, 2, "Canon", "PowerShot A650 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:348:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   348 |           { 10341600, 3336, 2480,   6,  5, 32,  3, 40, 0x94, 0, 2, "Canon", "PowerShot A720 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:349:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   349 |           { 24724224, 4704, 3504,   8, 16, 56,  8, 40, 0x49, 0, 2, "Canon", "PowerShot A3300 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:350:86: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   350 |           { 18763488, 4104, 3048,  10, 22, 82, 22,  8, 0x49, 0, 0, "Canon", "PowerShot D10" }, // ? chdk hack ?
+warning: libraw-ffi@0.1.0:       |                                                                                             ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:351:88: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   351 |           { 19493760, 4160, 3124, 104, 12,  8, 66, 40, 0x49, 0, 2,  "Canon", "PowerShot S100" }, // chdk hack CRW
+warning: libraw-ffi@0.1.0:       |                                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:352:88: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   352 |           {  7710960, 2888, 2136,  44,  8,  4,  0, 40, 0x94, 0, 2, "Canon", "PowerShot S3 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:353:88: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   353 |           {  5298000, 2400, 1766,  12, 12, 44,  2, 40, 0x94, 0, 2, "Canon", "PowerShot SD300" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                               ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:354:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   354 |           { 18653760, 4080, 3048,  24, 12, 24, 12, 40, 0x94, 0, 2, "Canon", "PowerShot SX20 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:355:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   355 |           { 21936096, 4464, 3276,  25, 10, 73, 12, 40, 0x16, 0, 2, "Canon", "PowerShot SX30 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:356:90: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   356 |           { 19167840, 4176, 3060,  96, 16,  8,  0, 40, 0x94, 0, 2, "Canon", "PowerShot SX40 HS" }, // chdk hack CR2
+warning: libraw-ffi@0.1.0:       |                                                                                                 ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:357:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   357 |           { 15467760, 3720, 2772,   6, 12, 30,  0, 40, 0x94, 0, 2, "Canon", "PowerShot SX110 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:358:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   358 |           { 15534576, 3728, 2778,  12,  9, 44,  9, 40, 0x94, 0, 2, "Canon", "PowerShot SX120 IS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:359:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   359 |           { 19131120, 4168, 3060,  92, 16,  4,  1, 40, 0x94, 0, 2, "Canon", "PowerShot SX220 HS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:360:91: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   360 |           { 31663200, 5344, 3950,  96, 18,  0,  0, 40, 0x94, 0, 2, "Canon", "PowerShot SX710 HS" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                                  ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:361:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   361 |           { 30858240, 5248, 3920,   8, 16, 56, 16, 40, 0x94, 0, 2, "Canon", "IXUS 160" }, // chdk hack
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:362:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   362 |           {  1976352, 1632, 1211,   0,  2,  0,  1,  0, 0x94, 0, 1, "Casio", "QV-2000UX" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:363:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   363 |           {  3217760, 2080, 1547,   0,  0, 10,  1,  0, 0x94, 0, 1, "Casio", "QV-3*00EX" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:364:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   364 |           {  6218368, 2585, 1924,   0,  0,  9,  0,  0, 0x94, 0, 1, "Casio", "QV-5700" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:365:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   365 |           {  7816704, 2867, 2181,   0,  0, 34, 36,  0, 0x16, 0, 1, "Casio", "EX-Z60" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:366:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   366 |           {  2937856, 1621, 1208,   0,  0,  1,  0,  0, 0x94, 7, 13, "Casio", "EX-S20" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:367:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   367 |           {  4948608, 2090, 1578,   0,  0, 32, 34,  0, 0x94, 7, 1, "Casio", "EX-S100" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:368:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   368 |           {  6054400, 2346, 1720,   2,  0, 32,  0,  0, 0x94, 7, 1, "Casio", "QV-R41" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:369:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   369 |           {  7426656, 2568, 1928,   0,  0,  0,  0,  0, 0x94, 0, 1, "Casio", "EX-P505" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:370:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   370 |           {  7530816, 2602, 1929,   0,  0, 22,  0,  0, 0x94, 7, 1, "Casio", "QV-R51" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:371:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   371 |           {  7542528, 2602, 1932,   0,  0, 32,  0,  0, 0x94, 7, 1, "Casio", "EX-Z50" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:372:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   372 |           {  7562048, 2602, 1937,   0,  0, 25,  0,  0, 0x16, 7, 1, "Casio", "EX-Z500" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:373:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   373 |           {  7753344, 2602, 1986,   0,  0, 32, 26,  0, 0x94, 7, 1, "Casio", "EX-Z55" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:374:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   374 |           {  9313536, 2858, 2172,   0,  0, 14, 30,  0, 0x94, 7, 1, "Casio", "EX-P600" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:375:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   375 |           { 10834368, 3114, 2319,   0,  0, 27,  0,  0, 0x94, 0, 1, "Casio", "EX-Z750" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:376:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   376 |           { 10843712, 3114, 2321,   0,  0, 25,  0,  0, 0x94, 0, 1, "Casio", "EX-Z75" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:377:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   377 |           { 10979200, 3114, 2350,   0,  0, 32, 32,  0, 0x94, 7, 1, "Casio", "EX-P700" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:378:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   378 |           { 12310144, 3285, 2498,   0,  0,  6, 30,  0, 0x94, 0, 1, "Casio", "EX-Z850" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:379:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   379 |           { 12489984, 3328, 2502,   0,  0, 47, 35,  0, 0x94, 0, 1, "Casio", "EX-Z8" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:380:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   380 |           { 15499264, 3754, 2752,   0,  0, 82,  0,  0, 0x94, 0, 1, "Casio", "EX-Z1050" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:381:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   381 |           { 18702336, 4096, 3044,   0,  0, 24,  0, 80, 0x94, 7, 1, "Casio", "EX-ZR100" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:382:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   382 |           {  7684000, 2260, 1700,   0,  0,  0,  0, 13, 0x94, 0, 1, "Casio", "QV-4000" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:383:86: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   383 |           {   787456, 1024,  769,   0,  1,  0,  0,  0, 0x49, 0, 0, "Creative", "PC-CAM 600" },
+warning: libraw-ffi@0.1.0:       |                                                                                             ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:384:67: warning: missing field 't_model' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   384 |           { 28829184, 4384, 3288,   0,  0,  0,  0, 36, 0x61, 0, 0, "DJI" },
+warning: libraw-ffi@0.1.0:       |                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:385:70: warning: missing field 't_model' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   385 |           { 15151104, 4608, 3288,   0,  0,  0,  0,  0, 0x94, 0, 0, "Matrix" },
+warning: libraw-ffi@0.1.0:       |                                                                             ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:386:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   386 |           {  3840000, 1600, 1200,   0,  0,  0,  0, 65, 0x49, 0, 0, "Foculus", "531C" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:387:71: warning: missing field 't_model' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   387 |           {   307200,  640,  480,   0,  0,  0,  0,  0, 0x94, 0, 0, "Generic" },
+warning: libraw-ffi@0.1.0:       |                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:388:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   388 |           {    62464,  256,  244,   1,  1,  6,  1,  0, 0x8d, 0, 0, "Kodak", "DC20" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:389:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   389 |           {   124928,  512,  244,   1,  1, 10,  1,  0, 0x8d, 0, 0, "Kodak", "DC20" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:390:79: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   390 |           {  1652736, 1536, 1076,   0, 52,  0,  0,  0, 0x61, 0, 0, "Kodak", "DCS200" },
+warning: libraw-ffi@0.1.0:       |                                                                                      ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:391:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   391 |           {  4159302, 2338, 1779,   1, 33,  1,  2,  0, 0x94, 0, 0, "Kodak", "C330" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:393:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   393 |           {  2247168, 1232,  912,   0,  0, 16,  0,  0, 0x00, 0, 0, "Kodak", "C330" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:394:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   394 |           {  3370752, 1232,  912,   0,  0, 16,  0,  0, 0x00, 0, 0, "Kodak", "C330" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:395:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   395 |           {  6163328, 2864, 2152,   0,  0,  0,  0,  0, 0x94, 0, 0, "Kodak", "C603" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:397:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   397 |           {   460800,  640,  480,   0,  0,  0,  0,  0, 0x00, 0, 0, "Kodak", "C603" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:398:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   398 |           {  9116448, 2848, 2134,   0,  0,  0,  0,  0, 0x00, 0, 0, "Kodak", "C603" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:399:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   399 |           { 12241200, 4040, 3030,   2,  0,  0, 13,  0, 0x49, 0, 0, "Kodak", "12MP" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:401:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   401 |           { 18000000, 4000, 3000,   0,  0,  0,  0,  0, 0x00, 0, 0, "Kodak", "12MP" },
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:402:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   402 |           {   614400,  640,  480,   0,  3,  0,  0, 64, 0x94, 0, 0, "Kodak", "KAI-0340" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:403:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   403 |           { 15360000, 3200, 2400,   0,  0,  0,  0, 96, 0x16, 0, 0, "Lenovo", "A820" },
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:406:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   406 |           {  1581060, 1305,  969,   0,  0, 18,  6,  6, 0x1e, 4, 1, "Nikon", "E900" }, // "diag raw" hack
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:407:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   407 |           {  2465792, 1638, 1204,   0,  0, 22,  1,  6, 0x4b, 5, 1, "Nikon", "E950" }, // "diag raw" hack; possibly also Nikon E700, E800, E775;
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:409:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   409 |           {  2940928, 1616, 1213,   0,  0,  0,  7, 30, 0x94, 0, 1, "Nikon", "E2100" }, // "diag raw" hack; also Nikon E2500
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:410:77: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   410 |           {  4771840, 2064, 1541,   0,  0,  0,  1,  6, 0xe1, 0, 1, "Nikon", "E990" }, // "diag raw" hack; possibly also Nikon E880, E885, E995;
+warning: libraw-ffi@0.1.0:       |                                                                                    ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:412:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   412 |           {  4775936, 2064, 1542,   0,  0,  0,  0, 30, 0x94, 0, 1, "Nikon", "E3700" }, // "diag raw" hack; Nikon E3100, E3200, E3500;
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:414:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   414 |           {  5865472, 2288, 1709,   0,  0,  0,  1,  6, 0xb4, 0, 1, "Nikon", "E4500" }, // "diag raw" hack; possibly also Olympus C-4040Z
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:415:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   415 |           {  5869568, 2288, 1710,   0,  0,  0,  0,  6, 0x16, 0, 1, "Nikon", "E4300" }, // "diag raw" hack; also Minolta "DiMAGE Z2"
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:416:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   416 |           {  7438336, 2576, 1925,   0,  0,  0,  1,  6, 0xb4, 0, 1, "Nikon", "E5000" }, // also Nikon E5700
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:417:83: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   417 |           {  8998912, 2832, 2118,   0,  0,  0,  0, 30, 0x94, 7, 1, "Nikon", "COOLPIX S6" }, // "diag raw" hack
+warning: libraw-ffi@0.1.0:       |                                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:418:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   418 |           {  5939200, 2304, 1718,   0,  0,  0,  0, 30, 0x16, 0, 0, "Olympus", "C-770UZ" }, // possibly also Olympus C-4100Z, C-765UZ
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:419:87: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   419 |           {  3178560, 2064, 1540,   0,  0,  0,  0,  0, 0x94, 0, 1, "Pentax", "Optio S V1.01" },
+warning: libraw-ffi@0.1.0:       |                                                                                              ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:420:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   420 |           {  4841984, 2090, 1544,   0,  0, 22,  0,  0, 0x94, 7, 1, "Pentax", "Optio S" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:421:82: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   421 |           {  6114240, 2346, 1737,   0,  0, 22,  0,  0, 0x94, 7, 1, "Pentax", "Optio S4" },
+warning: libraw-ffi@0.1.0:       |                                                                                         ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:422:84: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   422 |           { 10702848, 3072, 2322,   0,  0,  0, 21, 30, 0x94, 0, 1, "Pentax", "Optio 750Z" },
+warning: libraw-ffi@0.1.0:       |                                                                                           ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:423:81: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   423 |           {  4147200, 1920, 1080,   0,  0,  0,  0,  0, 0x49, 0, 0, "Photron", "BC2-HD" },
+warning: libraw-ffi@0.1.0:       |                                                                                        ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:425:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   425 |           { 13248000, 2208, 3000,   0,  0,  0,  0, 13, 0x61, 0, 0, "Pixelink", "A782" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:426:83: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   426 |           {  6291456, 2048, 1536,   0,  0,  0,  0, 96, 0x61, 0, 0, "RoverShot", "3320AF" },
+warning: libraw-ffi@0.1.0:       |                                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:427:86: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   427 |           {   311696,  644,  484,   0,  0,  0,  0,  0, 0x16, 0, 8, "ST Micro", "STV680 VGA" },
+warning: libraw-ffi@0.1.0:       |                                                                                             ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:428:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   428 |           { 16098048, 3288, 2448,   0,  0, 24,  0,  9, 0x94, 0, 1, "Samsung", "S85" }, // hack
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:429:78: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   429 |           { 16215552, 3312, 2448,   0,  0, 48,  0,  9, 0x94, 0, 1, "Samsung", "S85" }, // hack
+warning: libraw-ffi@0.1.0:       |                                                                                     ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:430:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   430 |           { 20487168, 3648, 2808,   0,  0,  0,  0, 13, 0x94, 5, 1, "Samsung", "WB550" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:431:80: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   431 |           { 24000000, 4000, 3000,   0,  0,  0,  0, 13, 0x94, 5, 1, "Samsung", "WB550" },
+warning: libraw-ffi@0.1.0:       |                                                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:435:83: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   435 |           {  1409024, 1376, 1024,   0,  0,  1,  0,  0, 0x49, 0, 0, "Sony", "XCD-SX910CR" },
+warning: libraw-ffi@0.1.0:       |                                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:436:83: warning: missing field 'offset' initializer [-Wmissing-field-initializers]
+warning: libraw-ffi@0.1.0:   436 |           {  2818048, 1376, 1024,   0,  0,  1,  0, 97, 0x49, 0, 0, "Sony", "XCD-SX910CR" },
+warning: libraw-ffi@0.1.0:       |                                                                                          ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:1124:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:  1124 |     sprintf(model, "%dx%d", width, height);
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/identify.cpp:2292:5: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  2292 |                                 FORC(MIN(cblack[4] * cblack[5], LIBRAW_CBLACK_SIZE - 6)) cblack[c] *= 4;
+warning: libraw-ffi@0.1.0:       |                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/internal/defines.h:94:33: note: expanded from macro 'FORC'
+warning: libraw-ffi@0.1.0:    94 | #define FORC(cnt) for (c = 0; c < cnt; c++)
+warning: libraw-ffi@0.1.0:       |                               ~ ^ ~~~
+warning: libraw-ffi@0.1.0: 136 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:785:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   785 |     sprintf(imgdata.shootinginfo.InternalBodySerial, "%06llx",
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:797:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   797 |     sprintf(imgdata.shootinginfo.InternalBodySerial, "%06llx",
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:810:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   810 |       sprintf(imgdata.shootinginfo.InternalBodySerial, "%04x",
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:820:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   820 |       sprintf(imgdata.shootinginfo.InternalBodySerial, "%05llx",
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/sony.cpp:2339:20: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  2339 |           if (ioffset + 3 >= len)
+warning: libraw-ffi@0.1.0:       |               ~~~~~~~~~~~ ^  ~~~
+warning: libraw-ffi@0.1.0: 5 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/ciff.cpp:264:9: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   264 |         sprintf(imgdata.shootinginfo.BodySerial, "%d", len);
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/ciff.cpp:266:9: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   266 |         sprintf(imgdata.shootinginfo.BodySerial, "%0x-%05d", len >> 16,
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/nikon.cpp:525:11: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   525 |           sprintf(imgdata.shootinginfo.BodySerial, "%d", serial);
+warning: libraw-ffi@0.1.0:       |           ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:493:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   493 |     sprintf(imgdata.shootinginfo.InternalBodySerial, "%d", get4());
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:553:9: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   553 |         sprintf(imgdata.shootinginfo.BodySerial, "%8s", buffer + 8);
+warning: libraw-ffi@0.1.0:       |         ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:556:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   556 |       sprintf(imgdata.shootinginfo.InternalBodySerial, "%8s", buffer);
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:560:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   560 |       sprintf(imgdata.shootinginfo.BodySerial, "%02x%02x%02x%02x", buffer[4],
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/pentax.cpp:562:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   562 |       sprintf(imgdata.shootinginfo.InternalBodySerial, "%02x%02x%02x%02x",
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 5 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/normalize_model.cpp:552:130: warning: suspicious concatenation of string literals in an array initialization; did you mean to separate the elements with a comma? [-Wstring-concatenation]
+warning: libraw-ffi@0.1.0:   552 |     "@DC-ZS200", "DC-ZS220", "DC-TZ200", "DC-TZ202", "DC-TZ220", "DC-TZ200D", "DC-TZ202D", "DC-TZ220D", "DC-ZS200D", "DC-ZS220D" "DC-TX2", "C-Lux", "CAM-DC25",
+warning: libraw-ffi@0.1.0:       |                                                                                                                                  ^
+warning: libraw-ffi@0.1.0:       |                                                                                                                                 ,
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/normalize_model.cpp:552:118: note: place parentheses around the string literal to silence warning
+warning: libraw-ffi@0.1.0:   552 |     "@DC-ZS200", "DC-ZS220", "DC-TZ200", "DC-TZ202", "DC-TZ220", "DC-TZ200D", "DC-TZ202D", "DC-TZ220D", "DC-ZS200D", "DC-ZS220D" "DC-TX2", "C-Lux", "CAM-DC25",
+warning: libraw-ffi@0.1.0:       |                                                                                                                      ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/canon.cpp:864:5: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   864 |     sprintf(imgdata.shootinginfo.BodySerial, "%d", tS);
+warning: libraw-ffi@0.1.0:       |     ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 1 warning generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1029:7: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:  1029 |       sprintf(model, "Ixpress %d-Mp", c);
+warning: libraw-ffi@0.1.0:       |       ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1230:13: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  1230 |                                         if (fj > libraw_internal_data.unpacker_data.lenRAFData - 3)
+warning: libraw-ffi@0.1.0:       |                                             ~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1239:15: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  1239 |                                                 && ofst < libraw_internal_data.unpacker_data.lenRAFData - 3;
+warning: libraw-ffi@0.1.0:       |                                                    ~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1635:17: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  1635 |                                   if (items == SR2SubIFDLength)
+warning: libraw-ffi@0.1.0:       |                                       ~~~~~ ^  ~~~~~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/tiff.cpp:1748:12: warning: comparison of integers of different signs: 'int' and 'unsigned int' [-Wsign-compare]
+warning: libraw-ffi@0.1.0:  1748 |         if (items == sony_length)
+warning: libraw-ffi@0.1.0:       |             ~~~~~ ^  ~~~~~~~~~~~
+warning: libraw-ffi@0.1.0: 5 warnings generated.
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/misc_parsers.cpp:123:3: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   123 |   sprintf(model, "%d", get4());
+warning: libraw-ffi@0.1.0:       |   ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: vendor/LibRaw/LibRaw-0.22.2/src/metadata/misc_parsers.cpp:209:3: warning: 'sprintf' is deprecated: This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead. [-Wdeprecated-declarations]
+warning: libraw-ffi@0.1.0:   209 |   sprintf(model, "v%d %dx%d", ver, width, height);
+warning: libraw-ffi@0.1.0:       |   ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+    Finished `test` profile [unoptimized] target(s) in 1m 51s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/engine_api-de8849754b861035)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.00s
+
+     Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/channels-634c67793cfe0e0d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_filters-caa08a73f89e145f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/library_calls.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/library_calls-0127f232499459b0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/lr4_mask_schema.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_mask_schema-a22f00f69d49b892)
+
+running 2 tests
+test lr4_default_components_keep_legacy_json_bytes ... ok
+test lr4_extensions_roundtrip_and_older_readers_ignore_them ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/m532_channels-3113f3e7f4d9f74f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/people-fc389c61bdf9b0da)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/pinned_raw.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/pinned_raw-25e7d16de0f8bb60)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/source_kind.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/source_kind-82459a5d990ade81)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/text_vector-91a7ee21ca49f692)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export-ca38f990769aadac)
+
+running 1 test
+test ai_masks::lr4_tests::lr4_nested_ai_activates_raster_export_but_disabled_does_not ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.00s
+
+     Running tests/ai_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/ai_masks-fb66c0ec0bfed69f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/avif.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/avif-a1474b33a8960af5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/avif_precision.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/avif_precision-91ad277344e336a2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/batch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/batch-01a8053c4f9eb1f2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.02s
+
+     Running tests/dng.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/dng-e2d04155f420bdd5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/dng_libraw.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/dng_libraw-e9d4d13838806ab7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/dng_original.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/dng_original-fa2f4498828f6753)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/dng_safety.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/dng_safety-88c420ac059312d8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/errors.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/errors-7fca3f00c413cd33)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/export.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export-9a83d54cc7d7679f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/gpu_bench.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/gpu_bench-dd306fca4f214e51)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/hdr_avif.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_avif-84a1bfd45d1fa0d8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/hdr_filtering.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_filtering-1996d55fba77e21b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/hdr_output.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_output-de136b6aca48876d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/hdr_reconstruction.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_reconstruction-de00d385af977f6f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/lens_analysis.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lens_analysis-20f0e59308fbec2f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/managed.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/managed-994bd0beba9fe8d3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/metadata_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/metadata_policy-8df803e3bcc61b12)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/native_metadata.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/native_metadata-ace5d39c6519a4e6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/native_review_regressions.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/native_review_regressions-2942844499900b70)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/orientation.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/orientation-be2b8fabb2ec4966)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/original.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/original-30684ca136ce185d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/original_tiff.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/original_tiff-01f4681d1beeac55)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/output_sharpening.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/output_sharpening-a3eb937f773765e9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/resize.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/resize-6b79b8fc7c700d93)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/size_limit.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/size_limit-b190a8a17420c23e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/smart_preview_admission.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_preview_admission-cc2cbf1c5e129cf5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/staged.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/staged-6151ba7873bba136)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/upscale.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/upscale-9a05fdd7265bd3b8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/watermark.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/watermark-796450c264d28f22)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/workflow.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/workflow-e9fd20ea4bb051ef)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/image_core-b7ac04b72006ec3e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 43 filtered out; finished in 0.00s
+
+     Running tests/adobe.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/adobe-97fe31fb95370e4a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/automatic_post_denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/automatic_post_denoise-3474d08202d1aa0f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/batch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/batch-b867ff6fdf4aabfd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/cfa_denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/cfa_denoise-7b2ad588bea2a1c5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/denoise-7769466fdff710d2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/depth_hook.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/depth_hook-8e377138504230c6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/fixture.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/fixture-96a885f6ac842c6e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/geometry_edr.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/geometry_edr-fd00dcf6d1400e7e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/linear_dng.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/linear_dng-c67ff079f4b12253)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/locals.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/locals-079c96330871c9ce)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/locals_order.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/locals_order-f03e9e3d15aaa84b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/m2-9850958b671416a9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/mask_cache.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/mask_cache-490635ac41c862f4)
+
+running 1 test
+test lr4_nested_ranges_hash_the_actual_rgb ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/ml_cfa.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/ml_cfa-05d0d6a8dcb06cae)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/ml_cfa_local.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/ml_cfa_local-5eeca8fe9eff61d5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/ml_denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/ml_denoise-36eb32c3b89cabe1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/packed_cfa.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/packed_cfa-0ca00e709c50f059)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/pinned_raw_cpu_profile.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/pinned_raw_cpu_profile-8253e42d57ee04ea)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/render-5ab49546446a67d3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/rgb.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/rgb-c4a3011f0c42d418)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/rgb_memo.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/rgb_memo-a71bba046bb27624)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/smart_preview.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_preview-29f9ca4fce6c726e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/import_lrcat-892f6195423dd332)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/followups.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/followups-754a4417fc80f180)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/golden-33dc2b7eb728f4d0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/import.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/import-e24b27b1b709cf8a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/lr4_adobe_shapes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_adobe_shapes-874cd475386e126d)
+
+running 3 tests
+test lr4_adobe_aggregate_and_range_mask_spelling ... ok
+test lr4_unrenderable_local_params_are_not_source_promoted ... ok
+test lr4_unverified_type_and_feather_keep_exact_source ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lr4_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_compat-4e6746f726b50386)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/lr4_invalid_geometry.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_invalid_geometry-2bbcb8779d0298ad)
+
+running 1 test
+test lr4_unrenderable_geometry_and_amount_keep_source ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lr4_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_masks-343284bc02dbbf53)
+
+running 9 tests
+test lr4_component_range_keeps_both_inversions ... ok
+test lr4_disabled_component_maps_without_losing_geometry ... ok
+test lr4_explicit_luminance_and_depth_bounds_translate ... ok
+test lr4_group_range_intersects_the_whole_union ... ok
+test lr4_ignored_or_duplicate_fields_never_lose_source ... ok
+test lr4_nested_group_preserves_order_and_operators ... ok
+test lr4_nil_untranslated_mask_key_still_has_exact_source ... ok
+test lr4_opaque_brush_color_and_image_are_retained_atomically ... ok
+test lr4_unknown_fields_and_types_keep_exact_source ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/lua_develop.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lua_develop-dc027fa258c89c06)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/make_fixture.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/make_fixture-fa8dca1a3c8e2438)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/oversized_memory.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/oversized_memory-50773dcc02004ddf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/real_catalog_shapes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/real_catalog_shapes-820e701665c238e5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/scale.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/scale-caa30b613a9e0465)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/smart_rating.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_rating-3bacee40d680f982)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/mask_ai-cce779f2b5e79f28)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lr4_nested.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_nested-b55abe4538504a9c)
+
+running 1 test
+test lr4_external_rasters_compose_inside_nested_groups ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/ml_depth-37bdc4ed621475d1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/depth.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/depth-e040ed253f751acb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/model.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/model-0ad4b21b97d9204f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/pipeline_cpu-14cb9335fa954643)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.00s
+
+     Running tests/denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/denoise-bcb8afb560d1b267)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/depth_render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/depth_render-e78655bda15fb69d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/detail_defaults.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/detail_defaults-392abec97cf6b0a4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/display_float.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/display_float-4de5c0b52f596c2e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/golden-3da3c6ab55b913fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/invariants.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/invariants-00367d7585b6ca3b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/lens_blur.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lens_blur-453f636b9f517111)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/lens_embedded.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lens_embedded-a0743f55598ef33a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/lens_fixtures.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lens_fixtures-5997857f1bb587b0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/lens_m2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lens_m2-72b5dd0f6aab9305)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/lens_profiles.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lens_profiles-3a9568a85243a68d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.01s
+
+     Running tests/lens_stages.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lens_stages-0efd84616d015372)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/locals.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/locals-8e190ba1c7ef57b1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.01s
+
+     Running tests/locals_invariants.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/locals_invariants-1893f9aeda2de540)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/lr4_tree.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_tree-147e7a718ca519c9)
+
+running 4 tests
+test lr4_all_disabled_stays_empty_even_when_group_inverted ... ok
+test lr4_disabled_seed_is_skipped_before_intersection ... ok
+test lr4_limits_nested_recursion_before_allocating_planes ... ok
+test lr4_nested_intersection_then_subtraction_and_inversion ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/m2-b2a80cc331eaa087)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/manual_ca.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/manual_ca-e6e70852383679f1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/masks-170b001766e3285d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/mosaic.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/mosaic-db2e72bb1bf2e03a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/opcode_fixtures.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/opcode_fixtures-d54e68f878ac06c9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/operators.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/operators-193fafd5c23bdf53)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/output.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/output-c05c171eb45c3365)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/render-9d60fb2e97ae925d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/smart_preview.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_preview-9199954576b5e085)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/smart_preview_codec.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_preview_codec-4ee558c85bd07221)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/white_balance_v2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/white_balance_v2-4e09a4d08e8bdaad)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/pipeline_gpu-a993bda1577d00a6)
+
+running 2 tests
+test resident_locals::lr4_tests::lr4_disabled_components_do_not_seed_gpu_masks ... ok
+test resident_locals::lr4_tests::lr4_gpu_rejects_trees_instead_of_rendering_fallback_geometry ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.00s
+
+     Running tests/cfa_resident.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/cfa_resident-51b20a5bca3bfee5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.01s
+
+     Running tests/critic_metrics.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/critic_metrics-d30700b9e3a9781f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/detail_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/detail_compute-5b5f995f5d667876)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/edges.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/edges-d826adf716b5b6e6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/effects_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/effects_compute-7f7382cf5a4e004d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/export_float.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_float-86c2f4b1c3cb20c7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/fixtures.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/fixtures-e3de76527acb4b60)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/fusion_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/fusion_compute-5bcd4ade402729cf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/geometry_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/geometry_compute-5e520c484b899fe6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/hdr_surface.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr_surface-81ff26556920c9b0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/interactive_geometry.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/interactive_geometry-c02c5ee681308dc1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/interactive_performance.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/interactive_performance-a5ec9258e52af2dc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/lateral_ca_batch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lateral_ca_batch-8e1a2c62f4fac29f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/level_mode.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/level_mode-554017e5664f278d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/local_tone_resident.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/local_tone_resident-6a3c43c7570d5ccb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/locals_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/locals_compute-795a94337e235763)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/m2-258be2a0f11e6467)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/m2_fallback.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/m2_fallback-111dcb9330fd453a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/managed_output.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/managed_output-baf42f69b171045a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/managed_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/managed_policy-1a2cc4a5ab69fe91)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/managed_printer.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/managed_printer-4822fd5014afc8a3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/managed_resident.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/managed_resident-318941f29a83ab21)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/managed_surface.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/managed_surface-568d8ec881f06b57)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/operator_performance.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/operator_performance-a208901523ea7674)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/operators.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/operators-aacab7037bee1ac0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/output_lut.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/output_lut-daca1b9fed86c33f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/renderer.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/renderer-342f587cef742d1e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/resident.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/resident-595d0c4afe2457f8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/resident_fusion.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/resident_fusion-c00f1646136e65e1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/resident_large.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/resident_large-838cfeed6d13ff7b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/resident_locals.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/resident_locals-57204f16105cdd6d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/resident_rgb_optics.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/resident_rgb_optics-e382f257e33839ef)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/resident_xtrans.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/resident_xtrans-7e6706ac572615bd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/rgb.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/rgb-3de987b38d9406d1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/smart_preview.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_preview-1bb89e0d941d6c6f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running tests/tone_local_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/tone_local_compute-7107979896d547df)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/sidecar-c62bab62e90b759d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/develop-62217b3312227e0f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/export_hash.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_hash-1a7989cf9e008e52)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/export_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_policy-8534d4f4b3c0a8ab)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/export_resource_wrappers.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_resource_wrappers-beb7bef508749240)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/export_selection.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_selection-9480c68c0300d7ae)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/faces.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/faces-d18a9692d25897e1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/mapped_properties.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/mapped_properties-7ef876eb294b53df)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/masks_complete.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/masks_complete-42c7cfc65ea48c60)
+
+running 2 tests
+test lr4_arbitrary_legacy_fallback_survives_native_roundtrip ... ok
+test lr4_optional_tree_and_disabled_fields_roundtrip ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/native_keywords.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/native_keywords-7f6d8c0d718c71b2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/native_review_merge.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/native_review_merge-0e5a1f40dda8b246)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/regressions.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/regressions-5224fd55701dde15)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/roundtrip.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/roundtrip-2a0c78f7981308f2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/schema_upgrade.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/schema_upgrade-95ed448d9d02c7de)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/selection.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/selection-8878eb658c281724)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/storage.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/storage-073e981ebc94e7ba)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/structures_complete.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/structures_complete-0c6e099c5c500cc6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/xmp.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/xmp-20fae29335f3cb0b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/tessera_ffi-b94315d542ddbca1)
+
+running 2 tests
+test develop::masks::lr4_tests::lr4_renderable_tree_preserves_group_and_disabled_child ... ok
+test develop::masks::lr4_tests::lr4_window_coordinates_include_nested_leaves ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 216 filtered out; finished in 0.00s
+
+     Running unittests src/bin/uniffi-bindgen.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/uniffi_bindgen-234e3aadc71f597b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/adjustment_json.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/adjustment_json-a28ea7a3df024363)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/api.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/api-e2b96fab3bd54337)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/assist.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/assist-ae123ed31ffc8bcd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/changes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/changes-fd3297e0c89748de)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/develop-c993c358feae2261)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/document.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document-632129c9a0fdfd27)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/document_adaptive_memory.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_adaptive_memory-e1548e2cfc7104ae)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/document_adaptive_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_adaptive_ui-49f78fd78c4350bc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/document_camera_raw_preview.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_camera_raw_preview-60be7de9c158ea8d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/document_channel_paint.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_channel_paint-2a818b1c0104f41c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/document_channels_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_channels_ui-deb2920ea8018867)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/document_content_aware_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_content_aware_ui-9d794763a635b5cc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/document_export_flat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_export_flat-1b588591f6984bbf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_filters-e4e12a73068a61d2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/document_fonts.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_fonts-7c3c98a7efe2910b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/document_gpu_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_gpu_filters-104b55308db80dc2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/document_liquify_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_liquify_ui-a8719aec52a63605)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/document_perf.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_perf-1c0bb24c8e1aaf47)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/document_quick_mask.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_quick_mask-359906a3e9c13d33)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/document_restoration.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_restoration-8e6e195634a80d44)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/document_restoration_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_restoration_ui-e1b54443665597ab)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/document_retouch_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_retouch_ui-f7380cdd60679962)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/document_save_destination.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_save_destination-dc2b7649b19c8000)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/document_stack_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_stack_ui-74eab8287c288553)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.00s
+
+     Running tests/document_styles_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_styles_ui-63f6accfaa6c7de6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/document_text_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_text_ui-fa7294ea0416e102)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/document_tools.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_tools-b6a029709ca14ef2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/document_transform_followups.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_transform_followups-ced8ac06e7d36e46)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/document_transform_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_transform_ui-39be75f2cd795e7e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.00s
+
+     Running tests/document_vector_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_vector_ui-b3aeedc204bd97a4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/document_viewport.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_viewport-91c4c0cf9a5174dd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/enhance.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/enhance-8e924d37e2a58599)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/errors.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/errors-b9d3072dcde1d30e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/export.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export-c7fae4d9512bccc3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.00s
+
+     Running tests/export_metadata_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_metadata_policy-66a8b13877dd0b17)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/fallback.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/fallback-5ac246539465e6b3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/hdr.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/hdr-bea738261b8cb3a4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/library.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/library-67df7064a1201101)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/lr4_import_render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_import_render-84b358d1fe42a09a)
+
+running 5 tests
+test lr4_lua_depth_local_exposure ... LR-4 synthetic 4x1: max channel error 0, tolerance 1e-6
+ok
+test lr4_lua_gradient_local_exposure ... LR-4 synthetic 4x1: max channel error 0, tolerance 1e-6
+ok
+test lr4_lua_luminance_local_exposure ... LR-4 synthetic 4x1: max channel error 0, tolerance 1e-6
+ok
+test lr4_lua_nested_disabled_add_subtract_intersect ... LR-4 synthetic 4x1: max channel error 0, tolerance 1e-6
+ok
+test lr4_lua_radial_local_exposure ... LR-4 synthetic 4x1: max channel error 0, tolerance 1e-6
+ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lrcat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lrcat-31406615fb6654b2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/lrcat_streaming.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lrcat_streaming-9547dfc3f08c2e38)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/lrcat_streaming_parity.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lrcat_streaming_parity-9c93ffacce528d98)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/m532_channel_display.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/m532_channel_display-ed38921a8e6c5c11)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/masks-582793811c015ae0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/merge.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/merge-3b82e0d82c90736b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/session.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/session-10801293e0013863)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/smart_preview_workflow.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/smart_preview_workflow-cfebebfaadc7ff4e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/tether.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/tether-6ed756bf5fc51824)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/understanding.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/understanding-c90f74592ce41eb8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/tessera_mcp-65fbc5bd4861c0a6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/tessera_mcp-4a3c6188f39717f1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/channels-30a84984bff057b1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/console.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/console-7809eccb59aa7456)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/document_color.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_color-6e5f12a7bb958ab2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_filters-de590755e0774281)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/document_protocol.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/document_protocol-835bd6d5985badfd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/documents.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/documents-4e00e2de3addf963)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/export_dng.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_dng-a93ef7170fb880e2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/export_hdr.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_hdr-c6a64647cc6e3014)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/export_sharpening.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export_sharpening-0a40fad03b410450)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/m532_channels-cee2cb62aee72989)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/native_metadata.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/native_metadata-3e3c98d8ea42cf0e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/people-1d7f878d3b962767)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/protocol.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/protocol-bc831a1d4eac1543)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/text_vector-025ab1bb9f001689)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/wiring.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/wiring-566d2cd73bb10e1c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+real 357.20
+user 0.87
+sys 1.03
+           144588800  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              173133  page reclaims
+                 936  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   1  signals received
+                4817  voluntary context switches
+                3744  involuntary context switches
+          6841955825  instructions retired
+          2586887952  cycles elapsed
+           137495320  peak memory footprint

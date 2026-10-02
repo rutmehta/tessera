@@ -1,0 +1,21 @@
+     Running tests/translation_matrix.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/debug/deps/translation_matrix-b58196a35bc77828)
+
+running 2 tests
+test matrix_guard_rejects_a_retained_key_claimed_as_translated ... ok
+test translation_matrix_matches_synthetic_import ... FAILED
+
+failures:
+
+---- translation_matrix_matches_synthetic_import stdout ----
+
+thread 'translation_matrix_matches_synthetic_import' (53735214) panicked at crates/import-lrcat/tests/translation_matrix.rs:89:44:
+called `Result::unwrap()` on an `Err` value: "PointColors: translated key is still retained in lrcat_develop_source"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    translation_matrix_matches_synthetic_import
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p import-lrcat --test translation_matrix`

@@ -31,6 +31,14 @@ fn one() -> f32 {
 
 /// Decode the complete engine settings schema; outer filter fields are strict.
 pub fn parse(value: &serde_json::Value) -> EngineResult<Params> {
+    parse_inner(value, true)
+}
+
+pub(crate) fn parse_for_admission(value: &serde_json::Value) -> EngineResult<Params> {
+    parse_inner(value, false)
+}
+
+fn parse_inner(value: &serde_json::Value, require_mask_inputs: bool) -> EngineResult<Params> {
     let p: Params = serde_json::from_value(value.clone())
         .map_err(|e| EngineError::invalid("camera_raw", e.to_string()))?;
     if !p.amount.is_finite() || !(0.0..=1.0).contains(&p.amount) {
@@ -70,7 +78,14 @@ pub fn parse(value: &serde_json::Value) -> EngineResult<Params> {
         }
     }
     for group in &p.settings.locals.adjustments {
-        if group.components.iter().any(|c| c.kind.is_ai()) {
+        if require_mask_inputs
+            && group.enabled
+            && group
+                .components
+                .iter()
+                .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+                .any(|c| c.kind.is_ai())
+        {
             return Err(EngineError::Unsupported { what: "camera_raw AI mask requires a host-supplied segmentation/depth raster; no AI mask provider is installed".into() });
         }
     }

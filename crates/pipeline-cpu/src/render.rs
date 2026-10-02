@@ -325,10 +325,19 @@ fn render_linear_impl(
     if needs_m2 {
         // Remove masked sensor margins before estimating global airlight.
         rgb = rgb.downsample_crop(crop, 1)?;
+        let pre_curve = settings.color_before_curves();
+        let post_curve = settings.color_after_curves();
+        if pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled) {
+            for coord in rgb.coords() {
+                let mut tile = rgb.tile(coord, 0, 1)?;
+                crate::color(&mut tile, &pre_curve)?;
+                rgb.put(&tile)?;
+            }
+        }
         rgb = crate::tone_extra_image(&rgb, &settings.tone)?;
         for coord in rgb.coords() {
             let mut tile = rgb.tile(coord, 0, 1)?;
-            crate::color(&mut tile, &settings.color)?;
+            crate::color(&mut tile, &post_curve)?;
             rgb.put(&tile)?;
         }
         rgb = crate::locals_image(
@@ -421,6 +430,7 @@ pub fn has_m2_settings(s: &DevelopSettings) -> bool {
         || s.tone.clarity != 0.0
         || s.tone.dehaze != 0.0
         || s.tone.curves != Default::default()
+        || s.tone.curves_extended.is_some()
 }
 
 /// Reject changed out-of-scope controls instead of silently ignoring them.
@@ -455,6 +465,11 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.color.saturation = s.color.saturation;
     supported.color.hsl = s.color.hsl.clone();
     supported.color.grading = s.color.grading.clone();
+    supported.color.monochrome = s.color.monochrome.clone();
+    for point in &s.color.point_colors {
+        point.validate()?;
+    }
+    supported.color.point_colors = s.color.point_colors.clone();
     supported.effects.vignette = s.effects.vignette.clone();
     supported.effects.grain = s.effects.grain.clone();
     supported.geometry = s.geometry.clone();

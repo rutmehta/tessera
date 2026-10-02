@@ -1,0 +1,16 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/engine-api)
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/index)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/sidecar)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 10.02s
+     Running tests/lr4b_forms.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4b_forms-135bae9c09596048)
+
+running 4 tests
+test lr4b_unsupported_payloads_retain_exact_lua ... ok
+test lr4b_four_bounds_translate_and_promote ... ok
+test lr4b_subtype_depth_and_luminance ... ok
+test lr4b_radial_flipped_is_complement_of_invert_not_a_second_toggle ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

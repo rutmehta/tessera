@@ -1,0 +1,22 @@
+     Running tests/lr4_nested.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_nested-9adc9d4f79cff2d0)
+
+running 1 test
+test lr4_external_rasters_compose_inside_nested_groups ... FAILED
+
+failures:
+
+---- lr4_external_rasters_compose_inside_nested_groups stdout ----
+
+thread 'lr4_external_rasters_compose_inside_nested_groups' (52930344) panicked at crates/mask-ai/tests/lr4_nested.rs:31:5:
+assertion `left == right` failed
+  left: [0.0, 0.0]
+ right: [0.375, 0.25]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4_external_rasters_compose_inside_nested_groups
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p mask-ai --test lr4_nested`

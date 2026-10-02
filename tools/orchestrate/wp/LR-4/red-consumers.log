@@ -1,0 +1,84 @@
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/export-ca38f990769aadac)
+
+running 1 test
+test ai_masks::lr4_tests::lr4_nested_ai_activates_raster_export_but_disabled_does_not ... FAILED
+
+failures:
+
+---- ai_masks::lr4_tests::lr4_nested_ai_activates_raster_export_but_disabled_does_not stdout ----
+
+thread 'ai_masks::lr4_tests::lr4_nested_ai_activates_raster_export_but_disabled_does_not' (53099790) panicked at crates/export/src/ai_masks.rs:226:9:
+assertion failed: active(&s)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    ai_masks::lr4_tests::lr4_nested_ai_activates_raster_export_but_disabled_does_not
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p export --lib`
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/pipeline_gpu-a993bda1577d00a6)
+
+running 2 tests
+test resident_locals::lr4_tests::lr4_disabled_components_do_not_seed_gpu_masks ... FAILED
+test resident_locals::lr4_tests::lr4_gpu_rejects_trees_instead_of_rendering_fallback_geometry ... FAILED
+
+failures:
+
+---- resident_locals::lr4_tests::lr4_disabled_components_do_not_seed_gpu_masks stdout ----
+
+thread 'resident_locals::lr4_tests::lr4_disabled_components_do_not_seed_gpu_masks' (53099798) panicked at crates/pipeline-gpu/src/resident_locals.rs:571:9:
+assertion `left == right` failed
+  left: 2.0
+ right: 1.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- resident_locals::lr4_tests::lr4_gpu_rejects_trees_instead_of_rendering_fallback_geometry stdout ----
+
+thread 'resident_locals::lr4_tests::lr4_gpu_rejects_trees_instead_of_rendering_fallback_geometry' (53099799) panicked at crates/pipeline-gpu/src/resident_locals.rs:579:9:
+assertion failed: mask_parameters(&g, Extent::new(2, 1)).is_err()
+
+
+failures:
+    resident_locals::lr4_tests::lr4_disabled_components_do_not_seed_gpu_masks
+    resident_locals::lr4_tests::lr4_gpu_rejects_trees_instead_of_rendering_fallback_geometry
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p pipeline-gpu --lib`
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/tessera_ffi-20ee8cfdabab41af)
+
+running 2 tests
+test develop::masks::lr4_tests::lr4_renderable_tree_preserves_group_and_disabled_child ... FAILED
+test develop::masks::lr4_tests::lr4_window_coordinates_include_nested_leaves ... FAILED
+
+failures:
+
+---- develop::masks::lr4_tests::lr4_renderable_tree_preserves_group_and_disabled_child stdout ----
+
+thread 'develop::masks::lr4_tests::lr4_renderable_tree_preserves_group_and_disabled_child' (53099841) panicked at crates/tessera-ffi/src/masks.rs:2258:9:
+assertion `left == right` failed
+  left: []
+ right: [MaskComponent { enabled: true, group: Some([MaskComponent { enabled: false, group: None, kind: Linear { start: [0.25, 0.0], end: [0.75, 0.0] }, combine: Add, invert: false }]), kind: Brush { strokes: [] }, combine: Add, invert: false }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- develop::masks::lr4_tests::lr4_window_coordinates_include_nested_leaves stdout ----
+
+thread 'develop::masks::lr4_tests::lr4_window_coordinates_include_nested_leaves' (53099842) panicked at crates/tessera-ffi/src/masks.rs:2265:9:
+assertion `left == right` failed
+  left: Linear { start: [0.25, 0.0], end: [0.75, 0.0] }
+ right: Linear { start: [0.0, 0.0], end: [1.0, 0.0] }
+
+
+failures:
+    develop::masks::lr4_tests::lr4_renderable_tree_preserves_group_and_disabled_child
+    develop::masks::lr4_tests::lr4_window_coordinates_include_nested_leaves
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 216 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p tessera-ffi --lib`
+error: 3 targets failed:
+    `-p export --lib`
+    `-p pipeline-gpu --lib`
+    `-p tessera-ffi --lib`

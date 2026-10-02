@@ -146,3 +146,76 @@ fn compat_matches_standalone_with_and_without_dcp() {
         }
     }
 }
+
+#[test]
+fn lr2b_pv2010_is_admitted_by_develop_renderer() {
+    use engine_api::recipe::settings::{
+        Curve, CurvePoint, LegacyPv2010, MonochromeSettings, ToneCurves,
+    };
+    let image = synthetic(202, 24, 20, RGGB, [0, 0, 24, 20]);
+    let r = Renderer::new(RendererConfig {
+        process_version: ProcessVersion::adobe(2),
+        ..Default::default()
+    });
+    let mut s = DevelopSettings::default();
+    s.tone.legacy_pv2010 = Some(LegacyPv2010 {
+        exposure: Some(1.),
+        ..Default::default()
+    });
+    s.tone.curves_extended = Some(ToneCurves {
+        rgb: Curve(vec![
+            CurvePoint { x: 0., y: 0. },
+            CurvePoint { x: 2., y: 3. },
+        ]),
+        ..Default::default()
+    });
+    s.color.monochrome = Some(MonochromeSettings {
+        enabled: true,
+        ..Default::default()
+    });
+    let actual = r
+        .render_region_as(
+            &image,
+            &s,
+            0,
+            PixelRect::full(image.level_extent(0)),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let expected = pipeline_adobe::render_linear_scaled(
+        &s,
+        &pipeline_cpu::RenderSource::Cfa {
+            image: image.cfa(),
+            metadata: image.metadata(),
+        },
+        1,
+    )
+    .unwrap();
+    for (a, b) in assemble_f32(image.level_extent(0), &actual)
+        .iter()
+        .flatten()
+        .zip(expected.planes().iter().flatten())
+    {
+        assert!((a - b).abs() < 0.0001, "{a} vs {b}");
+    }
+}
+
+#[test]
+fn lr2e_old_pv2010_requires_reimport_but_new_block_is_accepted() {
+    let image = synthetic(203, 24, 20, RGGB, [0, 0, 24, 20]);
+    for revision in [1, 2] {
+        let r = Renderer::new(RendererConfig {
+            process_version: ProcessVersion::adobe(revision),
+            ..Default::default()
+        });
+        let mut s = DevelopSettings::default();
+        s.tone.exposure = 2.;
+        let error = r
+            .render_region(&image, &s, 0, PixelRect::full(image.level_extent(0)))
+            .unwrap_err();
+        assert!(error.to_string().contains("re-import needed"), "{error}");
+        s.tone.legacy_pv2010 = Some(Default::default());
+        r.render_region(&image, &s, 0, PixelRect::full(image.level_extent(0)))
+            .unwrap();
+    }
+}

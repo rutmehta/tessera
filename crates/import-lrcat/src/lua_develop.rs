@@ -24,9 +24,11 @@
 //! `lrcat_develop_lua` lookup. Positional entries have a separate literal fallback.
 //!
 //! The extended-range (HDR) tone curve (`ExtendedToneCurvePV2012` and its
-//! Red/Green/Blue/Name siblings) is not translated (no recipe slot; codec work
-//! is owned elsewhere): one named-limitation warning per image with a non-identity
-//! curve, and the source of those keys is retained. Identity curves do not warn.
+//! Red/Green/Blue/Name siblings) is retained by the adapter. The additive LR-2
+//! pass translates SDR and HDR curves and removes their pending source;
+//! malformed/nonmonotone curves keep the named limitation and source.
+#[path = "lua_point_colors.rs"]
+mod point_colors;
 use std::{collections::HashSet, ops::Range};
 
 use engine_api::{EngineError, EngineResult, recipe::CrsKey, recipe::Recipe};
@@ -284,10 +286,8 @@ pub const KEY_MAP: &[(&str, &str)] = &[
     ("Version", "Version"),
 ];
 
-/// The extended-range (HDR) tone curve keys. Tessera's recipe has no extended
-/// curve (engine_api `ToneCurves` holds rgb/red/green/blue/luminance over
-/// 0..=1 only, and `CrsKey` has no `ExtendedToneCurve*`), so they are a named
-/// limitation rather than mapped onto the standard curves.
+/// Extended-range curve keys retained here for the additive LR-2 translator.
+/// The shared CRS table has no HDR domain; `lr2` selects the recipe block.
 pub const EXTENDED_TONE_CURVE_KEYS: &[&str] = &[
     "ExtendedToneCurveName2012",
     "ExtendedToneCurvePV2012",
@@ -296,8 +296,8 @@ pub const EXTENDED_TONE_CURVE_KEYS: &[&str] = &[
     "ExtendedToneCurvePV2012Blue",
 ];
 
-/// The one warning emitted for an image with non-identity extended tone curves.
-pub const EXTENDED_TONE_CURVE_NOTE: &str = "ExtendedToneCurvePV2012 (+Red/Green/Blue): extended-range (HDR) tone curves are not supported by Tessera; not applied, source preserved";
+/// Provisional warning removed by LR-2 after successful curve translation.
+pub const EXTENDED_TONE_CURVE_NOTE: &str = "ExtendedToneCurvePV2012 (+Red/Green/Blue): malformed or nonmonotone tone curve; not applied, source preserved";
 
 /// A table key: an identifier or `["string"]` (both are string keys in Lua),
 /// or `[number]`.
@@ -696,7 +696,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         return Err(error("develop settings are not a table"));
     };
     let (packet, notes, keep) = to_xmp(&table);
-    let (mut recipe, mut warnings) = crate::xmp::parse_unrecorded(&packet, process_version)?;
+    let (mut recipe, mut warnings) = crate::xmp::parse_inner(&packet, process_version, false)?;
     // The packet was generated from the literal; it is not source data.
     recipe.unknown.remove("sidecar_xmp");
     // Never derive retention from decoder diagnostics: future translators need
@@ -713,7 +713,9 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     for (i, (key, _)) in table.fields.iter().enumerate() {
         let raw = Value::from(text[spans[i].clone()].trim());
         if let LuaKey::Str(name) = key
-            && (retain_source(name) || keep.contains(&i))
+            && (retain_source(name)
+                || keep.contains(&i)
+                || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(name)))
         {
             source.insert(name.clone(), raw.clone());
         }
@@ -767,6 +769,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
             Some((key.as_str(), value))
         }),
     )?;
+    crate::lr2::lua(&table, &mut recipe, &mut warnings)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
     Ok((recipe, warnings))
@@ -851,6 +854,9 @@ fn to_xmp(table: &LuaTable) -> (String, Vec<String>, Vec<usize>) {
         let name = format!("{prefix}:{crs}");
         let rendered = match value {
             LuaValue::Nil => continue,
+            LuaValue::Table(t) if key == "PointColors" => point_colors::sequence(t)
+                .and_then(|t| element(&name, &t))
+                .map(|e| body.push_str(&e)),
             LuaValue::Table(t) => element(&name, t).map(|e| body.push_str(&e)),
             scalar => scalar_text(scalar).map(|v| attrs.push_str(&format!(" {name}=\"{v}\""))),
         };

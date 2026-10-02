@@ -10,6 +10,8 @@
 //! uses `a*(1-alpha)`. Paths interpolate pressure and position at quarter-radius
 //! spacing, with a quarter-pixel minimum. Coordinates outside [-16,16], radii
 //! outside [1e-6,16], and more than one million interpolated stamps are rejected.
+//! Luminance bands default to linear Rec.2020 luminance, optionally display encoded, before
+//! geometry (including Upright); depth uses the supplied normalized plane.
 //! Luminance/depth bands have exterior smoothstep shoulders of smoothness/200;
 //! color selection uses the nearest Euclidean OkLab distance, tolerance amount/100,
 //! with an interior smoothstep shoulder controlled by `color_smoothness`.
@@ -18,7 +20,7 @@
 use crate::Image;
 use engine_api::{
     EngineError, EngineResult,
-    recipe::mask::{LocalAdjustment, MaskCombine, MaskKind},
+    recipe::mask::{LocalAdjustment, MaskCombine, MaskComponent, MaskKind},
 };
 /// Optional edge-aware refinement in level pixels.
 #[derive(Clone, Copy, Debug)]
@@ -53,134 +55,11 @@ pub fn rasterize(
     group: &LocalAdjustment,
     options: MaskOptions<'_>,
 ) -> EngineResult<Vec<f32>> {
+    group.validate_mask_tree()?;
     validate(input, group, options)?;
-    let w = input.width() as usize;
-    let h = input.height() as usize;
-    let mut out = vec![0.; w * h];
-    if group.components.is_empty() {
+    let mut out = rasterize_components(input, &group.components, options, &mut Vec::new())?;
+    if !group.components.iter().any(|c| c.enabled) {
         return Ok(out);
-    }
-    for (index, component) in group.components.iter().enumerate() {
-        let mut plane = vec![0.; w * h];
-        match component.kind {
-            MaskKind::Linear { start, end } => {
-                let dx = end[0] - start[0];
-                let dy = end[1] - start[1];
-                for (i, v) in plane.iter_mut().enumerate() {
-                    let x = ((i % w) as f32 + 0.5) / w as f32;
-                    let y = ((i / w) as f32 + 0.5) / h as f32;
-                    *v = (1. - ((x - start[0]) * dx + (y - start[1]) * dy) / (dx * dx + dy * dy))
-                        .clamp(0., 1.);
-                }
-            }
-            MaskKind::Radial {
-                center,
-                radii,
-                angle,
-                feather,
-            } => {
-                let (s, c) = angle.to_radians().sin_cos();
-                for (i, v) in plane.iter_mut().enumerate() {
-                    let x = ((i % w) as f32 + 0.5) / w as f32 - center[0];
-                    let y = ((i / w) as f32 + 0.5) / h as f32 - center[1];
-                    let d = ((c * x + s * y) / radii[0]).hypot((-s * x + c * y) / radii[1]);
-                    *v = falloff(d, feather / 100.);
-                }
-            }
-            MaskKind::Brush { ref strokes } => {
-                for stroke in strokes {
-                    let radius = stroke.radius * w as f32;
-                    let stamp = |plane: &mut [f32], p: [f32; 3]| {
-                        let cx = p[0] * w as f32;
-                        let cy = p[1] * h as f32;
-                        let x0 = (cx - radius).floor().max(0.) as usize;
-                        let x1 = ((cx + radius).ceil().max(0.) as usize).min(w);
-                        let y0 = (cy - radius).floor().max(0.) as usize;
-                        let y1 = ((cy + radius).ceil().max(0.) as usize).min(h);
-                        for y in y0..y1 {
-                            for x in x0..x1 {
-                                let d = (x as f32 + 0.5 - cx).hypot(y as f32 + 0.5 - cy) / radius;
-                                let alpha =
-                                    falloff(d, stroke.feather / 100.) * p[2] * stroke.flow / 100.;
-                                let a = &mut plane[y * w + x];
-                                *a = if stroke.erase {
-                                    *a * (1. - alpha)
-                                } else {
-                                    *a + (1. - *a) * alpha
-                                };
-                            }
-                        }
-                    };
-                    if let Some(&p) = stroke.points.first() {
-                        stamp(&mut plane, p);
-                    }
-                    for pair in stroke.points.windows(2) {
-                        let [a, b] = [pair[0], pair[1]];
-                        let distance = ((b[0] - a[0]) * w as f32).hypot((b[1] - a[1]) * h as f32);
-                        let steps = (distance / (radius * 0.25).max(0.25)).ceil().max(1.) as usize;
-                        for step in 1..=steps {
-                            let t = step as f32 / steps as f32;
-                            stamp(
-                                &mut plane,
-                                std::array::from_fn(|c| a[c] + (b[c] - a[c]) * t),
-                            );
-                        }
-                    }
-                }
-            }
-            MaskKind::LuminanceRange { range, smoothness } => {
-                for (i, v) in plane.iter_mut().enumerate() {
-                    *v = band(luminance(input, i), range, smoothness / 200.);
-                }
-            }
-            MaskKind::Depth { range, feather, .. } => {
-                let depth = options.depth.ok_or_else(|| {
-                    EngineError::invalid("mask.depth", "same-level depth plane required")
-                })?;
-                if depth.len() != plane.len() {
-                    return Err(EngineError::invalid("mask.depth", "wrong plane length"));
-                }
-                for (v, &d) in plane.iter_mut().zip(depth) {
-                    *v = band(d, range, feather / 200.);
-                }
-            }
-            MaskKind::ColorRange {
-                ref samples,
-                amount,
-            } => {
-                for (i, v) in plane.iter_mut().enumerate() {
-                    let lab = to_lab([
-                        input.planes()[0][i],
-                        input.planes()[1][i],
-                        input.planes()[2][i],
-                    ]);
-                    let distance = samples
-                        .iter()
-                        .map(|s| (lab[0] - s[0]).hypot(lab[1] - s[1]).hypot(lab[2] - s[2]))
-                        .fold(f32::INFINITY, f32::min);
-                    *v = if amount == 0. {
-                        if distance <= 1e-6 { 1. } else { 0. }
-                    } else {
-                        falloff(distance / (amount / 100.), options.color_smoothness / 100.)
-                    };
-                }
-            }
-            _ => return Err(EngineError::invalid("mask", "unsupported component")),
-        }
-        for (a, mut b) in out.iter_mut().zip(plane) {
-            if component.invert {
-                b = 1. - b;
-            }
-            *a = if index == 0 {
-                b
-            } else {
-                match component.combine {
-                    MaskCombine::Add => f32::max(*a, b),
-                    MaskCombine::Subtract => *a * (1. - b),
-                    MaskCombine::Intersect => *a * b,
-                }
-            };
-        }
     }
     if let Some(refinement) = options.refinement {
         out = guided(input, &out, refinement);
@@ -192,6 +71,183 @@ pub fn rasterize(
     }
     Ok(out)
 }
+fn rasterize_components(
+    input: &Image,
+    components: &[MaskComponent],
+    options: MaskOptions<'_>,
+    pool: &mut Vec<Vec<f32>>,
+) -> EngineResult<Vec<f32>> {
+    let w = input.width() as usize;
+    let h = input.height() as usize;
+    let mut out: Option<Vec<f32>> = None;
+    for (index, component) in components.iter().filter(|c| c.enabled).enumerate() {
+        let mut plane = if let Some(components) = &component.group {
+            rasterize_components(input, components, options, pool)?
+        } else {
+            let mut plane = pool.pop().unwrap_or_else(|| vec![0.; w * h]);
+            plane.fill(0.);
+            match component.kind {
+                MaskKind::Linear { start, end } => {
+                    let dx = end[0] - start[0];
+                    let dy = end[1] - start[1];
+                    for (i, v) in plane.iter_mut().enumerate() {
+                        let x = ((i % w) as f32 + 0.5) / w as f32;
+                        let y = ((i / w) as f32 + 0.5) / h as f32;
+                        *v = (1.
+                            - ((x - start[0]) * dx + (y - start[1]) * dy) / (dx * dx + dy * dy))
+                            .clamp(0., 1.);
+                    }
+                }
+                MaskKind::Radial {
+                    center,
+                    radii,
+                    angle,
+                    feather,
+                } => {
+                    let (s, c) = angle.to_radians().sin_cos();
+                    for (i, v) in plane.iter_mut().enumerate() {
+                        let x = ((i % w) as f32 + 0.5) / w as f32 - center[0];
+                        let y = ((i / w) as f32 + 0.5) / h as f32 - center[1];
+                        let d = ((c * x + s * y) / radii[0]).hypot((-s * x + c * y) / radii[1]);
+                        *v = falloff(d, feather / 100.);
+                    }
+                }
+                MaskKind::Brush { ref strokes } => {
+                    for stroke in strokes {
+                        let radius = stroke.radius * w as f32;
+                        let stamp = |plane: &mut [f32], p: [f32; 3]| {
+                            let cx = p[0] * w as f32;
+                            let cy = p[1] * h as f32;
+                            let x0 = (cx - radius).floor().max(0.) as usize;
+                            let x1 = ((cx + radius).ceil().max(0.) as usize).min(w);
+                            let y0 = (cy - radius).floor().max(0.) as usize;
+                            let y1 = ((cy + radius).ceil().max(0.) as usize).min(h);
+                            for y in y0..y1 {
+                                for x in x0..x1 {
+                                    let d =
+                                        (x as f32 + 0.5 - cx).hypot(y as f32 + 0.5 - cy) / radius;
+                                    let alpha =
+                                        falloff(d, stroke.feather / 100.) * p[2] * stroke.flow
+                                            / 100.;
+                                    let a = &mut plane[y * w + x];
+                                    *a = if stroke.erase {
+                                        *a * (1. - alpha)
+                                    } else {
+                                        *a + (1. - *a) * alpha
+                                    };
+                                }
+                            }
+                        };
+                        if let Some(&p) = stroke.points.first() {
+                            stamp(&mut plane, p);
+                        }
+                        for pair in stroke.points.windows(2) {
+                            let [a, b] = [pair[0], pair[1]];
+                            let distance =
+                                ((b[0] - a[0]) * w as f32).hypot((b[1] - a[1]) * h as f32);
+                            let steps =
+                                (distance / (radius * 0.25).max(0.25)).ceil().max(1.) as usize;
+                            for step in 1..=steps {
+                                let t = step as f32 / steps as f32;
+                                stamp(
+                                    &mut plane,
+                                    std::array::from_fn(|c| a[c] + (b[c] - a[c]) * t),
+                                );
+                            }
+                        }
+                    }
+                }
+                MaskKind::LuminanceRange {
+                    range,
+                    smoothness,
+                    luminance_domain,
+                } => {
+                    for (i, v) in plane.iter_mut().enumerate() {
+                        let y = luminance(input, i);
+                        let y = luminance_in_domain(y, luminance_domain);
+                        *v = if let Some([outer_low, low, high, outer_high]) =
+                            component.luminance_bounds
+                        {
+                            if y < low {
+                                if low == outer_low {
+                                    0.
+                                } else {
+                                    smooth((y - outer_low) / (low - outer_low))
+                                }
+                            } else if y > high {
+                                if high == outer_high {
+                                    0.
+                                } else {
+                                    smooth((outer_high - y) / (outer_high - high))
+                                }
+                            } else {
+                                1.
+                            }
+                        } else {
+                            band(y, range, smoothness / 200.)
+                        };
+                    }
+                }
+                MaskKind::Depth { range, feather, .. } => {
+                    let depth = options.depth.ok_or_else(|| {
+                        EngineError::invalid("mask.depth", "same-level depth plane required")
+                    })?;
+                    if depth.len() != plane.len() {
+                        return Err(EngineError::invalid("mask.depth", "wrong plane length"));
+                    }
+                    for (v, &d) in plane.iter_mut().zip(depth) {
+                        *v = band(d, range, feather / 200.);
+                    }
+                }
+                MaskKind::ColorRange {
+                    ref samples,
+                    amount,
+                } => {
+                    for (i, v) in plane.iter_mut().enumerate() {
+                        let lab = to_lab([
+                            input.planes()[0][i],
+                            input.planes()[1][i],
+                            input.planes()[2][i],
+                        ]);
+                        let distance = samples
+                            .iter()
+                            .map(|s| (lab[0] - s[0]).hypot(lab[1] - s[1]).hypot(lab[2] - s[2]))
+                            .fold(f32::INFINITY, f32::min);
+                        *v = if amount == 0. {
+                            if distance <= 1e-6 { 1. } else { 0. }
+                        } else {
+                            falloff(distance / (amount / 100.), options.color_smoothness / 100.)
+                        };
+                    }
+                }
+                _ => return Err(EngineError::invalid("mask", "unsupported component")),
+            }
+            plane
+        };
+        if component.invert {
+            for b in &mut plane {
+                *b = 1. - *b;
+            }
+        }
+        if index == 0 {
+            out = Some(plane);
+        } else {
+            for (a, &b) in out.as_mut().unwrap().iter_mut().zip(&plane) {
+                *a = match component.combine {
+                    MaskCombine::Add => f32::max(*a, b),
+                    MaskCombine::Subtract => *a * (1. - b),
+                    MaskCombine::Intersect => *a * b,
+                };
+            }
+            pool.push(plane);
+        }
+    }
+    Ok(out.unwrap_or_else(|| {
+        let mut plane = pool.pop().unwrap_or_else(|| vec![0.; w * h]);
+        plane.fill(0.);
+        plane
+    }))
+}
 // Band is fully selected inside the inclusive range, with exterior shoulders
 // of width smoothness/200. HDR luminance is not clipped into the range.
 fn band(v: f32, range: [f32; 2], shoulder: f32) -> f32 {
@@ -202,6 +258,23 @@ fn band(v: f32, range: [f32; 2], shoulder: f32) -> f32 {
         0.
     } else {
         smooth(1. - d / shoulder)
+    }
+}
+/// Convert scene-linear luminance for a mask or its eyedropper.
+pub fn luminance_in_domain(y: f32, domain: engine_api::recipe::mask::LuminanceDomain) -> f32 {
+    match domain {
+        engine_api::recipe::mask::LuminanceDomain::Linear => y,
+        engine_api::recipe::mask::LuminanceDomain::Display => display_encoded_luminance(y),
+    }
+}
+
+/// Extended sRGB transfer of linear Rec.2020 Y for perceptual mask thresholds.
+/// HDR and negative values stay outside the unit interval, not clipped into a band.
+pub fn display_encoded_luminance(y: f32) -> f32 {
+    if y <= 0.0031308 {
+        12.92 * y
+    } else {
+        1.055 * y.powf(1. / 2.4) - 0.055
     }
 }
 fn luminance(input: &Image, i: usize) -> f32 {
@@ -293,7 +366,11 @@ fn validate(input: &Image, group: &LocalAdjustment, options: MaskOptions<'_>) ->
     let coords = |p: &[f32]| p.iter().all(|&v| bounded(v, -16., 16.));
     let range = |r: &[f32; 2]| bounded(r[0], 0., 1.) && bounded(r[1], r[0], 1.);
     let mut stamps = 0usize;
-    for component in &group.components {
+    for component in group
+        .components
+        .iter()
+        .flat_map(MaskComponent::active_leaves)
+    {
         let valid = match &component.kind {
             MaskKind::Linear { start, end } => {
                 coords(start) && coords(end) && (end[0] - start[0]).hypot(end[1] - start[1]) >= 1e-6
@@ -310,6 +387,7 @@ fn validate(input: &Image, group: &LocalAdjustment, options: MaskOptions<'_>) ->
                     && bounded(*feather, 0., 100.)
             }
             MaskKind::LuminanceRange {
+                luminance_domain: _,
                 range: r,
                 smoothness,
             } => range(r) && bounded(*smoothness, 0., 100.),

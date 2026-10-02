@@ -136,6 +136,37 @@ impl XmpPacket {
                 }))?,
             );
         }
+        let mono_keys = [
+            "ConvertToGrayscale",
+            "GrayMixerRed",
+            "GrayMixerOrange",
+            "GrayMixerYellow",
+            "GrayMixerGreen",
+            "GrayMixerAqua",
+            "GrayMixerBlue",
+            "GrayMixerPurple",
+            "GrayMixerMagenta",
+        ];
+        if recipe.settings.color.monochrome != imported.recipe.settings.color.monochrome {
+            for key in mono_keys {
+                owned.push((CRS, key));
+            }
+            if let Some(gray) = &recipe.settings.color.monochrome {
+                body += &text(
+                    "crs:ConvertToGrayscale",
+                    if gray.enabled { "True" } else { "False" },
+                );
+                let b = &gray.mixer;
+                for (key, amount) in mono_keys[1..].iter().zip([
+                    b.red, b.orange, b.yellow, b.green, b.aqua, b.blue, b.purple, b.magenta,
+                ]) {
+                    if !amount.is_finite() || !(-100. ..=100.).contains(&amount) {
+                        return Err(error("monochrome mixer range"));
+                    }
+                    body += &text(&format!("crs:{key}"), &amount.to_string());
+                }
+            }
+        }
         // Refresh the companion after all CRS edits, including retained opaque data.
         owned.push((PRIVATE, "LensProfileSource"));
         body += &text(
@@ -155,17 +186,29 @@ impl XmpPacket {
     /// retained in `Recipe::unknown["sidecar_xmp"]` for lossless later export via
     /// `from_imported_recipe`.
     pub fn to_recipe(&self) -> EngineResult<ImportedRecipe> {
-        self.decode_recipe(true)
+        self.decode_recipe(true, true)
     }
 
     /// Decode ordinary CRS fields into an uncommitted catalog import transaction.
     /// The catalog supplies its authoritative process version and geometry hooks,
     /// then records history once, after all hooks have completed.
     pub fn to_catalog_recipe(&self) -> EngineResult<ImportedRecipe> {
-        self.decode_recipe(false)
+        self.decode_recipe(false, true)
     }
 
-    fn decode_recipe(&self, standalone: bool) -> EngineResult<ImportedRecipe> {
+    /// Decode a catalog transaction with audited foreign mask extensions enabled or disabled.
+    pub fn to_catalog_recipe_with_foreign_mask_extensions(
+        &self,
+        extensions: bool,
+    ) -> EngineResult<ImportedRecipe> {
+        self.decode_recipe(false, extensions)
+    }
+
+    fn decode_recipe(
+        &self,
+        standalone: bool,
+        foreign_mask_extensions: bool,
+    ) -> EngineResult<ImportedRecipe> {
         let tree = Tree::parse(&self.xml)?;
         let mut recipe = Recipe {
             selection: self.selection()?,
@@ -186,9 +229,62 @@ impl XmpPacket {
                     .insert(key.qualified_name(), raw);
                 continue;
             }
-            if let Err(e) = decode(key, &tree, &mut value) {
+            if let Err(e) = decode(key, &tree, &mut value, foreign_mask_extensions) {
                 warnings.push(format!("{key}: {e}; retained in original XMP"));
             }
+        }
+        let mut gray = engine_api::recipe::settings::MonochromeSettings::default();
+        let mut has_gray = false;
+        if let Some(raw) = tree.value(CRS, "ConvertToGrayscale") {
+            match bool_value(&raw) {
+                Ok(enabled) => {
+                    gray.enabled = enabled;
+                    has_gray = true;
+                }
+                Err(e) => warnings.push(format!(
+                    "crs:ConvertToGrayscale: {e}; retained in original XMP"
+                )),
+            }
+        }
+        for (key, target) in [
+            "GrayMixerRed",
+            "GrayMixerOrange",
+            "GrayMixerYellow",
+            "GrayMixerGreen",
+            "GrayMixerAqua",
+            "GrayMixerBlue",
+            "GrayMixerPurple",
+            "GrayMixerMagenta",
+        ]
+        .into_iter()
+        .zip([
+            &mut gray.mixer.red,
+            &mut gray.mixer.orange,
+            &mut gray.mixer.yellow,
+            &mut gray.mixer.green,
+            &mut gray.mixer.aqua,
+            &mut gray.mixer.blue,
+            &mut gray.mixer.purple,
+            &mut gray.mixer.magenta,
+        ]) {
+            if let Some(raw) = tree.value(CRS, key) {
+                match raw
+                    .parse::<f32>()
+                    .ok()
+                    .filter(|v| v.is_finite() && (-100. ..=100.).contains(v))
+                {
+                    Some(v) => {
+                        *target = v;
+                        has_gray = true;
+                    }
+                    None => warnings.push(format!(
+                        "crs:{key}: invalid mixer amount; retained in original XMP"
+                    )),
+                }
+            }
+        }
+        if has_gray && (gray.enabled || gray.mixer != Default::default()) {
+            value["settings"]["color"]["monochrome"] = serde_json::to_value(gray)?;
         }
         let settings: DevelopSettings = serde_json::from_value(value["settings"].clone())?;
         recipe.process_version = serde_json::from_value(value["process_version"].clone())?;
@@ -351,7 +447,12 @@ fn enum_value(s: &str, choices: &[&str]) -> EngineResult<Value> {
         .map(|s| json!(s))
         .ok_or_else(|| error("invalid enumeration"))
 }
-fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
+fn decode(
+    key: CrsKey,
+    tree: &Tree,
+    doc: &mut Value,
+    foreign_mask_extensions: bool,
+) -> EngineResult<()> {
     use CrsKey::*;
     let path = key.recipe_path().ok_or_else(|| unsupported(key))?;
     let s = tree
@@ -395,7 +496,7 @@ fn decode(key: CrsKey, tree: &Tree, doc: &mut Value) -> EngineResult<()> {
             Some(v) => v,
             None => return Ok(()),
         },
-        MaskGroupBasedCorrections => masks::import_masks(tree)?,
+        MaskGroupBasedCorrections => masks::import_masks(tree, foreign_mask_extensions)?,
         PointColors | LensBlur | RetouchAreas | RetouchInfo => structures::decode(key, tree)?,
         Look => {
             let Some(Property::Node(n)) = tree.property(CRS, key.xmp_name()) else {

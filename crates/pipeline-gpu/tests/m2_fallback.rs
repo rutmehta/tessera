@@ -167,10 +167,22 @@ fn curve_color_validation_and_neutral_bits() {
             .is_err()
     );
     color = ColorSettings::default();
-    color.point_colors.push(Default::default());
-    assert!(
-        gpu.run(StageId::Tone, &Op::Color(&color), tile.clone())
-            .is_err()
+    color
+        .point_colors
+        .push(engine_api::recipe::settings::PointColor {
+            hue_shift: 30.,
+            range: 100.,
+            ..Default::default()
+        });
+    let expected = CpuStageOp
+        .run(StageId::Tone, &Op::Color(&color), tile.clone())
+        .unwrap();
+    let actual = gpu
+        .run(StageId::Tone, &Op::Color(&color), tile.clone())
+        .unwrap();
+    assert_eq!(
+        actual.samples::<f32>().unwrap(),
+        expected.samples::<f32>().unwrap()
     );
     tile.samples_mut::<f32>().unwrap()[0] = f32::INFINITY;
     for op in [
@@ -179,4 +191,300 @@ fn curve_color_validation_and_neutral_bits() {
     ] {
         assert!(gpu.run(StageId::Tone, &op, tile.clone()).is_err());
     }
+}
+
+#[test]
+fn lr2c_legacy_tone_gpu_session_falls_back_to_cpu() {
+    use engine_api::recipe::settings::LegacyPv2010;
+    let gpu = GpuStageOp::new(Arc::new(GpuContext::new().unwrap()));
+    let tone = ToneSettings {
+        legacy_pv2010: Some(LegacyPv2010 {
+            brightness: Some(50.),
+            blacks: Some(5.),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let input = image().tile(TileCoord::new(0, 0, 0), 0, 1).unwrap();
+    let op = Op::Tone(&tone);
+    let expected = CpuStageOp.run(StageId::Tone, &op, input.clone()).unwrap();
+    let actual = gpu.run(StageId::Tone, &op, input.clone()).unwrap();
+    assert_eq!(
+        actual.samples::<f32>().unwrap(),
+        expected.samples::<f32>().unwrap()
+    );
+    let batch = gpu
+        .run_chain_batch(
+            &[(StageId::Tone, op)],
+            vec![input],
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    assert_eq!(
+        batch[0].samples::<f32>().unwrap(),
+        expected.samples::<f32>().unwrap()
+    );
+}
+
+#[path = "../../image-core/tests/common/mod.rs"]
+mod common;
+
+#[test]
+fn lr2c_native_and_adobe_gpu_sessions_match_cpu_for_legacy_and_bw() {
+    use engine_api::recipe::{
+        DevelopSettings, ProcessVersion,
+        settings::{Curve, CurvePoint, LegacyPv2010, MonochromeSettings},
+    };
+    use image_core::{PixelRect, RenderOutput, Renderer, RendererConfig, TileCache};
+    let image = common::synthetic(2903, 24, 24, common::RGGB, [0, 0, 24, 24]);
+    let mut s = DevelopSettings::default();
+    s.tone.legacy_pv2010 = Some(LegacyPv2010 {
+        brightness: Some(50.),
+        blacks: Some(5.),
+        ..Default::default()
+    });
+    s.color.monochrome = Some(MonochromeSettings {
+        enabled: true,
+        ..Default::default()
+    });
+    s.tone.curves.red = Curve(vec![
+        CurvePoint { x: 0., y: 0. },
+        CurvePoint { x: 1., y: 0.5 },
+    ]);
+    for pv in [ProcessVersion::NATIVE_CURRENT, ProcessVersion::adobe(2)] {
+        let config = RendererConfig {
+            process_version: pv,
+            ..Default::default()
+        };
+        let cpu = Renderer::with_ops(
+            Arc::new(CpuStageOp),
+            Arc::new(TileCache::new(16 << 20)),
+            config.clone(),
+        );
+        let gpu = Renderer::with_ops(
+            Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap()))),
+            Arc::new(TileCache::new(16 << 20)),
+            config,
+        );
+        let rect = PixelRect::full(image.level_extent(0));
+        let expected = cpu
+            .render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
+            .unwrap();
+        let actual = gpu
+            .render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
+            .unwrap();
+        for (a, b) in actual.iter().zip(&expected) {
+            for (a, b) in a
+                .samples::<f32>()
+                .unwrap()
+                .iter()
+                .zip(b.samples::<f32>().unwrap())
+            {
+                assert!((a - b).abs() < 1e-4, "{pv:?}: {a} != {b}");
+            }
+            let samples = a.samples::<f32>().unwrap();
+            let n = a.layout().plane_len();
+            assert!(
+                (samples[n / 2] - samples[n + n / 2]).abs() > 0.001,
+                "channel toning lost"
+            );
+        }
+    }
+}
+
+#[test]
+fn lr2c_resident_bw_preserves_toning_with_and_without_local_tone() {
+    use engine_api::recipe::{
+        DevelopSettings,
+        settings::{Curve, CurvePoint, MonochromeSettings},
+    };
+    use image_core::{PixelRect, RenderOutput, Renderer, RendererConfig, TileCache};
+    let image = common::synthetic(2904, 24, 24, common::RGGB, [0, 0, 24, 24]);
+    let cpu = Renderer::new(RendererConfig::default());
+    let gpu = Renderer::with_ops(
+        Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap()))),
+        Arc::new(TileCache::new(16 << 20)),
+        RendererConfig::default(),
+    );
+    let mut s = DevelopSettings::default();
+    s.color.monochrome = Some(MonochromeSettings {
+        enabled: true,
+        ..Default::default()
+    });
+    s.tone.curves.red = Curve(vec![
+        CurvePoint { x: 0., y: 0. },
+        CurvePoint { x: 1., y: 0.5 },
+    ]);
+    let rect = PixelRect::full(image.level_extent(0));
+    for clarity in [0., 20.] {
+        s.tone.clarity = clarity;
+        assert!(gpu.can_render_resident(&image, &s).unwrap());
+        let expected = cpu
+            .render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
+            .unwrap();
+        let actual = gpu
+            .render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
+            .unwrap();
+        for (a, b) in actual.iter().zip(&expected) {
+            let worst = a
+                .samples::<f32>()
+                .unwrap()
+                .iter()
+                .zip(b.samples::<f32>().unwrap())
+                .map(|(a, b)| (a - b).abs())
+                .fold(0., f32::max);
+            // Existing resident f16 checkpoint tolerance (resident_fusion.rs).
+            assert!(worst <= 0.002, "clarity {clarity}: {worst}");
+            let samples = a.samples::<f32>().unwrap();
+            let n = a.layout().plane_len();
+            assert!(
+                (samples[n / 2] - samples[n + n / 2]).abs() > 0.001,
+                "channel toning lost"
+            );
+        }
+    }
+}
+
+#[test]
+fn point_color_render_routes_around_resident_gpu() {
+    use engine_api::recipe::DevelopSettings;
+    use image_core::{PixelRect, RenderOutput, Renderer, RendererConfig, TileCache};
+    let gpu = Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap())));
+    let renderer = Renderer::with_ops(
+        gpu.clone(),
+        Arc::new(TileCache::new(0)),
+        RendererConfig::default(),
+    );
+    let cpu = Renderer::new(RendererConfig::default());
+    let image = common::synthetic(1811, 19, 17, common::RGGB, [0, 0, 19, 17]);
+    let mut settings = DevelopSettings::default();
+    settings
+        .color
+        .point_colors
+        .push(engine_api::recipe::settings::PointColor {
+            hue_shift: 30.,
+            range: 100.,
+            selection: Some(engine_api::recipe::settings::PointColorSelection {
+                source_hsl: [0., 0.5, 0.5],
+                hue: [0., 0., 1., 1.],
+                saturation: [0., 0., 1., 1.],
+                luminance: [0., 0., 1., 1.],
+            }),
+            ..Default::default()
+        });
+    assert!(!renderer.can_render_resident(&image, &settings).unwrap());
+    let op = Op::Color(&settings.color);
+    let token = CancellationToken::new();
+    let expected = CpuStageOp
+        .run_image(StageId::Tone, &op, self::image(), &token)
+        .unwrap();
+    let actual = gpu
+        .run_image(StageId::Tone, &op, self::image(), &token)
+        .unwrap();
+    assert_eq!(actual.planes(), expected.planes());
+    assert_ne!(actual.planes(), self::image().planes());
+    for output in [RenderOutput::SceneLinear, RenderOutput::Display] {
+        let rect = PixelRect::full(image.level_extent(0));
+        let expected = cpu
+            .render_region_as(&image, &settings, 0, rect, output)
+            .unwrap();
+        let actual = renderer
+            .render_region_as(&image, &settings, 0, rect, output)
+            .unwrap();
+        for (a, b) in actual.iter().zip(expected.iter()) {
+            if output == RenderOutput::Display {
+                assert!(
+                    common::max_u8_diff(a.samples::<u8>().unwrap(), b.samples::<u8>().unwrap())
+                        <= 1
+                );
+            } else {
+                for (a, b) in a
+                    .samples::<f32>()
+                    .unwrap()
+                    .iter()
+                    .zip(b.samples::<f32>().unwrap())
+                {
+                    assert!((a - b).abs() < 1e-4);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn lr1c_monochrome_point_operator_and_gpu_session_keep_colour_selection() {
+    use engine_api::recipe::{DevelopSettings, settings::MonochromeSettings};
+    use image_core::{PixelRect, RenderOutput, Renderer, RendererConfig, TileCache};
+    let gpu = Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap())));
+    let mut s = DevelopSettings::default();
+    s.color
+        .point_colors
+        .push(engine_api::recipe::settings::PointColor {
+            luminance_shift: 40.,
+            range: 100.,
+            selection: Some(engine_api::recipe::settings::PointColorSelection {
+                source_hsl: [0., 0.5, 0.5],
+                hue: [0., 0., 1., 1.],
+                saturation: [0., 0., 1., 1.],
+                luminance: [0., 0., 1., 1.],
+            }),
+            ..Default::default()
+        });
+    s.color.monochrome = Some(MonochromeSettings {
+        enabled: true,
+        ..Default::default()
+    });
+    let input = image();
+    let op = Op::Color(&s.color);
+    let tile = input.tile(TileCoord::new(0, 0, 0), 0, 1).unwrap();
+    let cpu = CpuStageOp.run(StageId::Tone, &op, tile.clone()).unwrap();
+    let batch = gpu
+        .run_chain_batch(
+            &[(StageId::Tone, op)],
+            vec![tile],
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    assert_eq!(
+        cpu.samples::<f32>().unwrap(),
+        batch[0].samples::<f32>().unwrap()
+    );
+    let raw = common::synthetic(1812, 19, 17, common::RGGB, [0, 0, 19, 17]);
+    let renderer = Renderer::with_ops(
+        gpu,
+        Arc::new(TileCache::new(16 << 20)),
+        RendererConfig::default(),
+    );
+    assert!(!renderer.can_render_resident(&raw, &s).unwrap());
+    let rect = PixelRect::full(raw.level_extent(0));
+    let baseline = {
+        let mut plain = s.clone();
+        plain.color.point_colors.clear();
+        renderer
+            .render_region_as(&raw, &plain, 0, rect, RenderOutput::SceneLinear)
+            .unwrap()
+    };
+    let actual = renderer
+        .render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    let expected = Renderer::new(RendererConfig::default())
+        .render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    let mut change = 0_f32;
+    for ((a, b), c) in actual.iter().zip(&expected).zip(&baseline) {
+        for ((a, b), c) in a
+            .samples::<f32>()
+            .unwrap()
+            .iter()
+            .zip(b.samples::<f32>().unwrap())
+            .zip(c.samples::<f32>().unwrap())
+        {
+            assert!((a - b).abs() < 1e-4);
+            change = change.max((a - c).abs());
+        }
+    }
+    assert!(
+        change > 0.01,
+        "points lost their colour selection before B&W"
+    );
 }

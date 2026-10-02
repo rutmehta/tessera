@@ -336,3 +336,92 @@ fn tone_is_one_persistent_agent_entry_and_histogram_tracks_render() {
         response => panic!("{response:?}"),
     }
 }
+
+#[test]
+fn lr1c_preview_point_selection_precedes_monochrome() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("point.png");
+    image::RgbImage::from_pixel(8, 6, image::Rgb([191, 64, 64]))
+        .save(&path)
+        .unwrap();
+    let mut recipe = engine_api::recipe::Recipe::default();
+    recipe.settings.color = serde_json::from_value(json!({
+        "monochrome":{"enabled":true},
+        "point_colors":[{"hue_shift":30.,"range":100.,"selection":{
+            "source_hsl":[0.,0.5,0.5],"hue":[0.,0.,1.,1.],
+            "saturation":[0.,0.,1.,1.],"luminance":[0.,0.,1.,1.]
+        }}]
+    }))
+    .unwrap();
+    recipe.history.base = recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(&path).recipe,
+        &sidecar::RecipeDocument {
+            recipe: recipe.clone(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let selected = console.render_preview(id, 8).unwrap();
+    drop(console);
+    recipe.settings.color.point_colors.clear();
+    recipe.history.base = recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(&path).recipe,
+        &sidecar::RecipeDocument {
+            recipe,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut console = Console::open(dir.path().join("app2")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let plain = console.render_preview(id, 8).unwrap();
+    assert_ne!(
+        selected, plain,
+        "Point Color must select before B&W removes saturation"
+    );
+    for (a, b) in selected.pixels().zip(plain.pixels()) {
+        assert!(
+            a[0] > b[0] + 5,
+            "red-to-orange shift must increase neutral luminance"
+        );
+        assert!((i16::from(a[0]) - i16::from(a[1])).abs() <= 1);
+        assert!((i16::from(a[1]) - i16::from(a[2])).abs() <= 1);
+    }
+}
+
+#[test]
+fn lr4e_create_and_adjust_reject_ninth_mask_level_without_saving() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("test.jpg");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([100, 110, 120]))
+        .save(&path)
+        .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let mut c = json!({"kind":"linear","start":[0,0],"end":[1,0]});
+    for _ in 1..8 {
+        c = json!({"kind":"brush","strokes":[],"group":[c]});
+    }
+    let mask = match console.execute(request(
+        json!({"tool":"create_mask","image":id,"components":[c.clone()],"params":{}}),
+    )) {
+        ToolResponse::Ok(ToolOutput::MaskCreated { mask, .. }) => mask,
+        other => panic!("{other:?}"),
+    };
+    c = json!({"kind":"brush","strokes":[],"group":[c],"enabled":false});
+    let recipe_path = sidecar::Sidecar::paths(&path).recipe;
+    let before = std::fs::read(&recipe_path).unwrap();
+    for call in [
+        json!({"tool":"create_mask","image":id,"components":[c.clone()],"params":{}}),
+        json!({"tool":"adjust_mask","image":id,"mask":mask,"add_components":[c]}),
+    ] {
+        let result = console.execute(request(call));
+        assert!(!matches!(result, ToolResponse::Ok(_)), "{result:?}");
+        assert!(format!("{result:?}").contains("8 levels"));
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), before);
+    }
+}

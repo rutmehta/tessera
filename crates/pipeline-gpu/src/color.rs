@@ -18,6 +18,22 @@ pub(crate) fn parameters(s: &ColorSettings, p: &mut Vec<f32>) -> EngineResult<()
     Ok(())
 }
 fn build_parameters(s: &ColorSettings, p: &mut Vec<f32>) -> EngineResult<()> {
+    if let Some(gray) = &s.monochrome {
+        let b = &gray.mixer;
+        let values = [
+            b.red, b.orange, b.yellow, b.green, b.aqua, b.blue, b.purple, b.magenta,
+        ];
+        if values.iter().any(|v| !v.is_finite()) {
+            return Err(EngineError::invalid(
+                "monochrome",
+                "finite parameters required",
+            ));
+        }
+        if gray.enabled {
+            p[10] = 1.;
+            p[11..19].copy_from_slice(&values);
+        }
+    }
     if !s.point_colors.is_empty() || s.lut.is_some() {
         return Err(EngineError::invalid(
             "color",
@@ -25,7 +41,9 @@ fn build_parameters(s: &ColorSettings, p: &mut Vec<f32>) -> EngineResult<()> {
         ));
     }
     p[0] = 6.0;
-    p[9] = if s == &ColorSettings::default() {
+    let mut ordinary = s.clone();
+    ordinary.monochrome = None;
+    p[9] = if ordinary == ColorSettings::default() {
         0.0
     } else {
         1.0
@@ -64,4 +82,31 @@ fn build_parameters(s: &ColorSettings, p: &mut Vec<f32>) -> EngineResult<()> {
         p.extend([cos, sin]);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod lr2_tests {
+    #[test]
+    fn lr2b_grayscale_has_gpu_parameters() {
+        let s = engine_api::recipe::settings::ColorSettings {
+            monochrome: Some(engine_api::recipe::settings::MonochromeSettings {
+                enabled: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert!(super::parameters(&s, &mut vec![0.; 9]).is_ok());
+    }
+
+    #[test]
+    fn disabled_monochrome_preserves_gpu_identity_parameters() {
+        let neutral = engine_api::recipe::settings::ColorSettings::default();
+        let mut disabled = neutral.clone();
+        disabled.monochrome = Some(engine_api::recipe::settings::MonochromeSettings::default());
+        let mut a = vec![0.; 9];
+        let mut b = vec![0.; 9];
+        super::parameters(&neutral, &mut a).unwrap();
+        super::parameters(&disabled, &mut b).unwrap();
+        assert_eq!(a, b);
+    }
 }

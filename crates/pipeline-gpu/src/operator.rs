@@ -86,6 +86,12 @@ pub(crate) fn parameters(
             matrix = Some(m);
         }
         Op::Tone(s) => {
+            if s.legacy_pv2010.is_some() {
+                return Err(EngineError::invalid(
+                    "PV2010",
+                    "legacy process requires CPU rendering",
+                ));
+            }
             p[0] = 3.0;
             let values = [
                 s.exposure,

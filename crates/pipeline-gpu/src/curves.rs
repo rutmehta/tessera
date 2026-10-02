@@ -19,6 +19,9 @@ pub(crate) fn parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()>
     Ok(())
 }
 fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
+    let selected = s.curves_extended.as_ref().unwrap_or(&s.curves);
+    let extended = s.curves_extended.is_some();
+    p[25] = if extended { 1. } else { 0. };
     let param = &s.curves.parametric;
     let amounts = [param.shadows, param.darks, param.lights, param.highlights];
     let splits = [
@@ -46,11 +49,11 @@ fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
     p[15..19].copy_from_slice(&amounts.map(|v| v.clamp(-100.0, 100.0) / 100.0));
     p[24] = (1.0_f32 / 0.18).ln_1p();
     for (index, c) in [
-        &s.curves.rgb,
-        &s.curves.red,
-        &s.curves.green,
-        &s.curves.blue,
-        &s.curves.luminance,
+        &selected.rgb,
+        &selected.red,
+        &selected.green,
+        &selected.blue,
+        &selected.luminance,
     ]
     .into_iter()
     .enumerate()
@@ -58,8 +61,7 @@ fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
         if c.0.iter().any(|v| {
             !v.x.is_finite()
                 || !v.y.is_finite()
-                || !(0.0..=1.0).contains(&v.x)
-                || !(0.0..=1.0).contains(&v.y)
+                || (!extended && (!(0.0..=1.0).contains(&v.x) || !(0.0..=1.0).contains(&v.y)))
         }) || c.0.windows(2).any(|v| v[0].x >= v[1].x || v[0].y > v[1].y)
         {
             return Err(EngineError::invalid(
@@ -67,14 +69,17 @@ fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
                 "finite ordered knots required",
             ));
         }
+        if extended && c.0.len() == 1 {
+            return Err(EngineError::invalid("curve", "at least two knots required"));
+        }
         if c.is_identity() {
             continue;
         }
         let mut points: Vec<_> = c.0.iter().map(|v| (v.x, v.y)).collect();
-        if points.is_empty() || points[0].0 > 0.0 {
+        if points.is_empty() || (!extended && points[0].0 > 0.0) {
             points.insert(0, (0.0, 0.0));
         }
-        if points.last().unwrap().0 < 1.0 {
+        if points.len() == 1 || (!extended && points.last().unwrap().0 < 1.0) {
             points.push((1.0, 1.0));
         }
         let finite = |v: f32| v.clamp(-f32::MAX, f32::MAX);

@@ -1,4 +1,5 @@
-//! Lightroom catalog XMP adapter. All recipe translation belongs to sidecar.
+//! Lightroom catalog XMP adapter. Core CRS translation belongs to sidecar;
+//! catalog-specific LR-2 additions run after exact source retention.
 use engine_api::{
     EngineError, EngineResult,
     recipe::{CrsKey, CrsValueType, ProcessVersion, Recipe},
@@ -19,20 +20,33 @@ struct Property<'a> {
     node: Option<Node<'a, 'a>>,
 }
 
+// Preserve the previous decoder's error/empty-target behavior when geometry or
+// local parameters cannot render. Legacy/native forms retain their existing path.
+fn decode_with_mask_audit(text: &str, extensions: bool) -> EngineResult<sidecar::ImportedRecipe> {
+    let packet = XmpPacket::parse(text)?;
+    let imported = packet.to_catalog_recipe_with_foreign_mask_extensions(extensions)?;
+    if extensions && !crate::mask_source::renderable(&imported.recipe.settings.locals.adjustments) {
+        packet.to_catalog_recipe_with_foreign_mask_extensions(false)
+    } else {
+        Ok(imported)
+    }
+}
+
 /// Import through the shared codec. The catalog version remains authoritative for
 /// Adobe XMP; a hash-verified native companion is interpreted only by sidecar.
 /// Compatibility diagnostics retain individual properties as well as the exact
 /// original packet, even when a legacy spelling needs normalization for decoding.
 pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
-    let (mut recipe, warnings) = parse_unrecorded(text, process_version)?;
+    let (mut recipe, warnings) = parse_inner(text, process_version, true)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
     Ok((recipe, warnings))
 }
 
-pub(crate) fn parse_unrecorded(
+pub(crate) fn parse_inner(
     text: &str,
     process_version: &str,
+    apply_lr2: bool,
 ) -> EngineResult<(Recipe, Vec<String>)> {
     let doc = Document::parse(text).map_err(|e| EngineError::Decode {
         format: "xmp".into(),
@@ -41,7 +55,7 @@ pub(crate) fn parse_unrecorded(
     if doc.root_element().has_tag_name((RDF, "Description")) {
         // Catalog rows commonly store a bare Description, unlike sidecar files.
         let wrapped = format!("<rdf:RDF xmlns:rdf=\"{RDF}\">{text}</rdf:RDF>");
-        let (mut recipe, warnings) = parse_unrecorded(&wrapped, process_version)?;
+        let (mut recipe, warnings) = parse_inner(&wrapped, process_version, apply_lr2)?;
         recipe.unknown.insert("sidecar_xmp".into(), json!(text));
         return Ok((recipe, warnings));
     }
@@ -76,7 +90,17 @@ pub(crate) fn parse_unrecorded(
             });
         }
     }
-    let original = XmpPacket::parse(text)?.to_catalog_recipe()?;
+    // Upgrade foreign mask forms only when the entire parent is consumed. An
+    // untranslated input must keep its prior recipe, not just its raw envelope.
+    let mask_properties: Vec<_> = properties
+        .iter()
+        .filter(|p| p.namespace == CRS && p.name == "MaskGroupBasedCorrections")
+        .collect();
+    let foreign_mask_extensions = mask_properties.len() == 1
+        && mask_properties[0]
+            .node
+            .is_some_and(crate::mask_source::audited_approximation);
+    let original = decode_with_mask_audit(text, foreign_mask_extensions)?;
     let verified_native = properties.iter().any(|p| {
         p.namespace == CRS && p.name == "ProcessVersion" && ProcessVersion::from_crs(p.raw).is_ok()
     }) && original
@@ -97,6 +121,11 @@ pub(crate) fn parse_unrecorded(
             continue;
         }
         let qualified = key.map_or_else(|| format!("crs:{}", p.name), |k| k.qualified_name());
+        if key == Some(CrsKey::PointColors) && catalog_version.revision < 3 && !verified_native {
+            diagnostics.push((qualified, p.raw, "requires Adobe PV3 or later".into()));
+            removed.push(p.range.clone());
+            continue;
+        }
         if let Some(previous) = seen.insert((p.namespace, p.name), i) {
             diagnostics.push((
                 qualified.clone(),
@@ -162,7 +191,7 @@ pub(crate) fn parse_unrecorded(
     let imported = if normalized == text {
         original
     } else {
-        XmpPacket::parse(normalized)?.to_catalog_recipe()?
+        decode_with_mask_audit(&normalized, foreign_mask_extensions)?
     };
     let mut recipe = imported.recipe;
     let mut warnings = imported.warnings;
@@ -187,6 +216,21 @@ pub(crate) fn parse_unrecorded(
     {
         recipe.process_version = catalog_version;
     }
+    let masks_approximate = crate::mask_source::renderable(&recipe.settings.locals.adjustments)
+        && !warnings
+            .iter()
+            .any(|w| w.starts_with("crs:MaskGroupBasedCorrections:"))
+        && properties
+            .iter()
+            .filter(|p| p.namespace == CRS && p.name == "MaskGroupBasedCorrections")
+            .count()
+            == 1
+        && properties.iter().any(|p| {
+            p.namespace == CRS
+                && p.name == "MaskGroupBasedCorrections"
+                && p.node
+                    .is_some_and(crate::mask_source::audited_approximation)
+        });
     for p in &properties {
         let Some(key) = CrsKey::from_xmp(p.namespace, p.name) else {
             continue;
@@ -199,6 +243,10 @@ pub(crate) fn parse_unrecorded(
             // The codec reports the reason; add the legacy per-property payload
             // without duplicating its warning.
             retain(&mut recipe, &qualified, p.raw);
+        } else if key == CrsKey::MaskGroupBasedCorrections && masks_approximate {
+            if let Some(node) = p.node {
+                crate::mask_source::record_approximation_diagnostics(&mut recipe, node);
+            }
         } else if key == CrsKey::MaskGroupBasedCorrections {
             diagnostics.push((
                 qualified,
@@ -211,15 +259,28 @@ pub(crate) fn parse_unrecorded(
         retain(&mut recipe, &key, raw);
         warnings.push(format!("{key}: {reason}; source preserved"));
     }
-    if catalog_version.revision <= 2 {
-        warnings.push(
-            "legacy Adobe PV1/2: best-effort translation; rendering fidelity is not guaranteed"
-                .into(),
+    let mut source = serde_json::Map::new();
+    let translated_points = translated_point_colors(&recipe)
+        && properties
+            .iter()
+            .filter(|p| p.namespace == CRS && p.name == "PointColors")
+            .count()
+            == 1
+        && !warnings.iter().any(|w| w.starts_with("crs:PointColors:"));
+    if translated_points {
+        crate::diagnostics::push_approximate(
+            &mut recipe,
+            "PointColors",
+            "/settings/color/point_colors",
+            "LR-1",
+            "approximate: gamma-encoded CPU HSL operator; Adobe pixel parity is not established",
         );
     }
-    let mut source = serde_json::Map::new();
     for p in &properties {
-        if p.namespace == CRS && crate::lua_develop::retain_source(p.name) {
+        if p.namespace == CRS
+            && (crate::lua_develop::retain_source(p.name)
+                || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(p.name)))
+        {
             source.insert(p.name.to_string(), json!(&text[p.range.clone()]));
         }
     }
@@ -230,15 +291,28 @@ pub(crate) fn parse_unrecorded(
         );
     }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
-    crate::geometry::apply(
-        &mut recipe,
-        &mut warnings,
-        properties
-            .iter()
-            .filter(|p| p.namespace == CRS)
-            .map(|p| (p.name, p.raw)),
-    )?;
+    if apply_lr2 {
+        crate::geometry::apply(
+            &mut recipe,
+            &mut warnings,
+            properties
+                .iter()
+                .filter(|p| p.namespace == CRS)
+                .map(|p| (p.name, p.raw)),
+        )?;
+        crate::lr2::xmp(&doc, &mut recipe, &mut warnings)?;
+    }
     Ok((recipe, warnings))
+}
+
+pub(crate) fn translated_point_colors(recipe: &Recipe) -> bool {
+    !recipe.settings.color.point_colors.is_empty()
+        && recipe
+            .settings
+            .color
+            .point_colors
+            .iter()
+            .all(|p| p.selection.is_some())
 }
 
 fn identity_extended_property(p: &Property<'_>) -> bool {
@@ -503,7 +577,7 @@ mod tests {
     }
 
     #[test]
-    fn process_versions_and_legacy_warning() {
+    fn process_versions_without_blanket_legacy_warning() {
         for (source, revision) in [
             ("5.0", 1),
             ("5.7", 2),
@@ -514,7 +588,7 @@ mod tests {
         ] {
             let (recipe, warnings) = parse(&xml("", ""), source).unwrap();
             assert_eq!(recipe.process_version, ProcessVersion::adobe(revision));
-            assert_eq!(warnings.iter().any(|w| w.contains("legacy")), revision <= 2);
+            assert!(warnings.is_empty(), "{warnings:?}");
         }
         assert!(parse(&xml("", ""), "99.0").is_err());
         assert!(parse("<broken", "15.4").is_err());

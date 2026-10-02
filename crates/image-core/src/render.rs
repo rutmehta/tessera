@@ -419,17 +419,30 @@ impl Renderer {
         }
         let settings = &checked_depth;
         if self.is_adobe() {
-            if !(3..=6).contains(&self.config.process_version.revision) {
+            if !(1..=6).contains(&self.config.process_version.revision) {
                 return Err(EngineError::invalid(
                     "process_version",
-                    "Adobe PV3–6 required",
+                    "Adobe PV1–6 required",
+                ));
+            }
+            if self.config.process_version.revision <= 2 && settings.tone.legacy_pv2010.is_none() {
+                return Err(EngineError::invalid(
+                    "process_version",
+                    "Adobe PV1/PV2 re-import needed: legacy_pv2010 settings are absent",
                 ));
             }
             let mut checked = settings.clone();
             checked.camera_profile.profile = Default::default();
             checked.tone.display_transform = Default::default();
             pipeline_cpu::validate_settings(&checked)?;
-            pipeline_adobe::curves::validate(&settings.tone.curves)
+            pipeline_adobe::curves::validate_domain(
+                settings
+                    .tone
+                    .curves_extended
+                    .as_ref()
+                    .unwrap_or(&settings.tone.curves),
+                settings.tone.curves_extended.is_some(),
+            )
         } else {
             pipeline_cpu::validate_settings(settings)
         }
@@ -685,6 +698,12 @@ impl Renderer {
         base.detail.sharpening.amount = 0.0;
         base.detail.noise_reduction.color = 0.0;
         base.tone = Default::default();
+        // Preserve legacy admission while neutralizing this sensor/WB prefix.
+        base.tone.legacy_pv2010 = settings
+            .tone
+            .legacy_pv2010
+            .as_ref()
+            .map(|_| Default::default());
         base.color = Default::default();
         base.locals = Default::default();
         base.effects = Default::default();
@@ -753,18 +772,27 @@ impl Renderer {
             wb
         };
         let mut developed = wb;
+        let pre_curve = settings.color_before_curves();
+        let post_curve = settings.color_after_curves();
         let mut point_effects = settings.effects.clone();
         point_effects.lens_blur = None;
         for (stage, op) in [
             (StageId::Detail, Op::Detail(&settings.detail)),
             (StageId::Tone, Op::Tone(&settings.tone)),
+            (StageId::Tone, Op::Color(&pre_curve)),
             (StageId::Tone, Op::ToneExtra(&settings.tone)),
-            (StageId::Color, Op::Color(&settings.color)),
+            (StageId::Color, Op::Color(&post_curve)),
             (
                 StageId::Effects,
                 Op::EffectsInCrop(&point_effects, e, &settings.geometry.crop),
             ),
         ] {
+            if stage == StageId::Tone
+                && matches!(op, Op::Color(_))
+                && !pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled)
+            {
+                continue;
+            }
             if stage == StageId::Effects
                 && (settings.effects.lens_blur.is_some() || self.depth_visualisation)
             {

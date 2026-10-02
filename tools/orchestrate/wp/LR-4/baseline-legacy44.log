@@ -1,0 +1,53 @@
+    Blocking waiting for file lock on build directory
+   Compiling syn v3.0.6
+   Compiling serde v1.0.229
+   Compiling num-traits v0.2.19
+   Compiling arrayvec v0.7.8
+   Compiling cc v1.5.1
+   Compiling serde_derive v1.0.229
+   Compiling crc32fast v1.5.2
+   Compiling bytemuck v1.25.2
+   Compiling simd-adler32 v0.3.10
+   Compiling miniz_oxide v0.9.1
+   Compiling thiserror-impl v2.0.21
+   Compiling syn v2.0.119
+   Compiling serde_json v1.0.151
+   Compiling tiny-skia-path v0.11.4
+   Compiling thiserror v2.0.21
+   Compiling euclid v0.22.14
+   Compiling smallvec v1.16.2
+   Compiling flate2 v1.1.10
+   Compiling lyon_geom v1.0.19
+   Compiling blake3 v1.8.7
+   Compiling zerocopy-derive v0.8.59
+   Compiling memmap2 v0.9.11
+   Compiling lyon_path v1.0.19
+   Compiling rustybuzz v0.20.1
+   Compiling lyon_tessellation v1.0.22
+   Compiling lyon_algorithms v1.0.21
+   Compiling zerocopy v0.8.59
+   Compiling lyon v1.0.19
+   Compiling libsqlite3-sys v0.38.2
+   Compiling fontdb v0.23.0
+   Compiling psd v0.1.0 (/Users/rutmehta/.cache/tessera-lr4-baseline/crates/psd)
+   Compiling kurbo v0.11.3
+   Compiling tiny-skia v0.11.4
+   Compiling hashbrown v0.17.1
+   Compiling typography v0.1.0 (/Users/rutmehta/.cache/tessera-lr4-baseline/crates/typography)
+   Compiling vector v0.1.0 (/Users/rutmehta/.cache/tessera-lr4-baseline/crates/vector)
+   Compiling half v2.7.1
+   Compiling engine-api v0.1.0 (/Users/rutmehta/.cache/tessera-lr4-baseline/crates/engine-api)
+   Compiling hashlink v0.12.2
+   Compiling once_cell v1.21.4
+   Compiling moxcms v0.8.1
+   Compiling tempfile v3.27.0
+   Compiling image v0.25.10
+   Compiling sidecar v0.1.0 (/Users/rutmehta/.cache/tessera-lr4-baseline/crates/sidecar)
+   Compiling roxmltree v0.20.0
+   Compiling rusqlite v0.40.2
+   Compiling index v0.1.0 (/Users/rutmehta/.cache/tessera-lr4-baseline/crates/index)
+   Compiling library v0.1.0 (/Users/rutmehta/.cache/tessera-lr4-baseline/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/.cache/tessera-lr4-baseline/crates/import-lrcat)
+    Finished `dev` profile [unoptimized] target(s) in 48.91s
+     Running `/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/examples/lr4_compat_dump`
+legacy44 bytes=81809 digest=aec3a2eb9f1a31a1596d063b27ba785ae1d55219ba1931745c79a7cf9d8043cb

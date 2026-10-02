@@ -92,25 +92,34 @@ impl MaskRasterCache {
                 "finite RGB image required",
             ));
         }
+        group.validate_mask_tree()?;
         // Geometric masks do not depend on RGB. In particular, don't miss on
         // cold-f32 versus warm-f16 upstream tiles during a slider-only edit.
         let uses_rgb = options.refinement.is_some()
-            || group.components.iter().any(|c| {
-                matches!(
-                    c.kind,
-                    engine_api::recipe::MaskKind::LuminanceRange { .. }
-                        | engine_api::recipe::MaskKind::ColorRange { .. }
-                )
-            });
+            || group
+                .components
+                .iter()
+                .flat_map(|c| c.active_leaves())
+                .any(|c| {
+                    matches!(
+                        c.kind,
+                        engine_api::recipe::MaskKind::LuminanceRange { .. }
+                            | engine_api::recipe::MaskKind::ColorRange { .. }
+                    )
+                });
         let pixels: Vec<_> = if uses_rgb {
             input.planes().iter().map(|p| hash_plane(p)).collect()
         } else {
             Vec::new()
         };
         let hooks = self.hooks.read().unwrap_or_else(|e| e.into_inner()).clone();
-        let external = hooks
-            .as_ref()
-            .filter(|_| group.components.iter().any(|c| c.kind.is_ai()));
+        let external = hooks.as_ref().filter(|_| {
+            group
+                .components
+                .iter()
+                .flat_map(|c| c.active_leaves())
+                .any(|c| c.kind.is_ai())
+        });
         let revision = external.map(|h| h.revision());
         let depth = options.depth.map(hash_plane);
         let refinement = options.refinement.map(|r| (r.radius, r.epsilon.to_bits()));

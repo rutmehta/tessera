@@ -1,0 +1,28 @@
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/sidecar)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 4.91s
+     Running tests/lr4_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_compat-2b99f3c757ca366c)
+
+running 1 test
+test legacy_44_synthetic_groups_remain_byte_identical ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/schema_version.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/schema_version-c47487070d6d0a6d)
+
+running 2 tests
+test lr4c_imported_mask_features_write_schema_four ... ok
+test imported_recipes_require_schema_3 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.38s
+
+     Running tests/translation_matrix.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/translation_matrix-79fbae369799d641)
+
+running 4 tests
+test matrix_guard_rejects_a_retained_key_claimed_as_translated ... ok
+test lr4c_guard_requires_fields_exact_source_info_and_no_warnings ... ok
+test translation_matrix_matches_synthetic_import ... ok
+test lr4c_matrix_accepts_source_retained_approximation ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

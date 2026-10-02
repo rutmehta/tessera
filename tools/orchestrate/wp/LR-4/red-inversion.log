@@ -1,0 +1,30 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/lr4_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_masks-29efd1a2ee513bd2)
+
+running 7 tests
+test lr4_disabled_component_maps_without_losing_geometry ... ok
+test lr4_group_range_intersects_the_whole_union ... ok
+test lr4_component_range_keeps_both_inversions ... FAILED
+test lr4_nested_group_preserves_order_and_operators ... ok
+test lr4_opaque_brush_color_and_image_are_retained_atomically ... ok
+test lr4_unknown_fields_and_types_keep_exact_source ... ok
+test lr4_explicit_luminance_and_depth_bounds_translate ... ok
+
+failures:
+
+---- lr4_component_range_keeps_both_inversions stdout ----
+
+thread 'lr4_component_range_keeps_both_inversions' (52859609) panicked at crates/import-lrcat/tests/lr4_masks.rs:76:5:
+assertion `left == right` failed
+  left: Bool(true)
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4_component_range_keeps_both_inversions
+
+test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4_masks`

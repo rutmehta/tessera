@@ -736,3 +736,65 @@ fn resident_matches_cpu_evaluator_on_encoded_samples_across_profiles() {
         assert!(max_error < 0.002, "{builtin:?}: {max_error}");
     }
 }
+
+#[test]
+fn lr4b_four_bounds_choose_cpu_before_resident_dispatch() {
+    use engine_api::recipe::{LocalAdjustment, MaskComponent, MaskKind};
+    let mut settings = resident_settings();
+    let mut c = MaskComponent::new(MaskKind::LuminanceRange {
+        luminance_domain: Default::default(),
+        range: [0.25, 0.5],
+        smoothness: 0.,
+    });
+    c.luminance_bounds = Some([0., 0.25, 0.5, 1.]);
+    settings.locals.adjustments = vec![LocalAdjustment {
+        components: vec![c],
+        ..Default::default()
+    }];
+    assert!(!camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+    settings.locals.adjustments[0].components[0].enabled = false;
+    assert!(camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+}
+
+#[test]
+fn lr4c_nested_group_declined_before_gpu_dispatch() {
+    let mut settings = resident_settings();
+    assert!(camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+    settings.locals.adjustments = serde_json::from_value(json!([{"components":[{
+        "kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]
+    }]}]))
+    .unwrap();
+    assert!(!camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+}
+#[test]
+fn lr4c_nested_ai_rejected_by_cpu_parser() {
+    let mut settings = resident_settings();
+    settings.locals.adjustments = serde_json::from_value(json!([{"components":[{
+        "kind":"brush","strokes":[],"group":[{"kind":"subject"}]
+    }]}]))
+    .unwrap();
+    assert!(matches!(
+        filters::camera_raw::parse(&json!({"settings":settings})),
+        Err(engine_api::EngineError::Unsupported { .. })
+    ));
+}
+
+#[test]
+fn lr4c_ai_and_depth_decline_admission_without_dispatch() {
+    for kind in [
+        json!({"kind":"subject"}),
+        json!({"kind":"depth","range":[0,1]}),
+    ] {
+        for nested in [false, true] {
+            let c = if nested {
+                json!({"kind":"brush","strokes":[],"group":[kind.clone()]})
+            } else {
+                kind.clone()
+            };
+            let mut settings = resident_settings();
+            settings.locals.adjustments =
+                serde_json::from_value(json!([{"components":[c]}])).unwrap();
+            assert!(!camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
+        }
+    }
+}

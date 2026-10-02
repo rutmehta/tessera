@@ -48,6 +48,32 @@ pub struct DevelopSettings {
 }
 
 impl DevelopSettings {
+    /// Point Color selects on colour before B&W, then tone curves preserve toning.
+    pub fn color_before_curves(&self) -> ColorSettings {
+        ColorSettings {
+            monochrome: self.color.monochrome.clone(),
+            point_colors: if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
+                self.color.point_colors.clone()
+            } else {
+                Vec::new()
+            },
+            ..Default::default()
+        }
+    }
+
+    /// Colour operations after curves must not convert their toning back to gray.
+    pub fn color_after_curves(&self) -> ColorSettings {
+        ColorSettings {
+            monochrome: None,
+            point_colors: if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
+                Vec::new()
+            } else {
+                self.color.point_colors.clone()
+            },
+            ..self.color.clone()
+        }
+    }
+
     /// Per-stage parameter hashes, in pipeline order.
     pub fn stage_hashes(&self) -> [(StageId, ParamHash); StageId::COUNT] {
         [
@@ -59,7 +85,21 @@ impl DevelopSettings {
             (StageId::CameraProfile, self.camera_profile.param_hash()),
             (StageId::WhiteBalance, self.white_balance.param_hash()),
             (StageId::Detail, self.detail.param_hash()),
-            (StageId::Tone, self.tone.param_hash()),
+            (
+                StageId::Tone,
+                if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
+                    ParamHash::chain(
+                        self.tone.param_hash(),
+                        if self.color.point_colors.is_empty() {
+                            ParamHash::of(StageId::Tone, &self.color.monochrome)
+                        } else {
+                            ParamHash::of(StageId::Tone, &self.color_before_curves())
+                        },
+                    )
+                } else {
+                    self.tone.param_hash()
+                },
+            ),
             (StageId::Color, self.color.param_hash()),
             (StageId::Locals, self.locals.param_hash()),
             (StageId::Effects, self.effects.param_hash()),
@@ -733,6 +773,32 @@ pub enum DisplayTransform {
     AdobePv6Compat,
 }
 
+/// Original PV2003/PV2010 controls; missing members have no effect.
+/// Exposure is EV. Other operators are independent documented approximations
+/// (see pipeline-cpu/LEGACY_PV2010.md), never PV2012 slider conversions.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LegacyPv2010 {
+    /// Original exposure value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exposure: Option<f32>,
+    /// Original brightness value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brightness: Option<f32>,
+    /// Original contrast value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contrast: Option<f32>,
+    /// Original fill_light value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill_light: Option<f32>,
+    /// Original recovery value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<f32>,
+    /// Original blacks value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blacks: Option<f32>,
+}
+
 /// Global tone.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -757,6 +823,14 @@ pub struct ToneSettings {
     pub dehaze: f32,
     /// Curves.
     pub curves: ToneCurves,
+    /// Legacy process branch. Absent means no legacy processing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_pv2010: Option<LegacyPv2010>,
+    /// HDR point curves replace ordinary point curves; knots may exceed 0..1.
+    /// They compose after `curves.parametric`, which remains authoritative.
+    /// The extended block's parametric member is not used.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub curves_extended: Option<ToneCurves>,
     /// Display transform.
     pub display_transform: DisplayTransform,
 }
@@ -854,6 +928,55 @@ pub struct PointColor {
     pub luminance_shift: f32,
     /// Range width, `0..=100`.
     pub range: f32,
+    /// Adobe HSL selection and its independent feather boundaries. When present,
+    /// this replaces `source_lch` for selection; see pipeline-cpu/POINT_COLOR.md.
+    /// Omitted for native OkLCh points, preserving their serialized representation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selection: Option<PointColorSelection>,
+}
+
+/// Typed selection for imported Point Color. A single native range width cannot
+/// represent three asymmetric, independently feathered source ranges.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PointColorSelection {
+    /// Gamma-encoded source hue in degrees, saturation and luminance in 0..=1.
+    pub source_hsl: [f32; 3],
+    /// Each range is [lower-none, lower-full, upper-full, upper-none] in 0..=1.
+    /// All ranges are relative to the sample, centered at 0.5; hue wraps.
+    pub hue: [f32; 4],
+    /// Saturation membership limits.
+    pub saturation: [f32; 4],
+    /// Luminance membership limits.
+    pub luminance: [f32; 4],
+}
+
+impl PointColor {
+    /// Shared import/render validation, before any pixels are changed.
+    pub fn validate(&self) -> crate::EngineResult<()> {
+        let valid = |v: f32, lo: f32, hi: f32| v.is_finite() && (lo..=hi).contains(&v);
+        let mut ok = self.source_lch.iter().all(|v| v.is_finite())
+            && valid(self.hue_shift, -360.0, 360.0)
+            && valid(self.saturation_shift, -100.0, 100.0)
+            && valid(self.luminance_shift, -100.0, 100.0)
+            && valid(self.range, 0.0, 100.0);
+        if let Some(s) = &self.selection {
+            ok &= valid(s.source_hsl[0], 0.0, 360.0)
+                && valid(s.source_hsl[1], 0.0, 1.0)
+                && valid(s.source_hsl[2], 0.0, 1.0);
+            for range in [s.hue, s.saturation, s.luminance] {
+                ok &= range.iter().all(|v| valid(*v, 0.0, 1.0))
+                    && range.windows(2).all(|p| p[0] <= p[1]);
+            }
+        }
+        if !ok {
+            return Err(crate::EngineError::invalid(
+                "point color",
+                "invalid sample, shift or feather range",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// A 3D LUT applied with a strength.
@@ -866,10 +989,23 @@ pub struct LutSettings {
     pub amount: f32,
 }
 
+/// Catalog B&W conversion. Mixer amounts use the existing eight hue bands.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MonochromeSettings {
+    /// Apply B&W conversion before ordinary color adjustments.
+    pub enabled: bool,
+    /// Hue-dependent luminance shifts, -100..=100. Retained while disabled.
+    pub mixer: HueBands,
+}
+
 /// Global colour.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ColorSettings {
+    /// Optional B&W conversion; omitted for byte-compatible older recipes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monochrome: Option<MonochromeSettings>,
     /// Vibrance, `-100..=100`.
     pub vibrance: f32,
     /// Saturation, `-100..=100`.
@@ -894,6 +1030,21 @@ pub struct LocalsSettings {
     pub retouch: Vec<RetouchOperation>,
     /// Local adjustments.
     pub adjustments: Vec<LocalAdjustment>,
+}
+
+impl LocalsSettings {
+    /// Reject over-deep trees before a settings mutation or recipe write.
+    pub fn validate_mask_trees(&self) -> crate::EngineResult<()> {
+        for group in &self.adjustments {
+            group.validate_mask_tree()?;
+        }
+        for op in &self.retouch {
+            if let super::mask::RetouchTarget::Area { components } = &op.target {
+                super::mask::LocalAdjustment::validate_components(components)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 // ───────────────────────────────── effects ─────────────────────────────────

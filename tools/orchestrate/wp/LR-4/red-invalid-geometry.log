@@ -1,0 +1,26 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/engine-api)
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/index)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/sidecar)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 5.99s
+     Running tests/lr4_invalid_geometry.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_invalid_geometry-6ca7793a749e8a2f)
+
+running 1 test
+test lr4_unrenderable_geometry_and_amount_keep_source ... FAILED
+
+failures:
+
+---- lr4_unrenderable_geometry_and_amount_keep_source stdout ----
+
+thread 'lr4_unrenderable_geometry_and_amount_keep_source' (53282262) panicked at crates/import-lrcat/tests/lr4_invalid_geometry.rs:12:9:
+ What = 'Mask/Gradient', FullX = 0, FullY = 0, ZeroX = 0, ZeroY = 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4_unrenderable_geometry_and_amount_keep_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4_invalid_geometry`

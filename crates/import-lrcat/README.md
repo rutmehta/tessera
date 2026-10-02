@@ -26,7 +26,10 @@ atomic serde `library.json` document. No sidecars are written by inspection.
   0–255 coordinates. Supported mask geometry and AI mask kinds are translated.
   Unknown keys, unsupported structures/resources and invalid values are retained
   in `Recipe.unknown` with diagnostics, not silently discarded. Mask XML is
-  retained even when translation succeeds. PV1/2 imports carry a warning.
+  retained for legacy flat groups and any partly understood payload. LR-4 removes
+  the per-key source only for audited, completely consumed new parametric shapes;
+  see [the LR-4 contract](../../docs/coordination/LR-4-PARAMETRIC-MASKS.md).
+  PV1/2 imports carry a warning.
 - Historical steps and snapshots are preserved as complete source rows on each
   image and in recipe extension fields. They are not falsely represented as
   replayable native edits. Faces retain region/cluster columns and keyword-face
@@ -163,3 +166,90 @@ Saved solutions carry their mode and are cleared on mode/guide edits. Legacy CA
 is gated to Adobe PV1/2 and zero values do not create fields or history. Shared
 standalone sidecar import/export supports both families; all settings are recorded
 in one import-authored history entry. Invalid matrices fail Recipe validation.
+
+## LR-2e tone curves, monochrome, and legacy controls
+
+Catalog Lua and XMP run the additive `lr2` pass once, after exact source capture.
+LR-2 mutates settings directly. LR-7's shared `geometry::finish` records the one
+replayable Import edit against the codec's `history.base`, after both lanes finish.
+The Lua path skips both lane passes on its generated XMP packet, then applies
+each once to the original Lua values after retention. Unrelated modern imports
+and inactive B&W/extended-curve defaults preserve the original recipe bytes
+and 2,000-row golden digest.
+
+- On modern Adobe versions, nonidentity ExtendedToneCurvePV2012{,Red,Green,Blue}
+  populate `/settings/tone/curves_extended` only with HDREditMode=1. Both axes
+  divide by 255 without clipping signed/HDR knots. Extended-curve import leaves
+  ordinary `/settings/tone/curves` intact; identity extended curves are
+  provenance-only. Malformed curves
+  stay retained with a warning. Extended point/channel curves compose **after the
+  ordinary `curves.parametric` sliders** on CPU, GPU, and Adobe paths. An active
+  extended block selects the point/channel rendition; it never replaces those
+  parametric controls. Omitted extended channels are identity. All-identity HDR
+  imports retain the ordinary point curves and the same parametric sliders.
+- ConvertToGrayscale and GrayMixer* populate optional
+  `/settings/color/monochrome {enabled,mixer}`. Disabled B&W with a zero mixer is
+  a strict settings/history/hash no-op. A nonzero disabled mixer remains editable
+  but has no pixel effect. Sidecar CRS read/write supports the same optional block.
+  B&W conversion now precedes point/channel curves; grading and other colour
+  controls follow, so channel-curve toning survives. CPU/GPU use the same mix.
+- Adobe PV1/2 uses `/settings/tone/legacy_pv2010`, never PV2012 slider heuristics.
+  The Adobe family check excludes native revision 2. Legacy values win when
+  both spellings occur; stale modern tone sliders, Clarity2012, Texture, Dehaze,
+  parametric sliders and PV2012 point curves (including extended curves) are
+  cleared for this branch. They retain exact source and get `push_ignored`
+  diagnostics with no recipe field. Even a legacy row without legacy sliders
+  gets an explicit empty block. Saved Adobe PV1/PV2 recipes without the block
+  fail rendering with "re-import needed"; re-import creates the supported block.
+  HighlightRecovery precedes Recovery; Shadows precedes Blacks. Shadows=5 is
+  stored as legacy blacks=5, not converted into modern blacks=-5. Brightness is
+  a bounded rational operator; its largest relative lift is in deep shadows.
+  Contrast currently pivots at linear 0.5. Both remain documented approximations.
+- All active LR-2 mappings are `approximate`: the recipe contains numeric fields,
+  exact source remains in `lrcat_develop_source`, and
+  the shared `diagnostics::push_approximate` helper records an entry with
+  `level:"info"`, `status:"approximate"`, `lane:"LR-2"`, the matrix recipe path,
+  and the reason. Readers use `diagnostics::entries()`; the report shows a
+  separate "Approximate translations" group.
+  Approximation emits **zero user-facing warnings**. Public Adobe documentation
+  supports the control meanings but does not establish calibrated render parity.
+  See [the reference specification](../pipeline-cpu/LEGACY_PV2010.md).
+- AutoToneDigest* is silently retained cache metadata. DepthMapInfo remains with
+  LR-5/LR-6. Other unsupported controls retain their existing diagnostic behavior;
+  the [matrix](../../docs/coordination/LR-TRANSLATION-MATRIX.md) gives dispositions.
+- Native GPU legacy Tone uses the existing CPU-stage fallback. Legacy recipes
+  decline resident/fused tone dispatch; Adobe compatibility stages remain CPU.
+  Synthetic full GPU-session parity is tested alongside operator/batch parity.
+
+Schema uses the shared `V4_FEATURE_PREDICATES` registry: enabled monochrome **or a
+nonzero disabled mixer**, `curves_extended`, and `legacy_pv2010` require v4.
+Each predicate uses `assert_bumped_only_when_present`; the lane-local schema
+helper is gone. LR-7 owns the first-lane LR-SCHEMA checklist changes; LR-DIAG owns the
+shared approximation guard. LR-2 adds only its feature predicates/tests and its
+synthetic matrix input context (legacy process version or HDR mode).
+
+Run `bash tools/orchestrate/wp/LR-2/gates-e.sh` from the workspace root for the
+LR-2e synthetic gate. Earlier scripts and handoffs are historical evidence.
+
+### LR-1 Point Color
+
+`PointColors` now maps through the shared sidecar codec into
+`/settings/color/point_colors`: Lua SDK tables (including contiguous explicit
+array indices), equivalent RDF resources, and 19-number XMP swatch sequences.
+The existing point shifts/range are reused; an optional `selection` stores
+source HSL and all twelve feather boundaries. PointColors is `approximate`:
+exact Lua/XMP source is retained, and the shared `diagnostics::push_approximate`
+channel appends an info entry for `/settings/color/point_colors` (lane `LR-1`).
+Partial, unknown, malformed and placeholder shapes keep their retention contract.
+A nonempty point list requires schema v4 through the shared predicate registry.
+LR-7's shared finish owns the single Import history entry for all lanes.
+
+The import report labels rendering approximate. The SDK does not specify
+Adobe's color-space/range/shift math, and this lane had no Adobe pixel oracle.
+See [Point Color CPU reference](../pipeline-cpu/POINT_COLOR.md) for formulas,
+source links, supported limits, preserved signed/HDR residuals, and the synthetic
+reference tolerance. This is not a claim of Lightroom render parity.
+
+When B&W is enabled, Point Color selects and adjusts colour before the B&W
+conversion and tone curves; grading follows. Resident/fused GPU dispatch declines
+point lists and the shared CPU fallback preserves this order.

@@ -1,0 +1,22 @@
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-4-parametric-masks/crates/import-lrcat)
+    Finished `test` profile [unoptimized] target(s) in 1.98s
+     Running tests/lr4_mixed_range.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/debug/deps/lr4_mixed_range-6c0020c76c68d493)
+
+running 1 test
+test lr4_unused_range_family_fields_remain_retained ... FAILED
+
+failures:
+
+---- lr4_unused_range_family_fields_remain_retained stdout ----
+
+thread 'lr4_unused_range_family_fields_remain_retained' (53357470) panicked at crates/import-lrcat/tests/lr4_mixed_range.rs:10:9:
+assertion failed: r.unknown.contains_key("lrcat_develop_source")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lr4_unused_range_family_fields_remain_retained
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr4_mixed_range`

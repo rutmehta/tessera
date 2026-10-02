@@ -32,8 +32,12 @@ impl Renderer {
                 "depth, lens blur and retouch need original dependencies",
             ));
         }
-        for group in &settings.locals.adjustments {
-            for component in &group.components {
+        for group in settings.locals.adjustments.iter().filter(|g| g.enabled) {
+            for component in group
+                .components
+                .iter()
+                .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+            {
                 if !matches!(
                     &component.kind,
                     MaskKind::Linear { .. }

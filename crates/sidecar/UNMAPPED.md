@@ -8,7 +8,7 @@ Remaining Adobe translation gaps (acceptance is incomplete):
 
 | Property | Native preservation implemented | Adobe interoperability gap |
 | --- | --- | --- |
-| PointColors | Typed resource sequence, OkLCh sample and all shifts | Adobe writes a string sequence with an undocumented grammar/colour space. Native resource items are not compatible Adobe PointColors strings. Foreign strings are warned and retained. |
+| PointColors | Typed resource sequence; native OkLCh or optional imported HSL selection, all shifts and feather limits | Imports SDK resources and the 19-number Adobe string form; skips all-−1 placeholders. Export still writes Tessera native RDF, **not Adobe’s 19-number form**. Older builds ignore `selection` and see `source_lch: [0,0,0]`. Variance/unknown layouts stay retained. Gamma-encoded CPU HSL rendering is approximate, not Adobe pixel parity. |
 | LensBlur | Active/BlurAmount plus ts focus_range, bokeh, depth_model | Four-value Adobe FocalRange and numeric BokehShape are not translated; foreign versions are warned and retained. |
 | RetouchAreas / RetouchInfo | All native heal/clone/remove/skin variants, targets, IDs, enable flags, opacity/feather | Native targets and operations are extensions, not Adobe spot/dab payloads. Foreign payloads are warned and retained. |
 | MaskGroupBasedCorrections | Linear/radial CRS geometry, local sliders, plus native brush strokes, pressure/erase, ranges and AI placeholders/model refs | Brush Dabs and Adobe colour sample encodings/range type codes are not decoded. AI placeholders carry requests/models, not Adobe rasters. Native field-level extensions cannot be rendered by Adobe. Foreign unsupported groups are retained atomically. |
