@@ -111,7 +111,14 @@ fn empty_filter_payload_and_enabled_empty_panel_are_not_effects() {
         "s={FilterList={{What='synthetic-filter'}}}",
         "s={EnableDistractionRemoval=true,FilterList={{What='synthetic-filter'}}}",
     ] {
-        assert!(!lua_develop::parse(source, "15.4").unwrap().1.is_empty());
+        let (recipe, warnings) = lua_develop::parse(source, "15.4").unwrap();
+        assert!(
+            !warnings.is_empty()
+                || diagnostics::entries(&recipe)
+                    .get("GenerativeRemove")
+                    .is_some_and(|notes| notes.iter().any(|n| n.status == "ignored"
+                        && n.reason.contains("requires Adobe cloud; not translatable")))
+        );
     }
 }
 

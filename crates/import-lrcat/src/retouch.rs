@@ -1,5 +1,5 @@
 //! Conservative Adobe retouch translation over the retained-source contract.
-//! A property is consumed only when every item is representable. Unknown fields
+//! A property is consumed only when every item translates or has an explicit cloud note. Unknown fields
 //! and unresolved source coordinates keep the original source and diagnostics.
 use crate::lua_develop::{LuaKey, LuaValue};
 use engine_api::{
@@ -44,10 +44,10 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         };
         cloud_present |= value.as_ref().is_some_and(has_cloud);
         modern_present |= key == "RetouchAreas"
-            && value
+            && !value
                 .as_ref()
                 .and_then(Value::as_array)
-                .is_some_and(|items| !items.is_empty());
+                .is_some_and(Vec::is_empty);
         if let Some((ops, cloud)) = value.and_then(operations) {
             if cloud {
                 cloud_keys.push(key);

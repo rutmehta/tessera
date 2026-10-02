@@ -3,6 +3,30 @@ use import_lrcat::lua_develop::{LuaKey, LuaValue};
 use std::collections::{BTreeMap, BTreeSet};
 fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
     if let LuaValue::Table(t) = v {
+        if prefix.ends_with("/Dabs") {
+            for item in &t.items {
+                if let LuaValue::String(s) = item {
+                    let words: Vec<_> = s.split_whitespace().collect();
+                    let kind = match words.first().copied() {
+                        Some("d") => "stamp",
+                        Some("r") => "radius",
+                        Some("f") => "flow",
+                        Some("h") => "hardness",
+                        _ => "unknown_command",
+                    };
+                    out.insert(format!("{prefix}/command/{kind}"));
+                    if words.first() == Some(&"d")
+                        && words
+                            .iter()
+                            .skip(1)
+                            .filter_map(|w| w.parse::<f64>().ok())
+                            .any(|v| !(0. ..=1.).contains(&v))
+                    {
+                        out.insert(format!("{prefix}/outside_image"));
+                    }
+                }
+            }
+        }
         let get = |name: &str| {
             t.fields
                 .iter()
@@ -200,7 +224,13 @@ fn run() -> Result<(), ()> {
     let db =
         rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|_| ())?;
-    let mut q = db.prepare("SELECT processVersion, CAST(text AS TEXT) FROM Adobe_imageDevelopSettings WHERE rowid IN (SELECT max(rowid) FROM Adobe_imageDevelopSettings GROUP BY image) AND image IN (SELECT id_local FROM Adobe_images)").map_err(|_| ())?;
+    let query = "SELECT processVersion, CAST(text AS TEXT) FROM Adobe_imageDevelopSettings WHERE rowid IN (SELECT max(rowid) FROM Adobe_imageDevelopSettings GROUP BY image) AND image IN (SELECT id_local FROM Adobe_images)";
+    let query = if std::env::var_os("TESSERA_LR9B_RETOUCH_ONLY").is_some() {
+        format!("{query} AND instr(text, 'RetouchAreas') > 0")
+    } else {
+        query.into()
+    };
+    let mut q = db.prepare(&query).map_err(|_| ())?;
     let mut rows = q.query([]).map_err(|_| ())?;
     let mut counts = BTreeMap::<String, u64>::new();
     while let Some(row) = rows.next().map_err(|_| ())? {
@@ -346,6 +376,13 @@ fn run() -> Result<(), ()> {
                     if keys.contains(k) {
                         walk(v, k, &mut fields);
                     }
+                }
+            }
+        }
+        if keys.contains("RetouchAreas") && !fields.contains("RetouchAreas/pm_patch") {
+            for (key, value) in &t.fields {
+                if matches!(key,LuaKey::Str(key) if key == "RetouchAreas") {
+                    walk(value, "non_patch_failure", &mut fields);
                 }
             }
         }
