@@ -774,7 +774,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
     crate::noop::silence(&table, &mut recipe, &mut warnings);
-    crate::residual::explain(&recipe, &mut warnings);
+    crate::residual::explain(&mut recipe, &mut warnings);
     Ok((recipe, warnings))
 }
 

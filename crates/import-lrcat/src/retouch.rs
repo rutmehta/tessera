@@ -50,7 +50,7 @@ pub(crate) fn translate(recipe: &mut Recipe, warnings: &mut Vec<String>) -> Engi
         warnings.retain(|w| !cloud_keys.iter().any(|key| w.starts_with(&format!("{key}:")) || w.starts_with(&format!("crs:{key}:"))) && !w.starts_with("EnableDistractionRemoval:") && !w.starts_with("crs:EnableDistractionRemoval:"));
     }
     if cloud_present {
-        crate::diagnostics::push_ignored(recipe, "GenerativeRemove", "LR-9b", "requires Adobe cloud; not translatable. Export rendered pixels from Lightroom to preserve generative removal.");
+        crate::diagnostics::push_ignored(recipe, "GenerativeRemove", "LR-9b", crate::residual::CLOUD_NOTE);
     }
     // Both names can describe the same edits. Prefer the modern nonempty list;
     // conflicting nonempty aliases remain opaque rather than applying twice.
