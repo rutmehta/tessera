@@ -657,11 +657,12 @@ fn grouped_develop_report_entries_keep_their_image_counts() {
 }
 
 #[test]
-fn unedited_summary_lists_each_image() {
+fn failed_edit_summary_lists_each_image_and_silent_unedited_rows_stay_out() {
     let temp = tempfile::tempdir().unwrap();
     let fixture = fixture::write(&temp.path().join("fx")).unwrap();
     let c = rusqlite::Connection::open(&fixture.catalog).unwrap();
-    c.execute("UPDATE Adobe_imageDevelopSettings SET text='garbage'", [])
+    let failed_rows = c
+        .execute("UPDATE Adobe_imageDevelopSettings SET text='garbage'", [])
         .unwrap();
     let summary = inspect_lrcat(fixture.catalog.to_string_lossy().into_owned()).unwrap();
     let issues: Vec<_> = summary
@@ -669,7 +670,17 @@ fn unedited_summary_lists_each_image() {
         .iter()
         .filter(|i| i.reason.contains("imported as unedited"))
         .collect();
-    assert_eq!(issues.len(), summary.images as usize);
+    assert_eq!(issues.len(), failed_rows);
+    assert!(
+        failed_rows < summary.images as usize,
+        "fixture must also contain never-developed images"
+    );
+    assert!(
+        summary
+            .unsupported
+            .iter()
+            .all(|i| !i.reason.contains("never developed"))
+    );
     assert!(
         issues
             .iter()

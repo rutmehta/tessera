@@ -322,3 +322,15 @@ reference tolerance. This is not a claim of Lightroom render parity.
 When B&W is enabled, Point Color selects and adjusts colour before the B&W
 conversion and tone curves; grading follows. Resident/fused GPU dispatch declines
 point lists and the shared CPU fallback preserves this order.
+
+### LR-9c cloud report
+
+Visual edits requiring Adobe cloud use warning diagnostics with `status: cloud`.
+They remain visible under **Requires Adobe cloud (not rendered)** in the import
+sheet and saved Markdown report, with per-feature photo counts and examples.
+Generative remove/fill and active distraction removal are never classified as
+ignored. Mixed RetouchAreas can contain both an approximately rendered heal and
+an unrendered generative item. Nonempty FilterList remains an unsupported warning.
+The pre-import summary and plan preview have no cloud group, so the same
+effects stay in their unsupported lists there. `ignored` is reserved for source values with no visual effect and is omitted
+from the report. This stack does not include LR-5 AI-mask regeneration.

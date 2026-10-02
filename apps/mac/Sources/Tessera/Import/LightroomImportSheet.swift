@@ -538,7 +538,7 @@ struct ReportStep: View {
                             }
                         }
                         if r.skipped.isEmpty && r.unsupported.isEmpty {
-                            Text("No warnings.").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                            Text(noWarningsText(r)).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                         }
                     }
                     .accessibilityElement(children: .ignore)
@@ -546,6 +546,19 @@ struct ReportStep: View {
                     .accessibilityLabel("Import warnings")
                     .accessibilityValue(warningsDescription(r))
                     .accessibilityIdentifier("document.import.report.warnings")
+                    if !r.cloud.isEmpty {
+                        VStack(alignment: .leading, spacing: Theme.Space.s) {
+                            Text("Requires Adobe cloud (not rendered)").font(Theme.Fonts.labelSemibold)
+                            ForEach(Array(r.cloud.enumerated()), id: \.offset) { _, issue in
+                                IssueRow(issue: issue)
+                            }
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityAddTraits(.isStaticText)
+                        .accessibilityLabel("Requires Adobe cloud (not rendered)")
+                        .accessibilityValue(LightroomImportReport.cloudLines(r).joined(separator: "\n"))
+                        .accessibilityIdentifier("document.import.report.cloud")
+                    }
                     if !r.approximate.isEmpty {
                         VStack(alignment: .leading, spacing: Theme.Space.s) {
                             Text("Approximate translations").font(Theme.Fonts.labelSemibold)
@@ -601,7 +614,12 @@ private func warningsDescription(_ report: LrcatReport) -> String {
         "\($0.category): \($0.reason) (\($0.count)); \($0.examples.joined(separator: ", "))"
     }
     let warnings = skipped + unsupported
-    return warnings.isEmpty ? "No warnings." : warnings.joined(separator: "\n")
+    return warnings.isEmpty ? noWarningsText(report) : warnings.joined(separator: "\n")
+}
+
+/// A report whose only findings are cloud-only edits must not read as warning-free.
+private func noWarningsText(_ report: LrcatReport) -> String {
+    report.cloud.isEmpty ? "No warnings." : "No other warnings. See Requires Adobe cloud (not rendered)."
 }
 
 private func fidelityDescription(_ samples: [LrcatFidelitySample]) -> String {

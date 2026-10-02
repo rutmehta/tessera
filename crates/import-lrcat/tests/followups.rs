@@ -279,14 +279,14 @@ fn oversized_cells_are_not_loaded() {
 }
 
 #[test]
-fn every_unedited_image_is_individually_reported() {
+fn every_failed_edit_is_individually_reported_and_untouched_rows_are_silent() {
     let (ids, plan) = import_with(&[
         (Some("garbage"), Some("15.4")),
         (Some("garbage"), Some("15.4")),
         (None, None),
         (None, None),
     ]);
-    for id in ids {
+    for id in &ids[..2] {
         assert!(
             plan.report
                 .iter()
@@ -294,6 +294,14 @@ fn every_unedited_image_is_individually_reported() {
                     && e.contains("imported as unedited")),
             "{:?}",
             plan.report
+        );
+    }
+    for id in &ids[2..] {
+        assert!(
+            !plan
+                .report
+                .iter()
+                .any(|e| e.starts_with(&format!("image {id}: ")))
         );
     }
 }
@@ -531,7 +539,7 @@ fn xmp_source_fragments_preserve_attribute_spelling() {
 }
 
 #[test]
-fn retained_source_shapes_and_unedited_reasons_are_distinct() {
+fn retained_source_shapes_distinguish_failed_edits_from_silent_unedited_rows() {
     let (r, _) = lua_develop::parse("s = { shape = 'original', LensBlur = nil }", "15.4").unwrap();
     assert_eq!(r.unknown["lrcat_develop_source"]["shape"], "lua-values");
     assert_eq!(
@@ -550,10 +558,12 @@ fn retained_source_shapes_and_unedited_reasons_are_distinct() {
         "crs:Future='opaque'"
     );
     let (ids, plan) = import_with(&[(None, None), (Some("garbage"), Some("15.4"))]);
+    // LR-9: no develop source requests no effect; it is not unsupported content.
     assert!(
-        plan.report
+        !plan
+            .report
             .iter()
-            .any(|n| n.starts_with(&format!("image {}:", ids[0])) && n.contains("never developed"))
+            .any(|n| n.starts_with(&format!("image {}:", ids[0])))
     );
     assert!(
         plan.report

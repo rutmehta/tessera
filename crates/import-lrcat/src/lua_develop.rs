@@ -28,7 +28,7 @@
 //! pass translates SDR and HDR curves and removes their pending source;
 //! malformed/nonmonotone curves keep the named limitation and source.
 #[path = "lua_point_colors.rs"]
-mod point_colors;
+pub(crate) mod point_colors;
 use std::{collections::HashSet, ops::Range};
 
 use engine_api::{EngineError, EngineResult, recipe::CrsKey, recipe::Recipe};
@@ -773,6 +773,8 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     crate::retouch::translate(&mut recipe, &mut warnings)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
+    crate::noop::silence(&table, &mut recipe, &mut warnings);
+    crate::residual::explain(&mut recipe, &mut warnings);
     Ok((recipe, warnings))
 }
 

@@ -5,11 +5,13 @@ pub mod diagnostics;
 pub mod fixture;
 mod geometry;
 mod lr2;
+pub mod noop;
 pub use lr2::LR2_APPROXIMATE_FIELDS;
 pub mod lua;
 pub mod lua_develop;
 mod mask_source;
 pub mod previews;
+pub mod residual;
 mod retouch;
 mod search_map;
 pub mod xmp;
@@ -1249,7 +1251,7 @@ fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String
             }
         }
     } else {
-        notes.push("never developed (no develop settings); imported as unedited".into());
+        // No source means no requested edit, not an unsupported translation.
         Recipe::default()
     };
     recipe.image_id = Some(image_id);

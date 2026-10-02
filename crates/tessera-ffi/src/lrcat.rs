@@ -245,6 +245,8 @@ pub struct LrcatReport {
     /// not warnings): one entry per Adobe key, `category` = the key, `count` =
     /// photos, `reason` = the first photo's reason, `examples` = up to five paths.
     pub approximate: Vec<LrcatIssue>,
+    /// Cloud-only visual content, counted once per photo and Adobe feature.
+    pub cloud: Vec<LrcatIssue>,
     pub albums: u32,
     pub album_groups: u32,
     pub smart_albums: u32,
@@ -530,7 +532,16 @@ fn issue(category: &str, reason: String, count: usize, examples: Vec<String>) ->
 /// Count one photo's approximate translations (`import_lrcat::diagnostics`)
 /// into per-Adobe-key groups; the first photo's reason is the example.
 fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) {
+    note_diagnostics(issues, recipe, path, "approximate");
+}
+
+fn note_diagnostics(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path, status: &str) {
     for (key, entries) in import_lrcat::diagnostics::entries(recipe) {
+        let Some(first) = entries.iter().find(|e| {
+            e.status == status && e.level == if status == "cloud" { "warning" } else { "info" }
+        }) else {
+            continue;
+        };
         match issues.iter_mut().find(|i| i.category == key) {
             Some(group) => {
                 group.count += 1;
@@ -540,7 +551,7 @@ fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) 
             }
             None => issues.push(issue(
                 &key,
-                entries[0].reason.clone(),
+                first.reason.clone(),
                 1,
                 vec![display_path(path)],
             )),
@@ -1172,6 +1183,7 @@ impl LrcatImport {
                 .count() as u32,
             library_exists: library_path.is_file(),
             library_path: library_path.to_string_lossy().into_owned(),
+            // The preview has no cloud group: cloud-only effects stay listed here.
             unsupported: self.summary.unsupported.clone(),
             estimated_bytes: self.summary.estimated_bytes,
         })
@@ -1316,8 +1328,19 @@ impl LrcatImport {
                 .filter(|r| r.outcome == Outcome::VirtualCopy)
                 .count() as u32,
             skipped: vec![],
-            unsupported: self.summary.unsupported.clone(),
+            unsupported: self
+                .summary
+                .unsupported
+                .iter()
+                .filter(|issue| {
+                    !issue
+                        .reason
+                        .contains("requires Adobe cloud; not translatable")
+                })
+                .cloned()
+                .collect(),
             approximate: vec![],
+            cloud: vec![],
             albums: merge.albums,
             album_groups: merge.groups,
             smart_albums: merge.smart_albums,
@@ -1383,6 +1406,12 @@ impl LrcatImport {
                     &mut report.approximate,
                     applied.as_ref().map_or(&image.recipe, |doc| &doc.recipe),
                     &r.path,
+                );
+                note_diagnostics(
+                    &mut report.cloud,
+                    applied.as_ref().map_or(&image.recipe, |doc| &doc.recipe),
+                    &r.path,
+                    "cloud",
                 );
                 continue;
             }
@@ -1500,6 +1529,7 @@ impl LrcatImport {
                     }
                     count_selection(&mut report.selection, &selection);
                     note_approximate(&mut report.approximate, &image.recipe, &r.path);
+                    note_diagnostics(&mut report.cloud, &image.recipe, &r.path, "cloud");
                     state.done.insert(image.catalog_id);
                     if report.imported.is_multiple_of(50) {
                         state.write(&state_file)?;
@@ -1511,6 +1541,7 @@ impl LrcatImport {
             }
         }
         state.write(&state_file)?;
+        report.cloud.sort_by(|a, b| a.category.cmp(&b.category));
         report
             .approximate
             .sort_by(|a, b| a.category.cmp(&b.category));
@@ -2058,6 +2089,169 @@ mod lrcat_resume_tests {
         let again = import.apply(options, None).unwrap();
         assert_eq!((again.imported, again.resumed), (0, report.imported));
         assert_eq!(again.approximate, report.approximate);
+    }
+
+    #[test]
+    fn lr9c_cloud_counts_photos_once_caps_examples_and_omits_ignored() {
+        let mut recipe = Recipe::default();
+        for _ in 0..2 {
+            import_lrcat::diagnostics::push_cloud(
+                &mut recipe,
+                "GenerativeRemove",
+                "requires Adobe cloud; not translatable",
+            );
+        }
+        import_lrcat::diagnostics::push_ignored(&mut recipe, "FillLight", "LR-2", "inactive");
+        let mut cloud = vec![];
+        let mut approximate = vec![];
+        for index in 0..8 {
+            let path = std::path::PathBuf::from(format!("/synthetic/{index}.jpg"));
+            note_diagnostics(&mut cloud, &recipe, &path, "cloud");
+            note_approximate(&mut approximate, &recipe, &path);
+        }
+        assert_eq!(cloud.len(), 1);
+        assert_eq!(cloud[0].category, "GenerativeRemove");
+        assert_eq!(cloud[0].count, 8);
+        assert_eq!(cloud[0].examples.len(), 5);
+        assert!(approximate.is_empty());
+    }
+
+    /// The plan preview has no cloud group, so cloud-only effects must stay
+    /// in its unsupported list instead of disappearing before the import runs.
+    #[test]
+    fn lr9c_plan_preview_keeps_cloud_effects_visible() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+        db.execute(
+            "UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'",
+            ["s={GenerativeRemove=true,GenerativeFill=true}"],
+        )
+        .unwrap();
+        drop(db);
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = import.default_options().unwrap();
+        options.relocations[0].to = fixture
+            .photos
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        options.library_folder = options.relocations[0].to.clone();
+        let cloud = |issues: &[LrcatIssue], key: &str| {
+            issues.iter().any(|i| {
+                i.reason.contains(key)
+                    && i.reason.contains("requires Adobe cloud; not translatable")
+            })
+        };
+        let summary = import.summary();
+        let preview = import.plan(options).unwrap();
+        for key in ["GenerativeRemove", "GenerativeFill"] {
+            assert!(
+                cloud(&summary.unsupported, key),
+                "{key} missing from summary"
+            );
+            assert!(
+                cloud(&preview.unsupported, key),
+                "{key} missing from plan preview"
+            );
+        }
+    }
+
+    #[test]
+    fn lr9c_cloud_report_apply_resume_counts_examples_and_keeps_filter_list() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+        db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s={GenerativeRemove=true,GenerativeFill=true,EnableDistractionRemoval=true,FilterList={{What='synthetic'}}}"]).unwrap();
+        drop(db);
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = import.default_options().unwrap();
+        options.relocations[0].to = fixture
+            .photos
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        options.library_folder = options.relocations[0].to.clone();
+        let report = import.apply(options.clone(), None).unwrap();
+        assert_eq!(report.cloud.len(), 3);
+        for issue in &report.cloud {
+            assert!(issue.count > 0);
+            assert_eq!(issue.examples.len(), issue.count.min(5) as usize);
+            assert!(
+                issue
+                    .reason
+                    .contains("requires Adobe cloud; not translatable")
+            );
+        }
+        assert!(
+            report
+                .unsupported
+                .iter()
+                .any(|i| i.reason.contains("FilterList"))
+        );
+        assert!(
+            !report
+                .unsupported
+                .iter()
+                .any(|i| i.reason.contains("requires Adobe cloud"))
+        );
+        assert_eq!(import.apply(options, None).unwrap().cloud, report.cloud);
+    }
+
+    #[test]
+    fn lr9_ignored_diagnostics_are_not_approximate_report_entries() {
+        let mut recipe = Recipe::default();
+        import_lrcat::diagnostics::push_ignored(&mut recipe, "Exposure2012", "LR-2", "inactive");
+        let mut issues = vec![];
+        note_approximate(&mut issues, &recipe, Path::new("/synthetic/photo.jpg"));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn lr9_real_decoder_approximate_apply_and_resume() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixture = import_lrcat::fixture::write(&temp.path().join("fx")).unwrap();
+        let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+        db.execute("UPDATE Adobe_imageDevelopSettings SET text=?1, processVersion='15.4'", ["s={ PointColors={{SrcHue=0,SrcSat=0.9,SrcLum=0.5,HueShift=0.5}}, RetouchInfo={'centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType=heal'}, LensBlur={Active=true,BlurAmount=40}, DepthMapInfo={DepthSource='synthetic'} }"]).unwrap();
+        drop(db);
+        let engine =
+            Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+        let import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        let mut options = import.default_options().unwrap();
+        options.relocations[0].to = fixture
+            .photos
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        options.library_folder = options.relocations[0].to.clone();
+        let report = import.apply(options.clone(), None).unwrap();
+        assert!(report.imported > 0);
+        for key in ["PointColors", "RetouchInfo", "LensBlur", "DepthMapInfo"] {
+            assert!(
+                report
+                    .approximate
+                    .iter()
+                    .any(|issue| issue.category == key && issue.count > 0),
+                "missing {key}"
+            );
+        }
+        assert_eq!(
+            import.apply(options, None).unwrap().approximate,
+            report.approximate
+        );
     }
 
     #[test]

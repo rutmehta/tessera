@@ -324,12 +324,25 @@ public enum LightroomImportReport {
         out.append("## Not fully supported (\(r.unsupported.count))")
         out.append("")
         if r.unsupported.isEmpty {
-            out.append("Everything in the catalog has a Tessera equivalent.")
+            out.append(r.cloud.isEmpty ? "Everything in the catalog has a Tessera equivalent."
+                       : "No other unsupported settings; see \"Requires Adobe cloud (not rendered)\" below.")
         } else {
             out.append("| Area | Reason | Count | Examples |")
             out.append("| --- | --- | ---: | --- |")
             for i in r.unsupported {
                 out.append("| \(cell(i.category)) | \(cell(i.reason)) | \(i.count) | \(cell(i.examples.joined(separator: ", "))) |")
+            }
+        }
+        if !r.cloud.isEmpty {
+            out.append("")
+            out.append("## Requires Adobe cloud (not rendered)")
+            out.append("")
+            out.append("These visual edits require Adobe cloud and are not rendered in Tessera. Export rendered pixels from Lightroom to preserve their appearance.")
+            out.append("")
+            out.append("| Lightroom setting | Photos | Reason | Examples |")
+            out.append("| --- | ---: | --- | --- |")
+            for i in r.cloud {
+                out.append("| \(cell(i.category)) | \(i.count) | \(cell(i.reason)) | \(cell(i.examples.joined(separator: ", "))) |")
             }
         }
         if !r.approximate.isEmpty {
@@ -380,6 +393,13 @@ public enum LightroomImportReport {
         let url = URL(fileURLWithPath: report.libraryPath).deletingLastPathComponent().appendingPathComponent(fileName)
         try Data(markdown.utf8).write(to: url, options: .atomic)
         return url
+    }
+
+    /// One line per cloud-only Adobe feature: photo count, reason and the example paths.
+    public static func cloudLines(_ r: LrcatReport) -> [String] {
+        r.cloud.map {
+            "\($0.category): \($0.count) \($0.count == 1 ? "photo" : "photos"); \($0.reason); \($0.examples.joined(separator: ", "))"
+        }
     }
 
     /// One line per Adobe key: photo count, the first reason as the example, and the example paths.

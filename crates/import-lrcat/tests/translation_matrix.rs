@@ -114,7 +114,7 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
         ) {
             return Err(format!("invalid lane: {line}"));
         }
-        let approximate = match cells[4] {
+        let approximate = match cells[4].split(';').next().unwrap().trim() {
             "retained" | "unsupported-diagnostic" => continue,
             "translated" => false,
             "approximate" => true,
@@ -234,7 +234,7 @@ fn translation_matrix_matches_synthetic_import() {
     let counts = check_matrix(&matrix).unwrap();
     let lr2_rows = matrix
         .lines()
-        .filter(|line| line.contains("| LR-2 | approximate |"))
+        .filter(|line| line.contains("| LR-2 | approximate"))
         .collect::<Vec<_>>()
         .join("\n");
     let (lr2_counts, keys) = check_rows(&lr2_rows, &lua_import).unwrap();
@@ -490,4 +490,114 @@ fn lr6e_field_guard_rejects_duplicate_field_reasons() {
             .unwrap_err()
             .contains("requires one field info reason")
     );
+}
+
+#[test]
+fn lr9_matrix_defaults_are_silent_and_nondefaults_remain_visible() {
+    use import_lrcat::noop::{RULES, Rule};
+    let matrix = include_str!("../../../docs/coordination/LR-TRANSLATION-MATRIX.md");
+    for &(key, rule) in RULES {
+        if key.contains('*') {
+            continue;
+        }
+        assert!(
+            matrix
+                .lines()
+                .any(|line| line.starts_with(&format!("| `{key}` |"))
+                    && line.contains("no-op when default")),
+            "missing matrix key {key}"
+        );
+        let (default, nondefault, context) = match rule {
+            Rule::Provenance => ("'synthetic-metadata'".into(), None, ""),
+            Rule::DistractionPanel | Rule::False => ("false".into(), Some("true".into()), ""),
+            Rule::Empty => ("{}".into(), Some("{'synthetic-unhandled'}".into()), ""),
+            Rule::Zero => ("0".into(), Some("9".into()), ""),
+            Rule::Number(n) | Rule::Legacy(n) | Rule::Upright(n) | Rule::Sdr(n) => (
+                n.to_string(),
+                Some((n + 1.).to_string()),
+                if matches!(rule, Rule::Sdr(_)) {
+                    "HDREditMode=1,"
+                } else {
+                    ""
+                },
+            ),
+            Rule::CurveName => ("'Custom'".into(), None, "ToneCurvePV2012={0,0,255,255},"),
+            Rule::LensBlur => (
+                "{Active=false}".into(),
+                Some("{Active=true,BlurAmount=40}".into()),
+                "",
+            ),
+            Rule::PointColors => (
+                "{}".into(),
+                Some("{'malformed-synthetic-point'}".into()),
+                "",
+            ),
+        };
+        let (recipe, warnings) =
+            lua_develop::parse(&format!("s={{{context}{key}={default}}}"), "15.4").unwrap();
+        assert!(warnings.is_empty(), "{key}: {warnings:?}");
+        assert!(
+            !diagnostics::entries(&recipe).contains_key(key),
+            "default report entry: {key}"
+        );
+        assert!(
+            retained_in(&recipe, "lrcat_develop_source", key),
+            "lost source: {key}"
+        );
+        if let Some(value) = nondefault {
+            let context = if matches!(rule, Rule::DistractionPanel) {
+                "FilterList={{What='synthetic-filter'}},"
+            } else {
+                context
+            };
+            let (recipe, warnings) =
+                lua_develop::parse(&format!("s={{{context}{key}={value}}}"), "15.4").unwrap();
+            assert!(
+                warnings.iter().any(|w| w
+                    .strip_prefix("crs:")
+                    .unwrap_or(w)
+                    .starts_with(&format!("{key}:")))
+                    || diagnostics::entries(&recipe).contains_key(key)
+                    || (matches!(rule, Rule::DistractionPanel)
+                        && diagnostics::entries(&recipe).contains_key("GenerativeRemove")),
+                "nondefault lost: {key}"
+            );
+        }
+    }
+}
+
+#[test]
+fn lr9_false_grayscale_with_saved_mixer_has_no_grayscale_report_entry() {
+    let (recipe, warnings) =
+        lua_develop::parse("s={ConvertToGrayscale=false,GrayMixerRed=20}", "15.4").unwrap();
+    assert!(warnings.is_empty());
+    assert!(!diagnostics::entries(&recipe).contains_key("ConvertToGrayscale"));
+    assert!(diagnostics::entries(&recipe).contains_key("GrayMixerRed"));
+}
+
+#[test]
+fn lr9b_named_residuals_have_matrix_rows_and_keep_exact_source() {
+    let matrix = include_str!("../../../docs/coordination/LR-TRANSLATION-MATRIX.md");
+    for &(key, reason) in import_lrcat::residual::FEATURES {
+        assert!(
+            matrix.contains(&format!("| `{key}` |")),
+            "missing matrix row: {key}"
+        );
+        if import_lrcat::noop::RULES
+            .iter()
+            .any(|(k, r)| *k == key && matches!(r, import_lrcat::noop::Rule::Provenance))
+        {
+            continue;
+        }
+        let (r, w) = lua_develop::parse(
+            &format!("s={{HDREditMode=1,{key}='synthetic-invalid'}}"),
+            "15.4",
+        )
+        .unwrap();
+        assert!(w.iter().any(|w| w.contains(reason)), "{key}: {w:?}");
+        assert_eq!(
+            r.unknown["lrcat_develop_source"]["properties"][key], "'synthetic-invalid'",
+            "{key}"
+        );
+    }
 }

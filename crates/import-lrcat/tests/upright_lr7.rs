@@ -31,11 +31,11 @@ fn guided_segments_translate_atomically() {
 
 #[test]
 fn cloud_only_and_invalid_geometry_explain_missing_rendering() {
-    let (r, w) = lua_develop::parse("s = { EnableDistractionRemoval = true, UprightTransform_1 = '1,0,0,0,0,0,0,0,1', PerspectiveUpright = 1 }", "15.4").unwrap();
+    let (r, w) = lua_develop::parse("s = { EnableDistractionRemoval = true, FilterList = {{What='synthetic-filter'}}, UprightTransform_1 = '1,0,0,0,0,0,0,0,1', PerspectiveUpright = 1 }", "15.4").unwrap();
     assert!(
         w.iter().any(|w| w.contains("EnableDistractionRemoval")
             && w.contains("cannot render")
-            && w.contains("Adobe")),
+            && w.contains("requires Adobe cloud; not translatable")),
         "{w:?}"
     );
     assert!(

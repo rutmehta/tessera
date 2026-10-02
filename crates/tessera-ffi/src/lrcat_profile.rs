@@ -55,10 +55,39 @@ fn measure<T>(app: &Path, operation: impl FnOnce() -> SafeResult<T>) -> SafeResu
     ))
 }
 
+// Public Adobe property spellings absent from the legacy KEY_MAP. Values of
+// these properties (including all names/digests/filenames) are never emitted.
+const AUDIT_KEYS: &[&str] = &[
+    "CropConstrainAspectRatio",
+    "CustomIncrementalTemperature",
+    "CustomIncrementalTint",
+    "CustomLensProfileDigest",
+    "CustomLensProfileDistortionScale",
+    "CustomLensProfileFilename",
+    "CustomLensProfileIsEmbedded",
+    "CustomLensProfileName",
+    "CustomLensProfileVignettingScale",
+    "CustomTemperature",
+    "CustomTint",
+    "Preset",
+    "RemoveAreas",
+];
+
 fn allowed_key(key: &str) -> Option<&'static str> {
-    import_lrcat::lua_develop::KEY_MAP
+    AUDIT_KEYS
         .iter()
-        .find_map(|(k, _)| (*k == key).then_some(*k))
+        .copied()
+        .find(|k| *k == key)
+        .or_else(|| {
+            import_lrcat::lua_develop::KEY_MAP
+                .iter()
+                .find_map(|(k, _)| (*k == key).then_some(*k))
+        })
+        .or_else(|| {
+            import_lrcat::noop::RULES
+                .iter()
+                .find_map(|(k, _)| (*k == key).then_some(*k))
+        })
 }
 
 fn warnings(issues: &[LrcatIssue]) -> Value {
@@ -184,20 +213,41 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
         [],
         |r| r.get(0),
     ))?;
-    let mut statement = safe(db.prepare("SELECT image, CASE WHEN octet_length(text) <= 4194304 THEN CAST(text AS TEXT) ELSE NULL END FROM Adobe_imageDevelopSettings WHERE rowid IN (SELECT max(rowid) FROM Adobe_imageDevelopSettings GROUP BY image) AND image IN (SELECT id_local FROM Adobe_images)"))?;
+    let mut statement = safe(db.prepare("SELECT image, processVersion, CASE WHEN octet_length(text) <= 4194304 THEN CAST(text AS TEXT) ELSE NULL END FROM Adobe_imageDevelopSettings WHERE rowid IN (SELECT max(rowid) FROM Adobe_imageDevelopSettings GROUP BY image) AND image IN (SELECT id_local FROM Adobe_images)"))?;
     let mut rows = safe(statement.query([]))?;
     let mut unaudited = 0u64;
+    let mut unaudited_value_class_rows = 0u64;
+    let mut warned_images = BTreeMap::<&str, u64>::new();
+    let mut classes = BTreeMap::<String, BTreeMap<&str, u64>>::new();
     while let Some(row) = safe(rows.next())? {
         let id: i64 = safe(row.get(0))?;
         if !decoded.contains(&id) {
             continue;
         }
-        let source: Option<String> = row.get(1).ok().flatten();
+        let version: String = safe(row.get(1))?;
+        let process_version = version.clone();
+        let version = safe(engine_api::recipe::ProcessVersion::from_crs(&version))?;
+        let source: Option<String> = row.get(2).ok().flatten();
         let Some(source) = source.filter(|s| !s.trim().is_empty()) else {
             unaudited += 1;
             continue;
         };
+        let (_, source_warnings) = safe(import_lrcat::develop(id, &source, &process_version))?;
+        let warned_keys: std::collections::BTreeSet<_> = source_warnings
+            .iter()
+            .map(|warning| {
+                let warning = warning.strip_prefix("crs:").unwrap_or(warning);
+                warning
+                    .split_once(':')
+                    .and_then(|(key, _)| allowed_key(key))
+                    .unwrap_or("Other")
+            })
+            .collect();
+        for key in warned_keys {
+            *warned_images.entry(key).or_default() += 1;
+        }
         let names: Vec<String> = if source.trim_start().starts_with('<') {
+            unaudited_value_class_rows += 1;
             let source = if source.trim_start().starts_with("<rdf:Description") {
                 format!(
                     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">{source}</rdf:RDF>"
@@ -214,14 +264,47 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
             }
         } else {
             match import_lrcat::lua_develop::read(&source) {
-                Ok(import_lrcat::lua_develop::LuaValue::Table(table)) => table
-                    .fields
-                    .into_iter()
-                    .filter_map(|(k, _)| match k {
-                        import_lrcat::lua_develop::LuaKey::Str(s) => Some(s),
-                        _ => None,
-                    })
-                    .collect(),
+                Ok(import_lrcat::lua_develop::LuaValue::Table(table)) => {
+                    for &(key, _) in import_lrcat::noop::RULES {
+                        let value = table.fields.iter().find_map(|(k, v)| match k {
+                            import_lrcat::lua_develop::LuaKey::Str(k) if k == key => Some(v),
+                            _ => None,
+                        });
+                        if let Some(value) = value {
+                            let class = if import_lrcat::noop::is_noop(key, &table, &version) {
+                                "default_empty_inactive_provenance"
+                            } else {
+                                "non_default"
+                            };
+                            *classes
+                                .entry(key.into())
+                                .or_default()
+                                .entry(class)
+                                .or_default() += 1;
+                            if key == "ToneCurveName2012" {
+                                let class = if matches!(value, import_lrcat::lua_develop::LuaValue::String(s) if ["Linear", "Medium Contrast", "Strong Contrast", "Custom"].contains(&s.as_str()))
+                                {
+                                    "known_Adobe_name"
+                                } else {
+                                    "other_name"
+                                };
+                                *classes
+                                    .entry(key.into())
+                                    .or_default()
+                                    .entry(class)
+                                    .or_default() += 1;
+                            }
+                        }
+                    }
+                    table
+                        .fields
+                        .into_iter()
+                        .filter_map(|(k, _)| match k {
+                            import_lrcat::lua_develop::LuaKey::Str(s) => Some(s),
+                            _ => None,
+                        })
+                        .collect()
+                }
                 _ => {
                     unaudited += 1;
                     continue;
@@ -241,8 +324,21 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
             values[0] = values[0].saturating_sub(count);
         }
     }
+    let mut warning_keys = BTreeMap::<&str, u64>::new();
+    for issue in &report.unsupported {
+        if issue.category != "Develop settings" {
+            continue;
+        }
+        let reason = issue.reason.strip_prefix("crs:").unwrap_or(&issue.reason);
+        let key = reason
+            .split_once(':')
+            .and_then(|(key, _)| allowed_key(key))
+            .unwrap_or("Other");
+        *warning_keys.entry(key).or_default() += u64::from(issue.count);
+    }
+    let approximate_groups_in_spool = keys.values().filter(|counts| counts[1] > 0).count();
     Ok(
-        json!({"develop_rows": develop_rows, "unaudited_develop_rows": unaudited,
+        json!({"warned_images_by_key": warned_images, "warning_keys": warning_keys, "approximate_groups_in_spool": approximate_groups_in_spool, "value_classes": classes, "unaudited_value_class_rows": unaudited_value_class_rows, "develop_rows": develop_rows, "unaudited_develop_rows": unaudited,
         "keys_translated_approximate_retained": keys, "unlisted_retained_key_occurrences": unknown_retained,
         "warnings_by_category": warnings(&report.unsupported),
         "not_fully_supported_groups": report.unsupported.len(),
