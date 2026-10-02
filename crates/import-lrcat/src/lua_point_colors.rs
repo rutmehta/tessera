@@ -3,7 +3,7 @@
 use super::{LuaKey, LuaTable};
 use std::{borrow::Cow, collections::BTreeMap};
 
-pub(super) fn sequence(table: &LuaTable) -> Result<Cow<'_, LuaTable>, String> {
+pub(crate) fn sequence(table: &LuaTable) -> Result<Cow<'_, LuaTable>, String> {
     if table.fields.is_empty() {
         return Ok(Cow::Borrowed(table));
     }

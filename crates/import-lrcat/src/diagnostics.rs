@@ -32,6 +32,28 @@ pub struct Entry {
     pub reason: String,
 }
 
+/// A proven no-op must not appear as an approximate or ignored report entry.
+/// Keep foreign shapes and every source-retention member untouched.
+pub(crate) fn remove_noop(recipe: &mut Recipe, adobe_key: &str) {
+    if let Some(Value::Object(object)) = recipe.unknown.get_mut(KEY) {
+        if object.get(adobe_key).is_some_and(|v| {
+            v.as_array().is_some_and(|values| {
+                values.iter().all(|v| {
+                    serde_json::from_value::<Entry>(v.clone()).is_ok_and(|entry| {
+                        entry.level == "info"
+                            && matches!(entry.status.as_str(), "approximate" | "ignored")
+                    })
+                })
+            })
+        }) {
+            object.remove(adobe_key);
+            if object.is_empty() {
+                recipe.unknown.remove(KEY);
+            }
+        }
+    }
+}
+
 /// Record that `adobe_key` was translated approximately into `field`.
 /// Appends to the key's list (creating the object or list if absent), skips an
 /// identical existing entry, and never touches other keys' lists. A value of

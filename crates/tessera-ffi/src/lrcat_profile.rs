@@ -187,6 +187,8 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
     let mut statement = safe(db.prepare("SELECT image, processVersion, CASE WHEN octet_length(text) <= 4194304 THEN CAST(text AS TEXT) ELSE NULL END FROM Adobe_imageDevelopSettings WHERE rowid IN (SELECT max(rowid) FROM Adobe_imageDevelopSettings GROUP BY image) AND image IN (SELECT id_local FROM Adobe_images)"))?;
     let mut rows = safe(statement.query([]))?;
     let mut unaudited = 0u64;
+    let mut unaudited_value_class_rows = 0u64;
+    let mut warned_images = BTreeMap::<&str, u64>::new();
     let mut classes = BTreeMap::<String, BTreeMap<&str, u64>>::new();
     while let Some(row) = safe(rows.next())? {
         let id: i64 = safe(row.get(0))?;
@@ -194,13 +196,29 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
             continue;
         }
         let version: String = safe(row.get(1))?;
+        let process_version = version.clone();
         let version = safe(engine_api::recipe::ProcessVersion::from_crs(&version))?;
         let source: Option<String> = row.get(2).ok().flatten();
         let Some(source) = source.filter(|s| !s.trim().is_empty()) else {
             unaudited += 1;
             continue;
         };
+        let (_, source_warnings) = safe(import_lrcat::develop(id, &source, &process_version))?;
+        let warned_keys: std::collections::BTreeSet<_> = source_warnings
+            .iter()
+            .map(|warning| {
+                let warning = warning.strip_prefix("crs:").unwrap_or(warning);
+                warning
+                    .split_once(':')
+                    .and_then(|(key, _)| allowed_key(key))
+                    .unwrap_or("Other")
+            })
+            .collect();
+        for key in warned_keys {
+            *warned_images.entry(key).or_default() += 1;
+        }
         let names: Vec<String> = if source.trim_start().starts_with('<') {
+            unaudited_value_class_rows += 1;
             let source = if source.trim_start().starts_with("<rdf:Description") {
                 format!(
                     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">{source}</rdf:RDF>"
@@ -277,8 +295,21 @@ fn aggregates(import: &LrcatImport, report: &LrcatReport) -> SafeResult<Value> {
             values[0] = values[0].saturating_sub(count);
         }
     }
+    let mut warning_keys = BTreeMap::<&str, u64>::new();
+    for issue in &report.unsupported {
+        if issue.category != "Develop settings" {
+            continue;
+        }
+        let reason = issue.reason.strip_prefix("crs:").unwrap_or(&issue.reason);
+        let key = reason
+            .split_once(':')
+            .and_then(|(key, _)| allowed_key(key))
+            .unwrap_or("Other");
+        *warning_keys.entry(key).or_default() += u64::from(issue.count);
+    }
+    let approximate_groups_in_spool = keys.values().filter(|counts| counts[1] > 0).count();
     Ok(
-        json!({"value_classes": classes, "develop_rows": develop_rows, "unaudited_develop_rows": unaudited,
+        json!({"warned_images_by_key": warned_images, "warning_keys": warning_keys, "approximate_groups_in_spool": approximate_groups_in_spool, "value_classes": classes, "unaudited_value_class_rows": unaudited_value_class_rows, "develop_rows": develop_rows, "unaudited_develop_rows": unaudited,
         "keys_translated_approximate_retained": keys, "unlisted_retained_key_occurrences": unknown_retained,
         "warnings_by_category": warnings(&report.unsupported),
         "not_fully_supported_groups": report.unsupported.len(),

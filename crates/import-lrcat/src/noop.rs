@@ -64,6 +64,13 @@ fn get<'a>(t: &'a LuaTable, key: &str) -> Option<&'a LuaValue> {
     let v = found.next()?;
     found.next().is_none().then_some(v)
 }
+fn off_or_absent(table: &LuaTable, key: &str) -> bool {
+    !table
+        .fields
+        .iter()
+        .any(|(k, _)| matches!(k,LuaKey::Str(k) if k == key))
+        || get(table, key).is_some_and(off)
+}
 fn number(v: &LuaValue) -> Option<f64> {
     match v {
         LuaValue::Number(s) => s.parse::<f64>().ok().filter(|v| v.is_finite()),
@@ -84,7 +91,7 @@ fn empty(v: &LuaValue) -> bool {
 fn placeholder(v: &LuaValue) -> bool {
     match v {
         LuaValue::String(s) => {
-            let ns: Vec<_> = s.split_whitespace().collect();
+            let ns: Vec<_> = s.split(',').map(str::trim).collect();
             ns.len() == 19 && ns.iter().all(|n| n.parse::<f64>() == Ok(-1.))
         }
         _ => false,
@@ -108,19 +115,18 @@ pub fn is_noop(key: &str, table: &LuaTable, version: &ProcessVersion) -> bool {
         Rule::Empty => empty(v),
         Rule::Zero => zero(v),
         Rule::Number(n) => number(v) == Some(*n),
-        Rule::Upright(n) => {
-            number(v) == Some(*n) && get(table, "PerspectiveUpright").is_none_or(off)
-        }
+        Rule::Upright(n) => number(v) == Some(*n) && off_or_absent(table, "PerspectiveUpright"),
         Rule::Legacy(n) => {
             version.family == ProcessFamily::Adobe && version.revision >= 3 && number(v) == Some(*n)
         }
         // Zero incremental WB is also neutral on rendered rows; no media-type guess is needed.
         Rule::Sdr(n) => {
-            number(v).is_some()
-                && (number(v) == Some(*n) || get(table, "HDREditMode").is_none_or(off))
+            number(v).is_some() && (number(v) == Some(*n) || off_or_absent(table, "HDREditMode"))
         }
         Rule::CurveName => {
-            matches!(v, LuaValue::String(_))
+            version.family == ProcessFamily::Adobe
+                && version.revision >= 3
+                && matches!(v, LuaValue::String(_))
                 && get(table, "ToneCurvePV2012").is_some_and(valid_curve)
         }
         Rule::LensBlur => {
@@ -128,7 +134,7 @@ pub fn is_noop(key: &str, table: &LuaTable, version: &ProcessVersion) -> bool {
         }
         Rule::PointColors => {
             empty(v)
-                || matches!(v,LuaValue::Table(t) if t.fields.is_empty() && t.items.iter().all(placeholder))
+                || matches!(v,LuaValue::Table(t) if crate::lua_develop::point_colors::sequence(t).is_ok_and(|t| t.items.iter().all(placeholder)))
         }
     }
 }
@@ -147,4 +153,103 @@ fn valid_curve(v: &LuaValue) -> bool {
             .collect::<Vec<_>>()
             .windows(2)
             .all(|p| p[0] < p[1])
+}
+
+/// Remove key-scoped warnings/report diagnostics for proven no-ops; preserve source bytes.
+pub(crate) fn silence(
+    table: &LuaTable,
+    recipe: &mut engine_api::recipe::Recipe,
+    warnings: &mut Vec<String>,
+) {
+    for (key, _) in &table.fields {
+        if let LuaKey::Str(key) = key
+            && is_noop(key, table, &recipe.process_version)
+        {
+            crate::diagnostics::remove_noop(recipe, key);
+        }
+    }
+    warnings.retain(|warning| {
+        let warning = warning.strip_prefix("crs:").unwrap_or(warning);
+        let Some((key, _)) = warning.split_once(':') else {
+            return true;
+        };
+        !is_noop(key, table, &recipe.process_version)
+    });
+}
+
+/// Convert CRS syntax for the policy only. Decoder and retention still read original XMP.
+pub(crate) fn xmp_table(doc: &roxmltree::Document<'_>) -> LuaTable {
+    const CRS: &str = engine_api::recipe::crs::CRS_NAMESPACE;
+    const RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    fn scalar(s: &str) -> LuaValue {
+        match s.trim() {
+            "true" | "True" => LuaValue::Bool(true),
+            "false" | "False" => LuaValue::Bool(false),
+            s if s.parse::<f64>().is_ok() => LuaValue::Number(s.into()),
+            _ => LuaValue::String(s.into()),
+        }
+    }
+    fn value(n: roxmltree::Node<'_, '_>) -> LuaValue {
+        if n.tag_name().name() == "ToneCurvePV2012" {
+            return LuaValue::Table(LuaTable {
+                fields: vec![],
+                items: n
+                    .descendants()
+                    .filter(|n| n.has_tag_name((RDF, "li")))
+                    .flat_map(|n| n.text().unwrap_or("").split(','))
+                    .map(scalar)
+                    .collect(),
+            });
+        }
+        let children: Vec<_> = n.children().filter(|n| n.is_element()).collect();
+        if children.len() == 1
+            && ["Seq", "Bag", "Description"]
+                .iter()
+                .any(|name| children[0].has_tag_name((RDF, *name)))
+        {
+            return value(children[0]);
+        }
+        let mut t = LuaTable {
+            items: vec![],
+            fields: vec![],
+        };
+        for a in n.attributes().filter(|a| a.namespace() == Some(CRS)) {
+            t.fields
+                .push((LuaKey::Str(a.name().into()), scalar(a.value())));
+        }
+        for c in &children {
+            if c.has_tag_name((RDF, "li")) {
+                t.items.push(value(*c));
+            } else {
+                t.fields
+                    .push((LuaKey::Str(c.tag_name().name().into()), value(*c)));
+            }
+        }
+        if children.is_empty() && t.fields.is_empty() {
+            scalar(n.text().unwrap_or(""))
+        } else {
+            LuaValue::Table(t)
+        }
+    }
+    let mut t = LuaTable {
+        items: vec![],
+        fields: vec![],
+    };
+    for desc in doc.descendants().filter(|n| {
+        n.has_tag_name((RDF, "Description"))
+            && n.parent().is_some_and(|p| p.has_tag_name((RDF, "RDF")))
+    }) {
+        for a in desc.attributes().filter(|a| a.namespace() == Some(CRS)) {
+            t.fields
+                .push((LuaKey::Str(a.name().into()), scalar(a.value())));
+        }
+        for n in desc
+            .children()
+            .filter(|n| n.is_element() && n.tag_name().namespace() == Some(CRS))
+        {
+            t.fields
+                .push((LuaKey::Str(n.tag_name().name().into()), value(n)));
+        }
+    }
+    t
 }
