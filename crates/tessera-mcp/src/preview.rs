@@ -81,26 +81,18 @@ impl PreviewCache {
         max: Option<u32>,
     ) -> EngineResult<image::RgbImage> {
         let source = self.source(id, path)?;
-        let active_retouch = recipe
-            .settings
-            .locals
-            .retouch
-            .iter()
-            .any(|op| op.enabled && op.opacity > 0.0);
         let rgb = match &*source {
             Decoded::Rgb { full, preview } => {
                 let input = if max.is_some() { preview } else { full };
-                let scale = if !active_retouch {
-                    1
-                } else {
-                    max.map_or(1, |max| {
-                        input
-                            .width()
-                            .max(input.height())
-                            .div_ceil(max.max(1))
-                            .max(1)
-                    })
-                };
+                // Adding a spot must not change the preview sampling order.
+                // The CPU pipeline confines the reduced solve to retouch.
+                let scale = max.map_or(1, |max| {
+                    input
+                        .width()
+                        .max(input.height())
+                        .div_ceil(max.max(1))
+                        .max(1)
+                });
                 pipeline_cpu::render_scaled_with_context(
                     &recipe.settings,
                     &RenderSource::Rgb(input),
@@ -111,8 +103,7 @@ impl PreviewCache {
             Decoded::Raw(raw) => {
                 let e = raw.active_extent();
                 let l = if let Some(max) = max {
-                    let edge = if !active_retouch { 1024 } else { max.max(1) };
-                    level(e.width, e.height, edge)
+                    level(e.width, e.height, max.max(1))
                 } else {
                     0
                 };
