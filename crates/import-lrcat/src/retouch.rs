@@ -243,6 +243,8 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
         "method",
         "seed",
         "maskdigest",
+        "healversion",
+        "offsety",
     ];
     if fields.keys().any(|k| !allowed.contains(&k.as_str())) {
         return None;
@@ -280,7 +282,11 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
         }]
     };
     let first = strokes.first()?.points.first()?;
-    let source = point(&fields, "sourcex", "sourcey")?;
+    let source = if fields.contains_key("sourcey") {
+        point(&fields, "sourcex", "sourcey")?
+    } else {
+        [bounded(number(&fields, "sourcex")?, 0.0, 1.0)?, first[1] + bounded(number(&fields, "offsety")?, -1.0, 1.0)?]
+    };
     let source_offset = [source[0] - first[0], source[1] - first[1]];
     let kind = match fields.get("spottype")?.as_str()? {
         "heal" => RetouchKind::Heal { source_offset },
@@ -315,6 +321,8 @@ fn stroke(value: &Value, feather: f32) -> Option<BrushStroke> {
         "seed",
         "centerx",
         "centery",
+        "maskid",
+        "centerweight",
     ];
     if fields.keys().any(|k| !allowed.contains(&k.as_str()))
         || !matches!(fields.get("what")?.as_str()?, "Mask/Paint" | "Mask/Circle")
