@@ -299,6 +299,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn preview_index_accepts_exact_real_image_ids_only() {
+        let temp = tempfile::tempdir().unwrap();
+        let catalog = temp.path().join("synthetic.lrcat");
+        let dir = previews_dir(&catalog);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = rusqlite::Connection::open(dir.join("previews.db")).unwrap();
+        db.execute_batch(
+            "CREATE TABLE ImageCacheEntry(imageId REAL, uuid TEXT, digest TEXT);
+             INSERT INTO ImageCacheEntry VALUES (1.0, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+             INSERT INTO ImageCacheEntry VALUES (2.5, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+             INSERT INTO ImageCacheEntry VALUES (1e30, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');",
+        ).unwrap();
+        drop(db);
+        let index = PreviewIndex::open(&catalog).unwrap().unwrap();
+        assert_eq!(index.len(), 1);
+        assert!(index.lrprev_path(1).is_some());
+    }
+
+    #[test]
     fn split_jpeg_levels_select_current_digest_and_largest_dimensions() {
         let temp = tempfile::tempdir().unwrap();
         let uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
