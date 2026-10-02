@@ -154,9 +154,14 @@ ranges, flags, and compilation against mapped synthetic-catalog selections.
 
 Real Lightroom schema variants and render equivalence remain unverified.
 Lens Blur controls are imported approximately into native focus/blur fields,
-with exact source retention and per-field info reasons. Inactive Lens Blur and
-standalone DepthMapInfo never enable an effect. Caller-resolved grayscale depth
-resources are stored and rendered through image-core's mask-store integration;
+with exact source retention and per-field info reasons through the shared
+`diagnostics::push_approximate` channel. `Active` is an exact boolean translation
+and produces no approximation record. Inactive Lens Blur and standalone
+DepthMapInfo preserve their old bytes and warnings without adding info records
+or enabling an effect. Active blur writes schema 4, including native falloff,
+Adobe controls, and depth references; unrelated recipes stay schema 3.
+Caller-resolved grayscale depth resources are pinned outside the mask-store
+eviction budget and rendered through image-core's mask-store integration;
 opaque Adobe helper encodings remain unsupported and require regenerated depth.
 DCP profiles, arbitrary retouch/Look payloads, and AI pixel blobs are not resolved
 or rendered by this crate. Inspect diagnostics before persisting an import.

@@ -1,0 +1,11 @@
+     Removed 95011 files, 25.6GiB total
+resumed_import_ffi=101
+e2e_export=0
+e2e_render=0
+remaining_doctests=0
+liquify_serial=101
+clippy=0
+fmt=0
+frames_serial=0
+initial_broad=interrupted_no_exit_status
+final_gate=FAIL_liquify_p95
