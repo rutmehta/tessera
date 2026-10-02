@@ -1,0 +1,13 @@
+warning: libraw-ffi@0.1.0:   209 |   sprintf(model, "v%d %dx%d", ver, width, height);
+warning: libraw-ffi@0.1.0:       |   ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:278:1: note: 'sprintf' has been explicitly marked deprecated here
+warning: libraw-ffi@0.1.0:   278 | __deprecated_msg("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of sprintf(3), it is highly recommended that you use snprintf(3) instead.")
+warning: libraw-ffi@0.1.0:       | ^
+warning: libraw-ffi@0.1.0: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/cdefs.h:227:48: note: expanded from macro '__deprecated_msg'
+warning: libraw-ffi@0.1.0:   227 |         #define __deprecated_msg(_msg) __attribute__((__deprecated__(_msg)))
+warning: libraw-ffi@0.1.0:       |                                                       ^
+warning: libraw-ffi@0.1.0: 2 warnings generated.
+    Finished `release` profile [optimized] target(s) in 0.66s
+     Running `/Users/rutmehta/.cache/tessera-target/B5-48/release/uniffi-bindgen generate --library /Users/rutmehta/.cache/tessera-target/B5-48/release/libtessera_ffi.dylib --language swift --out-dir /Users/rutmehta/Developer/lightroom/.worktrees/B5-48/apps/mac/build/ffi`
+Non-fat file: /Users/rutmehta/Developer/lightroom/.worktrees/B5-48/apps/mac/build/ffi/libtessera_ffi.a is architecture: arm64
+Exit: 0

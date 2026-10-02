@@ -155,3 +155,92 @@ frame-delivery failure had already occurred; the sample showed lens CA estimatio
 during backend selection. It is diagnostic context, not an explanation of any
 timing failure. That sample and complete raw command logs remain local in `/tmp`;
 compact gate results and every failure diagnostic are committed in `evidence/`.
+
+
+## B5-48b — Deterministic ring regression and export cleanup (2026-10-01)
+
+Local follow-up on `wp/B5-48`, strictly on top of approved `47b17baa`; no rebase.
+
+- Tests first: `14071dd5` adds the library regression and test-only hook, removes
+  the sleep-based integration test, and converts the two deferred-export tests to
+  the supported immediate snapshot API. The focused Rust regression passed before
+  the cleanup commit; Swift tests were authored/committed before cleanup and run
+  against the final implementation.
+- `5c69ecc0` removes `prepareExportFlat`, `DocumentFlatExportPreparation`,
+  `ExportSnapshotReservation`, and the reservation counter/release machinery.
+  Close now closes the native session directly; captured export jobs remain
+  independent. The existing backend closed flag remains in use.
+- `present_frame` takes a one-shot, renderer-local `#[cfg(test)]` hook immediately
+  after snapshotting and releasing the state lock. The test waits for its signal,
+  detaches the old ring, attaches three new surfaces, releases the worker, waits
+  for idle, and verifies a dropped record, nonempty delivery, no render errors,
+  and that every delivered frame belongs to the new ring. It uses a tiny document
+  and no sleeps. The receive timeout is only a 30-second hang guard. Disconnecting
+  the release sender also unblocks the worker if the test unwinds.
+- Stress: **200/200 passed, zero flakes**, 54.77 seconds, one fresh test process per
+  iteration. Ran the built library test executable directly to avoid Cargo locks,
+  alongside active release FFI compilation and full-suite Rust compilation.
+  Captured concurrent rustc CPU samples are in `evidence/b5-48b/stress-load.log`.
+  The stress runner has a 60-second process hang guard and verifies exactly one
+  passed test on every iteration. Reproduce after compiling the library test:
+  `python3 tools/orchestrate/wp/B5-48/evidence/b5-48b/stress.py` with the target
+  directory below exported.
+- Source search: `rg -n 'prepareExportFlat|DocumentFlatExportPreparation|ExportSnapshotReservation|exportReservations|releaseExportReservation' apps/mac`
+  returned no matches (exit 1). Also no matches in repository source excluding
+  historical handoffs/logs/JSON. Evidence: `evidence/b5-48b/unused-symbols.log`.
+
+All gates use `PATH="$HOME/.cargo/bin:$PATH"`,
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-48`, `CARGO_BUILD_JOBS=3`.
+No thresholds changed. Final gate results follow.
+
+- Focused native regression: **exit 0; 1 passed**.
+- Updated Swift export lifecycle tests: **exit 0; 2 passed, zero failures** on the
+  final implementation (snapshot survives close; cancel preserves destination).
+- `cargo clippy --locked -p tessera-ffi --all-targets -- -D warnings`: **exit 0**.
+- `cargo fmt --all -- --check`: **exit 0**.
+- `cd apps/mac && ./build-ffi.sh`: **exit 0**, bindings regenerated with no diff.
+- `tools/orchestrate/swift-gate.sh`: **exit 0, SWIFT GATE OK**;
+  **918 XCTest tests, 3 skipped, zero failures**, plus **5 Swift Testing tests passed**.
+- `cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors`:
+  **exit 0**, product build completed in 253.08 seconds.
+
+- Full Rust aggregate (`cargo test --locked -p tessera-ffi --no-fail-fast`):
+  **exit 101; 575 passed, 2 failed, 31 ignored**, 51 result blocks including
+  doc-tests. The library's 230 active tests and all five viewport integration
+  tests passed. Remaining failures:
+  - Develop `export_batch_does_not_starve_slider_drag`: **0/120 at L2** (all at L3;
+    required 108/120); render p90 6.4 ms, maximum 1397.2 ms.
+  - Liquify `brush_latency_on_a_20_megapixel_layer`: **p95 319.4 ms** versus the
+    unchanged 250 ms limit; median 232.0 ms, maximum 2041.4 ms.
+  Complete result blocks and all failure diagnostics:
+  `evidence/b5-48b/rust-full.log`; full log `/tmp/B5-48b-rust-full.log`.
+
+- Isolated serial Develop retry: **exit 101; 1 failed**, **69/120 at L2** versus
+  required 108/120; render p90 5.5 ms, maximum 34.7 ms. Evidence:
+  `evidence/b5-48b/develop-serial.log`.
+- Isolated serial Liquify retry: **exit 101; 1 failed**, **p95 391.7 ms** versus
+  the unchanged 250 ms limit; median 272.9 ms, maximum 413.9 ms. Evidence:
+  `evidence/b5-48b/liquify-serial.log`.
+- Both retries ran with `--exact --nocapture --test-threads=1`, one at a time,
+  after the full Rust suite and both Swift gates had finished. No other B5-48b
+  build/test workload overlapped either retry. This is a shared host; these
+  observations do not establish host load as the cause of either failure.
+  `CI`, `RAYON_NUM_THREADS`, and `TESSERA_FILTER_PERF` were unset.
+
+**B5-48b implementation and requested validation are complete; the Rust aggregate
+and both performance retries remain non-green.** The ring regression passed its
+focused run, all 200 stress iterations, and the full library suite. No performance
+thresholds were changed or failures hidden. All static/Swift gates passed.
+
+Serial reproduction (same exported environment as above):
+
+```sh
+cargo test --locked -p tessera-ffi --test develop export_batch_does_not_starve_slider_drag -- --exact --nocapture --test-threads=1
+cargo test --locked -p tessera-ffi --test document_liquify_ui brush_latency_on_a_20_megapixel_layer -- --exact --nocapture --test-threads=1
+```
+
+`git diff --check` passed. Generated bindings, Cargo.lock, and board.json are
+unchanged. No GUI foreground launch, installation, push, merge, or rebase.
+The final local `docs(B5-48b):` commit contains this appendix and compact evidence;
+full command logs remain at `/tmp/B5-48b-*.log`. All three follow-up commits end
+with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
