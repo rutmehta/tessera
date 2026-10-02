@@ -454,3 +454,136 @@ fn lr8g_multi_frame_jxl_is_rejected() {
         .expect("multi-frame tile rejected");
     assert!(error.to_string().contains("multi-frame JXL"), "{error}");
 }
+
+/// LR-8h: a file whose bytes are never materialised. `head` is real; every
+/// `stride` bytes from `first` a copy of `tile` begins; all else reads as zero.
+struct Sparse {
+    head: Vec<u8>,
+    tile: &'static [u8],
+    first: u64,
+    stride: u64,
+    size: u64,
+    position: u64,
+}
+impl Read for Sparse {
+    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+        let n = (out.len() as u64).min(self.size.saturating_sub(self.position)) as usize;
+        let (start, end) = (self.position, self.position + n as u64);
+        out[..n].fill(0);
+        let mut copy = |at: u64, bytes: &[u8]| {
+            let (a, b) = (at.max(start), (at + bytes.len() as u64).min(end));
+            if a < b {
+                out[(a - start) as usize..(b - start) as usize]
+                    .copy_from_slice(&bytes[(a - at) as usize..(b - at) as usize]);
+            }
+        };
+        copy(0, &self.head);
+        if !self.tile.is_empty() && end > self.first {
+            let mut at = self.first + start.saturating_sub(self.first) / self.stride * self.stride;
+            while at < end {
+                copy(at, self.tile);
+                at += self.stride;
+            }
+        }
+        self.position = end;
+        Ok(n)
+    }
+}
+impl Seek for Sparse {
+    fn seek(&mut self, p: SeekFrom) -> io::Result<u64> {
+        self.position = match p {
+            SeekFrom::Start(v) => v,
+            SeekFrom::End(v) => self.size.checked_add_signed(v).unwrap(),
+            SeekFrom::Current(v) => self.position.checked_add_signed(v).unwrap(),
+        };
+        Ok(self.position)
+    }
+}
+const MIB: u32 = 1024 * 1024;
+/// Identified LinearRaw of 512-pixel tiles, `count` compressed bytes each,
+/// placed `stride` bytes apart, in a sparse file of `payload` bytes after the
+/// TIFF structures. Nothing beyond the IFD and tile tables is allocated.
+fn sparse_original(side: u32, count: u32, stride: u32, payload: u64) -> Sparse {
+    let tile = include_bytes!("fixtures/solid-512.jpg");
+    let mut head = support::lossy_dng_with_jpeg(false, false, &[]);
+    for (tag, value) in [(256, side), (257, side), (322, 512), (323, 512)] {
+        set(&mut head, tag, value);
+    }
+    array(&mut head, 50719, &[0, 0]);
+    array(&mut head, 50720, &[side, side]);
+    let tiles = side.div_ceil(512).pow(2);
+    let first = head.len() as u32 + 8 * tiles;
+    let offsets: Vec<u32> = (0..tiles).map(|i| first + i * stride).collect();
+    array(&mut head, 324, &offsets);
+    array(&mut head, 325, &vec![count; tiles as usize]);
+    assert_eq!(head.len() as u32, first);
+    Sparse {
+        head,
+        tile,
+        first: first as u64,
+        stride: stride.max(1) as u64,
+        size: first as u64 + payload,
+        position: 0,
+    }
+}
+fn compressed_budget_error(mut file: Sparse) {
+    for metadata in [true, false] {
+        let error = if metadata {
+            raw_decode::lossy_dng::read_metadata(&mut file).err()
+        } else {
+            raw_decode::lossy_dng::read(&mut file).err()
+        };
+        assert_eq!(
+            error.expect("rejected").to_string(),
+            "total compressed byte budget exceeded"
+        );
+    }
+}
+
+#[test]
+fn lr8h_compressed_total_above_128mib_is_not_refused_alone() {
+    // Admission: a 100 MP original with 400 tiles of 512 KiB = 200 MiB.
+    let count = MIB / 2;
+    let mut file = sparse_original(10000, count, count, 400 * count as u64);
+    let m = raw_decode::lossy_dng::read_metadata(&mut file)
+        .unwrap()
+        .unwrap();
+    assert_eq!((m.width, m.height), (10000, 10000));
+    // The exact cap, 64 tiles of 24 MiB = 1.5 GiB of compressed bytes.
+    let count = 24 * MIB;
+    let mut file = sparse_original(4096, count, count, 64 * count as u64);
+    assert!(
+        raw_decode::lossy_dng::read_metadata(&mut file)
+            .unwrap()
+            .is_some()
+    );
+    // Complete decode: 16 tiles of 9 MiB = 144 MiB, each a real JPEG followed
+    // by zero padding inside its declared byte count.
+    let count = 9 * MIB;
+    let mut file = sparse_original(2048, count, count, 16 * count as u64);
+    let d = raw_decode::lossy_dng::read(&mut file).unwrap().unwrap();
+    assert_eq!((d.width, d.height, d.pixels.len()), (2048, 2048, 4_194_304));
+    for pixel in &d.pixels {
+        for (&v, code) in pixel.iter().zip([48., 69., 84.]) {
+            assert!((v - (code - 1.) / 254.).abs() < 2. / 254.);
+        }
+    }
+}
+
+#[test]
+fn lr8h_compressed_total_above_decoded_budget_is_rejected() {
+    // 64 tiles of 24 MiB + 1 byte: just above 1.5 GiB, inside a large enough file.
+    let count = 24 * MIB + 1;
+    compressed_budget_error(sparse_original(4096, count, count, 64 * count as u64));
+}
+
+#[test]
+fn lr8h_compressed_total_above_file_size_and_aliased_ranges_are_rejected() {
+    let count = MIB / 2;
+    // 200 MiB declared in a file one byte too short to hold it.
+    compressed_budget_error(sparse_original(10000, count, count, 400 * count as u64 - 1));
+    // Every tile aliases the same 512 KiB range; each range is inside the file.
+    compressed_budget_error(sparse_original(10000, count, 0, 100 * count as u64));
+    // Overlapping ranges half a tile apart; each range is inside the file.
+    compressed_budget_error(sparse_original(10000, count, count / 2, 201 * count as u64));
+}
