@@ -55,10 +55,39 @@ fn measure<T>(app: &Path, operation: impl FnOnce() -> SafeResult<T>) -> SafeResu
     ))
 }
 
+// Public Adobe property spellings absent from the legacy KEY_MAP. Values of
+// these properties (including all names/digests/filenames) are never emitted.
+const AUDIT_KEYS: &[&str] = &[
+    "CropConstrainAspectRatio",
+    "CustomIncrementalTemperature",
+    "CustomIncrementalTint",
+    "CustomLensProfileDigest",
+    "CustomLensProfileDistortionScale",
+    "CustomLensProfileFilename",
+    "CustomLensProfileIsEmbedded",
+    "CustomLensProfileName",
+    "CustomLensProfileVignettingScale",
+    "CustomTemperature",
+    "CustomTint",
+    "Preset",
+    "RemoveAreas",
+];
+
 fn allowed_key(key: &str) -> Option<&'static str> {
-    import_lrcat::lua_develop::KEY_MAP
+    AUDIT_KEYS
         .iter()
-        .find_map(|(k, _)| (*k == key).then_some(*k))
+        .copied()
+        .find(|k| *k == key)
+        .or_else(|| {
+            import_lrcat::lua_develop::KEY_MAP
+                .iter()
+                .find_map(|(k, _)| (*k == key).then_some(*k))
+        })
+        .or_else(|| {
+            import_lrcat::noop::RULES
+                .iter()
+                .find_map(|(k, _)| (*k == key).then_some(*k))
+        })
 }
 
 fn warnings(issues: &[LrcatIssue]) -> Value {
