@@ -368,6 +368,26 @@ mod lr5b_tests {
         assert!(out.get_pixel(0, 0)[0] > base.get_pixel(0, 0)[0]);
     }
     #[test]
+    fn lr5b_file_export_surfaces_missing_raster_regeneration_notice() {
+        struct Subject;
+        impl MaskSegmenter for Subject {
+            fn segment(&mut self, image: &image::RgbImage, _: &mask_ai::SegmentRequest) -> anyhow::Result<Vec<f32>> { Ok(vec![1.;(image.width()*image.height()) as usize]) }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let pixels = Image::new(4,2,vec![vec![0.18;8];3]).unwrap();
+        let input = crate::ExportImage { source:RenderSource::Rgb(&pixels),name:"synthetic",sequence:1,date:"",metadata:None };
+        let mut c = MaskComponent::new(MaskKind::Subject { model:None });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask { resource_id:None,category:"Subject".into(),mask_key:Some([46;32]),regenerate:false });
+        let mut recipe = engine_api::recipe::Recipe::default();
+        recipe.settings.locals.adjustments.push(LocalAdjustment { components:vec![c],..Default::default() });
+        recipe.history.base = recipe.settings.clone();
+        for format in [crate::Format::Jpeg { quality:90 },crate::Format::Dng] {
+            let options = crate::ExportSettings { format,mask_support:Some(dir.path().to_path_buf()),output_dir:dir.path().join("out"),..Default::default() };
+            let rendered = crate::render_one_cancellable(&input,&recipe,&options,&Default::default(),None,Some(&mut Subject)).unwrap();
+            assert!(rendered.warnings().iter().any(|w| w.contains("regenerat") && w.contains("missing")));
+        }
+    }
+    #[test]
     fn lr5b_export_without_model_skips_inverted_and_subtract_adjustments() {
         let dir = tempfile::tempdir().unwrap();
         let input = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
