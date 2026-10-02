@@ -278,3 +278,53 @@ mod lr4_tests {
         assert!(!active(&s));
     }
 }
+
+#[cfg(test)]
+mod lr5b_tests {
+    use super::*;
+    use engine_api::recipe::{MaskComponent, MaskKind};
+    #[test]
+    fn lr5b_missing_stored_raster_regenerates_with_diagnostic() {
+        struct Segmenter;
+        impl MaskSegmenter for Segmenter {
+            fn segment(&mut self, image: &image::RgbImage, _: &mask_ai::SegmentRequest) -> anyhow::Result<Vec<f32>> {
+                Ok(vec![1.;(image.width()*image.height()) as usize])
+            }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let input = Image::new(4,2,vec![vec![0.18;8];3]).unwrap();
+        let source = RenderSource::Rgb(&input);
+        let mut c = MaskComponent::new(MaskKind::Subject { model: None });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask { resource_id: None, category: "Subject".into(), mask_key: Some([47;32]), regenerate: false });
+        let mut settings = DevelopSettings::default();
+        let mut group = LocalAdjustment { components: vec![c], ..Default::default() };
+        group.params.exposure = 1.;
+        settings.locals.adjustments.push(group);
+        let mut warnings = vec![];
+        let out = render_with_hooks(&source,&settings,Some(&mut Segmenter),None,None,&mut warnings,Some(dir.path())).unwrap();
+        assert!(warnings.iter().any(|w| w.contains("regenerat") && w.contains("missing")));
+        let base = render_with_support(&source,&DevelopSettings::default(),None,Some(dir.path())).unwrap();
+        assert!(out.get_pixel(0,0)[0] > base.get_pixel(0,0)[0]);
+    }
+    #[test]
+    fn lr5b_export_without_model_skips_inverted_and_subtract_adjustments() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = Image::new(4,2,vec![vec![0.18;8];3]).unwrap();
+        let source = RenderSource::Rgb(&input);
+        let base = render_with_support(&source,&DevelopSettings::default(),None,Some(dir.path())).unwrap();
+        for subtract in [false,true] {
+            let mut ai = MaskComponent::new(MaskKind::Subject { model: None });
+            ai.invert = !subtract;
+            ai.combine = if subtract { engine_api::recipe::mask::MaskCombine::Subtract } else { engine_api::recipe::mask::MaskCombine::Add };
+            let mut group = LocalAdjustment { components: vec![ai], invert: true, ..Default::default() };
+            if subtract { group.components.insert(0,MaskComponent::new(MaskKind::Linear { start:[0.,0.],end:[1.,0.] })); }
+            group.params.exposure = 1.;
+            let mut settings = DevelopSettings::default();
+            settings.locals.adjustments.push(group);
+            let mut warnings = vec![];
+            let out = render_with_hooks(&source,&settings,None,None,None,&mut warnings,Some(dir.path())).unwrap();
+            assert_eq!(out,base);
+            assert!(warnings.iter().any(|w| w.contains("unavailable")));
+        }
+    }
+}
