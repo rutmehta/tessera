@@ -1032,6 +1032,21 @@ pub struct LocalsSettings {
     pub adjustments: Vec<LocalAdjustment>,
 }
 
+impl LocalsSettings {
+    /// Reject over-deep trees before a settings mutation or recipe write.
+    pub fn validate_mask_trees(&self) -> crate::EngineResult<()> {
+        for group in &self.adjustments {
+            group.validate_mask_tree()?;
+        }
+        for op in &self.retouch {
+            if let super::mask::RetouchTarget::Area { components } = &op.target {
+                super::mask::LocalAdjustment::validate_components(components)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 // ───────────────────────────────── effects ─────────────────────────────────
 
 /// Post-crop vignette style.

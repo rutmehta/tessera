@@ -392,3 +392,37 @@ fn lr1c_preview_point_selection_precedes_monochrome() {
         assert!((i16::from(a[1]) - i16::from(a[2])).abs() <= 1);
     }
 }
+
+#[test]
+fn lr4e_create_and_adjust_reject_ninth_mask_level_without_saving() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("test.jpg");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([100, 110, 120]))
+        .save(&path)
+        .unwrap();
+    let mut console = Console::open(&dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let mut c = json!({"kind":"linear","start":[0,0],"end":[1,0]});
+    for _ in 1..8 {
+        c = json!({"kind":"brush","strokes":[],"group":[c]});
+    }
+    let mask = match console.execute(request(
+        json!({"tool":"create_mask","image":id,"components":[c.clone()],"params":{}}),
+    )) {
+        ToolResponse::Ok(ToolOutput::MaskCreated { mask, .. }) => mask,
+        other => panic!("{other:?}"),
+    };
+    c = json!({"kind":"brush","strokes":[],"group":[c],"enabled":false});
+    let recipe_path = sidecar::Sidecar::paths(&path).recipe;
+    let before = std::fs::read(&recipe_path).unwrap();
+    for call in [
+        json!({"tool":"create_mask","image":id,"components":[c.clone()],"params":{}}),
+        json!({"tool":"adjust_mask","image":id,"mask":mask,"add_components":[c]}),
+    ] {
+        let result = console.execute(request(call));
+        assert!(!matches!(result, ToolResponse::Ok(_)), "{result:?}");
+        assert!(format!("{result:?}").contains("8 levels"));
+        assert_eq!(std::fs::read(&recipe_path).unwrap(), before);
+
+    }
+}

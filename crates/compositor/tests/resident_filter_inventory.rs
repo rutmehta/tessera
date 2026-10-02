@@ -491,8 +491,15 @@ fn lr4c_nested_camera_raw_uses_cpu_fallback_with_identical_pixels() {
     let mut control = settings.clone();
     control["locals"]["adjustments"][0]["components"][0] =
         serde_json::json!({"kind":"linear","start":[0,0],"end":[1,0]});
-    let control_doc = document_with_alpha(vec![filter("camera_raw", serde_json::json!({"settings":control}))], true);
-    compare(&control_doc, &mut renderer, &cpu, 1e-5);
+    let control_doc = document_with_alpha(
+        vec![filter(
+            "camera_raw",
+            serde_json::json!({"settings":control}),
+        )],
+        true,
+    );
+    // Resident arithmetic uses the same 1e-4 tolerance as the filter inventory.
+    compare(&control_doc, &mut renderer, &cpu, 1e-4);
     assert_eq!(renderer.filter_fallbacks(), 0);
     compare(&doc, &mut renderer, &cpu, 0.0);
     assert!(renderer.filter_fallbacks() > 0);

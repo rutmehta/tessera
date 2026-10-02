@@ -219,6 +219,9 @@ fn export_component(c: &Value) -> EngineResult<String> {
         b += &seq("crs:Masks", &body);
         return Ok(b);
     }
+    if !c["luminance_domain"].is_null() {
+        b += &native("ts:luminance_domain", &c["luminance_domain"]);
+    }
     if !c["luminance_bounds"].is_null() {
         b += &native("ts:luminance_bounds", &c["luminance_bounds"]);
     }
@@ -532,7 +535,10 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
             _ => return Err(error("unsupported mask blend mode")),
         }
     );
-    if kind == "adobe_brush" && num(t, n, "MaskValue", 1.)? == 0. {
+    if kind == "adobe_brush"
+        && get(t, n, CRS, "MaskBlendMode").is_none()
+        && num(t, n, "MaskValue", 1.)? == 0.
+    {
         // A zero-value Paint removes from earlier components. Erasing an
         // isolated, initially empty native brush plane would do nothing.
         c["combine"] = json!("subtract");
@@ -560,6 +566,9 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
     }
     if let Some(bounds) = extension(t, n, "luminance_bounds")? {
         c["luminance_bounds"] = bounds;
+    }
+    if let Some(domain) = extension(t, n, "luminance_domain")? {
+        c["luminance_domain"] = domain;
     }
     let c: MaskComponent = serde_json::from_value(c)?;
     Ok(serde_json::to_value(c)?)
@@ -626,7 +635,7 @@ fn import_range(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResult<Va
             return Err(error("opaque or ambiguous range mask retained in XMP"));
         }
         return Ok(
-            json!({"kind":"luminance_range", "range":[bounds[1],bounds[2]],
+            json!({"kind":"luminance_range", "luminance_domain":"display", "range":[bounds[1],bounds[2]],
             "luminance_bounds":bounds,"combine":"intersect", "smoothness":0.,
             "invert":flag(get(t,n,CRS,"Invert"),false)?}),
         );
@@ -659,6 +668,9 @@ fn import_range(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResult<Va
     let mut c = json!({"kind":kind,"range":[low,high],"combine":"intersect",
         "invert":flag(get(t,n,CRS,"Invert"),false)?});
     c[key] = json!(feather);
+    if lum {
+        c["luminance_domain"] = json!("display");
+    }
     if depth {
         c["model"] = Value::Null;
     }

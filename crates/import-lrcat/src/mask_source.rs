@@ -291,7 +291,9 @@ pub(crate) fn renderable(groups: &[engine_api::recipe::LocalAdjustment]) -> bool
                             && angle.is_finite()
                             && bounded(*feather, 0., 100.)
                     }
-                    MaskKind::LuminanceRange { range, smoothness } => {
+                    MaskKind::LuminanceRange {
+                        range, smoothness, ..
+                    } => {
                         bounded(range[0], 0., 1.)
                             && bounded(range[1], range[0], 1.)
                             && bounded(*smoothness, 0., 100.)
@@ -328,6 +330,12 @@ pub(crate) fn record_approximation_diagnostics(
     recipe: &mut engine_api::recipe::Recipe,
     root: Node<'_, '_>,
 ) {
+    let shape_value = root.descendants().filter_map(fields).any(|f| {
+        matches!(
+            f.get("What").and_then(Field::scalar),
+            Some("Mask/Gradient" | "Mask/CircularGradient")
+        ) && f.contains_key("MaskValue")
+    });
     let mut reasons = BTreeMap::from([(
         "MaskGroupBasedCorrections".to_string(),
         "ordered recipe composition and pre-geometry sensor coordinates; Adobe blend and coordinate conventions are unverified",
@@ -503,6 +511,15 @@ pub(crate) fn record_approximation_diagnostics(
                     &mut paths,
                 );
             }
+        }
+        if suffix == "MaskValue" && shape_value {
+            crate::diagnostics::push_approximate(
+                recipe,
+                &key,
+                "/settings/locals/adjustments",
+                "LR-4",
+                "parametric shape MaskValue is retained but not reproduced: unit selection used",
+            );
         }
         for path in paths {
             crate::diagnostics::push_approximate(recipe, &key, &path, "LR-4", reason);

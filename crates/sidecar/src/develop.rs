@@ -196,11 +196,19 @@ impl XmpPacket {
         self.decode_recipe(false, true)
     }
 
-    pub fn to_catalog_recipe_with_foreign_mask_extensions(&self, extensions: bool) -> EngineResult<ImportedRecipe> {
+    /// Decode a catalog transaction with audited foreign mask extensions enabled or disabled.
+    pub fn to_catalog_recipe_with_foreign_mask_extensions(
+        &self,
+        extensions: bool,
+    ) -> EngineResult<ImportedRecipe> {
         self.decode_recipe(false, extensions)
     }
 
-    fn decode_recipe(&self, standalone: bool, foreign_mask_extensions: bool) -> EngineResult<ImportedRecipe> {
+    fn decode_recipe(
+        &self,
+        standalone: bool,
+        foreign_mask_extensions: bool,
+    ) -> EngineResult<ImportedRecipe> {
         let tree = Tree::parse(&self.xml)?;
         let mut recipe = Recipe {
             selection: self.selection()?,

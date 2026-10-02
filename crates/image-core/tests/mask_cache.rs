@@ -15,6 +15,7 @@ fn raster_cache_reuses_sliders_and_invalidates_every_raster_input() {
     let image = Image::new(4, 3, vec![vec![0.2; 12]; 3]).unwrap();
     let mut group = LocalAdjustment {
         components: vec![MaskComponent::new(MaskKind::LuminanceRange {
+            luminance_domain: Default::default(),
             range: [0.1, 0.4],
             smoothness: 50.,
         })],
@@ -172,10 +173,11 @@ fn lr4_nested_ranges_hash_the_actual_rgb() {
     let cache = MaskRasterCache::new(1 << 20);
     let mut wrapper = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
     wrapper.group = Some(vec![MaskComponent::new(MaskKind::LuminanceRange {
+        luminance_domain: engine_api::recipe::mask::LuminanceDomain::Display,
         range: [0.4, 0.6],
         smoothness: 0.,
     })]);
-    let group = LocalAdjustment {
+    let mut group = LocalAdjustment {
         components: vec![wrapper],
         ..Default::default()
     };
@@ -189,4 +191,18 @@ fn lr4_nested_ranges_hash_the_actual_rgb() {
         .unwrap();
     assert_eq!(&*first, &[1., 1.]);
     assert_eq!(&*second, &[0., 0.]);
+    if let MaskKind::LuminanceRange {
+        luminance_domain, ..
+    } = &mut group.components[0].group.as_mut().unwrap()[0].kind
+    {
+        *luminance_domain = engine_api::recipe::mask::LuminanceDomain::Linear;
+    }
+    let linear = cache
+        .rasterize(&a, &group, 0, ParamHash::default(), MaskOptions::default())
+        .unwrap();
+    assert_eq!(&*linear, &[0., 0.]);
+    assert!(
+        !Arc::ptr_eq(&first, &linear),
+        "domain changes must invalidate the cached alpha"
+    );
 }

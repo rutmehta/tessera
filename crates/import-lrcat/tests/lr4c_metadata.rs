@@ -51,7 +51,9 @@ fn lr4d_nested_diagnostics_name_populated_fields_not_fallback_brushes() {
     );
     let json = serde_json::to_value(&recipe).unwrap();
     for note in notes.values().flatten() {
-        let field = json.pointer(note.field.as_deref().expect("approximate field")).expect("translated recipe field");
+        let field = json
+            .pointer(note.field.as_deref().expect("approximate field"))
+            .expect("translated recipe field");
         assert!(!field.is_null());
         assert!(!field.as_array().is_some_and(Vec::is_empty));
     }
@@ -59,23 +61,47 @@ fn lr4d_nested_diagnostics_name_populated_fields_not_fallback_brushes() {
 
 #[test]
 fn lr4e_shape_mask_value_is_explicitly_diagnosed() {
-    for shape in [r#"What="Mask/Gradient",FullX=0,FullY=0,ZeroX=1,ZeroY=0"#,
-                  r#"What="Mask/CircularGradient",Left=0,Right=1,Top=0,Bottom=1"#] {
-        let row = format!("s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{{{shape},MaskValue=0.3}}}}}}}}}}");
+    for shape in [
+        r#"What="Mask/Gradient",FullX=0,FullY=0,ZeroX=1,ZeroY=0"#,
+        r#"What="Mask/CircularGradient",Left=0,Right=1,Top=0,Bottom=1"#,
+    ] {
+        let row = format!(
+            "s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{{{shape},MaskValue=0.3}}}}}}}}}}"
+        );
         let (r, _) = lua_develop::parse(&row, "15.4").unwrap();
         let notes = import_lrcat::diagnostics::entries(&r);
         let entry = &notes["MaskGroupBasedCorrections/MaskValue"][0];
         assert_eq!(entry.status, "approximate");
         assert!(entry.reason.contains("not reproduced"));
-        assert!(entry.field.as_deref().is_some_and(|p| serde_json::to_value(&r).unwrap().pointer(p).is_some()));
+        assert!(
+            entry
+                .field
+                .as_deref()
+                .is_some_and(|p| serde_json::to_value(&r).unwrap().pointer(p).is_some())
+        );
     }
 }
 
 #[test]
 fn lr4e_zero_paint_respects_explicit_blend() {
     for (mode, expected) in [("0", "add"), ("1", "subtract"), ("2", "intersect")] {
-        let row = format!(r#"s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{{What="Mask/Paint",Radius=0.1,Flow=1,CenterWeight=0.5,MaskValue=0,MaskBlendMode={mode},Dabs={{"d 0.5 0.5"}}}}}}}}}}"#);
+        let row = r#"s={MaskGroupBasedCorrections={{CorrectionMasks={{What="Mask/Paint",Radius=0.1,Flow=1,CenterWeight=0.5,MaskValue=0,MaskBlendMode=MODE,Dabs={"d 0.5 0.5"}}}}}}"#.replace("MODE", mode);
         let (r, _) = lua_develop::parse(&row, "15.4").unwrap();
-        assert_eq!(serde_json::to_value(&r.settings.locals.adjustments[0].components[0]).unwrap()["combine"], expected);
+        assert_eq!(
+            serde_json::to_value(&r.settings.locals.adjustments[0].components[0]).unwrap()["combine"],
+            expected
+        );
     }
+}
+
+#[test]
+fn lr4e_mask_and_geometry_import_record_one_history_entry() {
+    let row = r#"s={PerspectiveUpright=1,UprightTransform_1="1,0,0,0,1,0,0.2,0,1",MaskGroupBasedCorrections={{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumMin=0.4,LumMax=0.5}}}}}}"#;
+    let (r, _) = lua_develop::parse(row, "15.4").unwrap();
+    r.validate().unwrap();
+    assert_eq!(r.history.entries.len(), 1);
+    assert!(r.settings.geometry.upright.homography.is_some());
+    let component = serde_json::to_value(&r.settings.locals.adjustments[0].components[0]).unwrap();
+    assert_eq!(component["luminance_domain"], "display");
+    assert_eq!(engine_api::recipe::required_schema_version(&r), 4);
 }

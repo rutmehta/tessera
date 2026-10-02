@@ -37,6 +37,18 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
     ("point_colors", |r| {
         !r.settings.color.point_colors.is_empty()
     }),
+    ("mask_luminance_display", |r| {
+        mask_feature(r, |c| {
+            matches!(
+                c.kind,
+                super::MaskKind::LuminanceRange {
+                    luminance_domain: super::mask::LuminanceDomain::Display,
+                    ..
+                }
+            )
+        })
+
+    }),
     ("upright_homography", |r| {
         r.settings.geometry.upright.homography.is_some()
     }),
@@ -350,6 +362,16 @@ mod v4_feature_predicates {
             assert_eq!(reloaded.settings.locals, recipe.settings.locals);
             assert_eq!(reloaded.to_json().unwrap(), bytes);
         }
+    }
+
+    #[test]
+    fn lr4e_display_luminance_bumped_only_when_present() {
+        assert_bumped_only_when_present("mask_luminance_display", |r| {
+            mask_recipe(
+                r,
+                serde_json::json!({"kind":"luminance_range","range":[0.2,0.8],"luminance_domain":"display"}),
+            )
+        });
     }
 
     const TEST_FEATURE: &str = "lr_schema_test_feature";

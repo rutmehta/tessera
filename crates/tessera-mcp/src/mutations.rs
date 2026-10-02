@@ -201,6 +201,7 @@ fn mask_coverage(
     recipe: &Recipe,
     group: &LocalAdjustment,
 ) -> EngineResult<f32> {
+    group.validate_mask_tree()?;
     if group.enabled
         && group
             .components

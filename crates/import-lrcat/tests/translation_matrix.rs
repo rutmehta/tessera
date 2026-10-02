@@ -60,11 +60,13 @@ fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
     } else {
         ""
     };
+    let root = key.split('/').next().unwrap();
     lua_develop::parse(
-        &format!("s = {{ {context} {hdr} {key} = {value} }}"),
+        &format!("s = {{ {context} {hdr} {root} = {value} }}"),
         version,
     )
     .map_err(|e| format!("{key}: {e}"))
+
 }
 
 /// A synthetic import of an empty develop row: every field at its default.
@@ -80,6 +82,7 @@ struct Counts {
 
 /// Whether the exact source of `key` is in a retained-source container.
 fn retained_in(recipe: &Recipe, container: &str, key: &str) -> bool {
+    let key = key.split('/').next().unwrap();
     recipe
         .unknown
         .get(container)
@@ -113,7 +116,10 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
             "approximate" => true,
             _ => return Err(format!("invalid status: {line}")),
         };
-        if key.contains('*') || key.contains('/') || cells[5] == "—" {
+        if key.contains('*')
+            || (key.contains('/') && !key.starts_with("MaskGroupBasedCorrections/"))
+            || cells[5] == "—"
+        {
             return Err(format!(
                 "{} row needs a concrete key and synthetic Lua value: {key}",
                 cells[4]
@@ -243,7 +249,10 @@ fn translation_matrix_matches_synthetic_import() {
 fn matrix_guard_rejects_a_retained_key_claimed_as_translated() {
     let matrix = "| `PointColors` | `/settings/color/point_colors` | LR-1 | translated | `{}` |";
     let error = check_matrix(matrix).unwrap_err();
-    assert!(error.contains("still retained"), "{error}");
+    assert_eq!(
+        error,
+        "PointColors: translated key is still retained in lrcat_develop_source"
+    );
 }
 
 // --- `approximate` status: test-only fixture rows and a synthetic lane. ---

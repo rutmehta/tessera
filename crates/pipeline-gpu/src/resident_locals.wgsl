@@ -46,7 +46,7 @@ fn blend(@builtin(global_invocation_id) gid: vec3<u32>) {
    switch u32(p[cursor]) {
      case 0u: { let dx=p[k+2u]-p[k]; let dy=p[k+3u]-p[k+1u]; b=clamp(1.0-((x-p[k])*dx+(y-p[k+1u])*dy)/(dx*dx+dy*dy),0.0,1.0); }
      case 1u: { let xx=x-p[k]; let yy=y-p[k+1u]; let s=p[k+4u]; let c=p[k+5u]; b=falloff(length(vec2<f32>((c*xx+s*yy)/p[k+2u],(-s*xx+c*yy)/p[k+3u])),p[k+6u]); }
-     case 2u: { let y=0.2627*base[i]+0.6780*base[i+n]+0.0593*base[i+2u*n]; var l=12.92*y; if y>0.0031308 { l=1.055*pow(y,1.0/2.4)-0.055; } let d=max(max(p[k]-l,l-p[k+1u]),0.0); if d==0.0 { b=1.0; } else if p[k+2u]!=0.0 { b=mask_smooth(1.0-d/p[k+2u]); } }
+     case 2u: { let y=0.2627*base[i]+0.6780*base[i+n]+0.0593*base[i+2u*n]; var l=y; if p[k+3u]!=0.0 { l=12.92*y; if y>0.0031308 { l=1.055*pow(y,1.0/2.4)-0.055; } } let d=max(max(p[k]-l,l-p[k+1u]),0.0); if d==0.0 { b=1.0; } else if p[k+2u]!=0.0 { b=mask_smooth(1.0-d/p[k+2u]); } }
      case 3u: { let lab=to_lab(vec3<f32>(base[i],base[i+n],base[i+2u*n])); var d=3.402823e38; for(var j=0u;j<u32(p[k+1u]);j++) { let off=k+2u+j*3u; d=min(d,length(lab-vec3<f32>(p[off],p[off+1u],p[off+2u]))); } if p[k]==0.0 { b=select(0.0,1.0,d<=1e-6); } else { b=falloff(d/p[k],0.5); } }
      case 4u: { for(var j=0u;j<u32(p[k]);j++) { let off=k+1u+j*7u; let px=f32(i%w)+0.5; let py=f32(i/w)+0.5; let r=p[off+3u]; let d=length(vec2<f32>(px-p[off],py-p[off+1u]))/r;
        // Match CPU stamp bounding rectangles, including feather-zero edges.

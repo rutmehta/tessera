@@ -742,6 +742,7 @@ fn lr4b_four_bounds_choose_cpu_before_resident_dispatch() {
     use engine_api::recipe::{LocalAdjustment, MaskComponent, MaskKind};
     let mut settings = resident_settings();
     let mut c = MaskComponent::new(MaskKind::LuminanceRange {
+        luminance_domain: Default::default(),
         range: [0.25, 0.5],
         smoothness: 0.,
     });

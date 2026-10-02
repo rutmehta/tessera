@@ -393,7 +393,11 @@ fn mask_parameters(group: &LocalAdjustment, extent: Extent) -> EngineResult<Vec<
                     *feather / 100.,
                 ]);
             }
-            MaskKind::LuminanceRange { range, smoothness } => {
+            MaskKind::LuminanceRange {
+                range,
+                smoothness,
+                luminance_domain,
+            } => {
                 if !bounded(range[0], 0., 1.)
                     || !bounded(range[1], range[0], 1.)
                     || !bounded(*smoothness, 0., 100.)
@@ -401,7 +405,14 @@ fn mask_parameters(group: &LocalAdjustment, extent: Extent) -> EngineResult<Vec<
                     return Err(invalid("invalid luminance mask"));
                 }
                 data[start] = 2.;
-                data.extend([range[0], range[1], *smoothness / 200.]);
+                data.extend([
+                    range[0],
+                    range[1],
+                    *smoothness / 200.,
+                    f32::from(
+                        *luminance_domain == engine_api::recipe::mask::LuminanceDomain::Display,
+                    ),
+                ]);
             }
             MaskKind::ColorRange { samples, amount } => {
                 if !bounded(*amount, 0., 100.) || samples.iter().flatten().any(|v| !v.is_finite()) {

@@ -174,6 +174,7 @@ fn main() {
                 "PersonPart",
                 "LandscapeClass",
                 "MaskKind",
+                "LuminanceDomain",
                 "BrushStroke",
                 "MaskCombine",
                 "MaskComponent",
@@ -284,7 +285,10 @@ fn main() {
                 {
                     output.extend(i.into_token_stream())
                 }
-                Item::Impl(i) if i.self_ty.to_token_stream().to_string() == "NormalizedRect" => {
+                Item::Impl(i)
+                    if ["NormalizedRect", "LuminanceDomain"]
+                        .contains(&i.self_ty.to_token_stream().to_string().as_str()) =>
+                {
                     output.extend(i.into_token_stream())
                 }
                 Item::Impl(i)

@@ -55,6 +55,23 @@ pub enum LandscapeClass {
     ArtificialGround,
 }
 
+/// Luminance coordinates used by a range mask. Legacy recipes use linear light.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LuminanceDomain {
+    /// Linear Rec.2020 luminance (the legacy Tessera operator).
+    #[default]
+    Linear,
+    /// sRGB display encoding of Rec.2020 luminance (Adobe imports).
+    Display,
+}
+
+impl LuminanceDomain {
+    fn is_linear(&self) -> bool {
+        *self == Self::Linear
+    }
+}
+
 /// What a mask component selects.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -147,9 +164,12 @@ pub enum MaskKind {
         /// Strokes.
         strokes: Vec<BrushStroke>,
     },
-    /// Perceptual luminance range, evaluated before geometry.
+    /// Luminance range, evaluated before geometry.
     LuminanceRange {
-        /// `[low, high]` in sRGB-display-encoded Rec.2020 luminance, `0..=1`.
+        /// Coordinate domain; absent preserves legacy linear semantics and bytes.
+        #[serde(default, skip_serializing_if = "LuminanceDomain::is_linear")]
+        luminance_domain: LuminanceDomain,
+        /// `[low, high]` in the selected luminance domain, `0..=1`.
         range: [f32; 2],
         /// Smoothness, `0..=100`.
         #[serde(default)]
@@ -347,7 +367,12 @@ impl LocalAdjustment {
     /// Bound recursive render work before allocating per-level alpha planes.
     /// Includes disabled nodes so toggling cannot bypass structural limits.
     pub fn validate_mask_tree(&self) -> crate::EngineResult<()> {
-        let mut stack: Vec<_> = self.components.iter().map(|c| (c, 0usize, true)).collect();
+        Self::validate_components(&self.components)
+    }
+
+    /// Validate a component tree, including retouch and disabled components.
+    pub fn validate_components(components: &[MaskComponent]) -> crate::EngineResult<()> {
+        let mut stack: Vec<_> = components.iter().map(|c| (c, 0usize, true)).collect();
         let mut count = 0usize;
         while let Some((c, depth, parent_enabled)) = stack.pop() {
             count += 1;

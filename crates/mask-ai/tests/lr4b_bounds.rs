@@ -3,6 +3,7 @@ use pipeline_cpu::Image;
 #[test]
 fn lr4b_external_composition_keeps_four_bounds_and_inverts_once() {
     let mut c = MaskComponent::new(MaskKind::LuminanceRange {
+        luminance_domain: Default::default(),
         range: [0.25, 0.5],
         smoothness: 0.,
     });

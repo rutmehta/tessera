@@ -62,6 +62,9 @@ fn lr4e_luminance_domain_is_additive_and_roundtrips() {
     let legacy = r#"{"kind":"luminance_range","range":[0.4,0.5],"smoothness":0.0,"combine":"add","invert":false}"#;
     let c: MaskComponent = serde_json::from_str(legacy).unwrap();
     assert_eq!(serde_json::to_string(&c).unwrap(), legacy);
+    let linear = legacy.replace("\"range\"", "\"luminance_domain\":\"linear\",\"range\"");
+    let c: MaskComponent = serde_json::from_str(&linear).unwrap();
+    assert_eq!(serde_json::to_string(&c).unwrap(), legacy);
     let display = legacy.replace("\"range\"", "\"luminance_domain\":\"display\",\"range\"");
     let c: MaskComponent = serde_json::from_str(&display).unwrap();
     let value = serde_json::to_value(&c).unwrap();
@@ -73,10 +76,14 @@ fn lr4e_luminance_domain_is_additive_and_roundtrips() {
 fn lr4e_recipe_validate_rejects_ninth_level_even_when_disabled() {
     for depth in [8, 9] {
         let mut c = serde_json::json!({"kind":"brush","strokes":[]});
-        for _ in 1..depth { c = serde_json::json!({"kind":"brush","strokes":[],"group":[c],"enabled":false}); }
+        for _ in 1..depth {
+            c = serde_json::json!({"kind":"brush","strokes":[],"group":[c],"enabled":false});
+        }
         let mut r = engine_api::recipe::Recipe::default();
-        r.settings.locals.adjustments = serde_json::from_value(serde_json::json!([{"components":[c]}])).unwrap();
+        r.settings.locals.adjustments =
+            serde_json::from_value(serde_json::json!([{"components":[c]}])).unwrap();
         r.history.base = r.settings.clone();
         assert_eq!(r.validate().is_ok(), depth == 8);
+        assert_eq!(r.to_json().is_ok(), depth == 8);
     }
 }

@@ -225,3 +225,13 @@ fn lr4b_four_bounds_native_xmp_roundtrip() {
         json!([0., 0.25, 0.5, 1.])
     );
 }
+
+#[test]
+fn lr4e_display_domain_survives_native_xmp_and_linear_omits_extension() {
+    let legacy = direct(json!({"kind":"luminance_range","range":[0.2,0.8],"smoothness":10}));
+    assert!(!legacy.contains("luminance_domain"));
+    let display = direct(
+        json!({"kind":"luminance_range","luminance_domain":"display","range":[0.2,0.8],"smoothness":10}),
+    );
+    assert!(display.contains("luminance_domain"));
+}

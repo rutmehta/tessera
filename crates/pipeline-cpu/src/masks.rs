@@ -10,7 +10,7 @@
 //! uses `a*(1-alpha)`. Paths interpolate pressure and position at quarter-radius
 //! spacing, with a quarter-pixel minimum. Coordinates outside [-16,16], radii
 //! outside [1e-6,16], and more than one million interpolated stamps are rejected.
-//! Luminance bands select sRGB-display-encoded Rec.2020 luminance, before
+//! Luminance bands default to linear Rec.2020 luminance, optionally display encoded, before
 //! geometry (including Upright); depth uses the supplied normalized plane.
 //! Luminance/depth bands have exterior smoothstep shoulders of smoothness/200;
 //! color selection uses the nearest Euclidean OkLab distance, tolerance amount/100,
@@ -157,9 +157,14 @@ fn rasterize_components(
                         }
                     }
                 }
-                MaskKind::LuminanceRange { range, smoothness } => {
+                MaskKind::LuminanceRange {
+                    range,
+                    smoothness,
+                    luminance_domain,
+                } => {
                     for (i, v) in plane.iter_mut().enumerate() {
-                        let y = display_encoded_luminance(luminance(input, i));
+                        let y = luminance(input, i);
+                        let y = luminance_in_domain(y, luminance_domain);
                         *v = if let Some([outer_low, low, high, outer_high]) =
                             component.luminance_bounds
                         {
@@ -255,6 +260,14 @@ fn band(v: f32, range: [f32; 2], shoulder: f32) -> f32 {
         smooth(1. - d / shoulder)
     }
 }
+/// Convert scene-linear luminance for a mask or its eyedropper.
+pub fn luminance_in_domain(y: f32, domain: engine_api::recipe::mask::LuminanceDomain) -> f32 {
+    match domain {
+        engine_api::recipe::mask::LuminanceDomain::Linear => y,
+        engine_api::recipe::mask::LuminanceDomain::Display => display_encoded_luminance(y),
+    }
+}
+
 /// Extended sRGB transfer of linear Rec.2020 Y for perceptual mask thresholds.
 /// HDR and negative values stay outside the unit interval, not clipped into a band.
 pub fn display_encoded_luminance(y: f32) -> f32 {
@@ -374,6 +387,7 @@ fn validate(input: &Image, group: &LocalAdjustment, options: MaskOptions<'_>) ->
                     && bounded(*feather, 0., 100.)
             }
             MaskKind::LuminanceRange {
+                luminance_domain: _,
                 range: r,
                 smoothness,
             } => range(r) && bounded(*smoothness, 0., 100.),

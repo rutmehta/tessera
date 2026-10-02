@@ -51,7 +51,7 @@ final class MaskingTests: XCTestCase {
     private func group(_ id: UInt32, _ kinds: [MaskComponentType] = [.linear], ai: AiMaskState = .notAi) -> MaskGroupInfo {
         MaskGroupInfo(id: id, name: "Mask \(id)", enabled: true, amount: 100, invert: false,
                       components: kinds.map {
-                          MaskComponentInfo(kind: $0, enabled: true, combine: .add, invert: false, title: "\($0)", definitionJson: "{}",
+                          MaskComponentInfo(enabled: true, kind: $0, combine: .add, invert: false, title: "\($0)", definitionJson: "{}",
                                             ai: $0.isAI ? ai : .notAi, aiKey: $0.isAI ? "k\(id)" : nil, rendered: true)
                       },
                       params: LocalParam.all.map { LocalParamValue(name: $0.name, value: 0) })

@@ -386,10 +386,15 @@ fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
             }
             MaskKind::Brush { strokes }
         }
-        MaskKind::LuminanceRange { range, smoothness } => {
+        MaskKind::LuminanceRange {
+            range,
+            smoothness,
+            luminance_domain,
+        } => {
             let lo = finite_or(range[0], 0.0).clamp(0.0, 1.0);
             let hi = finite_or(range[1], 1.0).clamp(lo, 1.0);
             MaskKind::LuminanceRange {
+                luminance_domain: *luminance_domain,
                 range: [lo, hi],
                 smoothness: unit(*smoothness, 50.0),
             }
@@ -601,6 +606,13 @@ fn group_info(g: &LocalAdjustment, ai: &HashMap<String, AiEntry>) -> MaskGroupIn
 }
 
 fn parse_kind(json: &str) -> Result<MaskKind> {
+    let component: MaskComponent =
+        serde_json::from_str(json).map_err(|e| failure(format!("mask definition: {e}")))?;
+    LocalAdjustment {
+        components: vec![component],
+        ..Default::default()
+    }
+    .validate_mask_tree()?;
     serde_json::from_str(json).map_err(|e| failure(format!("mask definition: {e}")))
 }
 
@@ -1652,10 +1664,13 @@ impl DevelopSession {
                 amount: 12.0,
             },
             RangeKind::Luminance => {
-                let l = pipeline_cpu::masks::display_encoded_luminance(
+                let luminance_domain = engine_api::recipe::mask::LuminanceDomain::Linear;
+                let l = pipeline_cpu::masks::luminance_in_domain(
                     (0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]).max(0.0),
+                    luminance_domain,
                 );
                 MaskKind::LuminanceRange {
+                    luminance_domain,
                     range: [(l * 0.5).min(1.0), (l * 2.0).min(1.0)],
                     smoothness: 50.0,
                 }
@@ -2001,7 +2016,7 @@ mod tests {
             .unwrap()
             .remove(0)
             .id;
-        let session = engine.clone().open_develop_session(id).unwrap();
+        let session = engine.clone().open_develop_session(id.clone()).unwrap();
         let rgb = session.sample_prelocal(0.5, 0.5).unwrap();
         session
             .add_range_mask(None, RangeKind::Luminance, 0.5, 0.5, MaskCombineMode::Add)
@@ -2012,7 +2027,26 @@ mod tests {
             pipeline_cpu::masks::rasterize(&image, &group, Default::default()).unwrap(),
             vec![1.]
         );
+        let before = session.shared.lock().unwrap().live.clone();
+        let mut c = serde_json::json!({"kind":"brush","strokes":[]});
+        for _ in 1..9 {
+            c = serde_json::json!({"kind":"brush","strokes":[],"group":[c]});
+        }
+        let patch = serde_json::json!({"locals":{"adjustments":[{"components":[c]}]}});
+        assert!(session.set_settings(patch.to_string(), false).is_err());
+        assert_eq!(session.shared.lock().unwrap().live, before);
         session.close().unwrap();
+        let original = engine.get_recipe(id.clone()).unwrap();
+        let mut recipe: engine_api::recipe::Recipe = serde_json::from_str(&original).unwrap();
+        recipe.settings.locals.adjustments =
+            serde_json::from_value(patch["locals"]["adjustments"].clone()).unwrap();
+        recipe.history = Default::default();
+        recipe.history.base = recipe.settings.clone();
+        let error = engine
+            .set_recipe_json(id.clone(), serde_json::to_string(&recipe).unwrap())
+            .unwrap_err();
+        assert!(format!("{error}").contains("8 levels"));
+        assert_eq!(engine.get_recipe(id).unwrap(), original);
     }
     #[test]
     fn lr4c_brush_painting_does_not_pick_disabled_brush() {
@@ -2162,6 +2196,40 @@ mod tests {
             "{raster:?}"
         );
         assert!(raster[0] < 0.1);
+    }
+
+    #[test]
+    fn lr4e_mask_setters_reject_ninth_level_before_discarding_extensions() {
+        let mut c = serde_json::json!({"kind":"brush","strokes":[]});
+        for _ in 1..8 {
+            c = serde_json::json!({"kind":"brush","strokes":[],"group":[c]});
+        }
+        assert!(parse_kind(&c.to_string()).is_ok());
+        c = serde_json::json!({"kind":"brush","strokes":[],"group":[c],"enabled":false});
+        assert!(parse_kind(&c.to_string()).is_err());
+    }
+
+    #[test]
+    fn lr4e_imported_mask_and_crop_share_sensor_frame_for_exif_6_and_8() {
+        let (recipe, _) = import_lrcat::lua_develop::parse(
+            r#"s={HasCrop=true,CropLeft=0.25,CropRight=0.75,CropTop=0.25,CropBottom=0.75,MaskGroupBasedCorrections={{CorrectionMasks={{What="Mask/Gradient",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}}"#, "15.4").unwrap();
+        let image = pipeline_cpu::Image::new(4, 4, vec![vec![0.2; 16]; 3]).unwrap();
+        let alpha = pipeline_cpu::masks::rasterize(
+            &image,
+            &recipe.settings.locals.adjustments[0],
+            Default::default(),
+        )
+        .unwrap();
+        let crop = recipe.settings.geometry.crop.rect;
+        for (orientation, expected) in [(6, [0.375, 0.625]), (8, [0.625, 0.375])] {
+            // Crop coordinates and mask coordinates are both pre-orientation.
+            let sensor = orient([0.25, 0.25], orientation);
+            let x = crop.left + sensor[0] * (crop.right - crop.left);
+            let y = crop.top + sensor[1] * (crop.bottom - crop.top);
+            assert_eq!([x, y], expected);
+            let pixel = ((y * 4.) as usize) * 4 + (x * 4.) as usize;
+            assert_eq!(alpha[pixel], 1. - x);
+        }
     }
 
     #[test]

@@ -66,10 +66,19 @@ fn lr4c_masks_are_anchored_before_guided_upright() {
 #[test]
 fn lr4e_legacy_linear_and_explicit_display_select_different_bands() {
     let image = Image::new(2, 1, vec![vec![0.18, 0.45]; 3]).unwrap();
-    for (domain, expected) in [(None, vec![0., 1.]), (Some("linear"), vec![0., 1.]), (Some("display"), vec![1., 0.])] {
+    for (domain, expected) in [
+        (None, vec![0., 1.]),
+        (Some("linear"), vec![0., 1.]),
+        (Some("display"), vec![1., 0.]),
+    ] {
         let mut c = json!({"kind":"luminance_range","range":[0.4,0.5]});
-        if let Some(d) = domain { c["luminance_domain"] = json!(d); }
+        if let Some(d) = domain {
+            c["luminance_domain"] = json!(d);
+        }
         let g = serde_json::from_value(json!({"components":[c]})).unwrap();
-        assert_eq!(rasterize(&image, &g, MaskOptions::default()).unwrap(), expected);
+        assert_eq!(
+            rasterize(&image, &g, MaskOptions::default()).unwrap(),
+            expected
+        );
     }
 }

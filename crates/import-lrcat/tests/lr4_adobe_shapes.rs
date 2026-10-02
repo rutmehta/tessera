@@ -10,6 +10,7 @@ fn lr4_adobe_aggregate_and_range_mask_spelling() {
     assert!(matches!(
         c.group.as_ref().unwrap()[0].kind,
         engine_api::recipe::MaskKind::LuminanceRange {
+            luminance_domain: _,
             range: [0.2, 0.8],
             ..
         }

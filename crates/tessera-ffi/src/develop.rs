@@ -2708,6 +2708,7 @@ impl DevelopSession {
             value["white_balance"]["mode"] = Value::String("custom".into());
         }
         let mut next: DevelopSettings = serde_json::from_value(value).map_err(failure)?;
+        next.locals.validate_mask_trees()?;
         next.geometry
             .upright
             .invalidate_after_edit(&st.live.geometry.upright);

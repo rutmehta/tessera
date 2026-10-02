@@ -6,7 +6,7 @@ use pipeline_cpu::{
 use serde_json::json;
 #[test]
 fn lr4b_asymmetric_bounds_roundtrip_and_render() {
-    let value = json!({"components":[{"kind":"luminance_range","range":[0.25,0.5],"luminance_bounds":[0.0,0.25,0.5,1.0]}]});
+    let value = json!({"components":[{"kind":"luminance_range","luminance_domain":"display","range":[0.25,0.5],"luminance_bounds":[0.0,0.25,0.5,1.0]}]});
     let g: LocalAdjustment = serde_json::from_value(value).unwrap();
     let data = vec![
         0.,
