@@ -107,3 +107,73 @@ only pre-existing untracked file is the coordinator's `LR-RULINGS-FROM-A.md`.
 Generated UniFFI Swift retains the generator's existing trailing-space style;
 non-generated changes pass `git diff --check`.
 
+
+## LR-4f predecessor integration (2026-10-02)
+
+Rebased all 31 LR-4 commits without squashing from `4ecf521d` onto fetched
+`origin/wp/LR-1-point-color` at `095de74aa3687143739abd7eda15c3ff95a37d3b`
+(main + LR-2 through 2f + LR-1 through 1c). This is a local pre-stack; no push.
+
+Every textual conflict (original replayed commit IDs):
+
+| Replayed commit | File | Resolution |
+| --- | --- | --- |
+| `943a38a6` | `crates/import-lrcat/src/lua_develop.rs` | Combined LR-4's mask retention exclusion with LR-2's legacy/stale-modern-control retention. The final parser uses predecessor `parse_inner(..., false)` so Lua hooks run once and LR-7 finish owns history. |
+| `943a38a6` | `crates/import-lrcat/src/xmp.rs` | Combined mask exclusion and legacy retention; preserved LR-1 PointColors diagnostics/hooks. |
+| `8af368d6` | `crates/engine-api/src/recipe/schema.rs` | Kept all LR-2 feature tests and appended all LR-4 mask feature tests. |
+| `bff98c61` | `crates/engine-api/src/recipe/schema.rs` | Union of monochrome, extended curves, legacy tone and mask predicates. |
+| `bff98c61` | `crates/import-lrcat/src/lua_develop.rs` | Applied LR-4c's deliberate removal of the translated-mask retention exclusion, preserving LR-2 stale-modern controls and retained source. |
+| `bff98c61` | `crates/import-lrcat/src/xmp.rs` | Same LR-4c retention evolution, preserving LR-1 diagnostics and LR-2 legacy retention/hooks. |
+| `15434970` | `docs/coordination/LR-TRANSLATION-MATRIX.md` | Kept all predecessor rows, including Blacks and Recovery; added LR-4 nested range/Paint rows and applied LR-4 row updates. |
+| `7c2e46f3` | `crates/engine-api/src/recipe/schema.rs` | Kept PointColors predicate and added display-luminance mask predicate; all prior predicates/tests survive. |
+| `7c2e46f3` | `crates/import-lrcat/tests/translation_matrix.rs` | Combined LR-2 HDR context with LR-4 slash-qualified root-key import handling; retained main's approximate/ignored and exact-retention guards. |
+| `7c2e46f3` | `crates/tessera-mcp/tests/console.rs` | Kept both independent tests: LR-1c Point Color before monochrome, and LR-4e rejection of a ninth mask level without saving. |
+
+`pipeline-gpu/src/batch.rs` had no textual conflict and is identical to the
+predecessor: legacy-tone, PointColors, ToneExtra and geometry CPU fallbacks all
+survive. Main's first-lane schema checklist remains intact. LR-7's shared finish
+records history; no new lane history writer was added. Point Color remains
+before B&W, and LR-4 masks remain before Upright.
+
+The single new integration regression is
+`crates/tessera-ffi/tests/lr4f_combined_import.rs`. It updates a row in a generated
+fixture catalog with PointColors, monochrome/mixer, a nested luminance mask and
+Upright homography. It verifies one Import author entry, required and serialized
+schema 4, fields for every lane, diagnostics read only through
+`diagnostics::entries()`, and finite nonzero full CPU output that changes when
+the imported local mask is removed. No dependencies or real catalogs are used.
+
+### LR-4f gates
+
+Environment for every Cargo/Swift gate: `PATH="$HOME/.cargo/bin:$PATH"`,
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-4-parametric-masks`,
+`CARGO_BUILD_JOBS=4`, `RAYON_NUM_THREADS=4`. Explicit release clean of all LR-4
+touched crates removed 8.0 GiB; predecessor-only `pipeline-adobe` was cleaned
+before the full run too. Existing repo `fixtures/raw` was used.
+
+| Gate | Result | Evidence in `../LR-4f/` |
+| --- | --- | --- |
+| Focused combined import regression, release | PASS: 1 test | `combined.log` |
+| `cargo test --release --locked --no-fail-fast -p import-lrcat -p engine-api -p pipeline-cpu -p pipeline-gpu -p compositor -p filters -p sidecar -p image-core -p merge -p export -p tessera-ffi -p tessera-mcp` | PASS: 2193 passed, 0 failed, 75 ignored; 374 summaries including doctests; no command-level exclusions | `tests.log`, `tests.exit` |
+| `cargo clippy --release --locked --workspace --all-targets -- -D warnings` | PASS | `clippy.log`, `clippy.exit` |
+| `cargo fmt --all -- --check` | PASS | `fmt.log`, `fmt.exit` |
+| `cd apps/mac && ./build-ffi.sh` | PASS: arm64 archive; regenerated bindings match tracked files | `build-ffi.log`, `build-ffi.exit` |
+| `tools/orchestrate/swift-gate.sh` | SWIFT GATE OK: 920 XCTest tests, 3 skipped, 0 failures; 5 Swift Testing tests passed | `swift.log`, `swift.exit` |
+| `cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | PASS: 143.15 s | `swift-release.log`, `swift-release.exit` |
+
+The strict build had no Swift compiler warnings. The linker repeated the known
+`blake3_neon.o` warning (object built for macOS 26.2, app links for 15.0).
+The FFI rebuild also printed LibRaw C deprecation warnings. Neither failed a
+requested gate; macOS 15 runtime compatibility is not established by these builds.
+
+All requested gates passed on the first full run. The matrix audit retained all
+111 predecessor rows unchanged outside LR-4 and added seven LR-4 rows. No
+`Cargo.lock`, dependency manifests, or `board.json` changed, no GUI was opened,
+and no user's real catalog was read. Only generated catalogs and repository
+fixtures were used. The pre-existing untracked coordinator rulings file remains
+untouched. Regenerated FFI files had no tracked differences.
+
+New commits: `2b3685dd` is the single LR-4f test/integration commit; the following
+`docs(LR-4f)` commit records this handoff and gate evidence. Both end with the
+requested co-author trailer. All commits remain local for the coordinator to
+force-push; all 31 original LR-4 commits were preserved individually.
