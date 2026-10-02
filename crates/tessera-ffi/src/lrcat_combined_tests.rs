@@ -85,6 +85,9 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
         let (recipe, warnings) = import_lrcat::develop(catalog_id, SOURCE, "15.4").unwrap();
         assert!(warnings.is_empty(), "{warnings:?}");
         image.recipe = recipe;
+        // LR-8c: an online original keeps main's unrotated resource extent.
+        // Catalog orientation is a proxy-only override, not an original edit.
+        image.orientation = Some("BC".into());
         let mut spool = import.spool.reopen().unwrap();
         let bytes = serde_json::to_vec(&image).unwrap();
         let offset = spool.seek(SeekFrom::End(0)).unwrap();
@@ -92,6 +95,7 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
         import.records[row.index] = (offset, bytes.len());
     }
     let (w, h) = image::image_dimensions(&row.path).unwrap();
+    assert_ne!(w, h, "non-square extent must detect an accidental swap");
     let mut png = Cursor::new(Vec::new());
     image::GrayImage::from_pixel(w, h, image::Luma([128]))
         .write_to(&mut png, image::ImageFormat::Png)
