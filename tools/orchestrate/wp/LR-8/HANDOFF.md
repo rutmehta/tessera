@@ -277,3 +277,110 @@ Local evidence: `/tmp/lr8e-red.log`, `/tmp/lr8e-release.log`,
 `/tmp/lr8e-release-final.log`, `/tmp/lr8e-preview-retry.log`,
 `/tmp/lr8e-release-remaining.log`, `/tmp/lr8e-ffi-serial.log`,
 `/tmp/lr8e-safety-final.log`, `/tmp/lr8e-clippy.log`, and `/tmp/lr8e-fmt.log`.
+
+### LR-8f review response (on top of 85958b35)
+
+1. **B1 fixed.** Admission now requires the selected full-resolution IFD's
+   inline SHORT PhotometricInterpretation=34892, Compression=34892 or 52546,
+   and SamplesPerPixel=3. Other LinearRaw layouts fall through to LibRaw,
+   including compression 1/7/8 and one-channel images; tests cover both readers
+   with valid and malformed unrelated fields. Pre-identification errors still
+   return None. A current recursive inventory of `fixtures/raw` found one DNG:
+   its full-resolution IFD has PI=32803, compression=1, channels=1 (CFA), while
+   its thumbnail has PI=2. No compression-7/8 LinearRaw or ProRAW-like fixture
+   exists there, so the conditional origin/main real-fixture comparison is N/A.
+2. **B2 fixed.** Checked sum of compressed tile byte counts must be no larger
+   than the file and no larger than 128 MiB. Tile count is capped at 65,536;
+   the existing per-tile 32 MiB limit remains. Compressed tiles are retained
+   during header validation and consumed from that bounded cache: each tile
+   is read from the file once. Metadata projection reads no tile payloads.
+   Tests reject alias amplification and excessive tiny tiles and count actual
+   payload bytes read. Existing field/layout/header validation precedes the
+   full pixel allocation. JPEG maximum dimensions and JXL AllocTracker remain.
+3. **M1 fixed.** Only Adobe transform 0 selects raw component interleaving.
+   Transform 1 and JFIF without APP14 request RGB output from zune, converting
+   YCbCr. Tests check actual decoded pixels through PI=34892 for all three
+   cases (first camera pixel approximately 48/69/84 versus converted 0/100/0),
+   plus existing RGB component-ID coverage. The synthetic camera-channel JPEG
+   and its DNG wrapper now explicitly carry Adobe transform 0; the generator
+   and fixture documentation describe that correction.
+4. **JXL verified.** Header input grows geometrically from 64 bytes to a 64 KiB
+   ceiling, replacing byte-at-a-time reparsing. AllocTracker is installed before
+   initialization; bounded initialization can buffer a frame prefix, but image
+   geometry is checked before feeding remaining data or rendering pixels.
+   A valid 16x16 header with zero frames is independently parsed in the test,
+   then the DNG reader must return `JXL frame missing`, never call render_frame(0).
+   The supplied private 16-bit lossy JXL sample was decoded and rendered at
+   `afe97d4c` and at the LR-8f implementation, using identical default settings
+   and scale=1. Numeric comparison only:
+
+   | Output | Dimensions | Compared values | Max absolute difference | Bit-identical |
+   | --- | --- | ---: | ---: | --- |
+   | Decoded camera f32 | 2560x1707 | 13,109,760 | 0 | yes |
+   | Linear render f32 | 2560x1707 | 13,109,760 | 0 | yes |
+   | RGB8 render | 2560x1707 | 13,109,760 | 0 | yes |
+
+   Both private runs passed. Source was opened read-only; temporary pixel
+   outputs and the detached baseline worktree were deleted after comparison.
+   No private image, metadata, identifier, or derivative is committed. No GUI
+   or install was performed.
+5. **Seeded mutation test added.** Deterministic xorshift seed
+   `0x8f5eed1234567890`; 128 bit-flip/truncation cases per full JPEG/16-bit JXL
+   seed, each passed through read and read_metadata (512 invocations). Both
+   seeds decode successfully first, include calibration, crop, ActiveArea,
+   all three opcode lists, and full LinearizationTables (256/65,536 entries).
+   The IFD precedes payloads so truncation exercises identified-container
+   validation. Bit flips sample IFDs, payload tails, and the complete container.
+   Each invocation asserts no panic, cumulative allocations below 768 MiB
+   (also bounding peak tracked allocation), and elapsed time below 2 seconds.
+   Per-thread allocator instrumentation includes codec allocations in this
+   non-Rayon decoder configuration. Final focused run: maximum 2,455,363 bytes,
+   maximum 1,171 microseconds; entire seven-test binary finished in 0.04 s.
+
+**Minors:** removed the f64 tile copy. JPEG stores u8; JXL stores f32 and promotes
+one sample at a time for normalization, preserving prior f64 arithmetic and
+bit-identical private output. Conservative 24-byte/padded-pixel admission remains
+at 512 MiB. The cyclic-IFD regression asserts the specific cyclic/excessive-graph
+error. Production changes are confined to raw-decode's lossy_dng.rs.
+
+**Attempt ledger:**
+
+- Synthetic JXL generator: first rustc invocation selected cached zune-core 0.4
+  and failed a type/version mismatch; selecting already-locked 0.5.3 succeeded.
+  No dependency or lock edits.
+- `/tmp/lr8f-red.log`: five intended failures (admission, aliased reads, duplicate
+  reads, tile count, JPEG pixels); header-only and mutation tests passed.
+  RED commit `ec2f312a` precedes implementation.
+- `/tmp/lr8f-green-1.log`: 28 focused tests passed; mutation max 2,455,331 bytes,
+  710 microseconds. `/tmp/lr8f-green-2.log`: seven passed after strengthening the
+  frame-less JXL assertion; max 2,455,331 bytes, 741 microseconds.
+  `/tmp/lr8f-green-3.log`: seven passed after repacking mutation seeds with IFDs
+  before payloads; bounds reported above. No thresholds were weakened.
+- `/tmp/lr8f-private-before.log` and `/tmp/lr8f-private-after.log`: one successful
+  decode plus linear/RGB render each; test execution 1.59/1.56 seconds.
+- `/tmp/lr8f-clean.log`: requested plain clean removed zero files (debug profile).
+  First release gate launch `/tmp/lr8f-release-1.log` was deliberately interrupted
+  during compilation, before tests, to clean the actual release artifacts.
+  `/tmp/lr8f-clean-release.log`: 190 files / 91.0 MiB removed with
+  `cargo clean --release -p raw-decode`. Complete gate restarted serially in
+  `/tmp/lr8f-release-2.log`.
+- `/tmp/lr8f-release-2.log`: **PASS**, all seven requested release crates,
+  **1,499 passed, zero failed, 56 existing ignores**, including streaming-memory
+  and latency assertions. Build took 6m 11s. No timing retry or threshold change
+  was needed after the deliberate clean-build restart. Command:
+  `cargo test --locked --release -p raw-decode -p image-core -p pipeline-cpu
+  -p import-lrcat -p previews -p export -p tessera-ffi -- --test-threads=1`.
+- `/tmp/lr8f-clippy-1.log`: `cargo clippy --locked --release --workspace
+  --all-targets -- -D warnings` **PASS** on its first attempt (33.87 s).
+- `/tmp/lr8f-fmt.log`: `cargo fmt --all -- --check` **PASS**;
+  `git diff --check` **PASS**.
+
+All runs use the requested PATH, external `$HOME/.cache/tessera-target/LR-8e`,
+and `CARGO_BUILD_JOBS=4`. Release tests run with one test thread because other
+lanes were building/testing on the machine. No test skips were added. Cargo.lock
+and every board.json are unchanged from 85958b35.
+
+Cherry-pick order: `ec2f312ac4bfc8717f7a103c23b000541cca025d` (RED),
+`46965d1cfca6a95b1901e102586ea3685aaa2bdd` (fix), then the documentation commit
+containing this LR-8f section. Each ends with the requested Claude Opus 5.5
+co-author trailer.
