@@ -282,7 +282,7 @@ pub(crate) fn parse_inner(
             diagnostics.push((
                 qualified,
                 p.raw,
-                "mask source retained; Adobe metadata/raster fidelity is not guaranteed".into(),
+                p.node.map(crate::mask_source::unsupported_reason).unwrap_or_else(|| "mask correction must contain a structured selection".into()),
             ));
         }
     }
