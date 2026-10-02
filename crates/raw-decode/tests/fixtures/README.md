@@ -26,3 +26,8 @@ and Adobe APP14 / RGB component-ID invariance. The gradient tolerance is
 `linear-gradient.dng` is the synthetic JPEG above wrapped by
 `tests/support::lossy_dng(false, false)`. It is used by the opt-in catalog fixture
 builder, with no dependency on a RAW encoder or any photographic input.
+
+`linear-gradient-jxl.dng` is the same synthetic TIFF as `linear-gradient.dng`,
+with its JPEG payload replaced by `cjxl linear-gradient.jpg output.jxl
+--lossless_jpeg=0 -d 0`; Compression is 52546 and TileByteCounts is updated.
+It exercises the app's imported JPEG XL LinearRaw route without private pixels.
