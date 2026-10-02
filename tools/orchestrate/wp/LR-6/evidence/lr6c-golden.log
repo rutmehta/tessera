@@ -1,0 +1,21 @@
+
+running 1 test
+test synthetic_catalog_output_including_retained_source ... FAILED
+
+failures:
+
+---- synthetic_catalog_output_including_retained_source stdout ----
+golden digest: be459483cec045b19e6fae5ec597baddc53ae2b04f3611b9a131570dcd13cc00
+
+thread 'synthetic_catalog_output_including_retained_source' (54796841) panicked at crates/import-lrcat/tests/golden.rs:31:5:
+assertion `left == right` failed
+  left: "be459483cec045b19e6fae5ec597baddc53ae2b04f3611b9a131570dcd13cc00"
+ right: "d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    synthetic_catalog_output_including_retained_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 7.64s
+

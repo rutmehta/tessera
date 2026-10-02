@@ -1,0 +1,7253 @@
+{
+  "source_commit": "0b3b8074f75601e4511db1816495e362458c4419",
+  "top_level_totals": {
+    "passed": 1844,
+    "failed": 0,
+    "ignored": 60,
+    "measured": 0,
+    "filtered": 0
+  },
+  "targets": [
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/brush-3043429f5780a266)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/adaptive_gpu.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/adaptive_gpu-c905d0a814026b24)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.07s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.07s"
+      }
+    },
+    {
+      "target": "Running tests/brush.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/brush-377b714b46cee50b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.13s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.13s"
+      }
+    },
+    {
+      "target": "Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/m532_channels-9a842b2cfa8477da)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/preset_serde.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/preset_serde-97c42bb54dc0d0b2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/vanishing.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/vanishing-c54df7ff4150038c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/engine_api-fa7a89fb3b705a57)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 88,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 88,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/channels-87798823891b41b6)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_filters-8aac72088d22f1be)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/legacy_ca_lr7b.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/legacy_ca_lr7b-6fbcf1f2ccb259f3)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/library_calls.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/library_calls-d0f5fb8f0928b1a1)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr2_schema.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr2_schema-ecbc1e2d046cbf3a)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr2b.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr2b-9d4a16e7315a2d9e)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_mask_schema.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_mask_schema-eb7c10867beb26d6)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4b_schema.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4b_schema-a18b943b5190434c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/m532_channels-6d2524cf099ea298)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/people-6ce0bd7db73278ff)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/pinned_raw.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/pinned_raw-0175156bff51064e)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 20,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/review_lr7c.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/review_lr7c-a0ac17901cccc50d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/source_kind.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/source_kind-a863fe755a5fc754)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/text_vector-fb95f25c95f4753b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export-88020ca491d01ea0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 34,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.98s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 34,
+        "failed": 0,
+        "ignored": 2,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.98s"
+      }
+    },
+    {
+      "target": "Running tests/ai_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/ai_masks-a6000564d05405b2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.14s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.14s"
+      }
+    },
+    {
+      "target": "Running tests/avif.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/avif-aa142043ee48c5b0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.16s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.16s"
+      }
+    },
+    {
+      "target": "Running tests/avif_precision.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/avif_precision-05575d362b2a5ebb)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.11s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.11s"
+      }
+    },
+    {
+      "target": "Running tests/batch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/batch-f4cf45d951b4e4fb)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "4.88s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "4.88s"
+      }
+    },
+    {
+      "target": "Running tests/dng.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/dng-64756de6f61216d8)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/dng_libraw.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/dng_libraw-81cedebd401e7dcd)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.03s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.03s"
+      }
+    },
+    {
+      "target": "Running tests/dng_original.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/dng_original-048abebae293ec25)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.21s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.21s"
+      }
+    },
+    {
+      "target": "Running tests/dng_safety.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/dng_safety-c6c410eadba6752c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/errors.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/errors-7477cf2992097dc2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/export.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export-1df5ce434bb010e6)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.63s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.63s"
+      }
+    },
+    {
+      "target": "Running tests/gpu_bench.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/gpu_bench-bc3a4d7dbcfa40d7)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 3,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 3,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/hdr_avif.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/hdr_avif-5edf89c31bad787c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.15s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.15s"
+      }
+    },
+    {
+      "target": "Running tests/hdr_filtering.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/hdr_filtering-f7ccff073e5ddaa3)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/hdr_output.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/hdr_output-6a53527f4d569835)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/hdr_reconstruction.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/hdr_reconstruction-0f4a1adb930f8e7f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.02s"
+      }
+    },
+    {
+      "target": "Running tests/lens_analysis.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_analysis-42d00fa445e87931)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/managed.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/managed-2562d6c1bbb7d98c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/metadata_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/metadata_policy-16180cdc6cd043cd)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.65s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.65s"
+      }
+    },
+    {
+      "target": "Running tests/native_metadata.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/native_metadata-1e6516686ac7d04f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "16.27s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "16.27s"
+      }
+    },
+    {
+      "target": "Running tests/native_review_regressions.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/native_review_regressions-7aef0a4ffe85313c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.03s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.03s"
+      }
+    },
+    {
+      "target": "Running tests/orientation.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/orientation-d5548d3ad9b48163)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.24s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.24s"
+      }
+    },
+    {
+      "target": "Running tests/original.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/original-10cf1336c225594e)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.03s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.03s"
+      }
+    },
+    {
+      "target": "Running tests/original_tiff.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/original_tiff-93cd240aa902c5f8)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/output_sharpening.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/output_sharpening-6914779b5464a7be)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.32s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.32s"
+      }
+    },
+    {
+      "target": "Running tests/resize.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/resize-847e3496c22aa326)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.43s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.43s"
+      }
+    },
+    {
+      "target": "Running tests/size_limit.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/size_limit-e9fd73ac8ecd0ba5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.09s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.09s"
+      }
+    },
+    {
+      "target": "Running tests/smart_preview_admission.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/smart_preview_admission-5dd07e6efdd0b03d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/staged.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/staged-8bc451c32ef81e3f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/upscale.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/upscale-58ec2a531e9e5bd8)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/watermark.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/watermark-bbaa104ca009bb32)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/workflow.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/workflow-a0690a45815b1270)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.01s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/image_core-28860c337db2d583)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 46,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "13.92s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 46,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "13.92s"
+      }
+    },
+    {
+      "target": "Running tests/adobe.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/adobe-746770e7846cffe9)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.03s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.03s"
+      }
+    },
+    {
+      "target": "Running tests/automatic_post_denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/automatic_post_denoise-a5a45f07063a4bd9)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/batch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/batch-a3b2a9acca1879c2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.20s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.20s"
+      }
+    },
+    {
+      "target": "Running tests/cfa_denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/cfa_denoise-5a2a08d452353cf0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.03s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.03s"
+      }
+    },
+    {
+      "target": "Running tests/denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/denoise-7d3c880844ea1048)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/depth_hook.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/depth_hook-33da83120a4860f9)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/fixture.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/fixture-304a1ceb6ef30a5f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "12.24s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "12.24s"
+      }
+    },
+    {
+      "target": "Running tests/geometry_edr.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/geometry_edr-f11b0d13d10b074d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.39s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.39s"
+      }
+    },
+    {
+      "target": "Running tests/linear_dng.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/linear_dng-b5852b208ca044be)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.05s"
+      }
+    },
+    {
+      "target": "Running tests/locals.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/locals-3e0f2392163d3824)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/locals_order.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/locals_order-efc6f306fb99c23f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr6_depth_import.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr6_depth_import-12b32b486a3ac329)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.05s"
+      }
+    },
+    {
+      "target": "Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/m2-ab4fb1cfa5eb9f7d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.54s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.54s"
+      }
+    },
+    {
+      "target": "Running tests/mask_cache.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/mask_cache-ad15607dc17f72cd)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/ml_cfa.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/ml_cfa-d3a6f4a1dc4486f8)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.92s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.92s"
+      }
+    },
+    {
+      "target": "Running tests/ml_cfa_local.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/ml_cfa_local-58725d5a8298ccb2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/ml_denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/ml_denoise-bb3ae9ec62219a32)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/packed_cfa.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/packed_cfa-7e9c3c7aa41dc346)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/pinned_raw_cpu_profile.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/pinned_raw_cpu_profile-b45ef596cd3ba802)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.12s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.12s"
+      }
+    },
+    {
+      "target": "Running tests/render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/render-93f6aaf4b3123667)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "4.94s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "4.94s"
+      }
+    },
+    {
+      "target": "Running tests/rgb.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/rgb-da6709ec4c2a163e)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/rgb_memo.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/rgb_memo-73d953c714d83b3f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.09s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.09s"
+      }
+    },
+    {
+      "target": "Running tests/smart_preview.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/smart_preview-f99f8f3058025120)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.07s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.07s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/import_lrcat-c5fac84214c47dd9)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 32,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.11s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 32,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.11s"
+      }
+    },
+    {
+      "target": "Running tests/followups.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/followups-27d5c18ee4ec10b2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.63s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.63s"
+      }
+    },
+    {
+      "target": "Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/golden-df032361ab6d5cea)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.53s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.53s"
+      }
+    },
+    {
+      "target": "Running tests/import.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/import-ff61fccf6f3d0666)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.13s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.13s"
+      }
+    },
+    {
+      "target": "Running tests/legacy_ca_lr7b.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/legacy_ca_lr7b-ec98e0b31a771544)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr1_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr1_compat-c67fac7058312556)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr2-4c47ae2368beb415)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr2c.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr2c-211b44cde919aa28)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr2e.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr2e-fab7eeb816f136e0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_adobe_shapes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_adobe_shapes-4c58076e52997e17)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_compat-171da1119006f828)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_invalid_geometry.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_invalid_geometry-2fd34d815f73fa73)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_masks-0d4039fea4aaed9d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_mixed_range.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_mixed_range-7fcc44138d93db44)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4b_forms.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4b_forms-f36f38005be87c8b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4b_retained.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4b_retained-fc8e49e7bb5b8c8b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4c_metadata.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4c_metadata-52487812bf961f9f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr5_ai.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr5_ai-7d24bcb142b393f5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr6_lens_blur.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr6_lens_blur-295368299c4483a0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lua_develop.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lua_develop-af1cb5f923ee50d5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.20s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.20s"
+      }
+    },
+    {
+      "target": "Running tests/make_fixture.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/make_fixture-9a3952f30e9febd2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/oversized_memory.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/oversized_memory-dc4ba682e8392bdc)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.31s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.31s"
+      }
+    },
+    {
+      "target": "Running tests/point_colors.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/point_colors-0f1783a1819e4575)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/real_catalog_shapes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/real_catalog_shapes-663743a4be425e2a)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.42s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.42s"
+      }
+    },
+    {
+      "target": "Running tests/retouch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/retouch-5f6af154ffcbaeeb)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/review_lr7c.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/review_lr7c-ab66ec4274dbbeb8)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/scale.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/scale-ee4c7be19462832c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "82.38s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "82.38s"
+      }
+    },
+    {
+      "target": "Running tests/schema_version.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/schema_version-fffc6c55480263bf)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.29s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.29s"
+      }
+    },
+    {
+      "target": "Running tests/smart_rating.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/smart_rating-062136f731251647)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.21s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.21s"
+      }
+    },
+    {
+      "target": "Running tests/translation_matrix.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/translation_matrix-b5237ab33121eef8)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/upright_lr7.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/upright_lr7-d35f54867e86924b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/upright_lr7_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/upright_lr7_compat-1745c8934e4a739c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/mask_ai-f27461c91fd767fb)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_nested.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_nested-74d3a83550ebbb9c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4b_bounds.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4b_bounds-904378713fcb8e29)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/mask_store-348126876bd93e0b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr5_pins.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr5_pins-cc83110816bdc963)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/merge-82eaa67c669545f5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/alignment.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/alignment-289c7cd4bc161549)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.10s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.10s"
+      }
+    },
+    {
+      "target": "Running tests/clipped_motion.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/clipped_motion-bda7852564dabd1a)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/combined.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/combined-ecfa0c9a746aef56)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.08s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.08s"
+      }
+    },
+    {
+      "target": "Running tests/hdr.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/hdr-4d49dcd84372fe91)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.17s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.17s"
+      }
+    },
+    {
+      "target": "Running tests/layer_quality.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/layer_quality-ff6183d3d64ec95c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.17s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.17s"
+      }
+    },
+    {
+      "target": "Running tests/layers.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/layers-04e6d535ea62b87d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/lens_layers.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_layers-dc7052c7927e8353)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/lens_registration.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_registration-ddbef8b1d7dd4fdf)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.54s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.54s"
+      }
+    },
+    {
+      "target": "Running tests/panorama.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/panorama-0c5fa16be2cca847)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/panorama_geometry.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/panorama_geometry-d605e64ab93f49b6)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/raw_input.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/raw_input-6e59e6316434f157)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/recipe.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/recipe-d5124e251702ef65)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/validation.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/validation-8254a1a6a9464a5f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/pipeline_cpu-475ced5a5d62b0f6)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 62,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.57s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 62,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.57s"
+      }
+    },
+    {
+      "target": "Running tests/denoise.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/denoise-c9ffb0f6488f4219)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/depth_render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/depth_render-b388fb7b3ce3a0ee)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/detail_defaults.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/detail_defaults-8b65f2f597e6c161)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/display_float.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/display_float-42560775b226bf7b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/golden-73a4e0a4e3dcbf24)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "9.77s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "9.77s"
+      }
+    },
+    {
+      "target": "Running tests/invariants.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/invariants-1707b636bd66f94a)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lens_blur.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_blur-7f440c6bfad2af45)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/lens_embedded.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_embedded-eb4eb172a02035ab)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lens_fixtures.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_fixtures-d1cd8cf9ff2174dc)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lens_m2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_m2-88130f19c79d0970)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lens_profiles.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_profiles-c5d2d91b00d4f301)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/lens_stages.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lens_stages-e20731e68d2efe2d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/locals.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/locals-13e7bd0b08b28e81)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/locals_invariants.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/locals_invariants-2eb5b74fcabb0079)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr2-f1cf59f6c97d4f1e)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_tree.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_tree-909a9e27374d8486)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4b_bounds.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4b_bounds-19f54d77046460f7)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4c_masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4c_masks-22d874d6d89ee36b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr6_controls.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr6_controls-68d40ab6b4198e0d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.03s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.03s"
+      }
+    },
+    {
+      "target": "Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/m2-83ca28bcc72afbd0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/manual_ca.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/manual_ca-39883c25a0d0ed5d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/masks-3f565e40badc6351)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/mosaic.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/mosaic-15f53feaeed8e6dc)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/opcode_fixtures.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/opcode_fixtures-2aa05e87d9915e0e)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/operators.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/operators-90fbc56734165a01)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/output.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/output-4d4d461c42369f4f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/point_colors.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/point_colors-500aaf84d74c1a15)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/render-478253c5e2af37a1)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/retouch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/retouch-1ab111fddc442165)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.39s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.39s"
+      }
+    },
+    {
+      "target": "Running tests/smart_preview.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/smart_preview-0e367abefe85b669)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/smart_preview_codec.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/smart_preview_codec-d221edb2c869aac0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 2,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/upright_lr7.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/upright_lr7-8b2b54933368a8c4)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/white_balance_v2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/white_balance_v2-b3887904371a3257)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.67s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.67s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/pipeline_gpu-d1f12a02fe32b5eb)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.12s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 24,
+        "failed": 0,
+        "ignored": 2,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.12s"
+      }
+    },
+    {
+      "target": "Running tests/cfa_resident.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/cfa_resident-3c2fa8f43368bed0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.23s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.23s"
+      }
+    },
+    {
+      "target": "Running tests/critic_metrics.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/critic_metrics-ea4999e2209435ef)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.14s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.14s"
+      }
+    },
+    {
+      "target": "Running tests/detail_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/detail_compute-b99803c81e4baedc)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/edges.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/edges-0f59fd791966b03c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/effects_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/effects_compute-dcca7b31872fff6a)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.17s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.17s"
+      }
+    },
+    {
+      "target": "Running tests/export_float.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_float-7bdd90559d64bd97)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.28s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.28s"
+      }
+    },
+    {
+      "target": "Running tests/fixtures.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/fixtures-a0d63ab4fa8dc808)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.73s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 2,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.73s"
+      }
+    },
+    {
+      "target": "Running tests/fusion_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/fusion_compute-da9ec592479c3a97)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.05s"
+      }
+    },
+    {
+      "target": "Running tests/geometry_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/geometry_compute-96731304ba1710fc)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.07s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.07s"
+      }
+    },
+    {
+      "target": "Running tests/hdr_surface.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/hdr_surface-c6357c8e8e6f11df)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.56s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.56s"
+      }
+    },
+    {
+      "target": "Running tests/interactive_geometry.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/interactive_geometry-fa9a12761a34461c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/interactive_performance.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/interactive_performance-6ff534007bbe23d2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 2,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lateral_ca_batch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lateral_ca_batch-6ae5c6a2659742b4)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.22s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.22s"
+      }
+    },
+    {
+      "target": "Running tests/level_mode.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/level_mode-4852616ce33343a1)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.67s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.67s"
+      }
+    },
+    {
+      "target": "Running tests/local_tone_resident.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/local_tone_resident-f2879aa8ff7e7ad3)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "4.04s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "4.04s"
+      }
+    },
+    {
+      "target": "Running tests/locals_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/locals_compute-0f4f30fd1186ed2c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.08s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.08s"
+      }
+    },
+    {
+      "target": "Running tests/m2.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/m2-fdab76dee90207a8)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.04s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.04s"
+      }
+    },
+    {
+      "target": "Running tests/m2_fallback.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/m2_fallback-df752fec304bfd20)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/managed_output.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/managed_output-84ec31f2bcf8dac3)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.07s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.07s"
+      }
+    },
+    {
+      "target": "Running tests/managed_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/managed_policy-99bf55f2d0c748b6)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.42s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.42s"
+      }
+    },
+    {
+      "target": "Running tests/managed_printer.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/managed_printer-9e024bf01ea1cb65)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.09s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.09s"
+      }
+    },
+    {
+      "target": "Running tests/managed_resident.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/managed_resident-8d86ade72e2f9fdc)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.20s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.20s"
+      }
+    },
+    {
+      "target": "Running tests/managed_surface.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/managed_surface-38cc2642d8125156)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.08s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.08s"
+      }
+    },
+    {
+      "target": "Running tests/operator_performance.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/operator_performance-81c90d4780d7d4e5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/operators.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/operators-a619082158b6f761)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.14s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.14s"
+      }
+    },
+    {
+      "target": "Running tests/output_lut.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/output_lut-59a55c23eaef266c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.04s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.04s"
+      }
+    },
+    {
+      "target": "Running tests/renderer.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/renderer-2dd2074c39b736e8)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.08s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.08s"
+      }
+    },
+    {
+      "target": "Running tests/resident.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/resident-ad12dd0099207780)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.88s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.88s"
+      }
+    },
+    {
+      "target": "Running tests/resident_fusion.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/resident_fusion-0225f386024e9ec4)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.13s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.13s"
+      }
+    },
+    {
+      "target": "Running tests/resident_large.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/resident_large-81fa29f19bcea3a4)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/resident_locals.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/resident_locals-ffce588a6072ec35)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.21s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.21s"
+      }
+    },
+    {
+      "target": "Running tests/resident_rgb_optics.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/resident_rgb_optics-e81bd7005f4c3a90)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.05s"
+      }
+    },
+    {
+      "target": "Running tests/resident_xtrans.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/resident_xtrans-1c555d6cdee4bcf6)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.05s"
+      }
+    },
+    {
+      "target": "Running tests/rgb.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/rgb-50a49ff17963a1f1)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.09s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.09s"
+      }
+    },
+    {
+      "target": "Running tests/smart_preview.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/smart_preview-4bb265085cc29aa9)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "17.77s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "17.77s"
+      }
+    },
+    {
+      "target": "Running tests/tone_local_compute.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/tone_local_compute-42e7207c77805744)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/previews-7951d318091b092b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 3,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.62s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 23,
+        "failed": 0,
+        "ignored": 3,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.62s"
+      }
+    },
+    {
+      "target": "Running tests/linear_dng.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/linear_dng-9873224e36cd004f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.25s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.25s"
+      }
+    },
+    {
+      "target": "Running tests/revision.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/revision-fcd9ae5be5647966)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.11s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.11s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/sidecar-d8720df52f1fe3d1)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/develop-fb555cfac65c73bc)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/export_hash.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_hash-71c246b95fe23197)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/export_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_policy-92f7e0ec2a4fc2e5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/export_resource_wrappers.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_resource_wrappers-165e611cabd1f1df)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/export_selection.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_selection-21ea0dc18a7913ba)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/faces.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/faces-42798fc44955f7ad)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr7e_acr_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr7e_acr_compat-d22d9e81e2f187ee)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/mapped_properties.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/mapped_properties-6897c471f346d9bc)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.81s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.81s"
+      }
+    },
+    {
+      "target": "Running tests/masks_complete.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/masks_complete-3613b04b2d25269a)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/native_keywords.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/native_keywords-407d3f706442f733)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/native_review_merge.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/native_review_merge-d638f14c90d126db)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/regressions.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/regressions-ced4fa530401612c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/review_lr7c.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/review_lr7c-43599aa76136653d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/roundtrip.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/roundtrip-c658696f61a226b2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/schema_upgrade.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/schema_upgrade-d3831e58087d06b1)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/schema_v4.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/schema_v4-c566ff0fe3eb088c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/selection.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/selection-6723f597b3f39a11)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/storage.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/storage-18e4e1744fece12b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 9,
+          "duration": "0.01s"
+        },
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 9,
+          "duration": "0.00s"
+        },
+        {
+          "result": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.13s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.13s"
+      }
+    },
+    {
+      "target": "Running tests/structures_complete.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/structures_complete-f71473bcb190f98d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.04s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.04s"
+      }
+    },
+    {
+      "target": "Running tests/xmp.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/xmp-e592e45c84c9591c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/tessera_ffi-51dbeaf07f7bbdde)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 247,
+          "failed": 0,
+          "ignored": 4,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "5.86s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 247,
+        "failed": 0,
+        "ignored": 4,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "5.86s"
+      }
+    },
+    {
+      "target": "Running unittests src/bin/uniffi-bindgen.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/uniffi_bindgen-2749433a3863fc03)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/adjustment_json.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/adjustment_json-17365950adb15ece)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.05s"
+      }
+    },
+    {
+      "target": "Running tests/api.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/api-602116c03ec01032)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/assist.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/assist-e8ef6c29e5a35ad3)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.73s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.73s"
+      }
+    },
+    {
+      "target": "Running tests/changes.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/changes-7306bbb8f01cbcb6)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.66s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.66s"
+      }
+    },
+    {
+      "target": "Running tests/develop.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/develop-1fc2996500bcc192)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 3,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "20.85s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 3,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "20.85s"
+      }
+    },
+    {
+      "target": "Running tests/document.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document-7ad1091e20494ef2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.67s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.67s"
+      }
+    },
+    {
+      "target": "Running tests/document_adaptive_memory.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_adaptive_memory-fc714511fd4f9009)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 3,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 3,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/document_adaptive_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_adaptive_ui-589f3422add68879)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "8.94s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 2,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "8.94s"
+      }
+    },
+    {
+      "target": "Running tests/document_camera_raw_preview.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_camera_raw_preview-9682d031fcfe0422)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.80s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.80s"
+      }
+    },
+    {
+      "target": "Running tests/document_channel_paint.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_channel_paint-7e9f53adfc00e2da)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.13s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.13s"
+      }
+    },
+    {
+      "target": "Running tests/document_channels_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_channels_ui-a1c7f7c0d491da91)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.23s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.23s"
+      }
+    },
+    {
+      "target": "Running tests/document_content_aware_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_content_aware_ui-b5b615c1e63d735a)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.15s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.15s"
+      }
+    },
+    {
+      "target": "Running tests/document_export_flat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_export_flat-34a003fdcd05b5b0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.38s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.38s"
+      }
+    },
+    {
+      "target": "Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_filters-370e450909f49582)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.16s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.16s"
+      }
+    },
+    {
+      "target": "Running tests/document_fonts.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_fonts-dffffac3128980d3)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.12s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.12s"
+      }
+    },
+    {
+      "target": "Running tests/document_gpu_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_gpu_filters-c4adbae3783c4403)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.36s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.36s"
+      }
+    },
+    {
+      "target": "Running tests/document_liquify_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_liquify_ui-c30e90a718ef6d06)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.12s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.12s"
+      }
+    },
+    {
+      "target": "Running tests/document_perf.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_perf-35a3871803d8dcf0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 7,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 7,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/document_quick_mask.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_quick_mask-83397ba18a40208f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/document_restoration.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_restoration-e701ff69391ab55f)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.07s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.07s"
+      }
+    },
+    {
+      "target": "Running tests/document_restoration_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_restoration_ui-e99b3166139430da)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.07s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.07s"
+      }
+    },
+    {
+      "target": "Running tests/document_retouch_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_retouch_ui-0f02f30ede4171f9)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.28s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.28s"
+      }
+    },
+    {
+      "target": "Running tests/document_save_destination.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_save_destination-acfd83fe18c52f04)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.29s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.29s"
+      }
+    },
+    {
+      "target": "Running tests/document_stack_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_stack_ui-35976f7c28a33a61)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.56s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 19,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.56s"
+      }
+    },
+    {
+      "target": "Running tests/document_styles_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_styles_ui-f017e7d03b8f8e3d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.10s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.10s"
+      }
+    },
+    {
+      "target": "Running tests/document_text_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_text_ui-5af08d41a40a6860)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.16s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 19,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.16s"
+      }
+    },
+    {
+      "target": "Running tests/document_tools.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_tools-38ac63d9804c50a1)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.12s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.12s"
+      }
+    },
+    {
+      "target": "Running tests/document_transform_followups.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_transform_followups-58615609bf70269c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.44s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.44s"
+      }
+    },
+    {
+      "target": "Running tests/document_transform_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_transform_ui-d07a13dfcce90999)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "3.36s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "3.36s"
+      }
+    },
+    {
+      "target": "Running tests/document_vector_ui.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_vector_ui-be299a4708eb5d16)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.19s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.19s"
+      }
+    },
+    {
+      "target": "Running tests/document_viewport.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_viewport-58686a0aa04a1896)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "5.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "5.02s"
+      }
+    },
+    {
+      "target": "Running tests/enhance.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/enhance-d543ece33269ad74)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.23s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.23s"
+      }
+    },
+    {
+      "target": "Running tests/errors.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/errors-f41c1067726166c1)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.02s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.02s"
+      }
+    },
+    {
+      "target": "Running tests/export.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export-714f540e17b9ce1c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 26,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.73s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 26,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.73s"
+      }
+    },
+    {
+      "target": "Running tests/export_metadata_policy.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_metadata_policy-f5cce070903e47ae)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/fallback.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/fallback-c8aa8572f7b13740)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.05s"
+      }
+    },
+    {
+      "target": "Running tests/hdr.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/hdr-0f85dddf882d5d68)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "3.13s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "3.13s"
+      }
+    },
+    {
+      "target": "Running tests/legacy_ca_lr7b.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/legacy_ca_lr7b-dbbffd92d5041f67)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.21s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.21s"
+      }
+    },
+    {
+      "target": "Running tests/library.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/library-8928966a3e924a4c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.29s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.29s"
+      }
+    },
+    {
+      "target": "Running tests/lr1_point_color.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr1_point_color-e5cb257d8c704442)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.20s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.20s"
+      }
+    },
+    {
+      "target": "Running tests/lr3_develop_retouch.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr3_develop_retouch-8e65e161d4db259b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.05s"
+      }
+    },
+    {
+      "target": "Running tests/lr3_retouch_import.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr3_retouch_import-46b1b9f26e136b14)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.22s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.22s"
+      }
+    },
+    {
+      "target": "Running tests/lr3f_combined_import.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr3f_combined_import-1e05d09150496108)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.28s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.28s"
+      }
+    },
+    {
+      "target": "Running tests/lr4_import_render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4_import_render-87afed452b11e226)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4b_import_render.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4b_import_render-7e5f53348411a91c)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/lr4c_approximate.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4c_approximate-e897158ec30c410e)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/lr4f_combined_import.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr4f_combined_import-9bb5c5e0a60744c4)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.21s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.21s"
+      }
+    },
+    {
+      "target": "Running tests/lrcat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lrcat-81fea9fb2ff4052b)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "2.94s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "2.94s"
+      }
+    },
+    {
+      "target": "Running tests/lrcat_streaming.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lrcat_streaming-8302b17d3fa2e432)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "113.91s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "113.91s"
+      }
+    },
+    {
+      "target": "Running tests/lrcat_streaming_parity.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lrcat_streaming_parity-8874b0ffe7f273ca)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.64s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.64s"
+      }
+    },
+    {
+      "target": "Running tests/m532_channel_display.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/m532_channel_display-dd3f0c55642151f5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.08s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.08s"
+      }
+    },
+    {
+      "target": "Running tests/masks.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/masks-6f88fc50ede57ef5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "5.14s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "5.14s"
+      }
+    },
+    {
+      "target": "Running tests/merge.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/merge-6d3df8349b3dda92)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.54s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.54s"
+      }
+    },
+    {
+      "target": "Running tests/session.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/session-47d997b789f1d247)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.22s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.22s"
+      }
+    },
+    {
+      "target": "Running tests/smart_preview_workflow.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/smart_preview_workflow-2643ada3d24fbbe2)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/tether.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/tether-175b6514b20e748d)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.47s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.47s"
+      }
+    },
+    {
+      "target": "Running tests/understanding.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/understanding-4930fc9bc6772fc5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.19s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.19s"
+      }
+    },
+    {
+      "target": "Running tests/upright_lr7.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/upright_lr7-973fd6046499e390)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.21s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.21s"
+      }
+    },
+    {
+      "target": "Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/tessera_mcp-92eca0f68d20a363)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 33,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.30s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 33,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.30s"
+      }
+    },
+    {
+      "target": "Running unittests src/main.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/tessera_mcp-66d123a32dc561b3)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/channels-4b4709bf8f7f1926)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/console.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/console-465fa92e07ad9f9a)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.40s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.40s"
+      }
+    },
+    {
+      "target": "Running tests/document_color.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_color-4fda240beeeb42d5)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.04s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.04s"
+      }
+    },
+    {
+      "target": "Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_filters-2be4ac3b641163c0)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.07s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.07s"
+      }
+    },
+    {
+      "target": "Running tests/document_protocol.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/document_protocol-e45b20a2efaa2c23)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.14s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.14s"
+      }
+    },
+    {
+      "target": "Running tests/documents.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/documents-273334ee8978f667)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.07s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.07s"
+      }
+    },
+    {
+      "target": "Running tests/export_dng.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_dng-63295b91ab552119)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.06s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.06s"
+      }
+    },
+    {
+      "target": "Running tests/export_hdr.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_hdr-ea19475baaa25686)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.05s"
+      }
+    },
+    {
+      "target": "Running tests/export_sharpening.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/export_sharpening-5410ae94e8c3e981)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.72s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.72s"
+      }
+    },
+    {
+      "target": "Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/m532_channels-7fab69b183f06217)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.05s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.05s"
+      }
+    },
+    {
+      "target": "Running tests/native_metadata.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/native_metadata-71c9071e5f19c8ca)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.61s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.61s"
+      }
+    },
+    {
+      "target": "Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/people-7409a4ea2dd4c472)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.29s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.29s"
+      }
+    },
+    {
+      "target": "Running tests/protocol.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/protocol-cd381660a79aaa56)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "1.09s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "1.09s"
+      }
+    },
+    {
+      "target": "Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/text_vector-6e02ce0063a45291)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Running tests/wiring.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/wiring-56d65a011821e176)",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.01s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.01s"
+      }
+    },
+    {
+      "target": "Doc-tests brush",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests engine_api",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests export",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests image_core",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests import_lrcat",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests mask_ai",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests mask_store",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests merge",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests pipeline_cpu",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests pipeline_gpu",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests previews",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests sidecar",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests tessera_ffi",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    },
+    {
+      "target": "Doc-tests tessera_mcp",
+      "harness_results": [
+        {
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered": 0,
+          "duration": "0.00s"
+        }
+      ],
+      "top_level": {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered": 0,
+        "duration": "0.00s"
+      }
+    }
+  ],
+  "note": "Last harness result per Cargo target excludes nested helper subprocess counts. No command-level exclusions."
+}

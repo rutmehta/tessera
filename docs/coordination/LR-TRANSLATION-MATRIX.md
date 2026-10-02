@@ -64,7 +64,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `ConvertToGrayscale` | `/settings/color/monochrome/enabled` | LR-2 | approximate | `true` |
 | `CurveRefineSaturation` | MISSING: tone-curve saturation refinement | LR-2 | unsupported-diagnostic | — |
 | `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic | — |
-| `DepthMapInfo` | MISSING: imported depth resource reference/calibration; LensBlur.depth_model identifies a model | LR-2 | unsupported-diagnostic | — |
+| `DepthMapInfo` | `/settings/effects/lens_blur/depth` | LR-6 | approximate | `{ DepthSource = "synthetic", BaseRawDepthTable = "synthetic-id" }` |
 | `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic | — |
 | `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
 | `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
@@ -87,7 +87,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `HighlightRecovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
 | `IncrementalTemperature` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
 | `IncrementalTint` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
-| `LensBlur` | `/settings/effects/lens_blur` | LR-6 | retained | — |
+| `LensBlur` | `/settings/effects/lens_blur` | LR-6 | approximate | `{ Active = true, BlurAmount = 37, FocalRange = "10 20 60 80", BokehShape = 0 }` |
 | `LensProfileIsEmbedded` | MISSING: embedded-profile/Look-vignette override semantics in /settings/lens | LR-7 | unsupported-diagnostic | — |
 | `MaskGroupBasedCorrections` | `/settings/locals/adjustments` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask` | `/settings/locals/adjustments/0/components/0/range` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
@@ -116,8 +116,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `PointColors` | `/settings/color/point_colors` | LR-1 | approximate | `{{ SrcHue=0, SrcSat=0.9, SrcLum=0.5, HueShift=0.5 }}` |
 | `RangeMaskMapInfo` | MISSING: Adobe range-mask resource mapping; candidate /settings/locals/adjustments | LR-4 | unsupported-diagnostic | — |
 | `RedEyeInfo` | MISSING: red-eye correction operator in /settings/locals/retouch | LR-3 | unsupported-diagnostic | — |
-| `RetouchAreas` | `/settings/locals/retouch` | LR-3 | retained | — |
-| `RetouchInfo` | `/settings/locals/retouch` | LR-3 | retained | — |
+| `RetouchAreas` | `/settings/locals/retouch` | LR-3 | approximate | `{{centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType='clone',opacity=0.5,feather=0.5}}` |
+| `RetouchInfo` | `/settings/locals/retouch` | LR-3 | approximate | `{'centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType=heal'}` |
 | `SDRBlend` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
 | `SDRBrightness` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
 | `SDRClarity` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
@@ -202,10 +202,23 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   handle, and the recipe has no dedicated regenerated-mask diagnostic field.
   Category decoding alone does not import Adobe Mask/Image pixels. Resource
   discovery and mask-store integration remain downstream, using synthetic data.
-- **LR-6:** `LensBlur` has amount, focus_range, bokeh string and depth_model.
-  It lacks an imported depth-map handle/calibration, detailed Adobe bokeh controls
-  and dedicated regenerated-depth provenance. A model reference is not a depth
-  raster. Existing native/simple XMP decoding does not settle Adobe fidelity.
+- **LR-6e:** LensBlur and DepthMapInfo use `approximate`: renderable controls,
+  optional selection/resource provenance, mask-store key and deferred regeneration,
+  exact source retention, and info-only diagnostics. Adobe units, enum order,
+  helper encoding and calibration remain unverified. See
+  `tools/orchestrate/wp/LR-6/HANDOFF.md` for each interpretation and uncertainty.
+  Import apply resolves caller-associated grayscale resources through
+  `image-core::depth::import_lens_blur_depth` and pins one bounded slot per image.
+  Re-import replaces the slot; image-record deletion removes it. Render reads
+  the stored key or estimates through the explicitly installed depth provider.
+  DepthMapInfo is translated only alongside active Lens Blur (the guard supplies
+  this companion). Otherwise its source and existing unsupported warning remain
+  byte-identical, with no info record and no enabled blur. Active is an exact
+  boolean translation and emits no field approximation diagnostic. Missing depth
+  receives an explicit info-only regeneration reason at import. Each field's approximate
+  diagnostic uses the shared LR-DIAG helper, names the matrix recipe path, and
+  identifies the individual Adobe field in its reason. Native focus
+  fields remain authoritative; rendering consumes stored mask-store depth keys.
 - **LR-7:** optional `geometry.upright.homography` stores a unit-image
   source-to-output map, tagged by `homography_mode`. Selected matrices,
   center/focal framing and complete four-segment guide sets are approximate.

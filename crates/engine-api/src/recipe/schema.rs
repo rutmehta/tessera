@@ -33,50 +33,59 @@ pub const RECIPE_SCHEMA_VERSION_V4: u32 = 4;
 pub type FeaturePredicate = (&'static str, fn(&Recipe) -> bool);
 
 /// Every schema 4 feature, by diagnostic name.
-const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
-    ("point_colors", |r| {
-        !r.settings.color.point_colors.is_empty()
-    }),
-    ("mask_luminance_display", |r| {
-        mask_feature(r, |c| {
-            matches!(
-                c.kind,
-                super::MaskKind::LuminanceRange {
-                    luminance_domain: super::mask::LuminanceDomain::Display,
-                    ..
-                }
-            )
-        })
-    }),
-    ("upright_homography", |r| {
-        r.settings.geometry.upright.homography.is_some()
-    }),
-    ("upright_homography_mode", |r| {
-        r.settings.geometry.upright.homography_mode.is_some()
-    }),
-    ("legacy_ca_red", |r| r.settings.lens.legacy_ca_red.is_some()),
-    ("legacy_ca_blue", |r| {
-        r.settings.lens.legacy_ca_blue.is_some()
-    }),
-    ("monochrome", |r| {
-        r.settings
-            .color
-            .monochrome
-            .as_ref()
-            .is_some_and(|m| m.enabled || m.mixer != Default::default())
-    }),
-    ("curves_extended", |r| {
-        r.settings.tone.curves_extended.is_some()
-    }),
-    ("legacy_pv2010", |r| r.settings.tone.legacy_pv2010.is_some()),
-    ("mask_component_disabled", |r| {
-        mask_feature(r, |c| !c.enabled)
-    }),
-    ("mask_groups", |r| mask_feature(r, |c| c.group.is_some())),
-    ("mask_luminance_bounds", |r| {
-        mask_feature(r, |c| c.luminance_bounds.is_some())
-    }),
-];
+const V4_FEATURE_PREDICATES: &[FeaturePredicate] =
+    &[
+        ("retouch", |r| {
+            !r.settings.locals.retouch.is_empty() || !r.history.base.locals.retouch.is_empty()
+        }),
+        ("point_colors", |r| {
+            !r.settings.color.point_colors.is_empty()
+        }),
+        ("mask_luminance_display", |r| {
+            mask_feature(r, |c| {
+                matches!(
+                    c.kind,
+                    super::MaskKind::LuminanceRange {
+                        luminance_domain: super::mask::LuminanceDomain::Display,
+                        ..
+                    }
+                )
+            })
+        }),
+        ("lens_blur", |r| {
+            r.settings.effects.lens_blur.as_ref().is_some_and(|b| {
+                b.focus_falloff.is_some() || b.adobe.is_some() || b.depth.is_some()
+            })
+        }),
+        ("upright_homography", |r| {
+            r.settings.geometry.upright.homography.is_some()
+        }),
+        ("upright_homography_mode", |r| {
+            r.settings.geometry.upright.homography_mode.is_some()
+        }),
+        ("legacy_ca_red", |r| r.settings.lens.legacy_ca_red.is_some()),
+        ("legacy_ca_blue", |r| {
+            r.settings.lens.legacy_ca_blue.is_some()
+        }),
+        ("monochrome", |r| {
+            r.settings
+                .color
+                .monochrome
+                .as_ref()
+                .is_some_and(|m| m.enabled || m.mixer != Default::default())
+        }),
+        ("curves_extended", |r| {
+            r.settings.tone.curves_extended.is_some()
+        }),
+        ("legacy_pv2010", |r| r.settings.tone.legacy_pv2010.is_some()),
+        ("mask_component_disabled", |r| {
+            mask_feature(r, |c| !c.enabled)
+        }),
+        ("mask_groups", |r| mask_feature(r, |c| c.group.is_some())),
+        ("mask_luminance_bounds", |r| {
+            mask_feature(r, |c| c.luminance_bounds.is_some())
+        }),
+    ];
 
 fn mask_feature(recipe: &Recipe, uses: fn(&super::MaskComponent) -> bool) -> bool {
     // Include disabled subtrees and retouch areas: re-enabling them must not
@@ -260,6 +269,25 @@ mod v4_feature_predicates {
         });
     }
 
+    #[test]
+    fn lens_blur_requires_v4_only_when_present() {
+        let mut native = Recipe::default();
+        native.settings.effects.lens_blur = Some(Default::default());
+        native.history.base = native.settings.clone();
+        assert_eq!(required_schema_version(&native), 3);
+        assert_eq!(written_version(&native.to_json().unwrap()), 3);
+        for field in ["focus_falloff", "adobe", "depth"] {
+            assert_bumped_only_when_present("lens_blur", |r| {
+                let value = match field {
+                    "focus_falloff" => serde_json::json!([0.1, 0.2]),
+                    _ => serde_json::json!({}),
+                };
+                r.settings.effects.lens_blur =
+                    Some(serde_json::from_value(serde_json::json!({field: value})).unwrap());
+            });
+        }
+    }
+
     fn written_version(bytes: &[u8]) -> u64 {
         serde_json::from_slice::<Value>(bytes).unwrap()["schema_version"]
             .as_u64()
@@ -397,6 +425,26 @@ mod v4_feature_predicates {
             out.push((envelope.to_string(), Recipe::from_json(&recipe).unwrap()));
         }
         out
+    }
+
+    #[test]
+    fn retouch_bumps_only_when_present() {
+        assert_bumped_only_when_present("retouch", |r| {
+            r.settings.locals.retouch.push(serde_json::from_value(serde_json::json!({
+                "id":1,"kind":{"kind":"clone","source_offset":[0.5,0.0]},
+                "target":{"kind":"area","components":[]},"opacity":50.0,"feather":0.0,"enabled":true
+            })).unwrap());
+        });
+    }
+
+    #[test]
+    fn retouch_in_history_base_bumps_only_when_present() {
+        assert_bumped_only_when_present("retouch", |r| {
+            r.history.base.locals.retouch.push(serde_json::from_value(serde_json::json!({
+                "id":1,"kind":{"kind":"clone","source_offset":[0.5,0.0]},
+                "target":{"kind":"area","components":[]},"opacity":50.0,"feather":0.0,"enabled":true
+            })).unwrap());
+        });
     }
 
     #[test]

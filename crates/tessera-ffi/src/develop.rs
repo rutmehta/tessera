@@ -382,6 +382,7 @@ impl RenderClass {
             && t.dehaze == 0.0
             && t.curves == Default::default()
             && s.locals.adjustments.is_empty()
+            && s.locals.retouch.is_empty()
         {
             Self::Light
         } else {
@@ -3091,9 +3092,11 @@ impl DevelopSession {
         let wy = y.saturating_sub(DETAIL_MARGIN);
         let ww = (x + w + DETAIL_MARGIN).min(e.width) - wx;
         let wh = (y + h + DETAIL_MARGIN).min(e.height) - wy;
-        // Learned CFA padding and masks belong to the complete sensor. Keep
-        // its identity for detail crops so they share the viewport inference.
-        let (window, ox, oy) = if pipeline_cpu::denoise_active(&settings.denoise) {
+        // Learned CFA padding and retouch sources belong to the complete sensor.
+        // A clone source may lie beyond the detail window and its margin.
+        let (window, ox, oy) = if pipeline_cpu::denoise_active(&settings.denoise)
+            || !settings.locals.retouch.is_empty()
+        {
             (s.image.clone(), x, y)
         } else {
             settings.locals = masks::window_locals(&settings.locals, e, (wx, wy, ww, wh));

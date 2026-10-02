@@ -5,6 +5,7 @@ fn untranslated_recipe_bytes_match_pre_lr1() {
     let lua = [
         ("empty", "s = {}"),
         ("global", include_str!("data/lrc155/global.lua")),
+        // LR-3f: this row now translates its explicit-source heal; its pin includes retouch.
         ("structures", include_str!("data/lrc155/structures.lua")),
         ("legacy", include_str!("data/lrc155/legacy.lua")),
         (
@@ -14,6 +15,7 @@ fn untranslated_recipe_bytes_match_pre_lr1() {
         ("nil-point", "s = { PointColors = nil }"),
         ("empty-point", "s = { PointColors = {} }"),
         ("opaque-point", "s = { PointColors = { 'opaque' } }"),
+        // LR-6f: active LensBlur now includes depth regeneration diagnostics and schema 4.
         (
             "pending",
             "s = { LensBlur = { Active = true }, RetouchInfo = { 'opaque' } }",

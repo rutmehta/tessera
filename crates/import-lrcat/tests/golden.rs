@@ -6,8 +6,10 @@ mod common;
 use engine_api::id::Digest;
 
 const N: i64 = 2_000;
-/// Re-pinned for tagged retained-source envelopes; exact per-key tests cover source spelling.
-const GOLDEN: &str = "d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8";
+/// LR-6f recomputed on the integrated tree; identical to LR-3e because this
+/// original fixture has no active Lens Blur. LR-3e retains exact RetouchInfo source plus shared approximate diagnostics,
+/// uses decoder Import XMP/xmp provenance, and writes these 200 rows as schema 4.
+const GOLDEN: &str = "87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();
@@ -68,4 +70,54 @@ fn streaming_matches_import_and_plan_json_is_byte_identical() {
             "PlanJson bytes differ"
         );
     }
+}
+
+/// Active LR-6 rows supplement the unchanged original fixture. The byte digest
+/// still serializes every ImportedImage field, normalizing only its image ID.
+#[test]
+fn lr6f_active_blur_and_inactive_depth_catalog_golden() {
+    let dir = tempfile::tempdir().unwrap();
+    let catalog = common::write(dir.path(), N);
+    let db = rusqlite::Connection::open(&catalog).unwrap();
+    for (id, source) in [
+        (
+            1004,
+            "s = { LensBlur = { Active=true, BlurAmount=37, FocalRange='10 20 60 80' } }",
+        ),
+        (
+            1005,
+            "s = { LensBlur = { Active=true, BlurAmount=37 }, DepthMapInfo={ BaseRawDepthTable='synthetic-depth' } }",
+        ),
+        (1006, "s = { DepthMapInfo={ DepthSource=1 } }"),
+        (
+            1007,
+            "s = { LensBlur={ Active=false }, DepthMapInfo={ DepthSource=1 } }",
+        ),
+    ] {
+        db.execute(
+            "UPDATE Adobe_imageDevelopSettings SET text=?1 WHERE image=?2",
+            rusqlite::params![source, id],
+        )
+        .unwrap();
+    }
+    drop(db);
+    let mut images = import_lrcat::import(&catalog).unwrap().images;
+    let baseline: serde_json::Value =
+        serde_json::from_str(include_str!("data/lr6f-main-inactive.json")).unwrap();
+    for image in &mut images {
+        image.recipe.image_id = None;
+        if let Some(expected) = baseline.get(image.catalog_id.to_string()) {
+            // Compare exact main serialization bytes, including source/history.
+            assert_eq!(
+                serde_json::to_vec(&*image).unwrap(),
+                expected.as_str().unwrap().as_bytes()
+            );
+        }
+    }
+    let got = digest(images);
+    eprintln!("LR-6f active golden digest: {got}");
+    assert_eq!(
+        got,
+        "141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0"
+    );
 }

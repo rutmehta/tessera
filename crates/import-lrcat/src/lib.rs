@@ -10,6 +10,7 @@ pub mod lua;
 pub mod lua_develop;
 mod mask_source;
 pub mod previews;
+mod retouch;
 mod search_map;
 pub mod xmp;
 pub use lua::SavedSearch;

@@ -348,6 +348,7 @@ impl ExportOptions {
     }
     fn settings(&self, output_dir: PathBuf) -> Result<export::ExportSettings> {
         Ok(export::ExportSettings {
+            retouch: Some(Arc::new(brush::render_retouch)),
             format: match self.format {
                 FileFormat::Jpeg => export::Format::Jpeg {
                     quality: self.quality,
@@ -1468,7 +1469,7 @@ impl Engine {
             export::ColorSpace::DisplayP3
         };
         let mut segmenter = segmenter;
-        let rgb = export::render_pixels(
+        let rgb = export::render_pixels_with_resources(
             &export::ExportImage {
                 source: source.render_source(),
                 name: "print",
@@ -1494,6 +1495,7 @@ impl Engine {
                 Some(s) => Some(s.as_mut()),
                 None => None,
             },
+            Some(Arc::new(brush::render_retouch)),
         )?;
         let (width, height) = rgb.dimensions();
         let pixels: Vec<[f32; 3]> = rgb

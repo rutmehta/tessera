@@ -79,6 +79,47 @@ pub fn lens_blur(
             "invalid RGB, depth, settings or options",
         ));
     }
+    let adobe = settings.adobe.as_ref();
+    let control = |get: fn(&engine_api::recipe::settings::AdobeLensBlur) -> Option<f32>,
+                   default: f32| adobe.and_then(get).unwrap_or(default);
+    let numbers = [
+        control(|a| a.highlights_boost, 0.),
+        control(|a| a.highlights_threshold, 100.),
+        control(|a| a.cat_eye_amount, 0.),
+        control(|a| a.cat_eye_scale, 100.),
+        control(|a| a.bokeh_aspect, 0.),
+        control(|a| a.bokeh_rotation, 0.),
+        control(|a| a.bokeh_shape_detail, 0.),
+        control(|a| a.spherical_aberration, 0.),
+        control(|a| a.bokeh_shape, 0.),
+        control(|a| a.focal_range_source, 0.),
+    ];
+    if settings
+        .focus_falloff
+        .is_some_and(|v| v.iter().any(|n| !n.is_finite() || *n < 0.))
+        || numbers.iter().any(|n| !n.is_finite())
+        || adobe.and_then(|a| a.focal_range).is_some_and(|range| {
+            range.iter().any(|n| !n.is_finite()) || range.windows(2).any(|w| w[0] > w[1])
+        })
+    {
+        return Err(engine_api::EngineError::invalid(
+            "lens_blur",
+            "invalid approximate controls",
+        ));
+    }
+    let boost = control(|a| a.highlights_boost, options.boost).clamp(0., 100.);
+    let threshold = control(|a| a.highlights_threshold, 100.).clamp(0., 100.) / 100.;
+    let cat_eye_control = (control(|a| a.cat_eye_amount, options.cat_eye * 100.) / 100.
+        * control(|a| a.cat_eye_scale, 100.)
+        / 100.)
+        .clamp(0., 1.);
+    let aspect = 2_f32.powf(control(|a| a.bokeh_aspect, 0.).clamp(-100., 100.) / 100.);
+    let angle = control(|a| a.bokeh_rotation, 0.).to_radians();
+    let detail = control(|a| a.bokeh_shape_detail, 0.).clamp(0., 100.) / 100.;
+    let aberration = control(|a| a.spherical_aberration, 0.).clamp(-100., 100.) / 100.;
+    if adobe.is_some_and(|a| a.active == Some(false)) {
+        return Ok(image.clone());
+    }
     if settings.amount == 0. || options.max_radius == 0. {
         return Ok(image.clone());
     }
@@ -86,9 +127,20 @@ pub fn lens_blur(
     let h = image.height() as usize;
     let n = w * h;
     let distance = |d: f32| {
-        (settings.focus_range[0] - d)
-            .max(d - settings.focus_range[1])
-            .max(0.)
+        if let Some([near, far]) = settings.focus_falloff {
+            let [b, c] = settings.focus_range;
+            if d < b {
+                ((b - d) / near.max(f32::EPSILON)).min(1.)
+            } else if d > c {
+                ((d - c) / far.max(f32::EPSILON)).min(1.)
+            } else {
+                0.
+            }
+        } else {
+            (settings.focus_range[0] - d)
+                .max(d - settings.focus_range[1])
+                .max(0.)
+        }
     };
     let membership: Vec<_> = depth
         .iter()
@@ -116,7 +168,7 @@ pub fn lens_blur(
                 .map(|&i| distance(depth[i]) as f64)
                 .sum::<f64>()
                 / members.len() as f64) as f32;
-        let r = radius.ceil() as i32;
+        let r = (radius * aspect.max(1. / aspect)).ceil() as i32;
         let mut kernel = Vec::new();
         for dy in -r..=r {
             for dx in -r..=r {
@@ -126,9 +178,11 @@ pub fn lens_blur(
                     "octagon" => 8,
                     _ => 0,
                 };
-                let radial = (dx as f32).hypot(dy as f32);
+                let px = (dx as f32 * angle.cos() + dy as f32 * angle.sin()) / aspect;
+                let py = (-dx as f32 * angle.sin() + dy as f32 * angle.cos()) * aspect;
+                let radial = px.hypot(py);
                 let inside = if matches!(settings.bokeh.as_str(), "oval" | "anamorphic") {
-                    (dx as f32 * 2.).hypot(dy as f32) <= radius
+                    (px * 2.).hypot(py) <= radius
                 } else if blades == 0 {
                     radial <= radius
                         && (settings.bokeh != "ring" || radial >= radius * 0.7 || radius < 1.)
@@ -136,7 +190,7 @@ pub fn lens_blur(
                     let apothem = radius * (std::f32::consts::PI / blades as f32).cos();
                     (0..blades).all(|b| {
                         let angle = std::f32::consts::TAU * b as f32 / blades as f32;
-                        dx as f32 * angle.cos() + dy as f32 * angle.sin() <= apothem + 1e-6
+                        px * angle.cos() + py * angle.sin() <= apothem + 1e-6
                     })
                 };
                 if inside {
@@ -145,6 +199,10 @@ pub fn lens_blur(
                     } else {
                         1.
                     };
+                    let rho = (radial / radius.max(f32::EPSILON)).clamp(0., 1.) as f64;
+                    let weight = weight
+                        * (1. + detail as f64 * rho + aberration as f64 * (2. * rho - 1.))
+                            .max(0.01);
                     kernel.push((dx, dy, weight));
                 }
             }
@@ -159,9 +217,9 @@ pub fn lens_blur(
             // The optical axis has a circular pupil; clipping increases toward
             // corners and is oriented radially, producing the cat-eye outline.
             let cat_eye = if matches!(settings.bokeh.as_str(), "cat-eye" | "cat_eye" | "cat eye") {
-                options.cat_eye.max(0.75)
+                cat_eye_control.max(0.75)
             } else {
-                options.cat_eye
+                cat_eye_control
             };
             let nx = if w > 1 {
                 2. * (i % w) as f32 / (w - 1) as f32 - 1.
@@ -196,8 +254,8 @@ pub fn lens_blur(
                 let y = 0.2627 * image.planes()[0][j] as f64
                     + 0.6780 * image.planes()[1][j] as f64
                     + 0.0593 * image.planes()[2][j] as f64;
-                let gain = if y > 1. {
-                    1. + options.boost as f64 / 100. * (1. - 1. / y)
+                let gain = if y > threshold as f64 {
+                    1. + boost as f64 / 100. * (1. - threshold as f64 / y)
                 } else {
                     1.
                 };

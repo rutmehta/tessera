@@ -48,6 +48,8 @@ impl ManualCaSettings {
 /// Caller-owned profiles, including profiles loaded by `lens::load_user_profile`.
 #[derive(Default)]
 pub struct LensContext<'a> {
+    /// Caller-owned retouch implementation, shared by render requests.
+    pub retouch: Option<std::sync::Arc<dyn crate::RetouchRenderer>>,
     /// Additive manual lateral CA, independent of profile/automatic CA toggles.
     pub manual_ca: ManualCaSettings,
     pub profile: Option<&'a Profile>,

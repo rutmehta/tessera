@@ -37,10 +37,18 @@ fn decode_with_mask_audit(text: &str, extensions: bool) -> EngineResult<sidecar:
 /// Compatibility diagnostics retain individual properties as well as the exact
 /// original packet, even when a legacy spelling needs normalization for decoding.
 pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
-    let (mut recipe, warnings) = parse_inner(text, process_version, true)?;
+    let (mut recipe, mut warnings) = parse_inner(text, process_version, true)?;
+    crate::retouch::translate(&mut recipe, &mut warnings)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
     Ok((recipe, warnings))
+}
+
+pub(crate) fn parse_without_retouch(
+    text: &str,
+    process_version: &str,
+) -> EngineResult<(Recipe, Vec<String>)> {
+    parse_inner(text, process_version, false)
 }
 
 pub(crate) fn parse_inner(
@@ -195,6 +203,14 @@ pub(crate) fn parse_inner(
     };
     let mut recipe = imported.recipe;
     let mut warnings = imported.warnings;
+    // Both unsupported-property filtering and approximation use the final,
+    // normalized recipe, including duplicate-property resolution.
+    let active_depth = !verified_native && recipe.settings.effects.lens_blur.is_some();
+    if active_depth {
+        diagnostics.retain(|(key, _, reason)| {
+            key != "crs:DepthMapInfo" || reason != "unsupported property"
+        });
+    }
     warnings.retain(|w| !w.starts_with("crs:ExtendedToneCurve"));
     if properties.iter().any(|p| {
         p.namespace == CRS
@@ -289,6 +305,9 @@ pub(crate) fn parse_inner(
             "lrcat_develop_source".into(),
             json!({"shape": "xmp-fragments", "properties": source}),
         );
+    }
+    if !verified_native {
+        approximate_depth(&mut recipe, &properties, &mut warnings, active_depth);
     }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
     if apply_lr2 {
@@ -443,6 +462,222 @@ fn normalize_legacy_masks(text: &str) -> EngineResult<String> {
     Ok(result)
 }
 
+/// Info records are persisted independently of the user-facing warnings vector.
+fn approximate_depth(
+    recipe: &mut Recipe,
+    properties: &[Property<'_>],
+    warnings: &mut Vec<String>,
+    active: bool,
+) {
+    use engine_api::recipe::settings::LensBlurDepth;
+    for p in properties.iter().filter(|p| p.namespace == CRS) {
+        if !matches!(p.name, "LensBlur" | "DepthMapInfo") {
+            continue;
+        }
+        let Some(n) = p.node else { continue };
+        let n = n
+            .children()
+            .find(|c| c.has_tag_name((RDF, "Description")))
+            .unwrap_or(n);
+        let value = |name| {
+            n.attribute((CRS, name)).map(str::to_string).or_else(|| {
+                n.children()
+                    .find(|c| c.has_tag_name((CRS, name)))
+                    .and_then(|c| c.text())
+                    .map(str::to_string)
+            })
+        };
+        if p.name == "LensBlur" {
+            if !active {
+                continue;
+            }
+            for (field, reason) in LENS_BLUR_FIELDS {
+                if value(field).is_some() {
+                    crate::diagnostics::push_approximate(
+                        recipe,
+                        "LensBlur",
+                        "/settings/effects/lens_blur",
+                        "LR-6",
+                        &format!(
+                            "approximate: {field}: {reason}; Adobe convention unverified; exact source retained"
+                        ),
+                    );
+                }
+            }
+            continue;
+        }
+        if !active {
+            continue;
+        }
+        warnings.retain(|w| !w.starts_with("crs:DepthMapInfo:"));
+        recipe.unknown.remove("crs:DepthMapInfo");
+        let mut depth = LensBlurDepth {
+            regenerate: true,
+            ..Default::default()
+        };
+        depth.depth_source = value("DepthSource");
+        depth.base_raw_depth_table = value("BaseRawDepthTable");
+        depth.base_raw_depth_input_digest = value("BaseRawDepthInputDigest");
+        depth.base_raw_depth_version = value("BaseRawDepthVersion");
+        depth.base_layered_depth_table = value("BaseLayeredDepthTable");
+        depth.base_layered_depth_input_digest = value("BaseLayeredDepthInputDigest");
+        depth.base_layered_depth_version = value("BaseLayeredDepthVersion");
+        depth.base_highlight_guide_table = value("BaseHighlightGuideTable");
+        depth.base_highlight_guide_input_digest = value("BaseHighlightGuideInputDigest");
+        depth.base_highlight_guide_version = value("BaseHighlightGuideVersion");
+        for (field, reason) in DEPTH_FIELDS {
+            if value(field).is_some() {
+                crate::diagnostics::push_approximate(
+                    recipe,
+                    "DepthMapInfo",
+                    "/settings/effects/lens_blur/depth",
+                    "LR-6",
+                    &format!(
+                        "approximate: {field}: {reason}; Adobe encoding/calibration unverified; exact source retained; regenerated depth pending if resource unavailable"
+                    ),
+                );
+            }
+        }
+        recipe
+            .settings
+            .effects
+            .lens_blur
+            .as_mut()
+            .expect("active")
+            .depth = Some(depth);
+    }
+    if active
+        && recipe
+            .settings
+            .effects
+            .lens_blur
+            .as_ref()
+            .is_some_and(|b| b.depth.is_none())
+    {
+        recipe
+            .settings
+            .effects
+            .lens_blur
+            .as_mut()
+            .expect("active")
+            .depth = Some(LensBlurDepth {
+            regenerate: true,
+            ..Default::default()
+        });
+    }
+    if active {
+        let key = if properties
+            .iter()
+            .any(|p| p.namespace == CRS && p.name == "DepthMapInfo")
+        {
+            "DepthMapInfo"
+        } else {
+            "LensBlur"
+        };
+        crate::diagnostics::push_approximate(
+            recipe,
+            key,
+            "/settings/effects/lens_blur/depth",
+            "LR-6",
+            "regenerated depth: no Adobe depth resource; Tessera estimates depth at render",
+        );
+    }
+}
+
+const LENS_BLUR_FIELDS: &[(&str, &str)] = &[
+    (
+        "BlurAmount",
+        "percentage of native maximum blur radius; Adobe image-size scaling unknown",
+    ),
+    (
+        "FocalRange",
+        "percent near-to-far endpoints populate native focus range and unclamped shoulder widths; linear ramps assumed",
+    ),
+    (
+        "BokehShape",
+        "0/1/2/3/4 approximated as circle/bubble/5-blade/ring/cat-eye; other values use circle",
+    ),
+    ("BokehShapeDetail", "percent radial pupil weighting"),
+    ("BokehAspect", "signed percent log2 axis stretch"),
+    (
+        "BokehRotation",
+        "degrees in the image plane; rotation origin and sign assumed",
+    ),
+    (
+        "HighlightsBoost",
+        "percent highlight gain; Adobe tone curve unknown",
+    ),
+    (
+        "HighlightsThreshold",
+        "percent scene-linear luminance threshold; Adobe transfer function unknown",
+    ),
+    ("CatEyeAmount", "percent radial pupil clipping"),
+    ("CatEyeScale", "CatEyeAmount multiplier divided by 100"),
+    (
+        "SphericalAberration",
+        "signed percent radial pupil weighting, not a wave-optics model",
+    ),
+    (
+        "Version",
+        "string provenance only; does not select a renderer",
+    ),
+    (
+        "FocalRangeSource",
+        "numeric selection provenance only; enum unknown",
+    ),
+    (
+        "SampledArea",
+        "string selection provenance only; coordinate encoding unknown",
+    ),
+    (
+        "SampledRange",
+        "string selection provenance only; native focus range is authoritative",
+    ),
+    (
+        "SubjectRange",
+        "string selection provenance only; native focus range is authoritative",
+    ),
+];
+const DEPTH_FIELDS: &[(&str, &str)] = &[
+    (
+        "DepthSource",
+        "opaque source provenance; no model or enum inferred",
+    ),
+    ("BaseRawDepthTable", "opaque resolver ID, never a path"),
+    (
+        "BaseRawDepthInputDigest",
+        "association metadata; digest algorithm unknown",
+    ),
+    (
+        "BaseRawDepthVersion",
+        "opaque version provenance; does not select a decoder",
+    ),
+    (
+        "BaseLayeredDepthTable",
+        "opaque resolver ID preferred over raw; never a path",
+    ),
+    (
+        "BaseLayeredDepthInputDigest",
+        "layered association metadata; digest algorithm unknown",
+    ),
+    (
+        "BaseLayeredDepthVersion",
+        "opaque layered version provenance",
+    ),
+    (
+        "BaseHighlightGuideTable",
+        "opaque guide resource ID; never interpreted as depth",
+    ),
+    (
+        "BaseHighlightGuideInputDigest",
+        "guide association metadata; digest algorithm unknown",
+    ),
+    (
+        "BaseHighlightGuideVersion",
+        "opaque guide version provenance",
+    ),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -452,11 +687,22 @@ mod tests {
             r#"xmlns:a="http://ns.adobe.com/exif/1.0/aux/" crs:ProcessVersion="15.4" crs:CameraProfile="Adobe Color" crs:CameraProfileDigest="ABC" crs:LensProfileEnable="1" crs:LensProfileSetup="Custom" crs:LensProfileName="My lens" crs:LensProfileFilename="lens.lcp" crs:LensProfileDigest="DEF" a:EnhanceDenoiseAlreadyApplied="True" a:EnhanceDenoiseVersion="7" a:EnhanceDenoiseLumaAmount="50""#,
             r#"<crs:LensBlur crs:Active="True" crs:BlurAmount="27"/>"#,
         );
-        let expected = sidecar::XmpPacket::parse(&source)
+        let mut expected = sidecar::XmpPacket::parse(&source)
             .unwrap()
             .to_recipe()
             .unwrap();
         let (actual, warnings) = parse(&source, "15.4").unwrap();
+        expected
+            .recipe
+            .settings
+            .effects
+            .lens_blur
+            .as_mut()
+            .unwrap()
+            .depth = Some(engine_api::recipe::settings::LensBlurDepth {
+            regenerate: true,
+            ..Default::default()
+        });
         assert_eq!(actual.settings, expected.recipe.settings);
         assert_eq!(actual.provenance, expected.recipe.provenance);
         assert_eq!(warnings, expected.warnings);

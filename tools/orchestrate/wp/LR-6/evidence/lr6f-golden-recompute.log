@@ -1,0 +1,32 @@
+    Blocking waiting for file lock on build directory
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/import-lrcat)
+    Finished `release` profile [optimized] target(s) in 3m 21s
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/golden-8c35de7979cda501)
+
+running 3 tests
+test streaming_matches_import_and_plan_json_is_byte_identical ... ok
+LR-6f active golden digest: 39326ff0bb11ce15d19caf5018e11c3c220644f62d4305ea38ce82117d6867a7
+
+thread 'lr6f_active_blur_and_inactive_depth_catalog_golden' (59943072) panicked at crates/import-lrcat/tests/golden.rs:119:5:
+assertion `left == right` failed
+  left: "39326ff0bb11ce15d19caf5018e11c3c220644f62d4305ea38ce82117d6867a7"
+ right: "RECOMPUTE"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test lr6f_active_blur_and_inactive_depth_catalog_golden ... FAILED
+golden digest: d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8
+
+thread 'synthetic_catalog_output_including_retained_source' (59943074) panicked at crates/import-lrcat/tests/golden.rs:32:5:
+assertion `left == right` failed
+  left: "d42640939d17a76668916260b58d77a568c5979f84d23c285480f7c1fd7441b8"
+ right: "87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5"
+test synthetic_catalog_output_including_retained_source ... FAILED
+
+failures:
+
+failures:
+    lr6f_active_blur_and_inactive_depth_catalog_golden
+    synthetic_catalog_output_including_retained_source
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+error: test failed, to rerun pass `-p import-lrcat --test golden`

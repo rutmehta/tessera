@@ -210,3 +210,210 @@ fn metrics_count_full_resolution_and_face_crop_uses_native_pixels() {
         image::imageops::crop_imm(&full, 205, 3, 205, 6).to_image()
     );
 }
+
+#[test]
+fn retouch_is_registered_for_mcp_rgb_and_graph_previews() {
+    use engine_api::{
+        id::RetouchId,
+        recipe::{
+            MaskComponent, MaskKind,
+            mask::{BrushStroke, RetouchKind, RetouchOperation, RetouchTarget},
+        },
+    };
+    let plane = (0..80)
+        .flat_map(|_| (0..128).map(|x| if x >= 64 { 0.8 } else { 0.1 }))
+        .collect();
+    let pixels = Image::new(128, 80, vec![plane; 3]).unwrap();
+    let cache = PreviewCache::default();
+    let rgb_id = ImageId(71);
+    let graph_id = ImageId(72);
+    cache.sources.lock().unwrap().insert(
+        rgb_id,
+        Arc::new(Decoded::Rgb {
+            full: pixels.clone(),
+            preview: pixels.clone(),
+        }),
+    );
+    let raw = RawImage::from_rgb(
+        graph_id,
+        image_core::RgbSource::from_linear_rec2020(pixels).unwrap(),
+    )
+    .unwrap();
+    cache
+        .sources
+        .lock()
+        .unwrap()
+        .insert(graph_id, Arc::new(Decoded::Raw(raw)));
+    let mut recipe = Recipe::default();
+    recipe.settings.locals.retouch.push(RetouchOperation {
+        id: RetouchId(1),
+        kind: RetouchKind::Clone {
+            source_offset: [0.5, 0.0],
+        },
+        target: RetouchTarget::Area {
+            components: vec![MaskComponent::new(MaskKind::Brush {
+                strokes: vec![BrushStroke {
+                    points: vec![[0.25, 0.5, 1.0]],
+                    radius: 0.0625,
+                    ..Default::default()
+                }],
+            })],
+        },
+        opacity: 50.0,
+        feather: 0.0,
+        enabled: true,
+    });
+    let path = Path::new("synthetic-cached.png");
+    for id in [rgb_id, graph_id] {
+        let before = cache.linear(id, path, &Recipe::default()).unwrap();
+        let after = cache.linear(id, path, &recipe).unwrap();
+        assert!(after.planes()[0][40 * 128 + 32] > before.planes()[0][40 * 128 + 32] + 0.1);
+        let before = cache.display(id, path, &Recipe::default(), None).unwrap();
+        let after = cache.display(id, path, &recipe, None).unwrap();
+        assert!(after.get_pixel(32, 40)[0] > before.get_pixel(32, 40)[0] + 20);
+        let source = cache.source(rgb_id, path).unwrap();
+        let Decoded::Rgb { full, .. } = &*source else {
+            panic!()
+        };
+        // The graph develops at the requested pyramid level; the direct RGB
+        // path keeps its downstream stages at input resolution and reduces only
+        // the retouch solve. Compare each with its own sampling-order reference.
+        let reduced = full.downsample_crop([0, 0, 128, 80], 4).unwrap();
+        let (reference, scale) = if id == graph_id {
+            (&reduced, 1)
+        } else {
+            (full, 4)
+        };
+        let expected = pipeline_cpu::render_scaled_with_context(
+            &recipe.settings,
+            &RenderSource::Rgb(reference),
+            scale,
+            &retouch_context(),
+        )
+        .unwrap();
+        let small = cache.display(id, path, &recipe, Some(32)).unwrap();
+        assert_eq!(small.dimensions(), expected.dimensions());
+        assert!(
+            small.as_raw() == expected.as_raw(),
+            "retouch must run at requested preview resolution for {id:?}"
+        );
+    }
+    for zero_opacity in [false, true] {
+        let mut inactive = recipe.clone();
+        inactive.settings.tone.contrast = 35.0;
+        inactive.settings.locals.retouch[0].enabled = zero_opacity;
+        if zero_opacity {
+            inactive.settings.locals.retouch[0].opacity = 0.0;
+        }
+        let mut empty = inactive.clone();
+        empty.settings.locals.retouch.clear();
+        let expected = cache.display(rgb_id, path, &empty, Some(32)).unwrap();
+        let actual = cache.display(rgb_id, path, &inactive, Some(32)).unwrap();
+        assert!(
+            actual.as_raw() == expected.as_raw(),
+            "inactive retouch must preserve the preview pipeline"
+        );
+    }
+}
+
+fn assert_lr3e_mcp_spot_preserves_exterior(graph: bool) {
+    let (w, h) = (512, 384);
+    let pixels = Image::new(
+        w,
+        h,
+        vec![
+            (0..w * h)
+                .map(|i| 0.1 + (i * 73 % 997) as f32 / 1300.)
+                .collect();
+            3
+        ],
+    )
+    .unwrap();
+    let cache = PreviewCache::default();
+    let baseline_cache = PreviewCache::default();
+    // Keep arithmetic fixed: this regression checks resolution selection, not
+    // the separately specified CPU fallback's difference from GPU rounding.
+    let renderer = Renderer::new(RendererConfig::default())
+        .with_retouch_renderer(Arc::new(brush::render_retouch));
+    assert!(cache.renderer.set(renderer).is_ok());
+    assert!(
+        baseline_cache
+            .renderer
+            .set(
+                Renderer::new(RendererConfig::default())
+                    .with_retouch_renderer(Arc::new(brush::render_retouch))
+            )
+            .is_ok()
+    );
+    let id = ImageId(73);
+    let source = if graph {
+        Decoded::Raw(
+            RawImage::from_rgb(
+                id,
+                image_core::RgbSource::from_linear_rec2020(pixels).unwrap(),
+            )
+            .unwrap(),
+        )
+    } else {
+        Decoded::Rgb {
+            full: pixels.clone(),
+            preview: pixels,
+        }
+    };
+    let source = Arc::new(source);
+    cache.sources.lock().unwrap().insert(id, source.clone());
+    baseline_cache.sources.lock().unwrap().insert(id, source);
+    let mut edited = Recipe::default();
+    edited.settings.tone.contrast = 23.;
+    edited.settings.tone.clarity = 17.;
+    edited.settings.tone.texture = 11.;
+    edited.settings.color.vibrance = 21.;
+    let empty = edited.clone();
+    edited.settings.locals.retouch.push(
+        serde_json::from_value(serde_json::json!({
+            "id": 1, "kind": {"kind":"clone", "source_offset":[0.5, 0.]},
+            "target": {"kind":"area", "components":[{
+                "combine":"add", "invert":false,
+                "kind":"brush", "strokes":[{
+                    "points":[[0.25, 0.5, 1.]], "radius":0.02,
+                    "feather":0., "flow":100., "erase":false
+                }]
+            }]}, "opacity":100., "feather":0., "enabled":true
+        }))
+        .unwrap(),
+    );
+    let path = Path::new("synthetic-cached.png");
+    // Compare cold with cold: graph WB tiles are deliberately stored as f16,
+    // so a cold-vs-warm comparison would measure unrelated cache quantization.
+    let before = baseline_cache.display(id, path, &empty, Some(128)).unwrap();
+    let after = cache.display(id, path, &edited, Some(128)).unwrap();
+    assert_eq!(before.dimensions(), (128, 96));
+    assert_eq!(before.dimensions(), after.dimensions());
+    let mut changed = false;
+    let mut checked = 0;
+    for y in 0..after.height() {
+        for x in 0..after.width() {
+            let a = after.get_pixel(x, y);
+            let b = before.get_pixel(x, y);
+            changed |= a != b;
+            // Spot radius plus 32 input pixels for feather/filter support and
+            // two output sampling cells. Both routes must preserve exterior bits.
+            let margin = (0.02 * h as f32).ceil() as u32 + 32 + 2 * 4;
+            if (x * 4).abs_diff(w / 4) > margin || (y * 4).abs_diff(h / 2) > margin {
+                assert_eq!(a, b, "graph={graph}, ({x},{y})");
+                checked += 1;
+            }
+        }
+    }
+    assert!(changed && checked > 1000);
+}
+
+#[test]
+fn lr3e_mcp_rgb_spot_preserves_exterior() {
+    assert_lr3e_mcp_spot_preserves_exterior(false);
+}
+
+#[test]
+fn lr3e_mcp_graph_spot_preserves_exterior() {
+    assert_lr3e_mcp_spot_preserves_exterior(true);
+}

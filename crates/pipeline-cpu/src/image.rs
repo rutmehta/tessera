@@ -41,6 +41,10 @@ impl Image {
     pub fn planes(&self) -> &[Vec<f32>] {
         &self.planes
     }
+    /// Transfer owned planar storage to a caller-owned in-place stage.
+    pub(crate) fn into_planes(self) -> Vec<Vec<f32>> {
+        self.planes
+    }
     pub(crate) fn blank(width: u32, height: u32, channels: usize) -> Self {
         Self {
             width,
