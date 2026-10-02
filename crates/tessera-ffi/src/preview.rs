@@ -266,6 +266,18 @@ impl PreviewJob {
     }
 }
 impl Engine {
+    /// Synchronous counterpart of the grid/loupe job for analysis and assist.
+    /// Keep source resolution, catalog orientation and recipe dispatch identical.
+    pub(crate) fn indexed_preview(&self, image_id: &str, path: &str, max_px: u32) -> Result<previews::PreviewKey> {
+        let job = PreviewJob {
+            engine: Weak::new(),
+            request: RequestKey { image_id: image_id.into(), max_px, recipe_hash: String::new(), revision: [0; 32] },
+            path: path.into(),
+            completed: true,
+        };
+        job.render(self, &JobContext::new(engine_api::id::JobId(0), engine_api::jobs::CancellationToken::new(), None)).map_err(failure)
+    }
+
     /// Preview sizes requested so far for an image (the app's tiers).
     pub(super) fn requested_preview_sizes(&self, image_id: &str) -> Vec<u32> {
         let states = self
