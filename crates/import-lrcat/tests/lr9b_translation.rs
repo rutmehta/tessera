@@ -146,3 +146,32 @@ fn equivalent_ellipse_and_flat_circle_retouch_forms_translate() {
         assert_eq!(r.settings.locals.retouch.len(),usize::from(accepted));
     }
 }
+
+#[test]
+fn saved_preset_and_algorithm_metadata_are_not_missing_edits() {
+    let source="s={Preset='synthetic preset',AutoWhiteVersion=2,CropConstrainAspectRatio=true,Exposure2012=0.5}";
+    let (r,w)=lua_develop::parse(source,"15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    assert_eq!(r.settings.tone.exposure,0.5);
+    for key in ["Preset","AutoWhiteVersion","CropConstrainAspectRatio"] {
+        assert!(r.unknown["lrcat_develop_source"]["properties"].get(key).is_some());
+        assert!(!diagnostics::entries(&r).contains_key(key));
+    }
+}
+
+#[test]
+fn modern_retouch_list_supersedes_the_legacy_alias_once() {
+    let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='clone',CenterX=0.2,CenterY=0.4,Radius=0.03,SourceX=0.7,SourceY=0.6,Feather=0.3}},RetouchInfo={'spotType=clone,centerX=0.2,centerY=0.4,radius=0.03,sourceX=0.7,sourceY=0.6'}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    assert_eq!(r.settings.locals.retouch.len(),1);
+    assert_eq!(diagnostics::entries(&r)["RetouchAreas"][0].status,"approximate");
+    assert_eq!(diagnostics::entries(&r)["RetouchInfo"][0].status,"ignored");
+}
+
+#[test]
+fn independent_remove_areas_append_to_retouch_with_unique_ids() {
+    let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='clone',CenterX=0.2,CenterY=0.4,Radius=0.03,SourceX=0.7,SourceY=0.6}},RemoveAreas={{SpotType='heal',CenterX=0.3,CenterY=0.4,Radius=0.03,SourceX=0.8,SourceY=0.6}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    assert_eq!(r.settings.locals.retouch.len(),2);
+    assert_ne!(r.settings.locals.retouch[0].id,r.settings.locals.retouch[1].id);
+}
