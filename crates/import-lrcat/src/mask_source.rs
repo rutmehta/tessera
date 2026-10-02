@@ -178,9 +178,24 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
                 }
             }
             (
-                "MaskType" | "MaskSubType" | "MaskSubCategoryID" | "ReferencePoint" | "InputDigest"
-                | "InputDigestVersion" | "ModelVersion" | "WholeImageArea" | "Origin"
-                | "ErrorReason" | "MaskDigest" | "Left" | "Top" | "Right" | "Bottom",
+                "MaskType"
+                | "MaskSubType"
+                | "MaskSubCategoryID"
+                | "ReferencePoint"
+                | "InputDigest"
+                | "InputDigestVersion"
+                | "FullMaskSize"
+                | "LocalInputDigest"
+                | "LocalInputDigestVersion"
+                | "ModelVersion"
+                | "WholeImageArea"
+                | "Origin"
+                | "ErrorReason"
+                | "MaskDigest"
+                | "Left"
+                | "Top"
+                | "Right"
+                | "Bottom",
                 Field::Scalar(_),
             ) if matches!(
                 kind,
@@ -741,6 +756,14 @@ pub(crate) fn decoder_reason(reason: String, warning: &str) -> String {
         (
             "unknown Adobe AI mask subtype",
             "unrecognized AI selection subtype",
+        ),
+        (
+            "unsupported Adobe person or part mask",
+            "AI person, part or instance selection is not implemented",
+        ),
+        (
+            "unsupported Adobe AI mask part",
+            "AI person, part or instance selection is not implemented",
         ),
         (
             "unknown Adobe AI mask category",
