@@ -460,6 +460,37 @@ mod lr5b_tests {
         .unwrap();
         assert_eq!(raster_key(&other), raster_key(&second));
     }
+    /// M6: a raster superseded by a successful reimport is an orphan. Import
+    /// never deletes or lists; explicit pruning reclaims it while the image
+    /// is still alive, and keeps what the published recipe references.
+    #[test]
+    fn lr5b_superseded_rasters_are_orphans_reclaimed_by_explicit_prune() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
+        let mut recipe = fixture();
+        let import = |recipe: &mut Recipe, value: Option<u8>| {
+            apply(
+                recipe,
+                ImageId(1),
+                (8, 4),
+                &store,
+                |_| value.map(png),
+                |_| Ok(()),
+            )
+            .unwrap()
+        };
+        import(&mut recipe, Some(64));
+        let old = raster_key(&recipe);
+        import(&mut recipe, Some(192));
+        let new = raster_key(&recipe);
+        assert!(store.get(&old).is_some(), "import itself never deletes");
+        prune_missing(dir.path(), |_| true).unwrap();
+        assert!(store.get(&old).is_none(), "superseded raster is an orphan");
+        assert!((store.get(&new).unwrap().data()[0] - 192. / 255.).abs() < 1e-5);
+        import(&mut recipe, None);
+        prune_missing(dir.path(), |_| true).unwrap();
+        assert!(store.get(&new).is_none());
+    }
     #[test]
     fn lr5b_no_ai_masks_do_not_access_store() {
         let dir = tempfile::tempdir().unwrap();

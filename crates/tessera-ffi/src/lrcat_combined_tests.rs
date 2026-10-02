@@ -175,9 +175,10 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
             .mask_key,
         Some(depth_key)
     );
-    for root in [
-        support.join("imported-masks"),
-        support.join("previews/depth-cache"),
+    // M7: AI mask pins are u16 samples; LR-6 depth pins stay f32.
+    for (root, sample_bytes) in [
+        (support.join("imported-masks"), 2),
+        (support.join("previews/depth-cache"), 4),
     ] {
         let files: Vec<_> = std::fs::read_dir(root.join("pinned"))
             .unwrap()
@@ -185,7 +186,7 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
             .collect();
         assert_eq!(files.len(), 1);
         let bytes: u64 = files.iter().map(|e| e.metadata().unwrap().len()).sum();
-        assert_eq!(bytes, u64::from(w) * u64::from(h) * 4 + 48);
+        assert_eq!(bytes, u64::from(w) * u64::from(h) * sample_bytes + 48);
         assert!(bytes <= ml_segment::MaskStore::MAX_PINNED_BYTES);
     }
     let before = recipe.to_json().unwrap();
@@ -308,6 +309,8 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
     std::fs::write(&xmp_path, saved_xmp).unwrap();
     // Reimport with neither resolver: both old pin classes must be removed and
     // both pending diagnostics must survive publication under one Import entry.
+    // The depth slot is replaced in place. The mask raster is immutable content
+    // that the image no longer owns, reclaimed by explicit pruning (M3, M6).
     options.overwrite_existing_edits = true;
     import.apply(options, None).unwrap();
     let pending = Sidecar::read_recipe(Sidecar::paths(&row.path).recipe)
@@ -345,6 +348,7 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
             .unwrap()
             .regenerate
     );
+    assert_eq!(engine.prune_missing(false).unwrap(), 0);
     assert!(
         ml_segment::MaskStore::new(support.join("imported-masks"), 0)
             .unwrap()
