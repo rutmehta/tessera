@@ -287,6 +287,16 @@ pub(crate) fn parse_inner(
             ));
         }
     }
+    if !masks_approximate {
+        for p in properties.iter().filter(|p| p.namespace == CRS && p.name == "MaskGroupBasedCorrections") {
+            if let Some(root) = p.node {
+                let reason = crate::mask_source::unsupported_reason(root);
+                for warning in warnings.iter_mut().filter(|w| w.starts_with("crs:MaskGroupBasedCorrections:")) {
+                    *warning = format!("crs:MaskGroupBasedCorrections: {reason}");
+                }
+            }
+        }
+    }
     for (key, raw, reason) in diagnostics {
         retain(&mut recipe, &key, raw);
         warnings.push(format!("{key}: {reason}; source preserved"));

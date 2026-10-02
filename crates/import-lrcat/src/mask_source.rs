@@ -188,6 +188,7 @@ fn correction(n: Node<'_, '_>) -> Option<()> {
             ("CorrectionReferenceX" | "CorrectionReferenceY", Field::Scalar(v)) if v.parse::<f64>().ok()?.is_finite() => (),
             ("LocalBrightness" | "LocalContrast" | "LocalExposure" | "LocalClarity" | "LocalGrain" | "LocalCorrectedDepth" | "LocalColorVariance", Field::Scalar(v)) if v.parse::<f64>().ok()? == 0.0 => (),
             ("LocalCurveRefineSaturation", Field::Scalar(v)) if v.parse::<f64>().ok()? == 100.0 => (),
+            ("LocalColorVariance", Field::Structure(n)) if sequence(n)?.iter().all(|n| n.attributes().len() == 0 && !n.children().any(|n|n.is_element()) && n.text().and_then(|s|s.trim().parse::<f64>().ok()) == Some(0.)) => (),
             ("LocalPointColors", Field::Scalar(v)) if v.is_empty() => (),
             ("LocalPointColors", Field::Structure(n)) if sequence(n)?.is_empty() => (),
             ("LocalToningHue", Field::Scalar(v)) if inactive_overlay && v.parse::<f64>().ok()?.is_finite() => (),
