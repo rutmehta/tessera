@@ -842,3 +842,11 @@ fn tone_comparison_from_env() {
         Err(_) => panic!("numeric comparison failed"),
     }
 }
+
+#[test]
+fn contact_thumbnail_preserves_non_square_aspect() {
+    for (w, h, expected) in [(8, 4, (1024, 512)), (4, 8, (512, 1024))] {
+        let pixels = image::RgbImage::new(w, h);
+        assert_eq!(contact_thumbnail(&pixels).dimensions(), expected);
+    }
+}
