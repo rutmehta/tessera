@@ -403,7 +403,8 @@ pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<V
                 v["params"]["color_overlay"] = json!(overlay);
             }
         }
-        if !(0.0..=100.0).contains(&v["params"]["defringe"].as_f64().unwrap_or(f64::NAN)) {
+        // Adobe's local defringe is signed: -100..=100.
+        if !(-100.0..=100.0).contains(&v["params"]["defringe"].as_f64().unwrap_or(f64::NAN)) {
             return Err(error("invalid local defringe"));
         }
         if let Some(a) = v["params"]["color_overlay"].as_array()

@@ -69,7 +69,7 @@ pub fn adjust_local(input: &Image, p: &LocalParams, amount: f32) -> EngineResult
             "invalid amount, parameters or RGB image",
         ));
     }
-    if !(0.0..=100.0).contains(&p.defringe)
+    if !(-100.0..=100.0).contains(&p.defringe)
         || p.color_overlay.is_some_and(|v| {
             !v[0].is_finite() || !(0.0..=360.0).contains(&v[0]) || !(0.0..=100.0).contains(&v[1])
         })
@@ -250,7 +250,10 @@ pub fn adjust_local(input: &Image, p: &LocalParams, amount: f32) -> EngineResult
             result.put(&tile)?;
         }
     }
-    if p.defringe != 0. {
+    // Adobe's range is -100..=100. A negative value protects the area from
+    // *global* defringe, which already ran before this stage and cannot be
+    // undone here: it is valid, adds no local defringe and changes no pixel.
+    if p.defringe > 0. {
         let mut lens = engine_api::recipe::settings::LensSettings::default();
         lens.defringe_purple.amount = (p.defringe * scale / 5.).clamp(0., 20.);
         lens.defringe_green.amount = lens.defringe_purple.amount;
