@@ -10,10 +10,17 @@ fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
                 if key.len() > 64 || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') { continue; }
                 let path = format!("{prefix}/{key}");
                 out.insert(path.clone());
+                let class = match value {
+                    LuaValue::Number(n) => match n.parse::<f64>().ok() { Some(0.) => "zero", Some(1.) => "one", Some(100.) => "hundred", Some(_) => "other_number", None => "invalid_number" },
+                    LuaValue::Bool(false) => "false", LuaValue::Bool(true) => "true",
+                    LuaValue::Table(t) if t.items.is_empty() && t.fields.is_empty() => "empty",
+                    LuaValue::Table(_) => "structure", LuaValue::String(_) => "string", _ => "nil",
+                };
+                out.insert(format!("{path}/class_{class}"));
                 if key == "What" || key == "SpotType" || key == "spotType" {
                     if let LuaValue::String(s) = value {
                         let kind = match s.as_str() {
-                            "Mask/Paint" => "brush", "Mask/Gradient" => "gradient", "Mask/CircularGradient" => "radial", "Mask/Image" => "AI", "Mask/Range" => "range", "Mask/Group" => "group", "heal" => "heal", "clone" => "clone", "generative" => "generative", _ => "other",
+                            "Mask/Paint" => "brush", "Mask/Gradient" => "gradient", "Mask/CircularGradient" => "radial", "Mask/Image" => "AI", "Mask/Range" => "range", "Mask/Group" | "Mask/Aggregate" => "group", "Mask/RangeMask" => "range", "Mask/Ellipse" => "ellipse", "heal" => "heal", "clone" => "clone", "generative" | "generativeRemove" => "generative", "contentAware" | "contentAwareRemove" => "content_aware", _ => "other",
                         };
                         out.insert(format!("{path}/kind_{kind}"));
                     }
