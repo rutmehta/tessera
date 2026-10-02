@@ -82,8 +82,8 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
                 if ProcessInfo.processInfo.environment["TESSERA_AX_MAP"] == "1" {
                     print("AX MAP \(id)\t\(label)")
                 }
-                if id.isEmpty || label.isEmpty {
-                    XCTFail("\(scenario): \(here) — \(id.isEmpty ? "missing identifier" : "identifier=" + id); \(label.isEmpty ? "missing label" : "label=" + label)")
+                if !EstablishedAccessibilityIdentifiers.accepts(id) || label.isEmpty {
+                    XCTFail("\(scenario): \(here) — \(id.isEmpty ? "missing identifier" : "invalid identifier=" + id); \(label.isEmpty ? "missing label" : "label=" + label)")
                 }
             }
             for (index, child) in (node.accessibilityChildren?() ?? []).enumerated() {
@@ -97,6 +97,7 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         let required: [String]
         switch scenario {
         case "library.populated": required = ["ruleTextField", "library.toolbar.open", "library.sidebar.row.src:all"]
+        case "develop.modelRetry": required = ["detail-ai-denoise-model-retry", "lensblur-model-retry"]
         case "develop.basic": required = ["develop.basic.exposure"]
         case "develop.selectedMask": required = ["develop.masks.amount", "develop.masks.reset"]
         case "library.import.reportGroups": required = ["document.import.report.warnings", "document.import.report.approximate", "document.import.report.markdown"]
@@ -295,7 +296,7 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
             source += try String(contentsOf: url, encoding: .utf8)
         }
         // Compare actual identifier expressions, not comments or arbitrary prefix matches.
-        let calls = try NSRegularExpression(pattern: #"(?:accessibilityIdentifier(?:IfPresent)?|setAccessibilityIdentifier)\([^\n]*"#)
+        let calls = try NSRegularExpression(pattern: #"(?:accessibilityIdentifier(?:IfPresent)?|setAccessibilityIdentifier)\([^\n]*|\b(?:id|identifier):\s*"(?:\\.|[^"\\])*""#)
         let strings = try NSRegularExpression(pattern: #""((?:\\.|[^"\\])*)""#)
         var present = Set<String>()
         for match in calls.matches(in: source, range: NSRange(source.startIndex..., in: source)) {
@@ -308,6 +309,33 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         for stem in EstablishedAccessibilityIdentifiers.stems {
             XCTAssertTrue(present.contains(stem), "Established identifier missing: \(stem)")
         }
+    }
+
+    func testModelProgressRetryIdentifiers() async throws {
+        LayoutProbeHarness.prepare()
+        try await host(VStack {
+            ModelProgressRow(title: "Denoise", state: .failed(reason: "Synthetic failure"), id: "detail-ai-denoise-model") {}
+            ModelProgressRow(title: "Depth", state: .failed(reason: "Synthetic failure"), id: "lensblur-model") {}
+        }, scenario: "develop.modelRetry")
+    }
+
+    func testIdentifierFormatAllowsOnlyNamespacesOrPinnedStems() {
+        for id in ["library.new.action", "develop.new.action", "ruleTextField", "agent-step-toggle-42", "detail-ai-denoise-model-retry"] {
+            XCTAssertTrue(EstablishedAccessibilityIdentifiers.accepts(id), id)
+        }
+        for id in ["", "arbitrary", "gridUnexpected", "ruleTextField.new", "libraryWrong.action"] {
+            XCTAssertFalse(EstablishedAccessibilityIdentifiers.accepts(id), id)
+        }
+    }
+
+    func testSidebarFolderIdentifierSurvivesRebuild() {
+        let url = URL(fileURLWithPath: "/AXPrivateRoot731")
+        let first = SidebarRow(.folder(url), key: "folder:" + url.path, title: "First")
+        let rebuilt = SidebarRow(.folder(url), key: "folder:" + url.path, title: "Renamed display")
+        let other = SidebarRow(.folder(url.appendingPathComponent("other")), key: "folder:other", title: "Other")
+        XCTAssertEqual(first.accessibilityKey, rebuilt.accessibilityKey)
+        XCTAssertNotEqual(first.accessibilityKey, other.accessibilityKey)
+        XCTAssertFalse(first.accessibilityKey.contains("AXPrivateRoot731"))
     }
 
     func testSidebarFolderIdentifierPrivacy() {
@@ -394,7 +422,18 @@ private final class LibraryPressableElement: NSAccessibilityElement {
 
 // Identifier stems captured from origin/main before B5-50b. Dynamic payloads may use private indexes.
 enum EstablishedAccessibilityIdentifiers {
+    static func accepts(_ identifier: String) -> Bool {
+        if identifier.range(of: #"^(library|develop)\."#, options: .regularExpression) != nil { return true }
+        return stems.contains { stem in
+            identifier == stem || (["-", ".", ":"].contains(String(stem.suffix(1))) && identifier.hasPrefix(stem))
+        } || ["detail-ai-denoise-model-retry", "lensblur-model-retry"].contains(identifier)
+    }
+
     static let stems = [
+        "detail-ai-denoise-model",
+        "lensblur-model",
+        "transform-upright-reset",
+        "transform-reset",
         "agent-group",
         "agent-group-amount",
         "agent-group-amount-readout",
