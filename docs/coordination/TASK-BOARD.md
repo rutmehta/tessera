@@ -1,5 +1,11 @@
 # Tessera task board — Machine A coordinator
 
+## Batches 43/44/47 reconciliation — 2026-10-02 21:15 UTC
+
+Main `f7bab45c` now integrates LR-3 retouch and LR-6 Lens Blur (restacked without LR-5), following B5-50 accessibility audit `c281bc56` and B5-51 aggregate import profiler `fc02b2aa`. Independently inspected batch43b tested head `e6642c4ca2a0f2baaf1f2af18130402b8be861fe`: Rust/Clippy/fmt/Swift/drift/strict all0, done; Swift931 tests/3skipped/0failures in215.777s. Diff to main is only docs/coordination/CODEX-BRIEF-2026-10-02-rulings.md, so current product tree matches validated tree. Batch47 Swift/drift/strict all0 (931/3skip/0fail); batch44b Rust/Clippy/fmt/drift all0, no Swift run in that rerun. No GUI or Adobe rendering acceptance inferred.
+
+Latest MACHINE-A records LR-5 held for orientation, third diagnostics writer and inverted unavailable masks; LR-9 cloud-report loss, LR-11 AI-instance/extended-curve issues, LR-8/10 review issues, LR-13 blank thumbnails, B5-49 keyboard policy and ENG-3 boundary sweeps remain with their existing owners. It records LR-8f hotfix installed on Rut's machine; not independently UI-verified here. Attribution correction: Machine B lane commits are Codex-authored unless bodies say otherwise, despite inherited Claude trailers; preserve history. Codex A runtime/ownership handoff remains pending; mailbox unchanged, no duplicate workload or receipt ACK.
+
 ## Batch 45 reconciliation — 2026-10-02 18:40 UTC
 
 Replacement Machine A coordinator merged ENG-4/4b shared stable tone log/exp formulation and restored parity guards at `fbb36594b8ae97fe9ee1d5e4c36269bbe526a649`, on batch42 main270f0169. Independently inspected exact matching batch45 head and exits: Rust, 24MP benchmark, HDR surface, Clippy, fmt, Swift gate, bindings drift and strict build all0, done. Swift920 tests/3skipped/0failures in210.792s, plus5 Swift Testing tests. Raw 24MP log confirms1pass/0fail. This supersedes the prior combined-tree-unverified status for current main. ENG-4 handoff records restored all-pixel .01 and sampled scaled .002 bounds, unchanged photographic RAW goldens and explicit two-byte CPU SDR fingerprint attribution; no Adobe-oracle claim. Runtime/ownership handoff to Codex A remains pending; no duplicate workload. Mailbox unchanged, no receipt ACK.
