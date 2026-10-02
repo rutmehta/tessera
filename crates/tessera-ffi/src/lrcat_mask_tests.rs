@@ -438,3 +438,53 @@ fn lr5b_combined_lanes_resolve_and_regenerate_in_one_import() {
     );
     assert_eq!(recipe.to_json().unwrap(), before);
 }
+
+#[test]
+fn lr5b_portrait_orientation_import_uses_render_extent() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = import_lrcat::fixture::write(&temp.path().join("fixture")).unwrap();
+    let support = temp.path().join("support");
+    let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+    let mut import = engine
+        .clone()
+        .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let mut options = import.default_options().unwrap();
+    let photos = fixture.photos.canonicalize().unwrap();
+    options.relocations[0].to = photos.to_string_lossy().into_owned();
+    options.library_folder = photos.to_string_lossy().into_owned();
+    let row = resolve(&import.plan, &options)
+        .unwrap()
+        .into_iter()
+        .find(|r| r.outcome == Outcome::Import)
+        .unwrap();
+    let id = app_image_id(&row.path).unwrap();
+    let catalog_id;
+    {
+        let import = Arc::get_mut(&mut import).unwrap();
+        let mut image = import.read_image(row.index).unwrap();
+        catalog_id = image.catalog_id;
+        image.recipe = import_lrcat::develop(catalog_id, "s = { MaskGroupBasedCorrections = { { LocalExposure2012=1, CorrectionMasks={ { What='Mask/Image', MaskSubType=2, MaskDigest='opaque-mask-id' } } } } }", "15.4").unwrap().0;
+        let mut spool = import.spool.reopen().unwrap();
+        let bytes = serde_json::to_vec(&image).unwrap();
+        let offset = spool.seek(SeekFrom::End(0)).unwrap();
+        spool.write_all(&bytes).unwrap();
+        import.records[row.index] = (offset, bytes.len());
+    }
+
+    use image::ImageEncoder;
+    let mut bytes = Vec::new();
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut bytes);
+    encoder.set_exif_metadata(vec![b'I',b'I',42,0,8,0,0,0,1,0,0x12,1,3,0,1,0,0,0,6,0,0,0,0,0,0,0]).unwrap();
+    encoder.encode(&[120,80,40].repeat(24*16),24,16,image::ExtendedColorType::Rgb8).unwrap();
+    std::fs::write(&row.path, bytes).unwrap();
+    let mut mask = Cursor::new(Vec::new());
+    image::GrayImage::from_pixel(16,24,image::Luma([128])).write_to(&mut mask,image::ImageFormat::Png).unwrap();
+    let report = import.apply_with_mask_resolver(options, None, Some(Arc::new(MaskFixture { catalog_id, bytes: mask.into_inner() }))).unwrap();
+    assert!(report.imported > 0);
+    let recipe = Sidecar::read_recipe(Sidecar::paths(&row.path).recipe).unwrap().recipe;
+    let state = recipe.settings.locals.adjustments[0].components[0].adobe_ai.as_ref().unwrap();
+    assert!(!state.regenerate, "portrait raster must be accepted in oriented coordinates");
+    assert!(state.mask_key.is_some());
+    assert_eq!(recipe.image_id, Some(id));
+}

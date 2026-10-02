@@ -286,3 +286,58 @@ mod bound_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod lr5b_tests {
+    use super::*;
+    fn fixture() -> Recipe {
+        import_lrcat::develop(1, "s={MaskGroupBasedCorrections={{LocalExposure2012=1,CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskDigest='synthetic'}}}}}", "15.4").unwrap().0
+    }
+    fn png(value: u8) -> Vec<u8> {
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image::GrayImage::from_pixel(8, 4, image::Luma([value])).write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+        bytes.into_inner()
+    }
+    fn raster_key(r: &Recipe) -> [u8;32] {
+        r.settings.locals.adjustments[0].components[0].adobe_ai.as_ref().unwrap().mask_key.unwrap()
+    }
+    #[test]
+    fn lr5b_content_keys_preserve_previous_recipe_across_reimport_and_failed_publish() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path(),0).unwrap();
+        let mut first = fixture();
+        apply(&mut first,ImageId(1),(8,4),&store,|_|Some(png(64)),|_|Ok(())).unwrap();
+        let old = raster_key(&first);
+        let mut second = fixture();
+        apply(&mut second,ImageId(1),(8,4),&store,|_|Some(png(192)),|_|Ok(())).unwrap();
+        assert_ne!(old,raster_key(&second));
+        assert!((store.get(&old).unwrap().data()[0]-64./255.).abs()<1e-5);
+        let error = apply(&mut first,ImageId(1),(8,4),&store,|_|Some(png(255)),|_|Err(failure("original publication error"))).unwrap_err();
+        assert!(error.to_string().contains("original publication error"));
+        assert!((store.get(&old).unwrap().data()[0]-64./255.).abs()<1e-5);
+        let mut other = fixture();
+        apply(&mut other,ImageId(2),(8,4),&store,|_|Some(png(192)),|_|Ok(())).unwrap();
+        assert_eq!(raster_key(&other),raster_key(&second));
+    }
+    #[test]
+    fn lr5b_no_ai_masks_do_not_access_store() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("store");
+        let store = MaskStore::new(&root,0).unwrap();
+        std::fs::remove_dir(&root).unwrap();
+        std::fs::write(&root,b"inaccessible store").unwrap();
+        let mut recipe = import_lrcat::develop(1,"s={Exposure2012=1}","15.4").unwrap().0;
+        apply(&mut recipe,ImageId(1),(8,4),&store,|_|panic!("resolver called"),|_|Ok(())).unwrap();
+        assert_eq!(std::fs::read(root).unwrap(), b"inaccessible store");
+    }
+    #[test]
+    fn lr5b_imported_rasters_use_two_bytes_per_pixel() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path(),0).unwrap();
+        let mut recipe = fixture();
+        apply(&mut recipe,ImageId(1),(8,4),&store,|_|Some(png(128)),|_|Ok(())).unwrap();
+        let file = dir.path().join("pinned").join(format!("{}.mask",blake3::Hash::from_bytes(raster_key(&recipe)).to_hex()));
+        assert_eq!(std::fs::metadata(file).unwrap().len(),48+8*4*2);
+        assert!((store.get(&raster_key(&recipe)).unwrap().data()[0]-128./255.).abs()<1e-5);
+    }
+}

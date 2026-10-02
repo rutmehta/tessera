@@ -2594,6 +2594,19 @@ mod lr4_tests {
 mod lr5_imported_tests {
     use super::*;
     #[test]
+    fn lr5b_imported_raster_cache_does_not_reopen_between_frames() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("imported-masks");
+        let store = ml_segment::MaskStore::new(&root,0).unwrap();
+        let key = [43;32];
+        store.put_pinned(&key,&ml_segment::MaskRaster::new(2,1,vec![0.,1.]).unwrap()).unwrap();
+        let shared = MaskShared::with_extents(vec![(2,1)]);
+        shared.refresh_imported(dir.path(),"cached",&key).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+        shared.refresh_imported(dir.path(),"cached",&key).unwrap();
+        assert_eq!(&*shared.ai_plane("cached",2,1), &[0.,1.]);
+    }
+    #[test]
     fn imported_rasters_have_distinct_component_identity_and_render_without_inference() {
         let dir = tempfile::tempdir().unwrap();
         let store = ml_segment::MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
@@ -2657,5 +2670,33 @@ mod lr5_imported_tests {
         let missing = Hooks(MaskShared::with_extents(vec![(2, 1)]));
         assert!(missing.rasterize(&image, &group, 0).is_err());
         assert!(!dir.path().join("models").exists());
+    }
+}
+
+#[cfg(test)]
+mod lr5b_unavailable_tests {
+    use super::*;
+    #[test]
+    fn lr5b_unavailable_inverted_and_subtracted_ai_has_zero_effect_and_pending_ui() {
+        let shared = MaskShared::with_extents(vec![(2, 1)]);
+        let image = pipeline_cpu::Image::new(2, 1, vec![vec![0.18; 2]; 3]).unwrap();
+        for subtract in [false, true] {
+            let mut ai = MaskComponent::new(MaskKind::Subject { model: None });
+            ai.invert = !subtract;
+            ai.combine = if subtract { MaskCombine::Subtract } else { MaskCombine::Add };
+            let mut components = vec![];
+            if subtract {
+                components.push(MaskComponent::new(MaskKind::Linear { start: [0.,0.], end: [1.,0.] }));
+            }
+            components.push(ai);
+            let group = LocalAdjustment { components, params: LocalParams { exposure: 1., ..Default::default() }, ..Default::default() };
+            let info = group_info(&group, &HashMap::new());
+            assert!(matches!(info.components.last().unwrap().ai, AiMaskState::Pending { .. }));
+            let alpha = Hooks(shared.clone()).rasterize(&image, &group, 0).unwrap();
+            assert_eq!(alpha, vec![0., 0.], "subtract={subtract}");
+            let adjusted = pipeline_cpu::adjust_local(&image, &group.params, 100.).unwrap();
+            let out = pipeline_cpu::blend_local(&image, &adjusted, &alpha).unwrap();
+            assert_eq!(out.planes(), image.planes());
+        }
     }
 }
