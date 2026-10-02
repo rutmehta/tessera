@@ -1,5 +1,9 @@
 # Tessera task board — Machine A coordinator
 
+## Batch 45 reconciliation — 2026-10-02 18:40 UTC
+
+Replacement Machine A coordinator merged ENG-4/4b shared stable tone log/exp formulation and restored parity guards at `fbb36594b8ae97fe9ee1d5e4c36269bbe526a649`, on batch42 main270f0169. Independently inspected exact matching batch45 head and exits: Rust, 24MP benchmark, HDR surface, Clippy, fmt, Swift gate, bindings drift and strict build all0, done. Swift920 tests/3skipped/0failures in210.792s, plus5 Swift Testing tests. Raw 24MP log confirms1pass/0fail. This supersedes the prior combined-tree-unverified status for current main. ENG-4 handoff records restored all-pixel .01 and sampled scaled .002 bounds, unchanged photographic RAW goldens and explicit two-byte CPU SDR fingerprint attribution; no Adobe-oracle claim. Runtime/ownership handoff to Codex A remains pending; no duplicate workload. Mailbox unchanged, no receipt ACK.
+
 ## Batch 42 reconciliation — 2026-10-02 17:45 UTC
 
 Replacement Machine A coordinator merged LR-2 tone/B&W/PV2010, LR-1 Point Color and LR-4 parametric masks at `270f0169a36ada716ab2e6930082f81e0c0edf20`, parents ab4c7cf5 and 669f18dc. Independently inspected batch42 evidence: tested head `669f18dcf25912e549c9768d8a5870224df160da`; Rust, Clippy, fmt, Swift gate, bindings drift and strict build exits all 0, done. Swift 920 tests, 3 skipped, 0 failures in210.281s, plus 5 Swift Testing tests passed. Tested head predates B5-48 integration: final combined main tree differs in 10 product/test files and is NOT verified by this saved run. Merge publication is confirmed; no Adobe rendering parity or final combined-tree acceptance claimed. Codex A ownership/runtime handoff remains pending. Mailbox unchanged; no duplicate work or receipt ACK.
