@@ -191,6 +191,13 @@ pub(crate) fn remove_image(support: &std::path::Path, id: ImageId) -> Result<()>
     prune_missing(support, |_| true)
 }
 
+pub(crate) fn remove_images(
+    support: &std::path::Path,
+    ids: impl IntoIterator<Item = ImageId>,
+) -> Result<()> {
+    ids.into_iter().try_for_each(|id| remove_image(support, id))
+}
+
 /// Explicit maintenance, not a per-pin write scan. Keeps shared and historical
 /// keys of live owners; removes missing owners and crash-orphaned blobs.
 pub(crate) fn prune_missing(
@@ -518,5 +525,39 @@ mod lr5b_prune_tests {
         assert!(store.get(&orphan).is_none());
         assert!(!owner_path(&store, ImageId(1)).exists());
         assert!(owner_path(&store, ImageId(2)).exists());
+    }
+}
+
+#[cfg(all(test, unix))]
+mod lr5b_removal_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+    /// M4: removing images that never owned an imported raster must not
+    /// enumerate the store, even when other images have imported masks.
+    #[test]
+    fn lr5b_removing_images_without_ai_masks_does_not_scan_the_store() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
+        let key = store
+            .put_content_pinned(&MaskRaster::new(1, 1, vec![0.5]).unwrap())
+            .unwrap();
+        write_owner(&owner_path(&store, ImageId(1)), &[key]).unwrap();
+        let unreadable = [store.root().join("pinned"), store.root().join("owners")];
+        for path in &unreadable {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o300)).unwrap();
+        }
+        let result = remove_images(dir.path(), [ImageId(2), ImageId(3)]);
+        for path in &unreadable {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        assert!(
+            result.is_ok(),
+            "removal must not need to list the store: {:?}",
+            result.err().map(|e| e.to_string())
+        );
+        // Removing the owner still collects its content, once for the batch.
+        remove_images(dir.path(), [ImageId(1), ImageId(2)]).unwrap();
+        assert!(store.get(&key).is_none());
+        assert!(!owner_path(&store, ImageId(1)).exists());
     }
 }

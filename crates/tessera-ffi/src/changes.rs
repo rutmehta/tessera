@@ -210,16 +210,18 @@ impl Engine {
         sidecar::Sidecar::ensure_destination(&depth_root, "remove imported depth")?;
         sidecar::Sidecar::ensure_destination(depth_root.join("pinned"), "remove imported depth")?;
         let store = image_core::ml_depth::DepthStore::new(depth_root, 256 << 20)?;
+        let mut gone = Vec::new();
         for id in &ids {
             // Removal is idempotent. Never delete depth for a retained image.
             if matches!(
                 state.index.image_info(*id),
                 Err(engine_api::EngineError::NotFound { .. })
             ) {
-                crate::lrcat_masks::remove_image(self.support_dir()?, *id)?;
+                gone.push(*id);
                 store.remove_pinned(&image_core::depth::imported_depth_key(*id))?;
             }
         }
+        crate::lrcat_masks::remove_images(self.support_dir()?, gone)?;
         drop(state);
         self.notify_changes();
         Ok(removed as u32)
