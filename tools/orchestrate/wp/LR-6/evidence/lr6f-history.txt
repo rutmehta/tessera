@@ -1,0 +1,24 @@
+Original LR-7 base: 52eda5334078274445bcedee041319bc2d0e4e8a
+Final predecessor base: 85af5278b1fe297c23993c7147096dbd011d7022
+20 original commits retained individually; no squash.
+
+402b8405c4c93232a73793b4e1892671a9ebb7fd -> 8ad5dce8abc4fd4ea7106f21a0c2531747f6d04e  test(LR-6): expose missing Adobe lens blur and depth bookkeeping
+a35d20e5c0892fbfd8342bb2563a86ab5c70f163 -> f339a7fd62da11c027e743ffc66a99c53bc34c9c  docs(LR-6): hand off RED evidence and fidelity blockers
+a7d49aa1d67b356fe7452e08c23ee3a2e2708c23 -> aee046997ed0469c1136971a6c3c0ae7a8885a1c  feat(LR-6b): approximate Adobe lens blur controls and depth resources
+82c6cd989662d90a63fda035f7cfb78163c6533b -> fcaf3fb698fb19eb3cc0ec535872d35f430850a4  test(LR-6b): enforce approximate mappings and synthetic depth rendering
+832673ff2aa5cd6c8da317435224e7b8e58c088c -> 9e709b683d4a3975d09c4d1ff6d8def4a9b3c8c7  docs(LR-6b): record per-field approximation contract and green gates
+c63d2cdae8028a8961cbea297b25ed708adb8f47 -> 247aa1a6f4133c7e9f0673740fce317a6c244846  test(LR-6c): expose depth activation, history, rendering and field diagnostics regressions
+d04bab01a2988e704cb973d2e3dc9e375fd0e8c3 -> 3d22622a43cf15d093bf680b19e1334668f167fe  fix(LR-6c): honor active blur, stored depth and native focus without extra history
+1cab914471af66b9cb95612d3d836a3aad04c2f3 -> ced4ae52164d5493fe408dcd768b7625ac1593a6  fix(LR-6c): satisfy diagnostics regression clippy check
+97ea265e0a0085ae552befe67ff0f7f8db4e501d -> a72e4c0986f5a996c335e8b7bda5fb11c13307d9  docs(LR-6c): record review fixes, passing behavior gates and remaining failures
+5650976d74fb455e7cd49ab5ed89fff3f87dc736 -> 052a900f5e0f6c203a30f7f5697f8fcad4dd3ee6  test(LR-6d): pin diagnostics conversion, untouched depth, schema and resource history
+8eed046197e5d12436cc0313410c4abe44d0c25c -> ecfbee5191ffd2beb8b4574431983eb88648c264  fix(LR-6d): adopt shared diagnostics, preserve inactive bytes and pin imported depth
+8a9096e507c2ccd685e6837c3984fe9c9330dd69 -> 751acbef9e6b8946366d3742b1e8b986065ead27  docs(LR-6d): record conversion audit and full gate results
+d4a24bc22c728bf4f5f3b37390ddd7ff0f5c2dd2 -> c2dd9b9f9c11776416eda917be5ff6925e158ffe  test(LR-6e): cover native schema, explicit regeneration and depth ownership
+6b2df3354961844b593f9ed81d5575f5fc564e77 -> 4e7a0c06143279f0e7f0b916b35560b5e80c9662  test(LR-6e): exercise import apply and bounded depth lifetime
+2062c115c5962eba9e0b775adf2d90fb2f49e407 -> 09457c20b9526bf85cf85f4d383ef565065e3cdd  test(LR-6e): check normalized XMP and failed publication rollback
+aaf46a6494e6f966ae9c3aaa05f05fffe2b44023 -> 209f5f6ee5ae606ec733434a55bd467a0f9d1655  fix(LR-6e): attach bounded depth during import and preserve native schema
+7ed612632dd0832c3025df9b80cff478ba3107f1 -> ce3fa9e081ba1ecaac797f9bce207e1be03c57ee  test(LR-6e): require preview reuse of imported full-size depth
+d5b0b2b38217583aca7826629a2b1e842fd6dbe0 -> fee0df1089b32d5e62eef391f98f47f972d24987  fix(LR-6e): reuse pinned depth at preview pyramid levels
+a086b6b831cd677ec019ca1de6a68637d2bb0923 -> d4913121bf2104900b2bff6f404eb930211d3de7  test(LR-6e): accept propagated I/O failure in rollback probe
+7508538196a1d7ae41ac063ed03e3684bc2a291d -> 3cc5e6446d08d40a2665b59c8c79c682160e4629  docs(LR-6e): record review fixes, bounded depth lifecycle and release gates

@@ -1,0 +1,51 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/engine-api)
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/index)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/sidecar)
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/library)
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/import-lrcat)
+    Finished `release` profile [optimized] target(s) in 19.32s
+     Running tests/golden.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/golden-8c35de7979cda501)
+
+running 3 tests
+test streaming_matches_import_and_plan_json_is_byte_identical ... ok
+golden digest: 87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5
+test synthetic_catalog_output_including_retained_source ... ok
+LR-6f active golden digest: 141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0
+
+thread 'lr6f_active_blur_and_inactive_depth_catalog_golden' (59947370) panicked at crates/import-lrcat/tests/golden.rs:119:5:
+assertion `left == right` failed
+  left: "141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0"
+ right: "RECOMPUTE"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test lr6f_active_blur_and_inactive_depth_catalog_golden ... FAILED
+
+failures:
+
+failures:
+    lr6f_active_blur_and_inactive_depth_catalog_golden
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+error: test failed, to rerun pass `-p import-lrcat --test golden`
+     Running tests/lr1_compat.rs (/Users/rutmehta/.cache/tessera-target/LR-4-parametric-masks/release/deps/lr1_compat-9639191d023d0e2c)
+
+running 1 test
+
+thread 'untranslated_recipe_bytes_match_pre_lr1' (59947712) panicked at crates/import-lrcat/tests/lr1_compat.rs:40:5:
+assertion `left == right` failed
+  left: "empty 10692 753b3950f2e078b44a6cd58e86feaac0b04c08695f88e3eabd7f0796c847b67c\nglobal 15228 8aea11369452bc10e9857738e937d09cac441b96bf372d8a51dd6c28cbfca3be\nstructures 20442 76f7740559d60289e7b88fab9902205d8b50580657d2e1e1a6badea5f5b56da8\nlegacy 11633 fe85a1a43d4268ab1aa6f24ba8add80325b3cd274d5b54e181f66bfbe6e438ce\nfuture 11442 35425c796d39602582db56a4bff92d1c6cec9c71a52d0be21cdbe90a330cdfc0\nnil-point 10805 d03097231aa0aa83cc4800a5d0483d6e9d74c404d3d1b126f648402729bf4b1c\nempty-point 10804 6dd1acba5bb138259140f8116e6635ff8ae27c500949f0646f9d66c62b9c9dee\nopaque-point 10916 802b478b6946efa4a30da26370475634b0709c09c7d34216e8eae6d7944976a9\npending 12169 2678608afc35568412c6c26bce7acae5815954ded18022c41a587689ac81d444\nxmp-opaque 11706 00e4419e50b80c42abf881199155b994184b3d997ce91394fa1ecb0e0e2f9bfa\n"
+ right: "empty 10692 753b3950f2e078b44a6cd58e86feaac0b04c08695f88e3eabd7f0796c847b67c\nglobal 15228 8aea11369452bc10e9857738e937d09cac441b96bf372d8a51dd6c28cbfca3be\nstructures 20442 76f7740559d60289e7b88fab9902205d8b50580657d2e1e1a6badea5f5b56da8\nlegacy 11633 fe85a1a43d4268ab1aa6f24ba8add80325b3cd274d5b54e181f66bfbe6e438ce\nfuture 11442 35425c796d39602582db56a4bff92d1c6cec9c71a52d0be21cdbe90a330cdfc0\nnil-point 10805 d03097231aa0aa83cc4800a5d0483d6e9d74c404d3d1b126f648402729bf4b1c\nempty-point 10804 6dd1acba5bb138259140f8116e6635ff8ae27c500949f0646f9d66c62b9c9dee\nopaque-point 10916 802b478b6946efa4a30da26370475634b0709c09c7d34216e8eae6d7944976a9\npending 11717 a029f685a47ec18777d55dfe3a1f1801cc1a8ca7348fcc21af8e685aa155ec12\nxmp-opaque 11706 00e4419e50b80c42abf881199155b994184b3d997ce91394fa1ecb0e0e2f9bfa\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test untranslated_recipe_bytes_match_pre_lr1 ... FAILED
+
+failures:
+
+failures:
+    untranslated_recipe_bytes_match_pre_lr1
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr1_compat`
+error: 2 targets failed:
+    `-p import-lrcat --test golden`
+    `-p import-lrcat --test lr1_compat`

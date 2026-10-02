@@ -1,0 +1,61 @@
+Existing opt-in tests from the unfiltered release run:
+test b515_bench_p16_background_export ... ignored
+test bench_camera_raw_24mp ... ignored
+test bench_detail_preview ... ignored
+test bench_edr_slider_latency ... ignored
+test bench_five_full_size_jpegs ... ignored, full-size five-image JPEG q90 benchmark
+test bench_full_level2_m2_chain_gpu_vs_cpu ... ignored
+test bench_full_level2_tone_only_gpu_vs_cpu ... ignored
+test bench_gaussian_preview_20mp ... ignored
+test bench_interactive_dabs_20mp ... ignored
+test bench_interactive_per_operator ... ignored, requires real RAW fixtures and Metal; prints interactive frame times
+test bench_interactive_recomposite_100_layers_20mp ... ignored
+test bench_l2_composed_geometry_budget ... ignored, requires a real >=30 MP NEF, Metal and release build; asserts geometry drag budget
+test bench_level_barrier ... ignored
+test bench_mask_latency ... ignored
+test bench_nef_level2_resident ... ignored, requires Metal and the Nikon NEF fixture; prints measurements, not a target guarantee
+test bench_nef_per_operator_l2_l0 ... ignored, requires a real NEF, Metal, and potentially several minutes at full L0
+test bench_p13_4k_viewport_l0_100_layers_20mp ... ignored
+test bench_p14_mutations_during_slow_style_frames ... ignored
+test bench_p16_export_flat_sync ... ignored
+test bench_p16_export_parity_files ... ignored
+test bench_p17_document_frames_during_photo_export ... ignored
+test bench_p19_smart_filter_drag_20mp ... ignored
+test bench_panel_latency ... ignored
+test bench_slider_latency ... ignored
+test bench_styled_large_viewport_frame ... ignored
+test bench_tone_only_change_at_level_2 ... ignored
+test bench_warp_drag_20mp ... ignored
+test benchmark_real_cfa_first_frame_then_tone_only ... ignored, requires Metal, RAW fixtures, pinned CFA weights and measured per-fixture calibration
+test benchmark_three_24mp_layers ... ignored, 3x24 MP allocation/time benchmark; run release explicitly
+test catalog_copy_indexes_eight_accessible_references ... ignored, requires TESSERA_LRCAT_COPY and eight accessible originals
+test develop::preview_qualification::decision_reuse_qualification::engine_proxy_cache_frame_qualification ... ignored, exclusive lane; explicit fixture/variant and preregistered runner
+test develop::preview_qualification::engine_iosurface_matched_viewport_qualification ... ignored, exclusive Metal lane, real read-only RAW, explicit qualification route/output
+test develop::preview_qualification::engine_same_engine_unchanged_proxy_reopen_baseline ... ignored, exclusive runtime lane, explicit read-only fixture and output; no cache implementation
+test document::publication_tests::eng2_publication_latency ... ignored, latency measurement; run with --ignored --nocapture
+test five_actual_raws_auto_lens_and_upright_are_finite ... ignored, full-resolution five-camera acceptance: cargo test --release -p pipeline-cpu --test lens_fixtures -- --ignored --nocapture
+test five_fixture_export_benchmark ... ignored, five real RAW fixtures; prints decode + render + encode wall time
+test fixture_export_worker ... ignored, subprocess worker of five_fixture_export_benchmark
+test full_nef_transaction_keeps_device_alive ... ignored, requires the full Nikon NEF fixture and Metal
+test gpu::tests::five_fixture_full_chain_tolerance ... ignored, full-chain precision on all five real RAW fixtures
+test gpu::tests::five_fixture_web_scale_tolerance ... ignored, Web-scale precision on all five real RAW fixtures
+test hundred_web_exports ... ignored, five real RAW fixtures; 100 Web-preset JPEG exports
+test local_trained_adapter_preserves_sensor_mask_for_every_pattern ... ignored, requires locally trained weights; run after documented training/export
+test locals_24mp ... ignored, 24MP GPU/CPU regression; run explicitly
+test memory_of_a_pixel_apply_at_100_megapixels_f32 ... ignored
+test memory_of_a_pixel_apply_at_100_megapixels_u8 ... ignored
+test memory_of_a_smart_object_begin_and_apply_at_100_megapixels_u8 ... ignored
+test public_engine_offline_restart_sync_original_export_and_conflict ... ignored, requires TESSERA_SMART_PREVIEW_RAW and the exclusive native test lane
+test real_legacy_v1_asset_reopen_and_edit_parity ... ignored, requires TESSERA_CODEC_LEGACY_ASSET, TESSERA_CODEC_LEGACY_REPORT and TESSERA_CODEC_OUTPUT_DIR
+test real_raw_fixture_measurement ... ignored, requires TESSERA_CODEC_RAW_FIXTURE and TESSERA_CODEC_OUTPUT_DIR
+test resident::tests::single_pass_preserves_dispatch_and_clear_order ... ignored, requires Metal; checks >4096 dispatches and ordered clear in one pass
+test sparse_lens_analysis_matches_reference_on_fixtures ... ignored, five real RAW fixtures (PIPELINE_RAW_FIXTURES)
+test synthetic_import_to_cpu_render ... ignored, paired synthetic import; tools/orchestrate/wp/LR-6/gate.sh supplies LR6_RECIPE
+test tests::cache_80k_measurement ... ignored, M2-55 repeatable measurement
+test tests::jpeg_baseline_measurement ... ignored, M2-55 baseline JPEG measurement
+test tests::synthetic_45mp_under_400ms ... ignored, release performance check
+test timing_on_a_12_megapixel_layer ... ignored
+test timing_on_a_24_megapixel_layer ... ignored
+test tone_local::tests::shared_means_benchmark ... ignored, manual wall-clock benchmark; includes allocation, upload and readback
+test tone_signed_rgb_near_zero_luminance_matches_f64_reference ... ignored, engine follow-up: signed-luminance conditioning; main exceeds f64-reference bound
+test typing_preview_latency_20mp ... ignored
