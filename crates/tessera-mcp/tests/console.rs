@@ -400,7 +400,7 @@ fn lr4e_create_and_adjust_reject_ninth_mask_level_without_saving() {
     image::RgbImage::from_pixel(8, 8, image::Rgb([100, 110, 120]))
         .save(&path)
         .unwrap();
-    let mut console = Console::open(&dir.path().join("app")).unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
     let id = console.open_image(&path).unwrap();
     let mut c = json!({"kind":"linear","start":[0,0],"end":[1,0]});
     for _ in 1..8 {
