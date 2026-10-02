@@ -184,6 +184,22 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `MaskGroupBasedCorrections/Mask/Paint/Dabs` | `/settings/locals/adjustments/0/components/0/strokes` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Paint",Radius=0.1,Flow=0.5,CenterWeight=0.5,MaskValue=1,Dabs={"d 0.5 0.5"}}}}}` |
 
 
+| `MaskGroupBasedCorrections/MainCurve` | `/settings/locals/adjustments/0/params/curves` | LR-11 | approximate | `{{MainCurve={0,0,128,160,255,255},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/RedCurve` | `/settings/locals/adjustments/0/params/curves` | LR-11 | approximate | `{{RedCurve={0,0,128,160,255,255},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/GreenCurve` | `/settings/locals/adjustments/0/params/curves` | LR-11 | approximate | `{{GreenCurve={0,0,128,160,255,255},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/BlueCurve` | `/settings/locals/adjustments/0/params/curves` | LR-11 | approximate | `{{BlueCurve={0,0,128,160,255,255},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/ExtendedMainCurve` | `/settings/locals/adjustments/0/params/curves_extended` | LR-11 | approximate | `{{ExtendedMainCurve={0,0,510,600},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/ExtendedRedCurve` | `/settings/locals/adjustments/0/params/curves_extended` | LR-11 | approximate | `{{ExtendedRedCurve={0,0,510,600},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/ExtendedGreenCurve` | `/settings/locals/adjustments/0/params/curves_extended` | LR-11 | approximate | `{{ExtendedGreenCurve={0,0,510,600},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/ExtendedBlueCurve` | `/settings/locals/adjustments/0/params/curves_extended` | LR-11 | approximate | `{{ExtendedBlueCurve={0,0,510,600},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/LocalPointColors` | `/settings/locals/adjustments/0/params/point_colors` | LR-11 | approximate | `{{LocalPointColors={"0,0.5,0.5,0.5,0,0,0.5,0,0.25,0.75,1,0,0.25,0.75,1,0,0.25,0.75,1"},CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/LocalToningHue` | `/settings/locals/adjustments/0/params/color_overlay` | LR-11 | approximate | `{{LocalToningHue=120,LocalToningSaturation=50,CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/LocalToningSaturation` | `/settings/locals/adjustments/0/params/color_overlay` | LR-11 | approximate | `{{LocalToningHue=120,LocalToningSaturation=50,CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/LocalDefringe` | `/settings/locals/adjustments/0/params/defringe` | LR-11 | approximate | `{{LocalDefringe=50,CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
+| `MaskGroupBasedCorrections/InstanceIDs` | `/settings/locals/adjustments/0/components/0/adobe_ai/instance_hint` | LR-11 | approximate | `{{CorrectionMasks={{What="Mask/Image",MaskSubType=0,ReferencePoint="0.5 0.5",InstanceIDs={{InstanceID=2}},InstanceBounds={{Left=0.2,Top=0.2,Right=0.8,Bottom=0.8}}}}}}` |
+| `MaskGroupBasedCorrections/InstanceBounds` | `/settings/locals/adjustments/0/components/0/adobe_ai/instance_hint` | LR-11 | approximate | `{{CorrectionMasks={{What="Mask/Image",MaskSubType=0,ReferencePoint="0.5 0.5",InstanceIDs={{InstanceID=2}},InstanceBounds={{Left=0.2,Top=0.2,Right=0.8,Bottom=0.8}}}}}}` |
+| `MaskGroupBasedCorrections/Flipped+MaskInverted` | MISSING: documented precedence for conflicting radial inversion flags | LR-11 | unsupported-diagnostic | — |
+
 ## Per-lane representation notes
 
 - **LR-1:** `PointColor` retains native source LCH and shifts; optional `selection`
@@ -335,9 +351,10 @@ Mask promotion admits `CorrectionReferenceX/Y`, zero legacy local sliders,
 `LocalCurveRefineSaturation=100`, zero `LocalGrain`/`LocalCorrectedDepth`,
 zero `LocalColorVariance` arrays, radial `Version`, and AI raster provenance
 `FullMaskSize`/`LocalInputDigest`/`LocalInputDigestVersion`. A saved toning hue is
-inactive when saturation is zero. Real local curves, local point color, nonzero
-local overlay/defringe and individual AI-instance selection remain explicitly
-named unsupported features. LR-4/LR-5 geometry, range, nested masks and AI
+inactive when saturation is zero. LR-11 now translates local curves, local Point Color, nonzero overlay/defringe
+and individual object-instance hints approximately; the exact source remains
+retained. Per-instance isolation is unavailable in the existing segmentation seam.
+Conflicting radial inversion flags remain a named unsupported feature. LR-4/LR-5 geometry, range, nested masks and AI
 regeneration retain their existing approximation contract, including MaskValue.
 
 Retouch accepts `HealVersion`, `MaskID`, `CenterWeight`, and absolute source-Y
@@ -356,3 +373,31 @@ info note per image with the text `requires Adobe cloud; not translatable`.
 named residual policy against this matrix, its warning text, and retained source.
 See the [LR-9b handoff](../../tools/orchestrate/wp/LR-9b/HANDOFF.md) for aggregate
 measurements, remaining classes, source-contract evidence and clean gates.
+
+## LR-11 per-mask adjustments
+
+Local ordinary and extended point curves use the global `ToneCurves` representation
+and spline operator. Extended channels inherit ordinary-channel values when absent.
+Local Point Color uses LR-1's decoder and CPU operator; a monochrome pipeline moves
+only that operator before B&W and includes mask/point changes in the tone cache key.
+Overlay uses a hue tint scaled to the original scene-linear luminance, blended by
+saturation. Defringe reuses the global edge-selective purple/green suppression,
+with local 0..100 mapped to the operator's 0..20 amount. These are explicit Tessera
+approximations, not Adobe pixel-parity claims. Curve amount scales the scene-linear
+curve delta; Point Color scales its shifts; overlay/defringe scale their strengths.
+All are applied through the group's alpha and disabled/zero-amount groups are inert.
+
+`curves`, `curves_extended`, and `point_colors` are optional and omitted when absent.
+Each has a schema-4 predicate and a bumped-only-when-present test. Existing nonzero
+`defringe`/present `color_overlay` now also require schema 4. Object `instance_hint`
+is optional, has its own predicate, survives native XMP and recipe round-trips,
+and is informational to the existing object/subject segmentation seam. The
+approximation diagnostic explicitly states that per-instance segmentation is
+unavailable. No model interface was added.
+
+All CPU-only local fields fail GPU admission before resident dispatch. The
+compositor fallback test requires exactly equal pixels (absolute tolerance 0),
+with a no-feature admission control. Synthetic Lua and XMP fixtures cover every
+item, including retained radial conflict. The import-to-CPU reference tolerance
+is 2e-6 scene-linear; exact source, one Import history entry, and field-matching
+info diagnostics are checked independently.
