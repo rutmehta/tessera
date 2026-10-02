@@ -242,9 +242,25 @@ pub enum MaskCombine {
     Intersect,
 }
 
+/// Imported Adobe AI selection bookkeeping. Pixels live only in mask-store.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AdobeAiMask {
+    /// Opaque helper resource identifier, never interpreted as a path.
+    pub resource_id: Option<String>,
+    /// Original category including a person sub-part, if supplied.
+    pub category: String,
+    /// Durable raster reference, populated during import apply.
+    pub mask_key: Option<[u8; 32]>,
+    /// No usable Adobe raster; render uses the existing segmentation backend.
+    pub regenerate: bool,
+}
+
 /// One component of a composite mask.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaskComponent {
+    /// Adobe AI mask state; absent preserves existing recipes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adobe_ai: Option<AdobeAiMask>,
     /// Disabled components do not seed or participate in composition.
     #[serde(default = "yes", skip_serializing_if = "is_true")]
     pub enabled: bool,
@@ -293,6 +309,7 @@ impl MaskComponent {
             kind,
             enabled: true,
             group: None,
+            adobe_ai: None,
             luminance_bounds: None,
             combine: MaskCombine::Add,
             invert: false,
@@ -381,6 +398,26 @@ impl LocalAdjustment {
                     "mask",
                     "mask tree exceeds 8 levels or 65536 components",
                 ));
+            }
+            if let Some(state) = &c.adobe_ai {
+                if c.group.is_some()
+                    || !matches!(
+                        c.kind,
+                        MaskKind::Subject { .. }
+                            | MaskKind::Sky { .. }
+                            | MaskKind::Background { .. }
+                            | MaskKind::Object { .. }
+                    )
+                    || state.regenerate != state.mask_key.is_none()
+                    || state.category.is_empty()
+                    || state.category.len() > 128
+                    || state.resource_id.as_ref().is_some_and(|s| s.len() > 4096)
+                {
+                    return Err(crate::EngineError::invalid(
+                        "mask.adobe_ai",
+                        "expected bounded AI leaf metadata and either a raster key or regeneration",
+                    ));
+                }
             }
             let enabled = parent_enabled && c.enabled;
             if let Some(b) = c.luminance_bounds.filter(|_| enabled) {

@@ -20,6 +20,7 @@ fn refinement_cache_and_far_plane() {
         components: vec![MaskComponent {
             enabled: true,
             group: None,
+            adobe_ai: None,
             luminance_bounds: None,
             kind: MaskKind::Depth {
                 range: [0.9, 1.],

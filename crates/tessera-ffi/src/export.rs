@@ -348,6 +348,7 @@ impl ExportOptions {
     }
     fn settings(&self, output_dir: PathBuf) -> Result<export::ExportSettings> {
         Ok(export::ExportSettings {
+            mask_support: None,
             format: match self.format {
                 FileFormat::Jpeg => export::Format::Jpeg {
                     quality: self.quality,
@@ -1228,6 +1229,7 @@ impl Engine {
                 }
                 let crop = recipe.settings.geometry.crop.rect;
                 let settings = export::ExportSettings {
+                    mask_support: Some(self.support_dir()?.to_path_buf()),
                     naming,
                     original_raw: options.embed_original_raw.then(|| item.path.clone()),
                     metadata_sources: [(image.sequence, item.path.clone())].into(),
@@ -1468,7 +1470,7 @@ impl Engine {
             export::ColorSpace::DisplayP3
         };
         let mut segmenter = segmenter;
-        let rgb = export::render_pixels(
+        let rgb = export::render_pixels_with_mask_support(
             &export::ExportImage {
                 source: source.render_source(),
                 name: "print",
@@ -1494,6 +1496,7 @@ impl Engine {
                 Some(s) => Some(s.as_mut()),
                 None => None,
             },
+            Some(self.support_dir()?),
         )?;
         let (width, height) = rgb.dimensions();
         let pixels: Vec<[f32; 3]> = rgb

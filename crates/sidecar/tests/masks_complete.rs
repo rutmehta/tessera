@@ -235,3 +235,15 @@ fn lr4e_display_domain_survives_native_xmp_and_linear_omits_extension() {
     );
     assert!(display.contains("luminance_domain"));
 }
+
+#[test]
+fn lr5_adobe_ai_state_round_trips_through_native_xmp() {
+    for state in [
+        json!({"resource_id":"opaque", "category":"Hair", "mask_key":null,"regenerate":true}),
+        json!({"resource_id":"opaque", "category":"Hair", "mask_key":vec![7u8;32],"regenerate":false}),
+    ] {
+        let packet = roundtrip(json!({"kind":"subject", "model":null,"adobe_ai":state}));
+        assert!(packet.contains("adobe_ai"));
+        assert!(!packet.contains("TSMASK"));
+    }
+}

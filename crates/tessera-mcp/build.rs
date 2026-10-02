@@ -178,6 +178,7 @@ fn main() {
                 "BrushStroke",
                 "MaskCombine",
                 "MaskComponent",
+                "AdobeAiMask",
                 "LocalParams",
             ],
         ),

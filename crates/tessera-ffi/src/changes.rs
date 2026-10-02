@@ -184,7 +184,17 @@ impl Engine {
             .iter()
             .map(|id| crate::parse_id(id))
             .collect::<Result<Vec<_>>>()?;
-        let removed = self.lock()?.index.forget_missing(&ids)?;
+        let mut catalog = self.lock()?;
+        let removed = catalog.index.forget_missing(&ids)?;
+        for id in ids {
+            if matches!(
+                catalog.index.image_info(id),
+                Err(engine_api::EngineError::NotFound { .. })
+            ) {
+                crate::lrcat_masks::remove_image(self.support_dir()?, id)?;
+            }
+        }
+        drop(catalog);
         self.notify_changes();
         Ok(removed as u32)
     }

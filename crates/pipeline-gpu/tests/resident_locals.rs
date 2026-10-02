@@ -138,6 +138,7 @@ fn procedural_masks_and_composition_match_cpu() {
         g.components.push(MaskComponent {
             enabled: true,
             group: None,
+            adobe_ai: None,
             luminance_bounds: None,
             kind: masks[0].clone(),
             combine,

@@ -222,6 +222,13 @@ pub trait LrcatProgressListener: Send + Sync {
     fn on_progress(&self, progress: LrcatProgress);
 }
 
+/// Caller-owned opaque resource association. Supply a full sensor-aligned
+/// grayscale PNG/TIFF, including any Adobe crop/origin expansion.
+#[uniffi::export(with_foreign)]
+pub trait LrcatMaskResolver: Send + Sync {
+    fn resolve(&self, catalog_image_id: i64, resource_id: String) -> Option<Vec<u8>>;
+}
+
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct LrcatReport {
     pub catalog_path: String,
@@ -1183,6 +1190,16 @@ impl LrcatImport {
         options: LrcatOptions,
         listener: Option<Arc<dyn LrcatProgressListener>>,
     ) -> Result<LrcatReport> {
+        self.apply_with_mask_resolver(options, listener, None)
+    }
+
+    /// Apply with a caller-owned association to independently decoded AI masks.
+    pub fn apply_with_mask_resolver(
+        &self,
+        options: LrcatOptions,
+        listener: Option<Arc<dyn LrcatProgressListener>>,
+        resolver: Option<Arc<dyn LrcatMaskResolver>>,
+    ) -> Result<LrcatReport> {
         self.cancel.store(false, Ordering::SeqCst);
         let started = Instant::now();
         let mut progress = Progress::new(listener);
@@ -1336,7 +1353,7 @@ impl LrcatImport {
                 report.cancelled = true;
                 break;
             }
-            let image = match self.read_image(r.index) {
+            let mut image = match self.read_image(r.index) {
                 Ok(image) => image,
                 Err(error) => {
                     // Preserve successful sidecar writes since the last batch checkpoint.
@@ -1355,7 +1372,12 @@ impl LrcatImport {
             if state.done.contains(&image.catalog_id) {
                 report.resumed += 1;
                 count_selection(&mut report.selection, &selection);
-                note_approximate(&mut report.approximate, &image.recipe, &r.path);
+                let published = Sidecar::read_recipe(Sidecar::paths(&r.path).recipe).ok();
+                note_approximate(
+                    &mut report.approximate,
+                    published.as_ref().map_or(&image.recipe, |d| &d.recipe),
+                    &r.path,
+                );
                 continue;
             }
             if let Some(delay) = delay {
@@ -1397,13 +1419,35 @@ impl LrcatImport {
                 {
                     return Err(failure(reason));
                 }
-                write_image(
-                    &r.path,
+                let support = self.engine.support_dir()?;
+                let root = support.join("imported-masks");
+                Sidecar::ensure_destination(&root, "imported masks")?;
+                Sidecar::ensure_destination(root.join("pinned"), "imported masks")?;
+                let store = ml_segment::MaskStore::new(root, 0)?;
+                let extent = if resolver.is_some() {
+                    image::image_dimensions(&r.path)
+                        .ok()
+                        .or_else(|| {
+                            raw_decode::RawSource::open(&r.path).ok().map(|raw| {
+                                let meta = raw.metadata();
+                                (meta.default_crop[2], meta.default_crop[3])
+                            })
+                        })
+                        .unwrap_or((0, 0))
+                } else {
+                    (0, 0)
+                };
+                crate::lrcat_masks::apply(
+                    &mut image.recipe,
                     id,
-                    &image.recipe,
-                    &selection,
-                    &keywords,
-                    &admission,
+                    extent,
+                    &store,
+                    |resource| {
+                        resolver
+                            .as_ref()
+                            .and_then(|r| r.resolve(image.catalog_id, resource.into()))
+                    },
+                    |recipe| write_image(&r.path, id, recipe, &selection, &keywords, &admission),
                 )
             })();
             match result {
@@ -2034,3 +2078,7 @@ mod lrcat_resume_tests {
         assert!(report.imported > 0);
     }
 }
+
+#[cfg(test)]
+#[path = "lrcat_mask_tests.rs"]
+mod lrcat_mask_tests;

@@ -3,7 +3,7 @@ use engine_api::{
     EngineError, EngineResult,
     recipe::{
         DevelopSettings,
-        mask::{LocalAdjustment, MaskKind},
+        mask::{LocalAdjustment, MaskComponent},
     },
     stage::{ParamHash, StageId},
 };
@@ -23,7 +23,7 @@ pub(crate) fn active(settings: &DevelopSettings) -> bool {
     })
 }
 
-struct ReadyMasks(Vec<(MaskKind, AlphaPlane)>);
+struct ReadyMasks(Vec<(MaskComponent, AlphaPlane)>);
 impl MaskHooks for ReadyMasks {
     fn revision(&self) -> u64 {
         0
@@ -34,11 +34,11 @@ impl MaskHooks for ReadyMasks {
         group: &LocalAdjustment,
         _level: u8,
     ) -> EngineResult<Vec<f32>> {
-        mask_ai::compose(input, group, |kind, w, h| {
+        mask_ai::compose_with_components(input, group, |component, w, h| {
             let (_, plane) = self
                 .0
                 .iter()
-                .find(|(k, _)| k == kind)
+                .find(|(c, _)| c == component)
                 .ok_or_else(|| EngineError::invalid("mask", "missing export AI raster"))?;
             Ok(mask_ai::resample(plane, w, h).into())
         })
@@ -57,7 +57,24 @@ pub(crate) fn render(
     settings: &DevelopSettings,
     segmenter: Option<&mut dyn MaskSegmenter>,
 ) -> EngineResult<image::Rgb32FImage> {
-    render_with_hooks(source, settings, segmenter, None, None, &mut Vec::new())
+    render_with_support(source, settings, segmenter, None)
+}
+
+pub(crate) fn render_with_support(
+    source: &RenderSource<'_>,
+    settings: &DevelopSettings,
+    segmenter: Option<&mut dyn MaskSegmenter>,
+    support: Option<&std::path::Path>,
+) -> EngineResult<image::Rgb32FImage> {
+    render_with_hooks(
+        source,
+        settings,
+        segmenter,
+        None,
+        None,
+        &mut Vec::new(),
+        support,
+    )
 }
 
 pub(crate) fn render_with_hooks(
@@ -67,6 +84,7 @@ pub(crate) fn render_with_hooks(
     denoiser: Option<&dyn pipeline_cpu::PostDemosaicDenoise>,
     depth: Option<&image_core::depth::DepthProvider>,
     warnings: &mut Vec<String>,
+    mask_support: Option<&std::path::Path>,
 ) -> EngineResult<image::Rgb32FImage> {
     let mut pre = settings.clone();
     pre.output.proof_profile = None;
@@ -111,11 +129,13 @@ pub(crate) fn render_with_hooks(
             .flat_map(|c| c.active_leaves())
             .filter(|c| c.kind.is_ai())
         {
-            if !requests.iter().any(|(kind, _)| kind == &c.kind) {
-                requests.push((
-                    c.kind.clone(),
-                    mask_ai::request(&c.kind, orientation).map_err(error)?,
-                ));
+            if !requests.iter().any(|(component, _)| component == c) {
+                let request = if c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_some() {
+                    None
+                } else {
+                    Some(mask_ai::request(&c.kind, orientation).map_err(error)?)
+                };
+                requests.push((c.clone(), request));
             }
         }
     }
@@ -128,24 +148,43 @@ pub(crate) fn render_with_hooks(
     let shown = mask_ai::reorient(&pixels, sw, sh, dw, dh, |p| mask_ai::orient(p, orientation));
     let shown = image::RgbImage::from_raw(dw, dh, shown.into_iter().flatten().collect())
         .ok_or_else(|| error("segmentation input"))?;
-    let mut loaded;
-    let segmenter = match segmenter {
-        Some(s) => s,
-        None => {
-            let support = std::env::var_os("TESSERA_APP_SUPPORT")
-                .map(std::path::PathBuf::from)
-                .or_else(|| {
-                    std::env::var_os("HOME").map(|p| {
-                        std::path::PathBuf::from(p).join("Library/Application Support/Tessera")
-                    })
+    let support = || -> EngineResult<std::path::PathBuf> {
+        mask_support
+            .map(std::path::Path::to_path_buf)
+            .or_else(|| std::env::var_os("TESSERA_APP_SUPPORT").map(std::path::PathBuf::from))
+            .or_else(|| {
+                std::env::var_os("HOME").map(|p| {
+                    std::path::PathBuf::from(p).join("Library/Application Support/Tessera")
                 })
-                .ok_or_else(|| error("set TESSERA_APP_SUPPORT to the model support directory"))?;
-            loaded = mask_ai::load_segmenter(&support).map_err(error)?;
-            loaded.as_mut()
-        }
+            })
+            .ok_or_else(|| error("set TESSERA_APP_SUPPORT to the model support directory"))
     };
+    let mut loaded = None;
+    let mut supplied = segmenter;
     let mut rasters = Vec::new();
-    for (kind, request) in requests {
+    for (component, request) in requests {
+        let Some(request) = request else {
+            let key = component
+                .adobe_ai
+                .as_ref()
+                .and_then(|s| s.mask_key)
+                .expect("imported reference");
+            let plane = mask_ai::imported_plane(&support()?, &key).map_err(error)?;
+            if (plane.width, plane.height) != (w, h) {
+                return Err(error("imported raster extent does not match original"));
+            }
+            rasters.push((component, plane));
+            continue;
+        };
+        let segmenter: &mut dyn MaskSegmenter = match supplied.as_deref_mut() {
+            Some(s) => s,
+            None => {
+                if loaded.is_none() {
+                    loaded = Some(mask_ai::load_segmenter(&support()?).map_err(error)?);
+                }
+                loaded.as_mut().expect("loaded").as_mut()
+            }
+        };
         let alpha = segmenter.segment(&shown, &request).map_err(error)?;
         if alpha.len() != dw as usize * dh as usize
             || alpha.iter().any(|v| !(0.0..=1.0).contains(v))
@@ -156,7 +195,7 @@ pub(crate) fn render_with_hooks(
             mask_ai::unorient(p, orientation)
         });
         rasters.push((
-            kind,
+            component,
             AlphaPlane {
                 width: sw,
                 height: sh,
@@ -224,7 +263,7 @@ pub(crate) fn render_with_hooks(
 #[cfg(test)]
 mod lr4_tests {
     use super::*;
-    use engine_api::recipe::MaskComponent;
+    use engine_api::recipe::{MaskComponent, MaskKind};
     #[test]
     fn lr4_nested_ai_activates_raster_export_but_disabled_does_not() {
         let mut c = MaskComponent::new(MaskKind::Brush { strokes: vec![] });

@@ -101,6 +101,8 @@ pub enum Metadata {
 
 #[derive(Clone, Debug)]
 pub struct ExportSettings {
+    /// Caller-owned Tessera support root for imported mask resources.
+    pub mask_support: Option<PathBuf>,
     pub format: Format,
     /// HDR PNG uses 16-bit samples; HDR AVIF requires 10/12 bits. None is SDR.
     pub hdr: Option<HdrTransfer>,
@@ -144,6 +146,7 @@ pub struct ExportSettings {
 impl Default for ExportSettings {
     fn default() -> Self {
         Self {
+            mask_support: None,
             format: Format::Jpeg { quality: 90 },
             hdr: None,
             color_space: ColorSpace::Srgb,
@@ -291,7 +294,15 @@ pub fn export_one_cancellable(
 
 /// Whether rendering `recipe` needs a segmentation backend (enabled AI masks).
 pub fn needs_segmenter(recipe: &Recipe) -> bool {
-    ai_masks::active(&recipe.settings)
+    recipe
+        .settings
+        .locals
+        .adjustments
+        .iter()
+        .filter(|g| g.enabled && g.amount != 0.)
+        .flat_map(|g| &g.components)
+        .flat_map(|c| c.active_leaves())
+        .any(|c| c.kind.is_ai() && c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_none())
 }
 
 /// Rendered pixels without writing a file (print, contact sheets): the same
@@ -307,6 +318,18 @@ pub fn render_pixels(
     cancel: &CancellationToken,
     segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
 ) -> EngineResult<image::Rgb32FImage> {
+    render_pixels_with_mask_support(image, recipe, render, cancel, segmenter, None)
+}
+
+/// Pixel rendering with an explicit imported-mask storage root.
+pub fn render_pixels_with_mask_support(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    render: &RenderRequest,
+    cancel: &CancellationToken,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+    support: Option<&std::path::Path>,
+) -> EngineResult<image::Rgb32FImage> {
     require_full_quality_source(&image.source)?;
     cancel.check()?;
     recipe.validate()?;
@@ -314,7 +337,8 @@ pub fn render_pixels(
         return Err(EngineError::invalid("scale", "must be 1, 2, 4 or 8"));
     }
     let rgb = if ai_masks::active(&recipe.settings) {
-        let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
+        let rgb =
+            ai_masks::render_with_support(&image.source, &recipe.settings, segmenter, support)?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else {
         render_scaled_cancellable(image, recipe, render.color_space, render.scale, cancel)?
@@ -600,7 +624,12 @@ pub fn render_one_cancellable(
         hdr::render(image, recipe, settings, cancel)?
     } else if matches!(settings.format, Format::Dng) {
         let rgb = if ai_masks::active(&recipe.settings) {
-            ai_masks::render(&image.source, &recipe.settings, segmenter)?
+            ai_masks::render_with_support(
+                &image.source,
+                &recipe.settings,
+                segmenter,
+                settings.mask_support.as_deref(),
+            )?
         } else {
             render_full_float(image, recipe)?
         };
@@ -634,7 +663,10 @@ pub fn render_one_cancellable(
                 &image.source,
                 &recipe.settings,
                 scale,
-                &depth::support()?,
+                &settings
+                    .mask_support
+                    .clone()
+                    .map_or_else(depth::support, Ok)?,
                 segmenter,
                 None,
             )?,
@@ -647,7 +679,12 @@ pub fn render_one_cancellable(
         };
         encode_output_profile(rgb, recipe, settings.color_space)?
     } else if ai_masks::active(&recipe.settings) {
-        let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
+        let rgb = ai_masks::render_with_support(
+            &image.source,
+            &recipe.settings,
+            segmenter,
+            settings.mask_support.as_deref(),
+        )?;
         cancel.check()?;
         let rgb = match upscale {
             Some(model) => upscale_rgb(rgb, model)?,
