@@ -55,7 +55,12 @@ fn pre_identification_errors_fall_through() {
 #[test]
 fn identified_linear_raw_rejects_bad_fields_even_before_photo_tag() {
     rejected(
-        &[(256, 99, 1, 16), (262, 3, 1, 34892)],
+        &[
+            (256, 99, 1, 16),
+            (262, 3, 1, 34892),
+            (259, 3, 1, 34892),
+            (277, 3, 1, 3),
+        ],
         "unsupported TIFF field",
     );
 }
@@ -92,7 +97,13 @@ fn cyclic_ifd_after_identification_fails_closed() {
     let mut b = dng(&base());
     let n = b.len();
     b[n - 4..].copy_from_slice(&8u32.to_le_bytes());
-    assert!(raw_decode::lossy_dng::read(&mut Cursor::new(b)).is_err());
+    assert_eq!(
+        raw_decode::lossy_dng::read(&mut Cursor::new(b))
+            .err()
+            .unwrap()
+            .to_string(),
+        "cyclic or excessive TIFF IFD graph"
+    );
 }
 #[test]
 fn bad_linearization_table_lengths() {
