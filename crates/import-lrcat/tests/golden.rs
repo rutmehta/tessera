@@ -131,7 +131,10 @@ fn ordinary_import_golden_is_identical_with_smart_preview_bundle_present() {
     let index = import_lrcat::smart_previews::SmartPreviewIndex::new(&catalog);
     std::fs::create_dir_all(index.root()).unwrap();
     let after = import_lrcat::import(&catalog).unwrap();
-    assert_eq!(serde_json::to_vec(&before).unwrap(), serde_json::to_vec(&after).unwrap());
+    assert_eq!(
+        serde_json::to_vec(&before).unwrap(),
+        serde_json::to_vec(&after).unwrap()
+    );
     assert_eq!(digest(before.images), GOLDEN);
     assert_eq!(digest(after.images), GOLDEN);
 }
