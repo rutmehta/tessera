@@ -11,6 +11,14 @@ use zune_jpeg::{
     zune_core::{bytestream::ZCursor, colorspace::ColorSpace, options::DecoderOptions},
 };
 
+/// Cap the actual camera RGB output (three f32 channels) at 1.5 GiB, or
+/// 134,217,728 pixels, admitting 100 MP originals with headroom. This is an
+/// output allocation cap, not a total-process cap: the final crop can coexist
+/// with the full output (up to another 1.5 GiB); compressed tiles and codec
+/// scratch retain their independent limits. Tiles decode sequentially, so
+/// summing padded tile working sets would unnecessarily reject large originals.
+const MAX_DECODED_BYTES: usize = 1536 * 1024 * 1024;
+
 type Tags = BTreeMap<u16, Tag>;
 #[derive(Clone)]
 struct Tag {
@@ -340,9 +348,10 @@ fn read_identified<R: Read + Seek>(
     let height = dimension(257)?;
     if width
         .checked_mul(height)
-        .is_none_or(|n| n > 64 * 1024 * 1024)
+        .and_then(|n| n.checked_mul(size_of::<[f32; 3]>()))
+        .is_none_or(|bytes| bytes > MAX_DECODED_BYTES)
     {
-        return Err(invalid("pixel budget exceeded"));
+        return Err(invalid("total decoded byte budget exceeded"));
     }
     if t.scalar(&tags, 284, 1.)? != 1. {
         return Err(invalid("planar JPEG unsupported"));
@@ -426,16 +435,6 @@ fn read_identified<R: Read + Seek>(
     }
     if offsets.len() != tile_count || offsets.len() != counts.len() {
         return Err(invalid("invalid tile/strip count"));
-    }
-    // Conservative working-set accounting: reserve 24 bytes per padded pixel,
-    // even though codec outputs now use u8/f32 rather than an f64 copy.
-    if tw
-        .checked_mul(th)
-        .and_then(|n| n.checked_mul(tile_count))
-        .and_then(|n| n.checked_mul(3 * size_of::<f64>()))
-        .is_none_or(|bytes| bytes > 512 * 1024 * 1024)
-    {
-        return Err(invalid("total decoded byte budget exceeded"));
     }
     let compressed_total = counts
         .iter()
@@ -709,6 +708,7 @@ fn without_adobe(bytes: &[u8]) -> io::Result<Vec<u8>> {
     }
     let mut out = bytes[..2].to_vec();
     let mut p = 2;
+    let mut adobe_transform = None;
     while p < bytes.len() {
         let start = p;
         if bytes[p] != 255 {
@@ -732,12 +732,22 @@ fn without_adobe(bytes: &[u8]) -> io::Result<Vec<u8>> {
         if len < 2 || p + len > bytes.len() {
             return Err(invalid("invalid JPEG segment length"));
         }
-        // Only Adobe transform=0 needs the three-channel LinearRaw workaround.
-        // Preserve explicit YCbCr (transform=1) and YCCK (transform=2) markers.
-        let camera_marker = marker == 238
-            && len == 14
-            && bytes[p + 2..p + len].starts_with(b"Adobe")
-            && bytes[p + 13] == 0;
+        let adobe = marker == 238 && bytes[p + 2..p + len].starts_with(b"Adobe");
+        if adobe {
+            if len != 14 {
+                return Err(invalid("invalid Adobe marker"));
+            }
+            let transform = bytes[p + 13];
+            if adobe_transform.is_some_and(|prior| prior != transform) {
+                return Err(invalid("contradictory Adobe markers"));
+            }
+            if transform > 1 {
+                return Err(invalid("unsupported Adobe transform (YCCK or unknown)"));
+            }
+            adobe_transform = Some(transform);
+        }
+        // Only transform 0 authorizes camera-component interleaving.
+        let camera_marker = adobe && adobe_transform == Some(0);
         if !camera_marker {
             out.extend_from_slice(&bytes[start..p + len]);
         }
@@ -750,19 +760,19 @@ fn without_adobe(bytes: &[u8]) -> io::Result<Vec<u8>> {
 // In particular, multiplying JXL in f64 here preserves pre-hotfix pixel rounding.
 enum TileSamples {
     Jpeg(Vec<u8>),
-    Jxl(Vec<f32>),
+    Jxl(jxl_oxide::FrameBuffer),
 }
 impl TileSamples {
     fn len(&self) -> usize {
         match self {
             Self::Jpeg(v) => v.len(),
-            Self::Jxl(v) => v.len(),
+            Self::Jxl(v) => v.buf().len(),
         }
     }
     fn code(&self, index: usize, max_code: f64) -> f64 {
         match self {
             Self::Jpeg(v) => f64::from(v[index]),
-            Self::Jxl(v) => f64::from(v[index]) * max_code,
+            Self::Jxl(v) => f64::from(v.buf()[index]) * max_code,
         }
     }
 }
@@ -820,6 +830,9 @@ fn decode_jxl(
     if image.width() as usize > tw || image.height() as usize > th {
         return Err(invalid("JXL tile size exceeds TIFF tile"));
     }
+    if meta.animation.is_some() {
+        return Err(invalid("multi-frame JXL tiles unsupported"));
+    }
     if meta.orientation != 1 {
         return Err(invalid("JXL tile orientation must be identity"));
     }
@@ -836,7 +849,7 @@ fn decode_jxl(
         return Ok((
             image.width() as usize,
             image.height() as usize,
-            TileSamples::Jxl(Vec::new()),
+            TileSamples::Jxl(jxl_oxide::FrameBuffer::new(0, 0, 3)),
         ));
     }
     let encoding = meta.colour_encoding.clone();
@@ -856,16 +869,15 @@ fn decode_jxl(
     if image.num_loaded_keyframes() == 0 {
         return Err(invalid("JXL frame missing"));
     }
+    if image.num_loaded_frames() != 1 {
+        return Err(invalid("multi-frame JXL tiles unsupported"));
+    }
     let rendered = image.render_frame(0).map_err(invalid)?;
     let frame = rendered.image_all_channels();
     if frame.buf().len() != frame.width() * frame.height() * 3 {
         return Err(invalid("three JXL camera channels required"));
     }
-    Ok((
-        frame.width(),
-        frame.height(),
-        TileSamples::Jxl(frame.buf().to_vec()),
-    ))
+    Ok((frame.width(), frame.height(), TileSamples::Jxl(frame)))
 }
 
 struct Polynomial {
