@@ -706,3 +706,146 @@ The rebuilt macOS 15 Blake3 object removed the initial deployment-version linker
 warning. No source or generated-binding changes followed the final gate.
 The final docs/evidence commit is the commit containing this appendix; resolve
 its full hash with `git log -1 --format=%H -- tools/orchestrate/wp/LR-6/HANDOFF.md`.
+
+## Restack without LR-5
+
+Binding A-ROUND2 RESTACK ruling: approved LR-3 and LR-6 are replayed without
+rejected LR-5. All 22 original LR-6 commits remain in order; this is the one
+extra docs commit. The approved RED-before-fix sequence is retained. No new
+behavior beyond the required removal of LR-5 is introduced. Earlier sections
+describe the approved pre-restack tree; this section supersedes their stack,
+resource-availability, and final-gate statements.
+
+### Item-by-item review disposition
+
+- DONE — LR-3 is based on approved LR-4 5e0633e1; LR-6 is based on the new
+  LR-3 restack tip (including its one handoff commit). Rejected 04217312 is
+  not an ancestor. Old branch tips remain unchanged.
+- DONE — keep LR-3 behavior: export/print retouch callbacks remain; only
+  LR-5 mask-support plumbing is absent. Covered by
+  pixel_and_file_export_use_registered_retouch_or_error and
+  lr3f_combined_import_preserves_history_diagnostics_and_spot_exterior.
+- DONE — keep LR-6's shared pin functions: mask-store's final source,
+  image-core depth source, and ml-depth source match approved 43a508e3
+  byte-for-byte. ecfbee51's replay carries the pin support formerly inherited
+  from LR-5. Covered by imported_depth_survives_cache_eviction_and_user_edits,
+  lr6e_reimport_replaces_one_pin_per_image_and_user_edits,
+  lr6e_unresolved_reimport_removes_only_the_images_previous_pin, and
+  lr6e_preview_reads_full_resolution_imported_depth_without_inference_or_writes.
+- DONE — remove AI-mask imports: no adobe_ai, lrcat_masks, LrcatMaskResolver,
+  mask_support, or combined mask resolver references remain in Rust sources.
+  The depth-only public resolver retains its original signature. Depth apply,
+  rollback, reimport, and prune are covered by
+  lr6e_apply_pins_depth_before_user_edit_reimports_and_deletes_with_image.
+- DONE — drop only LR-5 portions of the combined test: synthetic AI-mask row,
+  resolver/hook, AI pin and rollback checks, and LR-5 diagnostics removed;
+  LR-1/2/3/4/6/7 plus resolved/pending depth and rollback retained in
+  lr6f_all_lanes_one_apply_depth_resource_and_absent.
+- DONE — regenerate Swift bindings from the restacked Rust library. The final
+  build-ffi run must leave tracked bindings unchanged.
+- DONE — original commit order and subjects preserved; no squash. Each new
+  replay commit ends with the required Opus trailer. LR-3's first four retain
+  their original Fable credit with the required Opus credit appended.
+- DONE — Cargo.lock and board.json unchanged from 5e0633e1. All newly edited
+  tests use synthetic data. Build logs remain outside Git; no private pixels,
+  names, or paths added. No foreground GUI launch or system-settings changes.
+- DEFERRED BY A — LR-12 cleanup: full regeneration reason equality and exact
+  rollback error kind remain the explicit post-merge cleanup lane. LR-3's
+  six cleanup notes remain there too; RESTACK preserves approved behavior.
+- OUT OF SCOPE — LR-5b B1/B2/B3 and M1–M9 belong to the rejected lane's later
+  replacement. Other A-ROUND2 lane findings (LR-8/9/11, B5, ENG) are not
+  changes authorized by this RESTACK assignment.
+
+### Range-diff verdicts
+
+Thirteen LR-6 patches are equal. Nine differ:
+- fcaf3fb6: LR-5 matrix context absent; LR-6 changes identical.
+- 3d22622a: insertion context changes because set_imported_masks is absent.
+- a72e4c09: LR-5 matrix context absent; LR-6 changes identical.
+- ecfbee51: retain shared pin functions/get support formerly inherited from LR-5;
+  history-method context changes because set_imported_masks is absent.
+- 751acbef: LR-5 matrix context absent; LR-6 changes identical.
+- 4e7a0c06: depth-test module insertion context no longer includes LR-5 tests.
+- 209f5f6e: depth-only apply/prune replaces LR-5 combined plumbing; preserve
+  mutable import recipe, schema/depth behavior, and resolver signature.
+- 3cc5e644: LR-5 matrix context absent; LR-6 changes identical.
+- 0b3b8074: remove only LR-5 combined-test sections and regenerate bindings.
+
+### Final gate evidence
+
+LR-3 tip: b75dd20f1d4775044800340c5950f71f0d9f3424. LR-6 tested implementation tip: e06124abfbe71d68b2b4d8a81195f9684e2151cd.
+This final documentation-only commit follows that tested implementation.
+
+Environment: PATH includes the Rust toolchain; CARGO_BUILD_JOBS=4,
+RAYON_NUM_THREADS=4, RUST_TEST_THREADS=1. CARGO_TARGET_DIR uses the fresh
+external RESTACK directory. Explicit release cleaning of affected packages
+removed 428 files / 1.2 GiB before the final gates.
+
+| Gate | Result |
+| --- | --- |
+| LR-3 import-lrcat + engine-api release tests | 314 passed, 0 failed, 0 ignored |
+| LR-6 full requested release test command, retry | 1,912 top-level passed, 0 failed, 67 ignored; two additional restart subprocess probes passed |
+| Workspace Clippy, all targets, -D warnings | PASS |
+| cargo fmt --check | PASS |
+| apps/mac/build-ffi.sh | PASS; regenerated bindings have no tracked drift |
+| tools/orchestrate/swift-gate.sh | SWIFT GATE OK; 917 XCTest passed, 3 skipped, 0 failures, plus 5 Swift Testing passed |
+| Strict release Tessera build | PASS; strict-concurrency=complete and warnings-as-errors |
+| Import goldens | Approved golden source/data byte-identical to 43a508e3; all golden checks passed |
+
+Rust command (no command-level exclusions, same command for both attempts):
+
+```sh
+cargo test --locked --release -p import-lrcat -p sidecar -p engine-api \
+  -p image-core -p pipeline-cpu -p pipeline-gpu -p filters -p previews \
+  -p export -p tessera-ffi -p tessera-mcp
+```
+
+The raw log sums to 1,914 passing reports because the two sidecar restart tests
+launch their own exact-test subprocesses; each child reports one pass and nine
+internally filtered tests. The parent suite also counts those same probes.
+No tests were filtered or excluded by the top-level gate command. Existing
+source-level ignored tests remain ignored. Swift's three skips are the opt-in
+20k-file measurement and two smart-preview checks requiring an explicit RAW
+fixture setting.
+
+First Rust attempt: 1,111 passed, 1 failed, 37 ignored before Cargo stopped.
+Only previews::tests::raw_without_jpeg_is_rendered failed: 3.181422375 seconds
+against its unchanged 3-second local timing assertion; image-content assertions
+passed. The entire requested command was rerun after the other gates, without
+source changes, CI bypass, exclusions, or relaxed bounds, and passed. This
+transient timing failure remains part of the evidence, not an omitted run.
+
+Goldens explicitly passed: synthetic_catalog_output_including_retained_source,
+streaming_matches_import_and_plan_json_is_byte_identical, and
+lr6f_active_blur_and_inactive_depth_catalog_golden. No golden was re-pinned.
+
+Range-diff summary before this one documentation-only commit:
+
+```text
+ 1:  8ad5dce8 =  1:  fa82141a test(LR-6): expose missing Adobe lens blur and depth bookkeeping
+ 2:  f339a7fd =  2:  3c3bb084 docs(LR-6): hand off RED evidence and fidelity blockers
+ 3:  aee04699 =  3:  86d60944 feat(LR-6b): approximate Adobe lens blur controls and depth resources
+ 4:  fcaf3fb6 !  4:  493dff80 test(LR-6b): enforce approximate mappings and synthetic depth rendering
+ 5:  9e709b68 =  5:  06b2e52d docs(LR-6b): record per-field approximation contract and green gates
+ 6:  247aa1a6 =  6:  17fc6323 test(LR-6c): expose depth activation, history, rendering and field diagnostics regressions
+ 7:  3d22622a !  7:  24b96b69 fix(LR-6c): honor active blur, stored depth and native focus without extra history
+ 8:  ced4ae52 =  8:  0ef4992a fix(LR-6c): satisfy diagnostics regression clippy check
+ 9:  a72e4c09 !  9:  433059a8 docs(LR-6c): record review fixes, passing behavior gates and remaining failures
+10:  052a900f = 10:  db153a93 test(LR-6d): pin diagnostics conversion, untouched depth, schema and resource history
+11:  ecfbee51 ! 11:  ff2f238e fix(LR-6d): adopt shared diagnostics, preserve inactive bytes and pin imported depth
+12:  751acbef ! 12:  63126bd6 docs(LR-6d): record conversion audit and full gate results
+13:  c2dd9b9f = 13:  66d2fbd0 test(LR-6e): cover native schema, explicit regeneration and depth ownership
+14:  4e7a0c06 ! 14:  a4b93234 test(LR-6e): exercise import apply and bounded depth lifetime
+15:  09457c20 = 15:  583242ef test(LR-6e): check normalized XMP and failed publication rollback
+16:  209f5f6e ! 16:  0e5a483e fix(LR-6e): attach bounded depth during import and preserve native schema
+17:  ce3fa9e0 = 17:  6e593028 test(LR-6e): require preview reuse of imported full-size depth
+18:  fee0df10 = 18:  da2f15b0 fix(LR-6e): reuse pinned depth at preview pyramid levels
+19:  d4913121 = 19:  bdc41cc4 test(LR-6e): accept propagated I/O failure in rollback probe
+20:  3cc5e644 ! 20:  dabca97a docs(LR-6e): record review fixes, bounded depth lifecycle and release gates
+21:  0b3b8074 ! 21:  470a07f7 test(LR-6f): verify all-lane import with mask and depth resolvers
+22:  43a508e3 = 22:  e06124ab docs(LR-6f): record stack resolutions, golden evidence and final release gates
+```
+
+Remaining work: no RESTACK implementation or gate work remains. Machine A owns
+merge review and the explicitly deferred cleanup/replacement lanes. The two new
+branches are ready for the authorized non-force push; old branches are unchanged.
