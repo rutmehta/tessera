@@ -5,7 +5,7 @@ the HSL mixer and grading. `pipeline-adobe` delegates its final color stage to
 this path. This is a deterministic Tessera approximation, **not verified Adobe
 pixel equivalence**. Adobe's internal color space, shift curves, range-amount
 curve and overlap behavior are not specified by the SDK; no Adobe render oracle
-was available in this lane. The non-warning `tessera_import_info.PointColors` metadata records this limitation.
+was available in this lane. The shared `lrcat_translation_diagnostics.PointColors` info list records this limitation via `diagnostics::push_approximate`.
 
 ## Representation and decoding
 
@@ -14,7 +14,8 @@ Existing `/settings/color/point_colors` entries still own `hue_shift`,
 field is added to each entry because neither an OkLCh sample nor one scalar
 width represents Adobe's HSL sample plus twelve independent feather limits.
 `selection` is omitted when absent, so old native points retain identical JSON.
-No format/contract version or dependency changes are made.
+The shared schema-v4 predicate registry requires v4 for any nonempty point list.
+Absent/empty points leave schema-v3 recipe bytes unchanged; no dependency changes are made.
 
 | Source | Recipe | Conversion |
 | --- | --- | --- |
@@ -51,10 +52,11 @@ so valid swatches in the same list translate. Variance and future layouts remain
 unsupported and retained. Catalog import requires Adobe PV3+; PV1/2 retains the
 source and reports an unsupported warning before constructing recipe history.
 
-After successful translation of a single nonempty PointColors property, only
-that property's pending-source entry is removed. Other retained keys are
-unchanged. Duplicate properties conservatively retain source. Empty/nil and
-native-extension-only inputs keep the previous retention behavior. Export uses
+Successful translation is classified as `approximate`: exact PointColors source
+stays in `lrcat_develop_source`, alongside an appended info diagnostic with field
+`/settings/color/point_colors` and lane `LR-1`. The shared import finish records
+all lanes in one replayable Import edit. Empty/nil and native-extension-only
+inputs keep the previous retention behavior. Export uses
 the existing Tessera native RDF fields; it does not claim to generate Adobe
 PointColors strings. Original source XMP remains available for unchanged exports.
 
@@ -121,3 +123,22 @@ Coverage also includes wrap at red, narrower range, invalid-range atomicity,
 recipe JSON roundtrip, numeric-XMP/Lua equivalence, and synthetic SQLite catalog
 import through the full CPU renderer, original-pixel selection, the 0.999/1.001
 seam, and GPU fallback rendering. Exact Adobe pixel parity remains open.
+
+## LR-1c ordering with monochrome
+
+Point Color runs **before B&W conversion**, so selection sees the original
+colour. With monochrome enabled, the shared stage split moves points into the
+pre-curve colour stage: basic tone → Point Color → B&W → point/channel tone
+curves → vibrance/HSL/grading. Point edits invalidate the tone-stage cache in
+this configuration. With monochrome disabled, Point Color keeps its existing
+post-curve position, before vibrance/HSL/grading, preserving colour-only renders.
+
+The CPU scalar operator also applies points before B&W when passed a combined
+colour block. The native CPU renderer, Adobe chain, tiled GPU fallback, and RGB
+preview use the shared split. Resident/fused capability rejects nonempty point
+lists; their callers take the CPU fallback rather than a shader that omits points.
+No-op points with an inactive monochrome block avoid an unnecessary OkLab roundtrip.
+
+Regression coverage includes the S=.9/L=.1 full-weight sample, selected negative
+channel preservation, pre-B&W selection, tone-cache invalidation, mixed GPU
+chains and resident rejection, depth export, and MCP preview.

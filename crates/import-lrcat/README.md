@@ -221,7 +221,7 @@ and 2,000-row golden digest.
 Schema uses the shared `V4_FEATURE_PREDICATES` registry: enabled monochrome **or a
 nonzero disabled mixer**, `curves_extended`, and `legacy_pv2010` require v4.
 Each predicate uses `assert_bumped_only_when_present`; the lane-local schema
-helper is gone. LR-7 owns the first-lane LR-SCHEMA checklist changes and the
+helper is gone. LR-7 owns the first-lane LR-SCHEMA checklist changes; LR-DIAG owns the
 shared approximation guard. LR-2 adds only its feature predicates/tests and its
 synthetic matrix input context (legacy process version or HDR mode).
 
@@ -234,13 +234,19 @@ LR-2e synthetic gate. Earlier scripts and handoffs are historical evidence.
 `/settings/color/point_colors`: Lua SDK tables (including contiguous explicit
 array indices), equivalent RDF resources, and 19-number XMP swatch sequences.
 The existing point shifts/range are reused; an optional `selection` stores
-source HSL and all twelve feather boundaries. A successfully translated,
-nonempty single property is removed from `lrcat_develop_source`; partial,
-unknown, malformed and placeholder shapes remain retained. Other keys keep
-the 29c source contract. No dependency or recipe version changes are required.
+source HSL and all twelve feather boundaries. PointColors is `approximate`:
+exact Lua/XMP source is retained, and the shared `diagnostics::push_approximate`
+channel appends an info entry for `/settings/color/point_colors` (lane `LR-1`).
+Partial, unknown, malformed and placeholder shapes keep their retention contract.
+A nonempty point list requires schema v4 through the shared predicate registry.
+LR-7's shared finish owns the single Import history entry for all lanes.
 
 The import report labels rendering approximate. The SDK does not specify
 Adobe's color-space/range/shift math, and this lane had no Adobe pixel oracle.
 See [Point Color CPU reference](../pipeline-cpu/POINT_COLOR.md) for formulas,
-source links, supported limits, unchanged signed/HDR pixels, and the synthetic
+source links, supported limits, preserved signed/HDR residuals, and the synthetic
 reference tolerance. This is not a claim of Lightroom render parity.
+
+When B&W is enabled, Point Color selects and adjusts colour before the B&W
+conversion and tone curves; grading follows. Resident/fused GPU dispatch declines
+point lists and the shared CPU fallback preserves this order.

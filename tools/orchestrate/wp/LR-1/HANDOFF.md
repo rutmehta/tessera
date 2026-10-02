@@ -1,3 +1,77 @@
+# LR-1c Point Color — rebase and Machine A review items
+
+This section supersedes LR-1/LR-1b integration and acceptance notes below.
+Local branch `wp/LR-1-point-color` rebased without squashing onto `f6b572ba`
+(`origin/wp/LR-2-tone-curves`). The six original LR-1/LR-1b commits remain in order.
+Machine A owns the push and integration; this lane makes no app or Swift changes.
+No Cargo.lock, board.json, or dependency changes. The pre-existing untracked
+`LR-RULINGS-FROM-A.md` is preserved and is not part of the commits.
+
+## Review items
+
+- PointColors is **approximate**, keeps exact Lua/XMP source, and appends an info
+  entry through `diagnostics::push_approximate` with key `PointColors`, field
+  `/settings/color/point_colors`, and lane `LR-1`. The ad-hoc import-info writer
+  is removed. Shared diagnostics from LR-2/LR-7 remain intact.
+- The shared v4 predicate registry now includes nonempty point lists and uses
+  `assert_bumped_only_when_present`. Empty/absent points do not bump v3 recipes.
+  LR-7 retains first-lane checklist ownership; LR-DIAG's shared matrix guard is
+  unchanged from the rebase base. No lane-local copy was added.
+- The scalar operator selects/adjusts points before B&W. Enabled B&W moves points
+  into the shared pre-curve colour block, covering native CPU, Adobe, RGB preview,
+  and GPU fallback chains. Tone cache hashes include points in this mode.
+  Disabled B&W retains the existing colour-only stage position. The point-only
+  fast path clears monochrome before comparing with defaults.
+- Resident/fused GPU paths reject points and continue through CPU fallback.
+  Both LR-2 legacy-tone and LR-1 point-color fallback conditions are preserved.
+- Regression tests cover S=.9/L=.1 full weight, selected negative channels,
+  inactive monochrome no-op bit equality, pre-B&W selection, tone-cache dirtiness,
+  GPU batch/session and resident rejection, depth-export resident rejection and
+  rendered pixels, and persisted-recipe MCP preview pixels.
+- Combined Lua and XMP rows with LR-1 + LR-2 + LR-7 fields assert source retention,
+  coexistence of diagnostics, one Import history entry, and replay to settings.
+  LR-1 adds no history record. LR-7 geometry remains inside LR-2's XMP guard.
+
+## Compatibility golden
+
+`lr1_compat::untranslated_recipe_bytes_match_pre_lr1` passes against the existing
+`point-color-compat.txt` with all ten cases unchanged after the rebase. No pin was
+changed: LR-2's landing did not change these fixtures. The new point-colour v4
+predicate does not fire for absent, empty, nil, or opaque PointColors fixtures.
+
+## Validation
+
+Tests-first commit: `1fcf13cb`; implementation commit: `d9692425`.
+Focused release checks passed: importer/history 12, shared matrix 13, unchanged
+compatibility golden 1, CPU points 13, v4 predicate 1, export call sites 2,
+GPU session 1, MCP preview 1 (44 tests). RED logs record missing retention/shared
+diagnostics, missing v4 predicate, wrong B&W ordering and tone-cache invalidation;
+the initial export test also demonstrates the wrong pixel result before the fix.
+The final implementation preserves the existing neutral colour early return.
+
+Full release suite: **1,623 passed, 0 failed, 56 repository-ignored, 0 filtered**
+across 270 top-level harnesses. No command-level exclusions were used. Counts take
+the last summary per Cargo Running/Doc-tests block, excluding nested child
+summaries (`LR-1c/gates-summary.txt`). The local Liquify latency test passed in the
+full run; no threshold was changed and no standalone p95 measurement was added.
+Initial release clippy found only `field_reassign_with_default` in the new export
+fixture; the fix constructs the same colour settings in the struct initializer.
+The render implementation is unchanged. The initial failure is preserved in
+`gates-clippy-initial.log` / `gates-status-initial.txt`. After a release clean of
+export (404 files / 1.2 GiB), both export regressions passed. Full ten-crate
+release clippy (`--all-targets -- -D warnings`) and `cargo fmt --all -- --check`
+then passed, exit 0 (`followup-status.txt`). The unfiltered 1,623-test run remains
+the full-suite evidence; the only subsequent code edit was the test initializer.
+Commands and logs are in `LR-1c/`.
+The initial plain package clean removed zero release files; that build was stopped
+before acceptance. The corrected release clean removed 750 files / 3.1 GiB.
+The release gate cleans all ten requested crates and runs the full unfiltered
+suite, release clippy for all targets with `-D warnings`, and formatting.
+Machine A's clean Liquify p95 gate remains authoritative; this lane does not
+change timing thresholds. No real user Lightroom catalog is opened.
+
+## Earlier evidence (historical)
+
 # LR-1b Point Color — Machine A review follow-up
 
 Branch `wp/LR-1-point-color`, commits **on top of `95d5a40f`**, no rebase or push.

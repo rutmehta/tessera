@@ -1,0 +1,6 @@
+270 top-level harnesses: 1623 passed, 0 failed, 56 ignored, 0 measured, 0 filtered out.
+Counts take the last summary per Cargo Running/Doc-tests block, excluding nested child summaries.
+Full release test command exit: 0 (gates-status-initial.txt).
+Initial clippy: 101, only export test fixture field_reassign_with_default; corrected without changing rendering code.
+After correction: export release clean=0, both export regressions=0, full ten-crate release all-target clippy -D warnings=0, fmt=0 (followup-status.txt).
+The full suite has no command-level exclusions; the follow-up is an additional targeted verification of the test-only initializer correction.

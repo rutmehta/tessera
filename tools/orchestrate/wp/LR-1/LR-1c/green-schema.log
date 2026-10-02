@@ -1,0 +1,81 @@
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-1-point-color/crates/engine-api)
+    Finished `release` profile [optimized] target(s) in 37.82s
+     Running unittests src/lib.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/engine_api-6761888d48b5dc80)
+
+running 1 test
+test recipe::schema::v4_feature_predicates::lr1c_point_colors_bumps_only_when_present ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.00s
+
+     Running tests/channels.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/channels-dbd7acea635a67c4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/document_filters.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/document_filters-1d35a01f5902f85c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/legacy_ca_lr7b.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/legacy_ca_lr7b-00025c4194b0e13f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/library_calls.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/library_calls-3baead5d5b95c134)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/lr2_schema.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/lr2_schema-5b7a364c4d525239)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/lr2b.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/lr2b-35f9474025245462)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/m532_channels.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/m532_channels-4fb979499158e1b9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/people.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/people-fa3e609c757f0238)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/pinned_raw.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/pinned_raw-40bb0b4c3006db58)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/review_lr7c.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/review_lr7c-728af94543d310fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/source_kind.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/source_kind-ddd15b362f4ebc81)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/text_vector.rs (/Users/rutmehta/.cache/tessera-target/LR-1-point-color/release/deps/text_vector-5884364ca7edb438)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
