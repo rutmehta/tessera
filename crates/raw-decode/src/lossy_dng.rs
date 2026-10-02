@@ -247,7 +247,11 @@ fn read_impl<R: Read + Seek>(input: &mut R, decode_pixels: bool) -> io::Result<O
                 | 274
                 | 50721
                 | 50722
+                | 50723
+                | 50724
+                | 50727
                 | 50728
+                | 50729
                 | 50730
                 | 50778
                 | 50779
