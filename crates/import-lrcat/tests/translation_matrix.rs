@@ -2,8 +2,8 @@
 use std::collections::BTreeSet;
 
 use engine_api::recipe::{CrsKey, Recipe};
-use import_lrcat::diagnostics;
 use import_lrcat::lua_develop::{self, EXTENDED_TONE_CURVE_KEYS, KEY_MAP};
+use import_lrcat::{LR2_APPROXIMATE_FIELDS, diagnostics};
 
 type Import = dyn Fn(&str, &str) -> Result<(Recipe, Vec<String>), String>;
 
@@ -219,6 +219,23 @@ fn translation_matrix_matches_synthetic_import() {
     );
     let matrix = std::fs::read_to_string(path).expect("translation matrix must exist");
     let counts = check_matrix(&matrix).unwrap();
+    let lr2_rows = matrix
+        .lines()
+        .filter(|line| line.contains("| LR-2 | approximate |"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let (lr2_counts, keys) = check_rows(&lr2_rows, &lua_import).unwrap();
+    assert_eq!(lr2_counts.approximate, 21);
+    assert_eq!(LR2_APPROXIMATE_FIELDS.len(), 21);
+    for &(key, path) in LR2_APPROXIMATE_FIELDS {
+        assert!(keys.contains(key), "missing LR-2 row: {key}");
+        assert!(
+            lr2_rows
+                .lines()
+                .any(|line| line.starts_with(&format!("| `{key}` | `{path}` |"))),
+            "matrix path differs from shared LR-2 table: {key}"
+        );
+    }
     eprintln!("matrix guard checked {counts:?} synthetic imports");
 }
 
