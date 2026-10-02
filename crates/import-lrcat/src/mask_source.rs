@@ -776,19 +776,11 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
             .map(|a| a.name())
             .chain((n.tag_name().namespace() == Some(CRS)).then_some(n.tag_name().name()))
         {
-            if let Some(reason) = match name {
-                "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve"
-                | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve" => {
-                    Some("local tone curve encoding cannot be decoded")
-                }
-                "LocalPointColors" => Some("local point-color encoding cannot be decoded"),
-
-                "InstanceBounds" | "InstanceIDs" => {
-                    Some("individual AI instance selection is not implemented")
-                }
-                _ => None,
-            } {
-                reasons.insert(reason);
+            // Presence alone blocks the group: an instance selection is never
+            // widened to the whole object. Local operators are rendered, so
+            // they are named by `decoder_reason` only when they fail to decode.
+            if matches!(name, "InstanceBounds" | "InstanceIDs") {
+                reasons.insert(INSTANCE_REASON);
             }
         }
         if let Some(f) = fields(n) {
@@ -827,24 +819,6 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
                     reasons.insert("local color-variance adjustment is not implemented");
                 }
             }
-            for (key, label) in [
-                (
-                    "LocalDefringe",
-                    "local defringe value is outside the supported range",
-                ),
-                (
-                    "LocalToningSaturation",
-                    "local color overlay encoding cannot be decoded",
-                ),
-            ] {
-                if f.get(key)
-                    .and_then(Field::scalar)
-                    .and_then(|v| v.parse::<f64>().ok())
-                    .is_some_and(|v| v != 0.)
-                {
-                    reasons.insert(label);
-                }
-            }
         }
     }
     if reasons.is_empty() {
@@ -853,15 +827,43 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
     reasons.into_iter().collect::<Vec<_>>().join("; ")
 }
 
+const INSTANCE_REASON: &str = "individual AI instance selection is not implemented";
+
+/// Refine the static reason with what the shared decoder actually rejected.
 pub(crate) fn decoder_reason(reason: String, warning: &str) -> String {
-    if warning.contains("radial Flipped") {
-        return "radial mask inversion flags conflict".into();
+    // The decoder stops at the first failure, so these name the real blocker
+    // even when the group also carries other retained content.
+    for (needle, label) in [
+        (
+            "radial Flipped conflicts",
+            "radial mask inversion flags conflict",
+        ),
+        ("individual AI instance selection", INSTANCE_REASON),
+        (
+            "local curve:",
+            "local tone curve encoding cannot be decoded",
+        ),
+        (
+            "local point colours:",
+            "local point-color encoding cannot be decoded",
+        ),
+        (
+            "invalid local defringe",
+            "local defringe value is outside the supported range",
+        ),
+        (
+            "invalid local colour overlay",
+            "local color overlay encoding cannot be decoded",
+        ),
+    ] {
+        if warning.contains(needle) {
+            return label.into();
+        }
     }
     if reason != "mask geometry, blend mode or selection encoding cannot be rendered" {
         return reason;
     }
     for (needle, label) in [
-        ("radial Flipped", "radial mask inversion flags conflict"),
         (
             "unknown Adobe AI mask subtype",
             "unrecognized AI selection subtype",

@@ -394,7 +394,15 @@ pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<V
         {
             return Err(error("invalid local colour overlay"));
         }
-        import_local_extras(t, n, &mut v["params"])?;
+        import_local_curves(t, n, &mut v["params"])
+            .map_err(|e| error(format!("local curve: {e}")))?;
+        import_local_point_colors(t, n, &mut v["params"])
+            .map_err(|e| error(format!("local point colours: {e}")))?;
+        for field in ["curves", "curves_extended", "point_colors"] {
+            if let Some(native) = extension(t, n, field)? {
+                v["params"][field] = native;
+            }
+        }
         let mut components = Vec::new();
         if let Some(masks) = child(t, n, CRS, "CorrectionMasks") {
             for c in t.items(masks) {
@@ -422,6 +430,14 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
             return Err(error("mask tree exceeds 8 levels"));
         }
         parent = t.nodes[i].parent;
+    }
+    // An individual instance selection is never widened to the whole object
+    // or subject: the group stays unsupported and its source is retained.
+    if ["InstanceIDs", "InstanceBounds"]
+        .iter()
+        .any(|key| get(t, n, CRS, key).is_some())
+    {
+        return Err(error("individual AI instance selection is not supported"));
     }
     let what = get(t, n, CRS, "What").unwrap_or_default();
     let native_kind = extension(t, n, "kind")?;
@@ -576,7 +592,7 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
                 if get(t, n, CRS, "MaskInverted").is_some()
                     && flag(get(t, n, CRS, "MaskInverted"), false)? != inverted
                 {
-                    return Err(error("radial Flipped semantics retained in XMP"));
+                    return Err(error("radial Flipped conflicts with MaskInverted"));
                 }
             }
         }
@@ -663,56 +679,6 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
         flag(get(t, n, CRS, "MaskInverted"), false)?
     };
     c["invert"] = json!(c["invert"].as_bool().unwrap_or(false) ^ component_invert);
-    if ["InstanceIDs", "InstanceBounds"]
-        .iter()
-        .any(|key| get(t, n, CRS, key).is_some())
-        && c["kind"] != "object"
-    {
-        return Err(error("individual instance hint requires an object mask"));
-    }
-    if c["kind"] == "object" && !c["adobe_ai"].is_null() {
-        let mut hint = serde_json::Map::new();
-        for (name, allowed) in [
-            ("InstanceIDs", &["InstanceID"][..]),
-            ("InstanceBounds", &["Left", "Top", "Right", "Bottom"][..]),
-        ] {
-            if let Some(list) = child(t, n, CRS, name) {
-                super::structures::point_colors::validate_list(t, list)?;
-                if t.items(list).len() > 65536 {
-                    return Err(error("instance hint too large"));
-                }
-                let mut values = Vec::new();
-                for item in t.items(list) {
-                    let item = resource(t, item);
-                    if item
-                        .attrs
-                        .iter()
-                        .any(|a| a.ns == CRS && !allowed.contains(&a.local.as_str()))
-                        || item.children.iter().any(|i| {
-                            let c = &t.nodes[*i];
-                            c.ns != CRS || !allowed.contains(&c.local.as_str())
-                        })
-                    {
-                        return Err(error("unsupported instance hint field"));
-                    }
-                    let mut value = serde_json::Map::new();
-                    for key in allowed {
-                        let raw = get(t, item, CRS, key)
-                            .ok_or_else(|| error("missing instance hint field"))?;
-                        value.insert((*key).into(), json!(number(&raw)?));
-                    }
-                    values.push(Value::Object(value));
-                }
-                if values.is_empty() {
-                    return Err(error("empty instance hint"));
-                }
-                hint.insert(name.into(), json!(values));
-            }
-        }
-        if !hint.is_empty() {
-            c["adobe_ai"]["instance_hint"] = Value::Object(hint);
-        }
-    }
     if !matches!(kind, "range" | "luminance_range" | "color_range" | "depth")
         && let Some(range) = child(t, n, CRS, "CorrectionRangeMask")
     {
@@ -954,7 +920,7 @@ fn srgb_to_oklab(rgb: [f64; 3]) -> [f64; 3] {
 }
 
 // LR-11: reuse the global point-colour grammar and curve representation.
-fn import_local_extras(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<()> {
+fn import_local_curves(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<()> {
     for (prefix, field) in [("", "curves"), ("Extended", "curves_extended")] {
         let mut curves = if prefix == "Extended" && !params["curves"].is_null() {
             params["curves"].clone()
@@ -1003,6 +969,10 @@ fn import_local_extras(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<(
             params[field] = curves;
         }
     }
+    Ok(())
+}
+
+fn import_local_point_colors(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<()> {
     if let Some(points) = child(t, n, CRS, "LocalPointColors")
         && !(points.children.is_empty() && points.attrs.is_empty() && points.text.trim().is_empty())
     {
@@ -1015,11 +985,6 @@ fn import_local_extras(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<(
         let decoded: Vec<_> = decoded.into_iter().flatten().collect();
         if !decoded.is_empty() {
             params["point_colors"] = serde_json::to_value(decoded)?;
-        }
-    }
-    for field in ["curves", "curves_extended", "point_colors"] {
-        if let Some(v) = extension(t, n, field)? {
-            params[field] = v;
         }
     }
     Ok(())
