@@ -93,3 +93,23 @@ fn duplicate_controls_are_not_silenced() {
     );
     assert!(!xmp::parse(&source, "15.4").unwrap().1.is_empty());
 }
+
+#[test]
+fn empty_filter_payload_and_enabled_empty_panel_are_not_effects() {
+    for source in [
+        "s={AILook={}}",
+        "s={FilterList={}}",
+        "s={EnableDistractionRemoval=true,FilterList={}}",
+    ] {
+        let (recipe, warnings) = lua_develop::parse(source, "15.4").unwrap();
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(diagnostics::entries(&recipe).is_empty());
+    }
+    for source in [
+        "s={AILook={Amount=1}}",
+        "s={FilterList={{What='synthetic-filter'}}}",
+        "s={EnableDistractionRemoval=true,FilterList={{What='synthetic-filter'}}}",
+    ] {
+        assert!(!lua_develop::parse(source, "15.4").unwrap().1.is_empty());
+    }
+}
