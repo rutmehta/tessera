@@ -8,6 +8,10 @@ use engine_api::tile::{Extent, Pyramid};
 use engine_api::{EngineError, EngineResult};
 use raw_decode::{CfaImage, RawMetadata, RawSource};
 
+struct EmbeddedProfile {
+    bytes: Result<Option<Vec<u8>>, String>,
+}
+
 /// Shared decoded source. The historical name is retained for callers, but
 /// this may contain a CFA plane or upright working-space RGB. RGB has no
 /// camera calibration; its metadata describes a D65 working-space identity.
@@ -19,6 +23,7 @@ pub struct RawImage {
     cfa: Option<Arc<CfaImage>>,
     rgb: Option<Arc<crate::RgbSource>>,
     metadata: Arc<RawMetadata>,
+    embedded_profile: Option<Arc<EmbeddedProfile>>,
 }
 
 impl RawImage {
@@ -46,6 +51,7 @@ impl RawImage {
         Ok(Self {
             id,
             recipe_owner: id,
+            embedded_profile: None,
             camera_linear_proxy: None,
             cfa: Some(cfa),
             rgb: None,
@@ -57,6 +63,16 @@ impl RawImage {
     pub fn open(id: ImageId, path: impl AsRef<Path>) -> EngineResult<Self> {
         let path = path.as_ref();
         let mut file = std::fs::File::open(path).map_err(|e| EngineError::io_at(path, &e))?;
+        let embedded_profile = path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
+            .then(|| {
+                Arc::new(EmbeddedProfile {
+                    // Keep a snapshot alongside decoded pixels. Bad profile metadata
+                    // is an Adobe-path error, never a new native-decode failure.
+                    bytes: pipeline_adobe::dcp::read_embedded_profile(&mut file),
+                })
+            });
         let decode_error = |e: std::io::Error| EngineError::Decode {
             format: "LinearRaw DNG".into(),
             message: e.to_string(),
@@ -70,6 +86,7 @@ impl RawImage {
             return Ok(Self {
                 id,
                 recipe_owner: id,
+                embedded_profile,
                 metadata: Arc::new(proxy.original_metadata().clone()),
                 camera_linear_proxy: Some(Arc::new(proxy)),
                 cfa: None,
@@ -86,7 +103,19 @@ impl RawImage {
         let mut source = RawSource::open(path)?;
         let cfa = source.decode_cfa()?;
         let metadata = source.metadata();
-        Self::new(id, Arc::new(cfa), Arc::new(metadata))
+        let mut image = Self::new(id, Arc::new(cfa), Arc::new(metadata))?;
+        image.embedded_profile = embedded_profile;
+        Ok(image)
+    }
+
+    pub(crate) fn embedded_dcp(&self) -> EngineResult<Option<&[u8]>> {
+        self.embedded_profile.as_ref().map_or(Ok(None), |profile| {
+            profile
+                .bytes
+                .as_ref()
+                .map(|bytes| bytes.as_deref())
+                .map_err(|error| EngineError::invalid("embedded DNG profile", error.clone()))
+        })
     }
 
     /// Open in the catalog's absolute frame. RAW reconstruction remains sensor-
@@ -139,7 +168,9 @@ impl RawImage {
             .cfa
             .clone()
             .ok_or_else(|| EngineError::invalid("source", "RGB sources have no camera metadata"))?;
-        Self::new(id, cfa, metadata)
+        let mut image = Self::new(id, cfa, metadata)?;
+        image.embedded_profile = self.embedded_profile.clone();
+        Ok(image)
     }
 
     /// Wrap upright working-space RGB without allocating a synthetic CFA plane.
@@ -182,6 +213,7 @@ impl RawImage {
         Ok(Self {
             id,
             recipe_owner: id,
+            embedded_profile: None,
             camera_linear_proxy: None,
             cfa: None,
             rgb: Some(Arc::new(rgb)),
@@ -207,6 +239,7 @@ impl RawImage {
         Ok(Self {
             id: render_id,
             recipe_owner,
+            embedded_profile: None,
             metadata: Arc::new(proxy.original_metadata().clone()),
             camera_linear_proxy: Some(proxy),
             cfa: None,

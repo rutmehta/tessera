@@ -10,6 +10,18 @@ pub use render::{
     render_linear_scaled_with_profile_and_locals, render_scaled, render_scaled_with_profile,
 };
 
+/// Adobe profile identities select compatibility rendering; they are never paths.
+pub fn names_adobe_profile(settings: &engine_api::recipe::DevelopSettings) -> bool {
+    settings
+        .camera_profile
+        .profile
+        .name
+        .0
+        .split_whitespace()
+        .next()
+        .is_some_and(|word| word.eq_ignore_ascii_case("Adobe"))
+}
+
 /// Scene-linear basic tone operator, before profile/user curves.
 pub fn basic_tone(rgb: [f32; 3], s: &ToneSettings) -> [f32; 3] {
     let rgb = if let Some(legacy) = &s.legacy_pv2010 {
