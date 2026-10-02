@@ -183,7 +183,9 @@ fn lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image() {
         .unwrap();
     assert!(store.get(&key).is_some());
     std::fs::remove_file(&row.path).unwrap();
-    assert_eq!(engine.forget_missing(vec![id.to_string()]).unwrap(), 1);
+    assert_eq!(engine.prune_missing(true).unwrap(), 1);
+    assert!(store.get(&key).is_some());
+    assert_eq!(engine.prune_missing(false).unwrap(), 1);
     assert!(store.get(&key).is_none());
 }
 

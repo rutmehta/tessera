@@ -193,7 +193,53 @@ pub(crate) fn remove_image(support: &std::path::Path, id: ImageId) -> Result<()>
 
 /// Explicit maintenance, not a per-pin write scan. Keeps shared and historical
 /// keys of live owners; removes missing owners and crash-orphaned blobs.
-pub(crate) fn prune_missing(_support: &std::path::Path, _alive: impl FnMut(ImageId) -> bool) -> Result<()> {
+pub(crate) fn prune_missing(
+    support: &std::path::Path,
+    mut alive: impl FnMut(ImageId) -> bool,
+) -> Result<()> {
+    let root = support.join("imported-masks");
+    if !root.exists() {
+        return Ok(());
+    }
+    let owners = root.join("owners");
+    let pinned = root.join("pinned");
+    for path in [&root, &owners, &pinned] {
+        sidecar::Sidecar::ensure_destination(path, "prune imported masks")?;
+    }
+    let mut retained = std::collections::HashSet::new();
+    if owners.exists() {
+        for entry in std::fs::read_dir(&owners)? {
+            let entry = entry?;
+            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            let Ok(id) = crate::parse_id(&name) else {
+                continue;
+            };
+            if alive(id) {
+                retained.extend(owner_keys(&entry.path())?);
+            } else {
+                std::fs::remove_file(entry.path())?;
+            }
+        }
+    }
+    if pinned.exists() {
+        for entry in std::fs::read_dir(&pinned)? {
+            let path = entry?.path();
+            if path.extension().is_none_or(|extension| extension != "mask") {
+                continue;
+            }
+            let Some(name) = path.file_stem().and_then(|stem| stem.to_str()) else {
+                continue;
+            };
+            let Ok(key) = blake3::Hash::from_hex(name) else {
+                continue;
+            };
+            if !retained.contains(key.as_bytes()) {
+                std::fs::remove_file(path)?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -380,7 +426,14 @@ mod lr5b_tests {
             (8, 4),
             &store,
             |_| Some(png(255)),
-            |_| Err(failure("original publication error")),
+            |_| {
+                // Force ownership rollback to fail too: the primary error must
+                // still be returned, and previously referenced pixels survive.
+                let owner = owner_path(&store, ImageId(1));
+                std::fs::remove_file(&owner).unwrap();
+                std::fs::create_dir(&owner).unwrap();
+                Err(failure("original publication error"))
+            },
         )
         .unwrap_err();
         assert!(error.to_string().contains("original publication error"));
@@ -447,17 +500,23 @@ mod lr5b_prune_tests {
     #[test]
     fn lr5b_prune_missing_collects_orphans_and_preserves_shared_live_content() {
         let dir = tempfile::tempdir().unwrap();
-        let store = MaskStore::new(dir.path().join("imported-masks"),0).unwrap();
-        let shared = store.put_content_pinned(&MaskRaster::new(1,1,vec![0.5]).unwrap()).unwrap();
-        let gone = store.put_content_pinned(&MaskRaster::new(1,1,vec![1.]).unwrap()).unwrap();
-        let orphan = store.put_content_pinned(&MaskRaster::new(1,1,vec![0.]).unwrap()).unwrap();
-        write_owner(&owner_path(&store,ImageId(1)),&[shared,gone]).unwrap();
-        write_owner(&owner_path(&store,ImageId(2)),&[shared]).unwrap();
-        prune_missing(dir.path(),|id|id == ImageId(2)).unwrap();
+        let store = MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
+        let shared = store
+            .put_content_pinned(&MaskRaster::new(1, 1, vec![0.5]).unwrap())
+            .unwrap();
+        let gone = store
+            .put_content_pinned(&MaskRaster::new(1, 1, vec![1.]).unwrap())
+            .unwrap();
+        let orphan = store
+            .put_content_pinned(&MaskRaster::new(1, 1, vec![0.]).unwrap())
+            .unwrap();
+        write_owner(&owner_path(&store, ImageId(1)), &[shared, gone]).unwrap();
+        write_owner(&owner_path(&store, ImageId(2)), &[shared]).unwrap();
+        prune_missing(dir.path(), |id| id == ImageId(2)).unwrap();
         assert!(store.get(&shared).is_some());
         assert!(store.get(&gone).is_none());
         assert!(store.get(&orphan).is_none());
-        assert!(!owner_path(&store,ImageId(1)).exists());
-        assert!(owner_path(&store,ImageId(2)).exists());
+        assert!(!owner_path(&store, ImageId(1)).exists());
+        assert!(owner_path(&store, ImageId(2)).exists());
     }
 }

@@ -1330,22 +1330,92 @@ fn protected_batch_destination_is_rejected_before_mkdir() {
 #[test]
 fn lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai() {
     let f = fixture();
-    let print = || f.engine.render_for_print(PrintRenderRequest {
-        image_id:f.ids[0].clone(),max_width:48,max_height:32,
-        sharpening:PrintSharpening::Matte,profile:None,
-    },None);
+    let print = || {
+        f.engine.render_for_print(
+            PrintRenderRequest {
+                image_id: f.ids[0].clone(),
+                max_width: 48,
+                max_height: 32,
+                sharpening: PrintSharpening::Matte,
+                profile: None,
+            },
+            None,
+        )
+    };
     let baseline = print().unwrap();
-    let mut recipe = engine_api::recipe::Recipe { image_id:Some(f.ids[0].parse().unwrap()), ..Default::default() };
-    let mut ai = engine_api::recipe::MaskComponent::new(engine_api::recipe::MaskKind::Subject { model:None });
+    let mut recipe = engine_api::recipe::Recipe {
+        image_id: Some(f.ids[0].parse().unwrap()),
+        ..Default::default()
+    };
+    let mut ai = engine_api::recipe::MaskComponent::new(engine_api::recipe::MaskKind::Subject {
+        model: None,
+    });
     ai.invert = true;
-    let mut group = engine_api::recipe::LocalAdjustment { components:vec![ai], ..Default::default() };
+    let mut group = engine_api::recipe::LocalAdjustment {
+        components: vec![ai],
+        ..Default::default()
+    };
     group.params.exposure = 2.;
     recipe.settings.locals.adjustments.push(group);
     recipe.history.base = recipe.settings.clone();
-    sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(Path::new(&f.folder).join("a.jpg")).recipe,&sidecar::RecipeDocument { recipe,..Default::default() }).unwrap();
-    assert_eq!(print().unwrap().data,baseline.data);
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(Path::new(&f.folder).join("a.jpg")).recipe,
+        &sidecar::RecipeDocument {
+            recipe,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(print().unwrap().data, baseline.data);
     let out = f.dir.path().join("ai-export");
-    let report = f.engine.export_batch(ExportTarget::Images { image_ids:vec![f.ids[0].clone()] },settings(&out,serde_json::json!({})),None,None).unwrap();
-    assert_eq!((report.exported,report.failed),(1,0),"{report:?}");
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[0].clone()],
+            },
+            settings(&out, serde_json::json!({})),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
     assert!(out.join("a.jpg").is_file());
+    // Both entry points must read the engine's explicit app root. There is no
+    // segmenter or process-global support override supplying this raster.
+    let store =
+        ml_segment::MaskStore::new(Path::new(&f.support).join("imported-masks"), 0).unwrap();
+    let key = store
+        .put_content_pinned(&ml_segment::MaskRaster::new(48, 32, vec![1.; 48 * 32]).unwrap())
+        .unwrap();
+    let side = sidecar::Sidecar::paths(Path::new(&f.folder).join("a.jpg")).recipe;
+    let mut doc = sidecar::Sidecar::read_recipe(&side).unwrap();
+    let c = &mut doc.recipe.settings.locals.adjustments[0].components[0];
+    c.invert = false;
+    c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+        resource_id: None,
+        category: "Subject".into(),
+        mask_key: Some(key),
+        regenerate: false,
+    });
+    doc.recipe.history.base = doc.recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(&side, &doc).unwrap();
+    assert_ne!(print().unwrap().data, baseline.data);
+    let resolved_out = f.dir.path().join("resolved-export");
+    let report = f
+        .engine
+        .export_batch(
+            ExportTarget::Images {
+                image_ids: vec![f.ids[0].clone()],
+            },
+            settings(&resolved_out, serde_json::json!({})),
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    assert_ne!(
+        image::open(out.join("a.jpg")).unwrap().to_rgb8(),
+        image::open(resolved_out.join("a.jpg")).unwrap().to_rgb8()
+    );
 }

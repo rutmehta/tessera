@@ -176,6 +176,26 @@ impl Engine {
     pub fn changes_since(&self, sequence: u64) -> Result<LibraryChanges> {
         Ok(self.lock()?.index.changes_since(sequence)?.into())
     }
+    /// Explicit catalog maintenance also collects imported-mask owners and
+    /// crash-orphaned content. Dry runs never modify the index or mask store.
+    pub fn prune_missing(&self, dry_run: bool) -> Result<u32> {
+        let mut state = self.lock()?;
+        let removed = state.index.prune_missing(dry_run)?;
+        if !dry_run {
+            crate::lrcat_masks::prune_missing(self.support_dir()?, |id| {
+                !matches!(
+                    state.index.image_info(id),
+                    Err(engine_api::EngineError::NotFound { .. })
+                )
+            })?;
+        }
+        drop(state);
+        if !dry_run {
+            self.notify_changes();
+        }
+        Ok(removed.images as u32)
+    }
+
     /// Drops the catalog rows of images whose files are gone (after "Delete
     /// from Disk"); images whose files still exist are kept. Open sessions see
     /// them leave through `sync_changes`. Returns the number removed.

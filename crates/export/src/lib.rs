@@ -701,10 +701,13 @@ pub fn render_one_cancellable(
         }
     } else if matches!(settings.format, Format::Dng) {
         let rgb = if ai_masks::active(&recipe.settings) {
-            ai_masks::render_with_support(
+            ai_masks::render_with_hooks(
                 &image.source,
                 &recipe.settings,
                 segmenter,
+                None,
+                None,
+                &mut warnings,
                 settings.mask_support.as_deref(),
             )?
         } else {
@@ -756,10 +759,13 @@ pub fn render_one_cancellable(
         };
         encode_output_profile(rgb, recipe, settings.color_space)?
     } else if ai_masks::active(&recipe.settings) {
-        let rgb = ai_masks::render_with_support(
+        let rgb = ai_masks::render_with_hooks(
             &image.source,
             &recipe.settings,
             segmenter,
+            None,
+            None,
+            &mut warnings,
             settings.mask_support.as_deref(),
         )?;
         cancel.check()?;
