@@ -8,7 +8,7 @@ use std::{
 };
 use zune_jpeg::{
     JpegDecoder,
-    zune_core::{bytestream::ZCursor, options::DecoderOptions},
+    zune_core::{bytestream::ZCursor, colorspace::ColorSpace, options::DecoderOptions},
 };
 
 type Tags = BTreeMap<u16, Tag>;
@@ -64,7 +64,17 @@ impl<R: Read + Seek> Tiff<'_, R> {
             .iter()
             .filter(|e| self.u16(*e) == 254)
             .all(|e| self.u16(&e[2..]) == 4 && self.u32(&e[4..]) == 1 && self.u32(&e[8..]) == 0);
+        let inline_short = |id, values: &[u16]| {
+            entries_only.iter().any(|e| {
+                self.u16(e) == id
+                    && self.u16(&e[2..]) == 3
+                    && self.u32(&e[4..]) == 1
+                    && values.contains(&self.u16(&e[8..]))
+            })
+        };
         if full_resolution
+            && inline_short(259, &[34892, 52546])
+            && inline_short(277, &[3])
             && entries_only.iter().any(|e| {
                 self.u16(e) == 262
                     && self.u16(&e[2..]) == 3
@@ -204,7 +214,8 @@ pub struct LossyDng {
 }
 
 /// Returns None (including on parse errors) until the selected full-resolution
-/// IFD positively identifies LinearRaw. Ordinary DNGs stay on the LibRaw path.
+/// IFD identifies three-channel LinearRaw with classic lossy JPEG or JXL.
+/// All other DNGs, including other LinearRaw layouts, stay on the LibRaw path.
 /// Malformed identified LinearRaw containers fail closed.
 pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
     read_impl(input, true)
@@ -264,7 +275,11 @@ fn read_identified<R: Read + Seek>(
         for child in t.ints(&tags, 330)? {
             pending.push(child as u32);
         }
-        if t.scalar(&tags, 254, 0.)? == 0. && t.scalar(&tags, 262, 0.)? == 34892. {
+        if t.scalar(&tags, 254, 0.)? == 0.
+            && t.scalar(&tags, 262, 0.)? == 34892.
+            && matches!(t.scalar(&tags, 259, 0.)?, 34892. | 52546.)
+            && t.scalar(&tags, 277, 0.)? == 3.
+        {
             if selected.is_some() {
                 return Err(invalid("ambiguous full-resolution LinearRaw IFD"));
             }
@@ -301,13 +316,6 @@ fn read_identified<R: Read + Seek>(
         ) {
             tags.entry(id).or_insert(tag);
         }
-    }
-    let compression = t.scalar(&tags, 259, 0.)?;
-    if compression == 1. {
-        return Ok(None); // Existing uncompressed LinearRaw reader owns this layout.
-    }
-    if !matches!(compression, 34892. | 52546.) || t.scalar(&tags, 277, 0.)? != 3. {
-        return Err(invalid("unsupported LinearRaw compression/components"));
     }
     // Validate all retained numeric fields, including optional calibration fields,
     // before any pixel allocation or compressed payload read.
@@ -413,10 +421,14 @@ fn read_identified<R: Read + Seek>(
     let tile_count = across
         .checked_mul(down)
         .ok_or_else(|| invalid("tile count overflow"))?;
+    if tile_count > 65536 {
+        return Err(invalid("tile count budget exceeded"));
+    }
     if offsets.len() != tile_count || offsets.len() != counts.len() {
         return Err(invalid("invalid tile/strip count"));
     }
-    // Account for every padded tile's f64 RGB output, not merely cropped pixels.
+    // Conservative working-set accounting: reserve 24 bytes per padded pixel,
+    // even though codec outputs now use u8/f32 rather than an f64 copy.
     if tw
         .checked_mul(th)
         .and_then(|n| n.checked_mul(tile_count))
@@ -424,6 +436,14 @@ fn read_identified<R: Read + Seek>(
         .is_none_or(|bytes| bytes > 512 * 1024 * 1024)
     {
         return Err(invalid("total decoded byte budget exceeded"));
+    }
+    let compressed_total = counts
+        .iter()
+        .try_fold(0u64, |sum, &n| sum.checked_add(n as u64))
+        .ok_or_else(|| invalid("compressed byte budget overflow"))?;
+    // Bounds alias amplification as well as the resident compressed-header cache.
+    if compressed_total > size || compressed_total > 128 * 1024 * 1024 {
+        return Err(invalid("total compressed byte budget exceeded"));
     }
     for (&offset, &count) in offsets.iter().zip(&counts) {
         if count == 0 || count > 32 * 1024 * 1024 {
@@ -591,13 +611,14 @@ fn read_identified<R: Read + Seek>(
         has_opcode_list: opcode_lists.iter().any(Option::is_some),
         opcode_lists,
     };
+    let mut tiles = Vec::new();
     if decode_pixels {
         // Validate every codec header against the bounded IFD geometry before
         // allocating the full image. Metadata-only indexing never reads tiles.
         for (i, (&offset, &count)) in offsets.iter().zip(&counts).enumerate() {
             let bytes = t.at(offset as u64, count)?;
             let (dw, dh, _) = if jxl {
-                decode_jxl(&bytes, tw, th, bits, format, max_code, false)?
+                decode_jxl(&bytes, tw, th, bits, format, false)?
             } else {
                 decode_jpeg(&bytes, tw, th, false)?
             };
@@ -605,6 +626,7 @@ fn read_identified<R: Read + Seek>(
             if dw < tw.min(width - ox) || dh < th.min(height - oy) || dw > tw || dh > th {
                 return Err(invalid("codec dimensions disagree with TIFF"));
             }
+            tiles.push(bytes);
         }
     }
     let mut pixels = if decode_pixels {
@@ -613,10 +635,9 @@ fn read_identified<R: Read + Seek>(
         Vec::new()
     };
     if decode_pixels {
-        for (i, (&offset, &count)) in offsets.iter().zip(&counts).enumerate() {
-            let bytes = t.at(offset as u64, count)?;
+        for (i, bytes) in tiles.into_iter().enumerate() {
             let (dw, dh, decoded) = if jxl {
-                decode_jxl(&bytes, tw, th, bits, format, max_code, true)?
+                decode_jxl(&bytes, tw, th, bits, format, true)?
             } else {
                 decode_jpeg(&bytes, tw, th, true)?
             };
@@ -628,7 +649,7 @@ fn read_identified<R: Read + Seek>(
             for y in 0..ch {
                 for x in 0..cw {
                     for c in 0..3 {
-                        let mut code = decoded[(y * dw + x) * 3 + c];
+                        let mut code = decoded.code((y * dw + x) * 3 + c, max_code);
                         for op in &polynomials[0] {
                             code = op.map(code, ox + x, oy + y, c, max_code);
                         }
@@ -725,6 +746,27 @@ fn without_adobe(bytes: &[u8]) -> io::Result<Vec<u8>> {
     Err(invalid("JPEG scan missing"))
 }
 
+// Preserve native codec storage and promote only the sample being normalized.
+// In particular, multiplying JXL in f64 here preserves pre-hotfix pixel rounding.
+enum TileSamples {
+    Jpeg(Vec<u8>),
+    Jxl(Vec<f32>),
+}
+impl TileSamples {
+    fn len(&self) -> usize {
+        match self {
+            Self::Jpeg(v) => v.len(),
+            Self::Jxl(v) => v.len(),
+        }
+    }
+    fn code(&self, index: usize, max_code: f64) -> f64 {
+        match self {
+            Self::Jpeg(v) => f64::from(v[index]),
+            Self::Jxl(v) => f64::from(v[index]) * max_code,
+        }
+    }
+}
+
 /// Same-encoding f32 output: integer codes are divided by (2^bits - 1),
 /// floating samples are returned as floats. Restore integer code units before
 /// DNG linearization/black/white normalization. Never request display sRGB or
@@ -735,16 +777,15 @@ fn decode_jxl(
     th: usize,
     bits: usize,
     format: usize,
-    max_code: f64,
     decode_pixels: bool,
-) -> io::Result<(usize, usize, Vec<f64>)> {
+) -> io::Result<(usize, usize, TileSamples)> {
     use jxl_oxide::{
         JxlImage, NullCms,
         image::{BitDepth, color::ColourEncoding},
     };
     // jxl-oxide has no max-dimension builder option. Supply its allocation
-    // limit first, then initialize only the header and enforce our dimension
-    // limit before feeding frame data (builder.read feeds frames eagerly).
+    // limit first, then enforce dimensions before pixel rendering or feeding
+    // the remaining payload. Initialization may buffer a bounded frame prefix.
     let allocation_limit = tw
         .checked_mul(th)
         .and_then(|n| n.checked_mul(128))
@@ -755,25 +796,23 @@ fn decode_jxl(
         .alloc_tracker(jxl_oxide::AllocTracker::with_limit(allocation_limit))
         .build_uninit();
     let mut consumed = 0;
+    let mut end = bytes.len().min(64);
     let mut image = loop {
         if consumed >= bytes.len() || consumed >= 64 * 1024 {
             return Err(invalid("truncated or excessive JXL header"));
         }
-        // Keep unconsumed container framing bytes until the parser accepts them.
-        let mut end = consumed + 1;
-        loop {
-            let n = uninit.feed_bytes(&bytes[consumed..end]).map_err(invalid)?;
-            consumed += n;
-            if n != 0 {
-                break;
-            }
-            end += 1;
-            if end > bytes.len() || end > 64 * 1024 {
-                return Err(invalid("truncated or excessive JXL header"));
-            }
-        }
+        // Geometric chunks bound repeated parsing to logarithmically many
+        // attempts. Keep unconsumed container framing in the next slice.
+        let n = uninit.feed_bytes(&bytes[consumed..end]).map_err(invalid)?;
+        consumed += n;
         match uninit.try_init().map_err(invalid)? {
-            jxl_oxide::InitializeResult::NeedMoreData(next) => uninit = next,
+            jxl_oxide::InitializeResult::NeedMoreData(next) => {
+                uninit = next;
+                if end == bytes.len() || end == 64 * 1024 {
+                    return Err(invalid("truncated or excessive JXL header"));
+                }
+                end = (end * 2).min(bytes.len()).min(64 * 1024);
+            }
             jxl_oxide::InitializeResult::Initialized(image) => break image,
         }
     };
@@ -794,7 +833,11 @@ fn decode_jxl(
         return Err(invalid("three JXL camera channels required"));
     }
     if !decode_pixels {
-        return Ok((image.width() as usize, image.height() as usize, Vec::new()));
+        return Ok((
+            image.width() as usize,
+            image.height() as usize,
+            TileSamples::Jxl(Vec::new()),
+        ));
     }
     let encoding = meta.colour_encoding.clone();
     image.set_cms(NullCms);
@@ -810,6 +853,9 @@ fn decode_jxl(
     }
     image.feed_bytes(&bytes[consumed..]).map_err(invalid)?;
     image.finalize().map_err(invalid)?;
+    if image.num_loaded_keyframes() == 0 {
+        return Err(invalid("JXL frame missing"));
+    }
     let rendered = image.render_frame(0).map_err(invalid)?;
     let frame = rendered.image_all_channels();
     if frame.buf().len() != frame.width() * frame.height() * 3 {
@@ -818,11 +864,7 @@ fn decode_jxl(
     Ok((
         frame.width(),
         frame.height(),
-        frame
-            .buf()
-            .iter()
-            .map(|&v| f64::from(v) * max_code)
-            .collect(),
+        TileSamples::Jxl(frame.buf().to_vec()),
     ))
 }
 
@@ -944,7 +986,7 @@ fn decode_jpeg(
     tw: usize,
     th: usize,
     decode_pixels: bool,
-) -> io::Result<(usize, usize, Vec<f64>)> {
+) -> io::Result<(usize, usize, TileSamples)> {
     // Called only for the selected PhotometricInterpretation=LinearRaw IFD.
     // A YCbCr IFD never reaches this marker rewrite.
     let jpeg = without_adobe(bytes)?;
@@ -964,17 +1006,26 @@ fn decode_jpeg(
     if info.components != 3 || space.num_components() != 3 {
         return Err(invalid("three JPEG components required"));
     }
-    // Equal input/output ColorSpace selects zune's component interleave path,
-    // not YCbCr->RGB. RGB component IDs are likewise preserved without conversion.
-    decoder.set_options((*decoder.options()).jpeg_set_out_colorspace(space));
+    // Only an explicit Adobe transform=0 authorizes raw component interleave.
+    // Otherwise honor the codec's YCbCr/JFIF label and reconstruct RGB.
+    let output = if jpeg.len() != bytes.len() {
+        space
+    } else {
+        ColorSpace::RGB
+    };
+    decoder.set_options((*decoder.options()).jpeg_set_out_colorspace(output));
     if !decode_pixels {
-        return Ok((info.width as usize, info.height as usize, Vec::new()));
+        return Ok((
+            info.width as usize,
+            info.height as usize,
+            TileSamples::Jpeg(Vec::new()),
+        ));
     }
     let decoded = decoder.decode().map_err(invalid)?;
     Ok((
         info.width as usize,
         info.height as usize,
-        decoded.into_iter().map(f64::from).collect::<Vec<_>>(),
+        TileSamples::Jpeg(decoded),
     ))
 }
 
