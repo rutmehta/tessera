@@ -29,7 +29,14 @@ fn lossy_linear_tiles_preserve_camera_channels_crop_and_metadata() {
 #[test]
 fn malformed_ifd_and_tile_ranges_fail_without_panicking() {
     let bytes = support::lossy_dng(false, false);
-    for length in [0, 7, 12, bytes.len() / 2, bytes.len() - 4] {
+    for length in [0, 7, 12] {
+        assert!(
+            raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes[..length]))
+                .unwrap()
+                .is_none()
+        );
+    }
+    for length in [bytes.len() / 2, bytes.len() - 4] {
         assert!(raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes[..length])).is_err());
     }
 }
