@@ -339,7 +339,8 @@ fn profile(catalog: &Path, app: &Path) -> SafeResult<Value> {
 #[test]
 #[cfg_attr(debug_assertions, ignore = "requires release profile")]
 fn profile_synthetic_fixture() {
-    let temp = tempfile::tempdir().unwrap();
+    // Use the guard's OS-provided scratch root, regardless of the gate's TMPDIR.
+    let temp = tempfile::tempdir_in(system_temp_dir().unwrap()).unwrap();
     let fixture = import_lrcat::fixture::write(&temp.path().join("fixture")).unwrap();
     let app = temp.path().join("app");
     std::fs::create_dir(&app).unwrap();
