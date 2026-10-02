@@ -74,16 +74,13 @@ fn cloud_wording_is_verbatim() {
         } else {
             ""
         };
-        let (recipe, _) =
+        let (_, warnings) =
             lua_develop::parse(&format!("s = {{ {payload} {key} = true }}"), "15.4").unwrap();
         assert!(
-            import_lrcat::diagnostics::entries(&recipe)
-                .values()
-                .flatten()
-                .any(|note| note.status == "ignored"
-                    && note
-                        .reason
-                        .contains("requires Adobe cloud; not translatable"))
+            warnings
+                .iter()
+                .any(|w| w.contains(key) && w.contains("requires Adobe cloud; not translatable")),
+            "{warnings:?}"
         );
     }
 }

@@ -16,13 +16,19 @@ fn catalog_upright_renders_known_projective_corners_and_reports_cloud_features()
             .count(),
         changed_rows
     );
+    assert!(
+        plan.report
+            .iter()
+            .any(|w| w.contains("EnableDistractionRemoval")
+                && w.contains("requires Adobe cloud; not translatable"))
+    );
     // Images with no Develop row must not gain a cloud note.
     assert!(plan.images.iter().all(|image| {
         import_lrcat::diagnostics::entries(&image.recipe)
             .values()
             .flatten()
             .filter(|note| {
-                note.status == "ignored"
+                note.status == "cloud"
                     && note
                         .reason
                         .contains("requires Adobe cloud; not translatable")
