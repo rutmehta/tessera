@@ -424,6 +424,8 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
             settle(host)
             XCTAssertFalse(eyeButtons(host).isEmpty, "\(path): the inspector is back")
             let viewport = try XCTUnwrap(find(host, DocumentViewportView.self).first, path)
+            XCTAssertTrue(window.firstResponder === viewport,
+                          "\(path): restoring panels must give stray focus to the visible canvas before another key")
             XCTAssertTrue(window.makeFirstResponder(viewport), "\(path): the canvas can take the keyboard")
             XCTAssertTrue(try tab(window, router: router), "\(path): Tab over the canvas hides the panels")
             XCTAssertTrue(model.documents.panelsHidden, path)

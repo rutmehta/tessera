@@ -312,7 +312,15 @@ final class KeyRouter {
                 docs.spaceHeld = true
                 docs.current?.viewport?.cursorDidChange()
             }
-        case .togglePanels: docs.togglePanels()
+        case .togglePanels:
+            docs.togglePanels()
+            // B5-49: removing a focused inspector can leave NSWindow as first responder.
+            // When Tab restores the panels, restore canvas ownership too, so the next key
+            // has a visible owner. This changes only the responder inside the event window.
+            if !docs.panelsHidden, let viewport = docs.current?.viewport,
+               viewport.window === event.window {
+                viewport.claimKeyboardIfStray()
+            }
         case .cycleScreenMode: docs.cycleScreenMode()
         case .deleteLayer: docs.current?.deleteSelection()
         default: return false   // ⌘ actions are menu items
