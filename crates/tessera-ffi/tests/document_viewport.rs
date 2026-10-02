@@ -532,29 +532,6 @@ fn edits_do_not_wait_for_frames_in_flight() {
     s.close();
 }
 
-/// P14: a frame rendered for a surface ring that was replaced meanwhile is
-/// dropped, never published.
-#[test]
-fn frames_for_a_replaced_ring_are_dropped() {
-    let (_d, engine) = engine();
-    let (s, rec, styled, _) = slow_styled(&engine);
-    let old = rec.frames.lock().unwrap().len();
-    s.set_opacity(styled, 0.7, true).unwrap();
-    std::thread::sleep(Duration::from_millis(20));
-    s.detach_surfaces();
-    let ring = attach(&s, 384, 256);
-    s.wait_idle();
-    rec.ok();
-    let frames = rec.frames.lock().unwrap()[old..].to_vec();
-    assert!(!frames.is_empty());
-    assert!(
-        frames.iter().all(|f| ring.contains(&f.surface_id)),
-        "a frame of the old ring was published: {frames:?}"
-    );
-    assert!(s.render_records().iter().any(|r| r.dropped));
-    s.close();
-}
-
 /// P14: saves (file I/O outside the lock), frames and undo/redo racing on
 /// three threads keep history, the saved files and the surfaces valid.
 #[test]

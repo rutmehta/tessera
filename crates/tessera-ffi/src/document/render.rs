@@ -616,6 +616,8 @@ pub(crate) struct Renderer {
     backend: Mutex<Backend>,
     #[cfg(test)]
     read_level_entered: Mutex<Option<std::sync::mpsc::Sender<()>>>,
+    #[cfg(test)]
+    frame_snapshot_hook: Mutex<Option<Box<dyn FnOnce() + Send>>>,
     signal: Mutex<Signal>,
     cv: Condvar,
     thumbs: Mutex<ThumbCache>,
@@ -670,6 +672,8 @@ impl Renderer {
             backend: Mutex::new(backend),
             #[cfg(test)]
             read_level_entered: Mutex::new(None),
+            #[cfg(test)]
+            frame_snapshot_hook: Mutex::new(None),
             signal: Mutex::new(Signal::default()),
             cv: Condvar::new(),
             thumbs: Mutex::new(HashMap::new()),
@@ -1102,6 +1106,13 @@ fn present_frame(
     r.signal().snapshot_taken(cancel);
     drop(st);
     let unlocked = Instant::now();
+    #[cfg(test)]
+    {
+        let hook = r.frame_snapshot_hook.lock().unwrap().take();
+        if let Some(hook) = hook {
+            hook();
+        }
+    }
     let le = canvas.at_level(level);
     let mut report = compositor::resident::FrameReport::default();
     let mut rec = DocRenderRecord {
@@ -1647,6 +1658,70 @@ mod frame_cancellation_tests {
         signal.snapshot_taken(&next);
         assert!(signal.frame);
         assert!(!signal.finish_frame(&next));
+    }
+
+    /// P14: replace the ring after snapshotting but before rendering can finish.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn frames_for_a_replaced_ring_are_dropped() {
+        use std::sync::mpsc;
+
+        #[derive(Default)]
+        struct Recorder {
+            frames: Mutex<Vec<DocFrameInfo>>,
+            failures: Mutex<Vec<String>>,
+        }
+        impl crate::DocumentListener for Recorder {
+            fn on_frame(&self, frame: DocFrameInfo) {
+                self.frames.lock().unwrap().push(frame);
+            }
+            fn on_layers_changed(&self, _: Vec<u64>) {}
+            fn on_history_changed(&self, _: u64) {}
+            fn on_render_failed(&self, message: String) {
+                self.failures.lock().unwrap().push(message);
+            }
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let engine =
+            crate::Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let session = engine.adopt_document(tiny_document(), "ring replacement".into());
+        session.wait_idle();
+        let recorder = Arc::new(Recorder::default());
+        session.set_listener(Some(recorder.clone()));
+        let (snapshotted_tx, snapshotted_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        *session.shared.render.frame_snapshot_hook.lock().unwrap() = Some(Box::new(move || {
+            snapshotted_tx.send(()).unwrap();
+            // A disconnected sender also releases the worker if the test unwinds.
+            let _ = release_rx.recv();
+        }));
+        let old = Surface::create_rgba8(3, 2).unwrap();
+        session.attach_surface(old.id(), 3, 2).unwrap();
+        // Timeout is only a hang guard; ordering comes from the two channels.
+        snapshotted_rx
+            .recv_timeout(Duration::from_secs(30))
+            .unwrap();
+        session.detach_surfaces();
+        let ring: Vec<_> = (0..3)
+            .map(|_| Surface::create_rgba8(3, 2).unwrap())
+            .collect();
+        for surface in &ring {
+            session.attach_surface(surface.id(), 3, 2).unwrap();
+        }
+        release_tx.send(()).unwrap();
+        session.wait_idle();
+        assert!(recorder.failures.lock().unwrap().is_empty());
+        let frames = recorder.frames.lock().unwrap();
+        assert!(!frames.is_empty());
+        assert!(
+            frames
+                .iter()
+                .all(|f| ring.iter().any(|s| s.id() == f.surface_id)),
+            "a frame of the old ring was published: {frames:?}"
+        );
+        assert!(session.render_records().iter().any(|r| r.dropped));
+        session.close();
     }
 
     #[test]
