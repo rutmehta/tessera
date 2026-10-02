@@ -60,5 +60,8 @@ pub fn run(source: String, params: &[f32], binding: u32, output_binding: u32) ->
         .map_async(wgpu::MapMode::Read, move |r| tx.send(r).unwrap());
     device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
     rx.recv().unwrap().unwrap();
-    bytemuck::cast_slice::<u8, f32>(&read.slice(..).get_mapped_range().unwrap()).to_vec()
+    let result =
+        bytemuck::cast_slice::<u8, f32>(&read.slice(..).get_mapped_range().unwrap()).to_vec();
+    assert!(result.iter().all(|v| v.is_finite()));
+    result
 }

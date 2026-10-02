@@ -81,7 +81,18 @@ by segment endpoints, with monotonicity tested to f32 epsilon.
    segments, and are limited to the radius-3 circle in normalized tangent space.
    Evaluate directly rather than introducing 4096-entry LUT quantization.
    Apply master RGB to each log-encoded component, then its R/G/B curve, then
-   luminance-only curve via luminance ratio. Absolute black can lift to neutral
+   luminance-only curve via a conditioned luminance ratio (ENG-3).
+   For nonzero active `Y`, use `f(Y)/Y` when `abs(Y) >= epsilon`, otherwise
+   `1 + (f(Y)-Y)/copysign(epsilon,Y)`, where `epsilon=1e-3`, 0.1% of
+   scene-linear Rec.2020 white. CPU and GPU use identical arithmetic.
+   The signed extension preserves LR-2 extended negative-domain curves;
+   it agrees with ENG-1 for positive luminance. Below the floor the resulting
+   luminance interpolates from `Y` to `f(Y)` with weight `abs(Y)/epsilon`.
+   In particular an identity mapping has gain exactly one, without a separate
+   zero-delta branch. This is a rendering policy for near-black cancellation,
+   not a precision-only rewrite. The exact-zero bypass and neutral-black lift
+   remain unchanged, including their pre-existing boundary discontinuity.
+   Absolute black can lift to neutral
    grey through the luminance curve. Negative component inputs bypass component
    curves; nonpositive nonblack luminance bypasses luminance curves.
    Above the final knot continue with unit slope and endpoint offset on the log

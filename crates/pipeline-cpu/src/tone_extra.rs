@@ -117,7 +117,13 @@ fn apply(
         }
         let y = luma(rgb);
         if y > 0.0 || (s.curves_extended.is_some() && y < 0.0) {
-            let gain = finite(splines[4].linear(y) / y);
+            // Signed extension retains LR-2's negative-domain curve ratio.
+            let target = splines[4].linear(y);
+            let gain = finite(if y.abs() >= CURVE_LUMA_FLOOR {
+                target / y
+            } else {
+                1.0 + (target - y) / CURVE_LUMA_FLOOR.copysign(y)
+            });
             rgb = rgb.map(|v| finite(v * gain));
         } else if rgb.iter().all(|&v| v == 0.0) {
             rgb = [splines[4].linear(0.0); 3];
@@ -127,6 +133,9 @@ fn apply(
         }
     }
 }
+// 0.1% of scene-linear Rec.2020 white, independent of presence's floor.
+const CURVE_LUMA_FLOOR: f32 = 1e-3;
+
 fn finite(v: f32) -> f32 {
     v.clamp(-f32::MAX, f32::MAX)
 }

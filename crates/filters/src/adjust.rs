@@ -357,8 +357,13 @@ impl Adjustment {
                         std::array::from_fn(|c| rgb[c] * (1.0 - density + density * colour[c]));
                     let y = luminance(filtered);
                     if *preserve_luminosity {
-                        if y.abs() > 1e-10 {
+                        if y.abs() >= PHOTO_LUMA_FLOOR {
+                            // Preserve above-floor arithmetic and encoded goldens.
                             filtered.map(|v| v * luminance(rgb) / y)
+                        } else if y != 0.0 {
+                            let target = luminance(rgb);
+                            let gain = 1.0 + (target - y) / PHOTO_LUMA_FLOOR.copysign(y);
+                            filtered.map(|v| v * gain)
                         } else {
                             rgb
                         }
@@ -495,6 +500,9 @@ fn signed_power(v: f32, p: f32) -> f32 {
         v.signum() * v.abs().powf(p)
     }
 }
+// 0.1% of scene-linear Rec.2020 white, matching shaders/adjust.wgsl.
+const PHOTO_LUMA_FLOOR: f32 = 1e-3;
+
 fn luminance(rgb: [f32; 3]) -> f32 {
     0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]
 }
