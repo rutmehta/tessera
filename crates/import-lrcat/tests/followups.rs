@@ -279,14 +279,14 @@ fn oversized_cells_are_not_loaded() {
 }
 
 #[test]
-fn every_unedited_image_is_individually_reported() {
+fn every_failed_edit_is_individually_reported_and_untouched_rows_are_silent() {
     let (ids, plan) = import_with(&[
         (Some("garbage"), Some("15.4")),
         (Some("garbage"), Some("15.4")),
         (None, None),
         (None, None),
     ]);
-    for id in ids {
+    for id in &ids[..2] {
         assert!(
             plan.report
                 .iter()
@@ -294,6 +294,14 @@ fn every_unedited_image_is_individually_reported() {
                     && e.contains("imported as unedited")),
             "{:?}",
             plan.report
+        );
+    }
+    for id in &ids[2..] {
+        assert!(
+            !plan
+                .report
+                .iter()
+                .any(|e| e.starts_with(&format!("image {id}: ")))
         );
     }
 }

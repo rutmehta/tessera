@@ -181,7 +181,9 @@ fn valid_curve(v: &LuaValue) -> bool {
     };
     ns.iter().all(|n| (0. ..=255.).contains(n))
         && ns
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|p| p[0])
             .collect::<Vec<_>>()
             .windows(2)

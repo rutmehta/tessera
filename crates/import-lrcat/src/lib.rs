@@ -1250,7 +1250,7 @@ fn translate(p: &Pending, image_id: ImageId) -> EngineResult<(Recipe, Vec<String
             }
         }
     } else {
-        notes.push("never developed (no develop settings); imported as unedited".into());
+        // No source means no requested edit, not an unsupported translation.
         Recipe::default()
     };
     recipe.image_id = Some(image_id);

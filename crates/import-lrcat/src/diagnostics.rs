@@ -35,8 +35,8 @@ pub struct Entry {
 /// A proven no-op must not appear as an approximate or ignored report entry.
 /// Keep foreign shapes and every source-retention member untouched.
 pub(crate) fn remove_noop(recipe: &mut Recipe, adobe_key: &str) {
-    if let Some(Value::Object(object)) = recipe.unknown.get_mut(KEY) {
-        if object.get(adobe_key).is_some_and(|v| {
+    if let Some(Value::Object(object)) = recipe.unknown.get_mut(KEY)
+        && object.get(adobe_key).is_some_and(|v| {
             v.as_array().is_some_and(|values| {
                 values.iter().all(|v| {
                     serde_json::from_value::<Entry>(v.clone()).is_ok_and(|entry| {
@@ -45,11 +45,11 @@ pub(crate) fn remove_noop(recipe: &mut Recipe, adobe_key: &str) {
                     })
                 })
             })
-        }) {
-            object.remove(adobe_key);
-            if object.is_empty() {
-                recipe.unknown.remove(KEY);
-            }
+        })
+    {
+        object.remove(adobe_key);
+        if object.is_empty() {
+            recipe.unknown.remove(KEY);
         }
     }
 }
