@@ -365,7 +365,7 @@ pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<V
             ];
             // Native optional presence is lossless, including Some([0, 0]).
             // Adobe's inactive zero controls still keep the prior None shape.
-            if native_local || !foreign_extensions || overlay != [0., 0.] {
+            if native_local || !foreign_extensions || overlay[1] != 0. {
                 v["params"]["color_overlay"] = json!(overlay);
             }
         }

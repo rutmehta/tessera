@@ -204,6 +204,7 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
     Some(())
 }
 fn correction(n: Node<'_, '_>) -> Option<()> {
+    let inactive_overlay = fields(n)?.get("LocalToningSaturation").and_then(Field::scalar).and_then(|s|s.parse::<f64>().ok()) == Some(0.);
     for (name, value) in fields(n)? {
         match (name.as_str(), value) {
             ("CorrectionReferenceX" | "CorrectionReferenceY", Field::Scalar(v)) if v.parse::<f64>().ok()?.is_finite() => (),
@@ -211,6 +212,7 @@ fn correction(n: Node<'_, '_>) -> Option<()> {
             ("LocalCurveRefineSaturation", Field::Scalar(v)) if v.parse::<f64>().ok()? == 100.0 => (),
             ("LocalPointColors", Field::Scalar(v)) if v.is_empty() => (),
             ("LocalPointColors", Field::Structure(n)) if sequence(n)?.is_empty() => (),
+            ("LocalToningHue", Field::Scalar(v)) if inactive_overlay && v.parse::<f64>().ok()?.is_finite() => (),
             ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
                 if v.parse::<f64>().ok()? == 0.0 => {}
             ("LocalDefringe", Field::Scalar(v)) if v.parse::<f64>().ok()? != 0.0 => return None,
