@@ -1641,11 +1641,12 @@ impl LrcatImport {
                 } else {
                     (0, 0)
                 };
-                let extent = if image
-                    .orientation
-                    .as_deref()
-                    .and_then(import_lrcat::orientation::exif)
-                    .is_some_and(|o| o >= 5)
+                let extent = if r.outcome == Outcome::OfflineProxy
+                    && image
+                        .orientation
+                        .as_deref()
+                        .and_then(import_lrcat::orientation::exif)
+                        .is_some_and(|o| o >= 5)
                 {
                     (extent.1, extent.0)
                 } else {
