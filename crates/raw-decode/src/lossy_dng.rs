@@ -177,6 +177,16 @@ pub struct LossyDng {
 
 /// Returns None for another TIFF/RAW layout. Malformed supported containers fail closed.
 pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
+    read_impl(input, true)
+}
+
+/// Bounded header projection for indexing. This never reads compressed tiles
+/// and is not a promise that their pixel payload can be decoded.
+pub fn read_metadata<R: Read + Seek>(input: &mut R) -> io::Result<Option<RawMetadata>> {
+    Ok(read_impl(input, false)?.map(|dng| dng.metadata))
+}
+
+fn read_impl<R: Read + Seek>(input: &mut R, decode_pixels: bool) -> io::Result<Option<LossyDng>> {
     let size = input.seek(SeekFrom::End(0))?;
     if size < 8 {
         return Err(invalid("truncated TIFF header"));
@@ -340,73 +350,79 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
             tags.remove(&id);
         }
     }
-    let mut pixels = vec![[0.; 3]; width * height];
-    for (i, (&offset, &count)) in offsets.iter().zip(&counts).enumerate() {
-        if count > 32 * 1024 * 1024 {
-            return Err(invalid("JPEG tile budget exceeded"));
-        }
-        let bytes = t.at(offset as u64, count)?;
-        let (dw, dh, decoded) = if jxl {
-            decode_jxl(&bytes, tw, th, bits, format, max_code)?
-        } else {
-            let jpeg = without_adobe(&bytes)?;
-            let mut decoder = JpegDecoder::new_with_options(
-                ZCursor::new(&jpeg),
-                DecoderOptions::default()
-                    .set_max_width(tw)
-                    .set_max_height(th),
-            );
-            decoder.decode_headers().map_err(invalid)?;
-            let info = decoder
-                .info()
-                .ok_or_else(|| invalid("JPEG header missing"))?;
-            let space = decoder
-                .input_colorspace()
-                .ok_or_else(|| invalid("JPEG colorspace missing"))?;
-            if info.components != 3 || space.num_components() != 3 {
-                return Err(invalid("three JPEG components required"));
+    let mut pixels = if decode_pixels {
+        vec![[0.; 3]; width * height]
+    } else {
+        Vec::new()
+    };
+    if decode_pixels {
+        for (i, (&offset, &count)) in offsets.iter().zip(&counts).enumerate() {
+            if count > 32 * 1024 * 1024 {
+                return Err(invalid("JPEG tile budget exceeded"));
             }
-            // Equal input/output ColorSpace selects zune's component interleave path,
-            // not YCbCr->RGB. RGB component IDs are likewise preserved without conversion.
-            decoder.set_options((*decoder.options()).jpeg_set_out_colorspace(space));
-            let decoded = decoder.decode().map_err(invalid)?;
-            (
-                info.width as usize,
-                info.height as usize,
-                decoded.into_iter().map(f64::from).collect::<Vec<_>>(),
-            )
-        };
-        let (ox, oy) = ((i % across) * tw, (i / across) * th);
-        let (cw, ch) = (tw.min(width - ox), th.min(height - oy));
-        if dw < cw || dh < ch || dw > tw || dh > th || decoded.len() != dw * dh * 3 {
-            return Err(invalid("JPEG dimensions disagree with TIFF"));
-        }
-        for y in 0..ch {
-            for x in 0..cw {
-                for c in 0..3 {
-                    let mut code = decoded[(y * dw + x) * 3 + c];
-                    for op in &polynomials[0] {
-                        code = op.map(code, ox + x, oy + y, c, max_code);
+            let bytes = t.at(offset as u64, count)?;
+            let (dw, dh, decoded) = if jxl {
+                decode_jxl(&bytes, tw, th, bits, format, max_code)?
+            } else {
+                let jpeg = without_adobe(&bytes)?;
+                let mut decoder = JpegDecoder::new_with_options(
+                    ZCursor::new(&jpeg),
+                    DecoderOptions::default()
+                        .set_max_width(tw)
+                        .set_max_height(th),
+                );
+                decoder.decode_headers().map_err(invalid)?;
+                let info = decoder
+                    .info()
+                    .ok_or_else(|| invalid("JPEG header missing"))?;
+                let space = decoder
+                    .input_colorspace()
+                    .ok_or_else(|| invalid("JPEG colorspace missing"))?;
+                if info.components != 3 || space.num_components() != 3 {
+                    return Err(invalid("three JPEG components required"));
+                }
+                // Equal input/output ColorSpace selects zune's component interleave path,
+                // not YCbCr->RGB. RGB component IDs are likewise preserved without conversion.
+                decoder.set_options((*decoder.options()).jpeg_set_out_colorspace(space));
+                let decoded = decoder.decode().map_err(invalid)?;
+                (
+                    info.width as usize,
+                    info.height as usize,
+                    decoded.into_iter().map(f64::from).collect::<Vec<_>>(),
+                )
+            };
+            let (ox, oy) = ((i % across) * tw, (i / across) * th);
+            let (cw, ch) = (tw.min(width - ox), th.min(height - oy));
+            if dw < cw || dh < ch || dw > tw || dh > th || decoded.len() != dw * dh * 3 {
+                return Err(invalid("JPEG dimensions disagree with TIFF"));
+            }
+            for y in 0..ch {
+                for x in 0..cw {
+                    for c in 0..3 {
+                        let mut code = decoded[(y * dw + x) * 3 + c];
+                        for op in &polynomials[0] {
+                            code = op.map(code, ox + x, oy + y, c, max_code);
+                        }
+                        if !code.is_finite() {
+                            return Err(invalid("nonfinite camera sample"));
+                        }
+                        let linear = if lut.is_empty() {
+                            code
+                        } else {
+                            lut[code.round().clamp(0., (lut.len() - 1) as f64) as usize]
+                        };
+                        pixels[(oy + y) * width + ox + x][c] =
+                            ((linear - black[c]) / (white[c] - black[c])) as f32;
                     }
-                    if !code.is_finite() {
-                        return Err(invalid("nonfinite camera sample"));
-                    }
-                    let linear = if lut.is_empty() {
-                        code
-                    } else {
-                        lut[code.round().clamp(0., (lut.len() - 1) as f64) as usize]
-                    };
-                    pixels[(oy + y) * width + ox + x][c] =
-                        ((linear - black[c]) / (white[c] - black[c])) as f32;
                 }
             }
         }
-    }
-    for ops in &polynomials[1..] {
-        for (i, pixel) in pixels.iter_mut().enumerate() {
-            for (c, v) in pixel.iter_mut().enumerate() {
-                for op in ops {
-                    *v = op.map(f64::from(*v), i % width, i / width, c, 1.) as f32;
+        for ops in &polynomials[1..] {
+            for (i, pixel) in pixels.iter_mut().enumerate() {
+                for (c, v) in pixel.iter_mut().enumerate() {
+                    for op in ops {
+                        *v = op.map(f64::from(*v), i % width, i / width, c, 1.) as f32;
+                    }
                 }
             }
         }
@@ -435,13 +451,17 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
     if cw == 0 || ch == 0 || left + cw > area[3] || top + ch > area[2] {
         return Err(invalid("crop outside image"));
     }
-    let pixels = (top..top + ch)
-        .flat_map(|y| {
-            pixels[y * width + left..y * width + left + cw]
-                .iter()
-                .copied()
-        })
-        .collect();
+    let pixels = if decode_pixels {
+        (top..top + ch)
+            .flat_map(|y| {
+                pixels[y * width + left..y * width + left + cw]
+                    .iter()
+                    .copied()
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
     let matrix = |id| -> io::Result<Option<[[f64; 3]; 3]>> {
         let v = t.numbers(&tags, id)?;
         if v.is_empty() {
@@ -500,6 +520,8 @@ pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
         aperture: 0.,
         focal_mm: 0.,
         capture_time: 0,
+        catalog_orientation: None,
+        baseline_exposure: t.scalar(&tags, 50730, 0.)? as f32,
         orientation,
         width: cw as u32,
         height: ch as u32,

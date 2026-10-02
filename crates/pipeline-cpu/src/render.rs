@@ -106,6 +106,7 @@ pub fn render_linear_scaled_with_depth(
         None,
         None,
         false,
+        None,
     )
 }
 
@@ -116,7 +117,9 @@ pub fn render_linear_scaled_with_lens(
     scale: u32,
     context: &crate::LensContext<'_>,
 ) -> EngineResult<Image> {
-    render_linear_impl(settings, source, scale, context, None, None, None, false)
+    render_linear_impl(
+        settings, source, scale, context, None, None, None, false, None,
+    )
 }
 
 /// The reference render with an already-resolved lens correction (for
@@ -140,6 +143,7 @@ pub fn render_linear_scaled_resolved(
         None,
         Some(resolved),
         false,
+        None,
     )
 }
 
@@ -152,7 +156,7 @@ pub fn render_linear_scaled_with_denoise(
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
 ) -> EngineResult<Image> {
     render_linear_impl(
-        settings, source, scale, context, None, denoiser, None, false,
+        settings, source, scale, context, None, denoiser, None, false, None,
     )
 }
 
@@ -166,7 +170,7 @@ pub fn render_linear_scaled_with_hooks(
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
 ) -> EngineResult<Image> {
     render_linear_impl(
-        settings, source, scale, context, depth, denoiser, None, false,
+        settings, source, scale, context, depth, denoiser, None, false, None,
     )
 }
 
@@ -186,6 +190,34 @@ pub fn render_linear_before_geometry(
         denoiser,
         None,
         true,
+        None,
+    )
+}
+
+/// Host mask composition at the common pre-geometry local-adjustment stage.
+pub type LocalAdjustmentHook<'a> =
+    dyn Fn(&Image, &[engine_api::recipe::LocalAdjustment]) -> EngineResult<Image> + 'a;
+
+/// Full CPU path with the same externally supplied mask rasters as Develop.
+pub fn render_linear_scaled_with_local_hook(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+    depth: Option<(&[f32], crate::LensBlurOptions)>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+    locals: &LocalAdjustmentHook<'_>,
+) -> EngineResult<Image> {
+    render_linear_impl(
+        settings,
+        source,
+        scale,
+        context,
+        depth,
+        denoiser,
+        None,
+        false,
+        Some(locals),
     )
 }
 
@@ -199,6 +231,7 @@ fn render_linear_impl(
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
     resolved: Option<&crate::ResolvedLens>,
     before_geometry: bool,
+    locals: Option<&LocalAdjustmentHook<'_>>,
 ) -> EngineResult<Image> {
     if depth.is_some() {
         let mut without_blur = settings.clone();
@@ -254,7 +287,7 @@ fn render_linear_impl(
             let camera_xyz = crate::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
                 metadata.cam_xyz[r].map(f64::from)
             })))?;
-            let profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
+            let profile = crate::camera_profile_matrix(camera_xyz, metadata.baseline_exposure)?;
             let wb = crate::white_balance_matrix(
                 &settings.white_balance,
                 camera_xyz,
@@ -281,7 +314,7 @@ fn render_linear_impl(
             let camera_xyz = crate::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
                 metadata.cam_xyz[r].map(f64::from)
             })))?;
-            let profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
+            let profile = crate::camera_profile_matrix(camera_xyz, metadata.baseline_exposure)?;
             let wb = crate::white_balance_matrix(
                 &settings.white_balance,
                 camera_xyz,
@@ -306,6 +339,17 @@ fn render_linear_impl(
             (out, metadata.default_crop, correction)
         }
     };
+    // Catalog edits are normalized in the oriented active frame. Sensor operations
+    // (CFA phase, masked margins, opcodes and calibration) have already completed.
+    let orientation = match source {
+        RenderSource::Cfa { metadata, .. } => metadata.catalog_orientation,
+        RenderSource::CameraLinear(proxy) => proxy.original_metadata().catalog_orientation,
+        RenderSource::Rgb(_) => None,
+    };
+    if let Some(orientation) = orientation {
+        rgb = crate::orient_image(&rgb.downsample_crop(crop, 1)?, orientation)?;
+        crop = [0, 0, rgb.width(), rgb.height()];
+    }
     // All channel alignment is complete before matrices/detail/tone.
     let analysis = rgb.downsample_crop(crop, 1)?;
     if let Some((plane, _)) = depth
@@ -363,14 +407,18 @@ fn render_linear_impl(
             crate::color(&mut tile, &post_curve)?;
             rgb.put(&tile)?;
         }
-        rgb = crate::locals_image(
-            &rgb,
-            &settings.locals.adjustments,
-            crate::masks::MaskOptions {
-                depth: depth.map(|(plane, _)| plane),
-                ..Default::default()
-            },
-        )?;
+        rgb = if let Some(locals) = locals {
+            locals(&rgb, &settings.locals.adjustments)?
+        } else {
+            crate::locals_image(
+                &rgb,
+                &settings.locals.adjustments,
+                crate::masks::MaskOptions {
+                    depth: depth.map(|(plane, _)| plane),
+                    ..Default::default()
+                },
+            )?
+        };
         if let Some(blur) = &settings.effects.lens_blur {
             let (plane, options) =
                 depth.ok_or_else(|| EngineError::invalid("depth", "lens blur requires depth"))?;

@@ -47,14 +47,17 @@ pub use lens_resolve::{
     resolve_lens_sensor,
 };
 pub use render::{
-    RenderSource, Rgb8Image, has_m2_settings, render, render_linear_before_geometry,
-    render_linear_scaled, render_linear_scaled_resolved, render_linear_scaled_with_denoise,
-    render_linear_scaled_with_depth, render_linear_scaled_with_hooks,
-    render_linear_scaled_with_lens, render_scaled, render_scaled_with_context, validate_settings,
+    LocalAdjustmentHook, RenderSource, Rgb8Image, has_m2_settings, render,
+    render_linear_before_geometry, render_linear_scaled, render_linear_scaled_resolved,
+    render_linear_scaled_with_denoise, render_linear_scaled_with_depth,
+    render_linear_scaled_with_hooks, render_linear_scaled_with_lens,
+    render_linear_scaled_with_local_hook, render_scaled, render_scaled_with_context,
+    validate_settings,
 };
 mod mosaic;
 pub use color::{
-    apply_matrix, as_shot_temperature_tint, camera_to_xyz, temperature_white, white_balance_matrix,
+    apply_matrix, as_shot_temperature_tint, camera_profile_matrix, camera_to_xyz,
+    temperature_white, white_balance_matrix,
 };
 use engine_api::{EngineError, EngineResult, recipe::settings::ToneSettings, tile::Tile};
 pub use mosaic::{DemosaicAlgorithm, demosaic, inverse_linearize, reconstruct_highlights};
@@ -138,3 +141,31 @@ fn luminance(rgb: [f32; 3]) -> f32 {
 
 /// Dedicated legacy process reference operators.
 pub mod legacy_pv2010;
+
+/// Exact EXIF transform of planar pixels, without interpolation or color changes.
+pub fn orient_image(image: &Image, orientation: u16) -> EngineResult<Image> {
+    if !(1..=8).contains(&orientation) {
+        return Err(EngineError::invalid("orientation", "expected 1..8"));
+    }
+    let (w, h) = (image.width() as usize, image.height() as usize);
+    let (ow, oh) = if orientation >= 5 { (h, w) } else { (w, h) };
+    let mut planes = vec![vec![0.; ow * oh]; image.planes().len()];
+    for (source, output) in image.planes().iter().zip(&mut planes) {
+        for y in 0..h {
+            for x in 0..w {
+                let (dx, dy) = match orientation {
+                    2 => (w - 1 - x, y),
+                    3 => (w - 1 - x, h - 1 - y),
+                    4 => (x, h - 1 - y),
+                    5 => (y, x),
+                    6 => (h - 1 - y, x),
+                    7 => (h - 1 - y, w - 1 - x),
+                    8 => (y, w - 1 - x),
+                    _ => (x, y),
+                };
+                output[dy * ow + dx] = source[y * w + x];
+            }
+        }
+    }
+    Image::new(ow as u32, oh as u32, planes)
+}

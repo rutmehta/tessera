@@ -721,6 +721,28 @@ impl MaskShared {
         })
     }
 
+    #[cfg(test)]
+    pub(crate) fn load_imported(
+        &self,
+        support: &std::path::Path,
+        settings: &DevelopSettings,
+    ) -> anyhow::Result<()> {
+        for component in settings
+            .locals
+            .adjustments
+            .iter()
+            .flat_map(|g| &g.components)
+            .flat_map(MaskComponent::active_leaves)
+        {
+            if let Some(imported) = component.adobe_ai.as_ref().and_then(|s| s.mask_key)
+                && let Some(key) = component_raster_key(component)
+            {
+                self.refresh_imported(support, &key, &imported)?;
+            }
+        }
+        Ok(())
+    }
+
     fn refresh_imported(
         &self,
         support: &std::path::Path,

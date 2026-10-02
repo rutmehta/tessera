@@ -84,7 +84,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use engine_api::color::{ColorMatrix3, WorkingSpace};
+use engine_api::color::ColorMatrix3;
 use engine_api::jobs::{CancellationToken, Job, JobContext, Priority};
 use engine_api::recipe::settings::{DemosaicMethod, GamutMapping, HighlightReconstruction};
 use engine_api::recipe::{DevelopSettings, ProcessVersion};
@@ -602,7 +602,10 @@ impl Renderer {
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
         cancel.check()?;
-        if image.camera_linear_proxy().is_some() {
+        if image.camera_linear_proxy().is_some() || image.metadata().catalog_orientation.is_some() {
+            if let Some(prepared) = self.prepare_dcp(image, settings)? {
+                return prepared.render_tiles(image, settings, coords, output, cancel, sink);
+            }
             return self.run_camera_linear_proxy(image, settings, coords, output, cancel, sink);
         }
         let lens = self.interactive_lens_plan(image, settings, cancel)?;
@@ -641,9 +644,12 @@ impl Renderer {
                 format!("need finest <= coarsest <= {MAX_LEVEL}"),
             ));
         }
-        if image.camera_linear_proxy().is_some() {
+        if image.camera_linear_proxy().is_some() || image.metadata().catalog_orientation.is_some() {
             cancel.check()?;
-            self.validate_camera_linear_proxy(image, settings)?;
+            if let Some(prepared) = self.prepare_dcp(image, settings)? {
+                return prepared
+                    .render_progressive(image, settings, viewport, output, cancel, sink);
+            }
             for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
                 let extent = Self::output_extent(image, settings, level)?;
                 let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
@@ -685,7 +691,9 @@ impl Renderer {
         }
         // The proxy reference route reduces after geometry, including partial
         // edge bins. Keep this rounding separate from original tiled previews.
-        if image.camera_linear_proxy().is_some() && level > 0 {
+        if (image.camera_linear_proxy().is_some() || image.metadata().catalog_orientation.is_some())
+            && level > 0
+        {
             return Ok(Self::output_extent(image, settings, 0)?.at_level(level));
         }
         let e = image.level_extent(level);
@@ -992,7 +1000,7 @@ impl Renderer {
         let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
             m.cam_xyz[r].map(f64::from)
         })))?;
-        let profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
+        let profile = pipeline_cpu::camera_profile_matrix(camera_xyz, m.baseline_exposure)?;
         let wb =
             pipeline_cpu::white_balance_matrix(&settings.white_balance, camera_xyz, m.as_shot_wb)?;
         let algorithm = match settings.demosaic.method {

@@ -61,15 +61,15 @@ pub struct CameraLinearProxy {
 impl CameraLinearProxy {
     /// DNG camera channels are a source, not a cached Tessera RAW prefix.
     /// They may use either process family and remain exportable at their own size.
-    pub fn from_dng(dng: raw_decode::lossy_dng::LossyDng) -> EngineResult<Self> {
+    pub fn from_dng(mut dng: raw_decode::lossy_dng::LossyDng) -> EngineResult<Self> {
         if dng.metadata.opcode_lists.iter().any(Option::is_some) {
             return Err(EngineError::Unsupported {
                 what: "LinearRaw DNG contains unconsumed correction opcodes".into(),
             });
         }
-        let gain = 2.0_f32.powf(dng.baseline_exposure);
+        dng.metadata.baseline_exposure = dng.baseline_exposure;
         let planes = (0..3)
-            .map(|c| dng.pixels.iter().map(|p| p[c] * gain).collect())
+            .map(|c| dng.pixels.iter().map(|p| p[c]).collect())
             .collect();
         let pixels = Image::new(dng.width as u32, dng.height as u32, planes)?;
         let s = DevelopSettings::default();
@@ -94,10 +94,19 @@ impl CameraLinearProxy {
             tier: SmartPreviewTier::Detail2560,
         })
     }
+    /// Use an absolute catalog orientation before masks/crop/Upright, overriding EXIF.
+    pub fn with_catalog_orientation(mut self, orientation: u16) -> EngineResult<Self> {
+        if !(1..=8).contains(&orientation) {
+            return Err(EngineError::invalid("catalog orientation", "expected 1..8"));
+        }
+        self.metadata.catalog_orientation = Some(orientation);
+        self.metadata.orientation = 1;
+        Ok(self)
+    }
     pub fn is_external_dng(&self) -> bool {
         self.external_dng
     }
-    pub const GENERATOR_REVISION: u32 = 2;
+    pub const GENERATOR_REVISION: u32 = 3;
     pub const MAX_EDGE: u32 = 2560;
     /// Caller supplies the verified original byte digest, not a path identity.
     /// Only Native revision 2 and raw denoise Off are admitted. A downstream
@@ -190,7 +199,7 @@ impl CameraLinearProxy {
         settings: &DevelopSettings,
     ) -> EngineResult<Option<crate::LensPlan>> {
         self.validate_prefix(settings)?;
-        if self.external_dng {
+        if self.external_dng || self.metadata.catalog_orientation.is_some() {
             return Ok(None);
         } // explicit CPU fallback: resolve DNG optics per recipe
         self.correction.camera_linear_tail_plan(

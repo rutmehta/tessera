@@ -89,6 +89,48 @@ impl RawImage {
         Self::new(id, Arc::new(cfa), Arc::new(metadata))
     }
 
+    /// Open in the catalog's absolute frame. RAW reconstruction remains sensor-
+    /// aligned, while its common render tail orients before normalized edits.
+    pub fn open_with_catalog_orientation(
+        id: ImageId,
+        path: impl AsRef<Path>,
+        orientation: Option<u16>,
+    ) -> EngineResult<Self> {
+        let Some(orientation) = orientation else {
+            return Self::open(id, path);
+        };
+        if !(1..=8).contains(&orientation) {
+            return Err(EngineError::invalid("catalog orientation", "expected 1..8"));
+        }
+        let path = path.as_ref();
+        if crate::RgbSource::recognizes(path) {
+            return Self::from_rgb(
+                id,
+                crate::RgbSource::open_with_orientation(path, Some(orientation))?,
+            );
+        }
+        let mut image = Self::open(id, path)?;
+        if image.rgb.is_some() {
+            // Working-space linear DNGs also consume orientation in their decoder.
+            return Self::from_rgb(
+                id,
+                crate::RgbSource::open_with_orientation(path, Some(orientation))?,
+            );
+        }
+        let metadata = Arc::make_mut(&mut image.metadata);
+        metadata.catalog_orientation = Some(orientation);
+        metadata.orientation = 1;
+        if let Some(proxy) = &mut image.camera_linear_proxy {
+            *proxy = Arc::new(
+                proxy
+                    .as_ref()
+                    .clone()
+                    .with_catalog_orientation(orientation)?,
+            );
+        }
+        Ok(image)
+    }
+
     /// The same shared samples under another identity and metadata (for
     /// example a smaller `default_crop` window). Validated like [`Self::new`];
     /// the id must differ from the original's so memo keys never alias.
@@ -114,6 +156,8 @@ impl RawImage {
             aperture: 0.,
             focal_mm: 0.,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width,
             height,
@@ -219,11 +263,17 @@ impl RawImage {
 
     /// Active-area (default crop) extent: level 0 of the output pyramid.
     pub fn active_extent(&self) -> Extent {
-        if let Some(proxy) = self.camera_linear_proxy() {
-            return Extent::new(proxy.pixels().width(), proxy.pixels().height());
+        let (w, h) = if let Some(proxy) = self.camera_linear_proxy() {
+            (proxy.pixels().width(), proxy.pixels().height())
+        } else {
+            let [_, _, w, h] = self.metadata.default_crop;
+            (w, h)
+        };
+        if self.metadata.catalog_orientation.is_some_and(|o| o >= 5) {
+            Extent::new(h, w)
+        } else {
+            Extent::new(w, h)
         }
-        let [_, _, w, h] = self.metadata.default_crop;
-        Extent::new(w, h)
     }
 
     /// Output-pyramid extent at `level` (`ceil(active / 2^level)`).

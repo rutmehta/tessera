@@ -67,7 +67,7 @@
 use crate::{BridgeError, Engine, Result, catalog, failure, now_ms, parse_id, surface::Surface};
 
 #[path = "masks.rs"]
-mod masks;
+pub(crate) mod masks;
 use engine_api::{
     color::ColorMatrix3,
     id::{HistoryEntryId, HistoryGroupId, ImageId},
@@ -713,7 +713,7 @@ enum ClosePhase {
 
 // ─────────────────────────── settings helpers ───────────────────────────
 
-fn session_renderable(
+pub(crate) fn session_renderable(
     s: &DevelopSettings,
     geometry: bool,
     _denoiser_configured: bool,

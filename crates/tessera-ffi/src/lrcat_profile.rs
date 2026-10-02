@@ -496,3 +496,297 @@ fn profile_from_env() {
         }
     }
 }
+
+fn current_rss() -> SafeResult<u64> {
+    let output = safe(
+        std::process::Command::new("/bin/ps")
+            .args(["-o", "rss=", "-p", &std::process::id().to_string()])
+            .output(),
+    )?;
+    if !output.status.success() {
+        return Err(());
+    }
+    Ok(safe(
+        safe(std::str::from_utf8(&output.stdout))?
+            .trim()
+            .parse::<u64>(),
+    )? * 1024)
+}
+
+fn measure_phase<T>(
+    app: &Path,
+    operation: impl FnOnce() -> SafeResult<T>,
+) -> SafeResult<(T, Value)> {
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    let before = bytes(app)?;
+    let peak = AtomicU64::new(current_rss()?);
+    let stop = AtomicBool::new(false);
+    let start = Instant::now();
+    let (result, seconds) = std::thread::scope(|scope| {
+        scope.spawn(|| {
+            while !stop.load(Ordering::Relaxed) {
+                if let Ok(rss) = current_rss() {
+                    peak.fetch_max(rss, Ordering::Relaxed);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        });
+        struct Stop<'a>(&'a AtomicBool);
+        impl Drop for Stop<'_> {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::Relaxed);
+            }
+        }
+        let guard = Stop(&stop);
+        let result = operation();
+        let seconds = start.elapsed().as_secs_f64();
+        drop(guard);
+        stop.store(true, Ordering::Relaxed);
+        (result, seconds)
+    });
+    peak.fetch_max(current_rss()?, Ordering::Relaxed);
+    let after = bytes(app)?;
+    Ok((
+        result?,
+        json!({"seconds":seconds,"sampled_peak_rss_bytes":peak.load(Ordering::Relaxed),
+        "process_peak_rss_bytes":peak_rss()?,"bytes_written":after.saturating_sub(before),"app_bytes":after}),
+    ))
+}
+
+fn scratch_directory(variable: &str, fresh: bool) -> SafeResult<PathBuf> {
+    let path = PathBuf::from(safe(std::env::var_os(variable).ok_or(()))?);
+    safe(std::fs::create_dir_all(&path))?;
+    let path = safe(path.canonicalize())?;
+    let scratch = safe(Path::new("/tmp").canonicalize())?;
+    if !path.starts_with(scratch) || (fresh && safe(std::fs::read_dir(&path))?.next().is_some()) {
+        return Err(());
+    }
+    Ok(path)
+}
+
+fn pair_pixels(path: &Path, app: &Path) -> SafeResult<image::RgbImage> {
+    use image_core::{PixelRect, Renderer, RendererConfig};
+    let doc = safe(Sidecar::read_recipe(Sidecar::paths(path).recipe))?;
+    let id = app_image_id(path).ok_or(())?;
+    let source = safe(crate::catalog::open_image(id, path))?;
+    // This is exactly the viewport's CPU Develop settings admission. Retained
+    // unsupported edits stay in the sidecar; no rewritten/default recipe is saved.
+    let mut settings = crate::develop::session_renderable(&doc.recipe.settings, true, false);
+    settings.output.hdr = false;
+    settings.output.hdr_headroom_stops = 0.;
+    let renderer = Renderer::new(RendererConfig {
+        process_version: doc.recipe.process_version,
+        ..Default::default()
+    });
+    let masks = crate::develop::masks::MaskShared::new(&source);
+    safe(masks.load_imported(app, &settings))?;
+    renderer
+        .mask_cache()
+        .set_hooks(Some(std::sync::Arc::new(crate::develop::masks::Hooks(
+            masks,
+        ))));
+    let mut level = 0;
+    while level < image_core::render::MAX_LEVEL {
+        let e = safe(Renderer::output_extent(&source, &settings, level + 1))?;
+        if e.width.max(e.height) < 1024 {
+            break;
+        }
+        level += 1;
+    }
+    let extent = safe(Renderer::output_extent(&source, &settings, level))?;
+    let tiles = safe(renderer.render_region(&source, &settings, level, PixelRect::full(extent)))?;
+    let pixels = safe(crate::lrcat_fidelity::stitch(extent, &tiles))?;
+    Ok(image::imageops::thumbnail(&pixels, 1024, 1024))
+}
+
+fn pair_measurement(a: &image::RgbImage, b: &image::RgbImage) -> Value {
+    use image::imageops::{FilterType, flip_horizontal, resize, rotate90, rotate180, rotate270};
+    let luma = |p: &image::Rgb<u8>| {
+        0.2126 * f64::from(p[0]) + 0.7152 * f64::from(p[1]) + 0.0722 * f64::from(p[2])
+    };
+    let aspect = (f64::from(a.width()) * f64::from(b.height())
+        / (f64::from(a.height()) * f64::from(b.width()))
+        - 1.)
+        .abs()
+        < 0.02;
+    let a = resize(a, 64, 64, FilterType::Triangle);
+    let b = resize(b, 64, 64, FilterType::Triangle);
+    let difference = |a: &image::RgbImage| {
+        a.pixels()
+            .zip(b.pixels())
+            .map(|(x, y)| (luma(x) - luma(y)).abs())
+            .sum::<f64>()
+            / 4096.
+    };
+    let identity = difference(&a);
+    let mirrored = flip_horizontal(&a);
+    let alternatives = [
+        rotate90(&a),
+        rotate180(&a),
+        rotate270(&a),
+        mirrored.clone(),
+        rotate90(&mirrored),
+        rotate180(&mirrored),
+        rotate270(&mirrored),
+    ];
+    let orientation = alternatives
+        .iter()
+        .all(|p| difference(p) + 0.25 >= identity);
+    json!({"luminance_mad_8bit":identity,"orientation_aspect_match":orientation&&aspect})
+}
+
+fn proxy_profile() -> std::result::Result<Value, u32> {
+    if cfg!(debug_assertions) {
+        return Err(1);
+    }
+    let contacts_only = std::env::var_os("TESSERA_LR8_CONTACT_ONLY").is_some();
+    let app = scratch_directory("TESSERA_APP_DIR", !contacts_only).map_err(|_| 2u32)?;
+    let contact = scratch_directory("TESSERA_LR8_CONTACT", !contacts_only).map_err(|_| 3u32)?;
+    let catalog = PathBuf::from(std::env::var_os("TESSERA_LRCAT_PROFILE").ok_or(4u32)?);
+    let catalog = catalog.canonicalize().map_err(|_| 4u32)?;
+    if !catalog.starts_with(Path::new("/private/tmp")) {
+        return Err(4);
+    }
+    let status = |phase: u32| -> SafeResult<()> {
+        safe(std::fs::write(
+            app.join("phase.json"),
+            json!({"phase":phase}).to_string(),
+        ))
+    };
+    status(1).map_err(|_| 5u32)?;
+    let (import, open) = measure_phase(&app, || {
+        let engine = safe(Engine::open(app.to_string_lossy().into_owned()))?;
+        safe(engine.open_lrcat(catalog.to_string_lossy().into_owned()))
+    })
+    .map_err(|_| 10u32)?;
+    let mut options = import.default_options().map_err(|_| 11u32)?;
+    options.library_folder = app.join("library").to_string_lossy().into_owned();
+    options.copy_proxies = false;
+    // Every original and proxy is a read-only source for this dry run, including
+    // the few originals outside Lightroom-owned bundles. Verify the actual
+    // write destinations before calling either plan or apply.
+    let resolved = resolve(&import.plan, &options).map_err(|_| 12u32)?;
+    let profile = if contacts_only {
+        serde_json::from_slice::<Value>(
+            &std::fs::read(app.join("aggregate.json")).map_err(|_| 22u32)?,
+        )
+        .map_err(|_| 23u32)?
+    } else {
+        let mut all = [0u64; 3];
+        for row in &resolved {
+            all[if row.original_path.is_file() {
+                0
+            } else if row.smart_preview_available {
+                1
+            } else {
+                2
+            }] += 1;
+        }
+        status(2).map_err(|_| 14u32)?;
+        let (plan, plan_phase) = measure_phase(&app, || {
+            for row in &resolved {
+                Sidecar::register_read_only_store(&row.path, &app);
+                let paths = Sidecar::paths(&row.path);
+                if !paths.recipe.starts_with(&app) || !paths.xmp.starts_with(&app) {
+                    return Err(());
+                }
+            }
+            safe(import.plan(options.clone()))
+        })
+        .map_err(|_| 20u32)?;
+        status(3).map_err(|_| 21u32)?;
+        let (report, apply) =
+            measure_phase(&app, || safe(import.apply(options, None))).map_err(|_| 30u32)?;
+        let value = json!({"images_total":import.summary.images,"all_images_online":all[0],"all_images_offline_proxy":all[1],"all_images_offline_without":all[2],
+        "online_originals":plan.online_originals,"offline_proxy_masters":plan.offline_with_smart_preview,
+        "offline_without_masters":plan.offline_without_smart_preview,"virtual_copies":plan.virtual_copies,
+        "imported":report.imported,"resumed":report.resumed,"skipped":report.skipped.len(),"indexed":report.indexed,
+        "cancelled":report.cancelled,"open":open,"plan":plan_phase,"apply":apply});
+        safe(std::fs::write(
+            app.join("aggregate.json"),
+            value.to_string(),
+        ))
+        .map_err(|_| 31u32)?;
+        value
+    };
+    status(4).map_err(|_| 32u32)?;
+    let original_catalog =
+        PathBuf::from(std::env::var_os("TESSERA_LRCAT_PREVIEW_CATALOG").ok_or(40u32)?);
+    let previews = import_lrcat::previews::PreviewIndex::open(&original_catalog)
+        .map_err(|_| 41u32)?
+        .ok_or(42u32)?;
+    let mut proxies: Vec<_> = resolved
+        .iter()
+        .filter(|r| r.outcome == Outcome::OfflineProxy)
+        .collect();
+    proxies.sort_by_key(|r| import.plan.images[r.index].catalog_id);
+    let step = (proxies.len() / 12).max(1);
+    let mut pairs = Vec::new();
+    for (n, row) in proxies.iter().step_by(step).take(12).enumerate() {
+        let id = import.plan.images[row.index].catalog_id;
+        let jpeg = previews
+            .jpeg(id, u32::MAX)
+            .map_err(|_| 50u32 + n as u32)?
+            .ok_or(70u32 + n as u32)?;
+        let reference =
+            crate::lrcat_fidelity::decode_preview(&jpeg).map_err(|_| 90u32 + n as u32)?;
+        let rendered = pair_pixels(&row.path, &app).map_err(|_| 110u32 + n as u32)?;
+        safe(std::fs::write(
+            contact.join(format!("{:02}-lightroom.jpg", n + 1)),
+            jpeg,
+        ))
+        .map_err(|_| 130u32 + n as u32)?;
+        rendered
+            .save(contact.join(format!("{:02}-tessera.png", n + 1)))
+            .map_err(|_| 150u32 + n as u32)?;
+        pairs.push(pair_measurement(&rendered, &reference));
+        status(100 + n as u32).map_err(|_| 170u32)?;
+    }
+    status(5).map_err(|_| 171u32)?;
+    Ok(json!({"profile":profile,"sample_step":step,"pairs":pairs}))
+}
+
+#[test]
+#[ignore = "isolated release LR-8 dry run: fresh scratch app/contact, read-only source bundle"]
+fn proxy_profile_from_env() {
+    std::panic::set_hook(Box::new(|_| {}));
+    let result = std::panic::catch_unwind(|| {
+        let _quiet = Quiet::new().map_err(|_| 0u32)?;
+        proxy_profile()
+    });
+    match result {
+        Ok(Ok(value)) => println!("{value}"),
+        Ok(Err(phase)) => {
+            println!("{{\"profile_failed_phase\":{phase}}}");
+            std::process::exit(1);
+        }
+        Err(_) => {
+            println!("{{\"profile_panicked\":1}}");
+            std::process::exit(1);
+        }
+    }
+}
+
+#[test]
+#[ignore = "numeric-only PNG comparison; requires TESSERA_LR8_A and TESSERA_LR8_B"]
+fn tone_comparison_from_env() {
+    std::panic::set_hook(Box::new(|_| {}));
+    let run = || -> SafeResult<Value> {
+        let mut means = Vec::new();
+        for variable in ["TESSERA_LR8_A", "TESSERA_LR8_B"] {
+            let path = safe(std::env::var_os(variable).ok_or(()))?;
+            let image = safe(image::open(path))?.into_rgb8();
+            let image = image::imageops::thumbnail(&image, 256, 256);
+            let mean: [f64; 3] = std::array::from_fn(|c| {
+                image.pixels().map(|p| f64::from(p[c])).sum::<f64>()
+                    / f64::from(image.width() * image.height())
+            });
+            means.push(mean);
+        }
+        Ok(json!({"downsampled_rgb_means":means}))
+    };
+    match run() {
+        Ok(value) => println!("{value}"),
+        Err(_) => panic!("numeric comparison failed"),
+    }
+}

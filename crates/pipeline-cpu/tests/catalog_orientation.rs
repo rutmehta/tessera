@@ -21,8 +21,8 @@ fn orient(p: &Image, o: u16) -> Image {
                 8 => (y, w - 1 - x),
                 _ => (x, y),
             };
-            for c in 0..3 {
-                planes[c][dy * ow + dx] = p.planes()[c][y * w + x];
+            for (c, plane) in planes.iter_mut().enumerate() {
+                plane[dy * ow + dx] = p.planes()[c][y * w + x];
             }
         }
     }
@@ -105,28 +105,75 @@ fn all_eight_catalog_orientations_precede_crop_masks_and_upright() {
 #[test]
 fn cfa_and_generated_proxy_share_the_oriented_edit_frame() {
     use engine_api::recipe::ProcessVersion;
-    let dng=raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false,false))).unwrap().unwrap();
-    let mut metadata=dng.metadata;
-    metadata.width=64;metadata.height=48;metadata.default_crop=[0,0,64,48];
-    metadata.cfa_layout=raw_decode::CfaLayout::Bayer([[0,1],[1,2]]);
-    let cfa=raw_decode::CfaImage::from_linear(64,48,(0..64*48).map(|i|0.05+(i%64) as f32/600.+(i/64) as f32/800.).collect()).unwrap();
-    let mut settings=DevelopSettings::default();
-    settings.detail.sharpening.amount=0.;settings.detail.noise_reduction.color=0.;
-    let proxy=CameraLinearProxy::generate(&cfa,&metadata,&settings,ProcessVersion::NATIVE_CURRENT,[1;32],&Default::default()).unwrap();
-    settings.geometry.crop.rect.left=0.25;settings.geometry.crop.rect.bottom=0.75;
-    settings.geometry.upright.mode=engine_api::recipe::settings::UprightMode::Full;
-    settings.geometry.upright.homography=Some([[1.,0.03,0.01],[0.01,1.,0.02],[0.01,0.,1.]]);
+    let dng =
+        raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false, false)))
+            .unwrap()
+            .unwrap();
+    let mut metadata = dng.metadata;
+    metadata.width = 64;
+    metadata.height = 48;
+    metadata.default_crop = [0, 0, 64, 48];
+    metadata.cfa_layout = raw_decode::CfaLayout::Bayer([[0, 1], [1, 2]]);
+    let cfa = raw_decode::CfaImage::from_linear(
+        64,
+        48,
+        (0..64 * 48)
+            .map(|i| 0.05 + (i % 64) as f32 / 600. + (i / 64) as f32 / 800.)
+            .collect(),
+    )
+    .unwrap();
+    let mut settings = DevelopSettings::default();
+    settings.detail.sharpening.amount = 0.;
+    settings.detail.noise_reduction.color = 0.;
+    let proxy = CameraLinearProxy::generate(
+        &cfa,
+        &metadata,
+        &settings,
+        ProcessVersion::NATIVE_CURRENT,
+        [1; 32],
+        &Default::default(),
+    )
+    .unwrap();
+    settings.geometry.crop.rect.left = 0.25;
+    settings.geometry.crop.rect.bottom = 0.75;
+    settings.geometry.upright.mode = engine_api::recipe::settings::UprightMode::Full;
+    settings.geometry.upright.homography =
+        Some([[1., 0.03, 0.01], [0.01, 1., 0.02], [0.01, 0., 1.]]);
     settings.locals.adjustments.push(LocalAdjustment {
-        components:vec![MaskComponent::new(MaskKind::Linear{start:[0.1,0.2],end:[0.9,0.7]})],
-        params:LocalParams{exposure:0.5,..Default::default()},..Default::default()
+        components: vec![MaskComponent::new(MaskKind::Linear {
+            start: [0.1, 0.2],
+            end: [0.9, 0.7],
+        })],
+        params: LocalParams {
+            exposure: 0.5,
+            ..Default::default()
+        },
+        ..Default::default()
     });
     for o in 1..=8 {
-        metadata.catalog_orientation=Some(o);metadata.orientation=1;
-        let proxy=proxy.clone().with_catalog_orientation(o).unwrap();
-        let a=pipeline_cpu::render_linear_scaled(&settings,&RenderSource::Cfa{image:&cfa,metadata:&metadata},1).unwrap();
-        let b=pipeline_cpu::render_linear_scaled(&settings,&RenderSource::CameraLinear(&proxy),1).unwrap();
-        assert_eq!((a.width(),a.height()),(b.width(),b.height()));
-        let error=a.planes().iter().flatten().zip(b.planes().iter().flatten()).map(|(a,b)|(a-b).abs()).fold(0f32,f32::max);
-        assert!(error<2e-5,"orientation {o}: {error}");
+        metadata.catalog_orientation = Some(o);
+        metadata.orientation = 1;
+        let proxy = proxy.clone().with_catalog_orientation(o).unwrap();
+        let a = pipeline_cpu::render_linear_scaled(
+            &settings,
+            &RenderSource::Cfa {
+                image: &cfa,
+                metadata: &metadata,
+            },
+            1,
+        )
+        .unwrap();
+        let b =
+            pipeline_cpu::render_linear_scaled(&settings, &RenderSource::CameraLinear(&proxy), 1)
+                .unwrap();
+        assert_eq!((a.width(), a.height()), (b.width(), b.height()));
+        let error = a
+            .planes()
+            .iter()
+            .flatten()
+            .zip(b.planes().iter().flatten())
+            .map(|(a, b)| (a - b).abs())
+            .fold(0f32, f32::max);
+        assert!(error < 2e-5, "orientation {o}: {error}");
     }
 }

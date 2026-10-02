@@ -869,6 +869,7 @@ pub(crate) enum Source {
 }
 impl Source {
     pub(crate) fn open(path: &Path, _orientation: u16) -> Result<Self> {
+        let orientation = catalog::catalog_orientation(path);
         let source = catalog::source_path(path);
         let path = source.as_path();
         if path
@@ -876,16 +877,25 @@ impl Source {
             .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
             && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(path)?)?
         {
-            return Ok(Self::LinearDng(Box::new(
-                pipeline_cpu::CameraLinearProxy::from_dng(dng)?,
-            )));
+            let mut proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng)?;
+            if let Some(orientation) = orientation {
+                proxy = proxy.with_catalog_orientation(orientation)?;
+            }
+            return Ok(Self::LinearDng(Box::new(proxy)));
         }
         if !image_core::RgbSource::recognizes(path) {
             let mut raw = raw_decode::RawSource::open(path)?;
             let cfa = raw.decode_cfa()?;
-            return Ok(Self::Raw(Box::new((cfa, raw.metadata()))));
+            let mut metadata = raw.metadata();
+            if let Some(orientation) = orientation {
+                metadata.catalog_orientation = Some(orientation);
+                metadata.orientation = 1;
+            }
+            return Ok(Self::Raw(Box::new((cfa, metadata))));
         }
-        Ok(Self::Rgb(image_core::RgbSource::open(path)?.into_pixels()))
+        Ok(Self::Rgb(
+            image_core::RgbSource::open_with_orientation(path, orientation)?.into_pixels(),
+        ))
     }
     pub(crate) fn render_source(&self) -> pipeline_cpu::RenderSource<'_> {
         match self {
@@ -902,7 +912,12 @@ impl Source {
         match self {
             Self::LinearDng(proxy) => {
                 let p = proxy.pixels();
-                if proxy.original_metadata().orientation >= 5 {
+                if proxy
+                    .original_metadata()
+                    .catalog_orientation
+                    .unwrap_or(proxy.original_metadata().orientation)
+                    >= 5
+                {
                     (p.height(), p.width())
                 } else {
                     (p.width(), p.height())
@@ -911,7 +926,7 @@ impl Source {
             Self::Rgb(image) => (image.width(), image.height()),
             Self::Raw(raw) => {
                 let [_, _, w, h] = raw.1.default_crop;
-                if raw.1.orientation >= 5 {
+                if raw.1.catalog_orientation.unwrap_or(raw.1.orientation) >= 5 {
                     (h, w)
                 } else {
                     (w, h)

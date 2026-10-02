@@ -194,7 +194,7 @@ fn thumbnail_jpeg(img: &RgbImage, edge: u32) -> Result<Vec<u8>> {
 
 /// Decodes a preview JPEG to sRGB, converting from an embedded ICC profile
 /// (Lightroom's previews are not guaranteed to be sRGB).
-fn decode_preview(bytes: &[u8]) -> Result<RgbImage> {
+pub(crate) fn decode_preview(bytes: &[u8]) -> Result<RgbImage> {
     let mut img = previews::Jpeg.decode(bytes).map_err(failure)?;
     if let Some(icc) = import_lrcat::previews::jpeg_icc_profile(bytes) {
         let mut registry = color_mgmt::Registry::new();
@@ -310,7 +310,7 @@ fn linear_rec2020(rgb: &RgbImage) -> Result<pipeline_cpu::Image> {
     Ok(pipeline_cpu::Image::new(w, h, planes)?)
 }
 
-fn stitch(extent: Extent, tiles: &[Tile]) -> Result<RgbImage> {
+pub(crate) fn stitch(extent: Extent, tiles: &[Tile]) -> Result<RgbImage> {
     let mut out = RgbImage::new(extent.width.max(1), extent.height.max(1));
     for tile in tiles {
         let layout = tile.layout();

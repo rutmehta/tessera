@@ -6,8 +6,8 @@ mod render;
 use engine_api::recipe::settings::ToneSettings;
 pub use pipeline_cpu::{Image, RenderSource, Rgb8Image};
 pub use render::{
-    render_linear_scaled, render_linear_scaled_with_profile, render_scaled,
-    render_scaled_with_profile,
+    render_linear_scaled, render_linear_scaled_with_profile,
+    render_linear_scaled_with_profile_and_locals, render_scaled, render_scaled_with_profile,
 };
 
 /// Scene-linear basic tone operator, before profile/user curves.
