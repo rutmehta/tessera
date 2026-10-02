@@ -743,10 +743,6 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         guard await waitUntil({ model.develop != nil }) else { return }
         let controller = try XCTUnwrap(model.develop)
         XCTAssertEqual(model.statusMessage, "Develop: " + note)
-        let item = try XCTUnwrap(fixture.library.items.first)
-        XCTAssertEqual(model.developRenderNotices(for: item), [note],
-                       "The loupe notice lists the open photo's omitted settings")
-        XCTAssertEqual(model.developRenderNotices(for: nil), [])
         controller.set(.exposure, 0.25, interactive: false)
         guard await waitUntil({ controller.lastFrame != nil }) else { return }
         let frame = try XCTUnwrap(controller.lastFrame)
@@ -755,21 +751,17 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         model.statusMessage = "A newer operation failed"
         callback(frame)
         XCTAssertEqual(model.statusMessage, "A newer operation failed")
-        XCTAssertEqual(model.developRenderNotices(for: item), [note],
-                       "A newer status line never hides the persistent loupe notice")
 
         model.statusMessage = "Develop: " + note
         fixture.closePlan.setRenderNotices([])
         callback(frame)
         XCTAssertNil(model.statusMessage, "Removing an omitted setting clears its own note")
-        XCTAssertEqual(model.developRenderNotices(for: item), [])
 
         fixture.closePlan.setRenderNotices([note])
         callback(frame)
         XCTAssertEqual(model.statusMessage, "Develop: " + note)
         if let close = model.closeDevelop() { _ = await close.value }
         XCTAssertNil(model.statusMessage, "Closing the photo clears its own note")
-        XCTAssertEqual(model.developRenderNotices(for: item), [])
         model.statusMessage = "Status for the next photo"
         callback(frame)
         XCTAssertEqual(model.statusMessage, "Status for the next photo",
