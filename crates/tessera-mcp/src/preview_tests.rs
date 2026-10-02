@@ -330,11 +330,21 @@ fn assert_lr3e_mcp_spot_preserves_exterior(graph: bool) {
     )
     .unwrap();
     let cache = PreviewCache::default();
+    let baseline_cache = PreviewCache::default();
     // Keep arithmetic fixed: this regression checks resolution selection, not
     // the separately specified CPU fallback's difference from GPU rounding.
     let renderer = Renderer::new(RendererConfig::default())
         .with_retouch_renderer(Arc::new(brush::render_retouch));
     assert!(cache.renderer.set(renderer).is_ok());
+    assert!(
+        baseline_cache
+            .renderer
+            .set(
+                Renderer::new(RendererConfig::default())
+                    .with_retouch_renderer(Arc::new(brush::render_retouch))
+            )
+            .is_ok()
+    );
     let id = ImageId(73);
     let source = if graph {
         Decoded::Raw(
@@ -350,7 +360,9 @@ fn assert_lr3e_mcp_spot_preserves_exterior(graph: bool) {
             preview: pixels,
         }
     };
-    cache.sources.lock().unwrap().insert(id, Arc::new(source));
+    let source = Arc::new(source);
+    cache.sources.lock().unwrap().insert(id, source.clone());
+    baseline_cache.sources.lock().unwrap().insert(id, source);
     let mut edited = Recipe::default();
     edited.settings.tone.contrast = 23.;
     edited.settings.tone.clarity = 17.;
@@ -371,7 +383,9 @@ fn assert_lr3e_mcp_spot_preserves_exterior(graph: bool) {
         .unwrap(),
     );
     let path = Path::new("synthetic-cached.png");
-    let before = cache.display(id, path, &empty, Some(128)).unwrap();
+    // Compare cold with cold: graph WB tiles are deliberately stored as f16,
+    // so a cold-vs-warm comparison would measure unrelated cache quantization.
+    let before = baseline_cache.display(id, path, &empty, Some(128)).unwrap();
     let after = cache.display(id, path, &edited, Some(128)).unwrap();
     assert_eq!(before.dimensions(), (128, 96));
     assert_eq!(before.dimensions(), after.dimensions());
