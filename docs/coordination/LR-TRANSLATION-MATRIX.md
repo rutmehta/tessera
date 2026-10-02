@@ -157,7 +157,6 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `UprightTransform_5` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
 | `UprightVersion` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
 | `Version` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic | — |
-
 | `Blacks` | `/settings/tone/legacy_pv2010/blacks` | LR-2 | approximate | `5` |
 | `Recovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
 

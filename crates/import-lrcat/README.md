@@ -164,20 +164,26 @@ is gated to Adobe PV1/2 and zero values do not create fields or history. Shared
 standalone sidecar import/export supports both families; all settings are recorded
 in one import-authored history entry. Invalid matrices fail Recipe validation.
 
-## LR-2c tone curves, monochrome, and legacy controls
+## LR-2e tone curves, monochrome, and legacy controls
 
 Catalog Lua and XMP run the additive `lr2` pass once, after exact source capture.
-The complete imported settings have one replayable initial history edit. The Lua
-path skips LR-2 on its generated XMP packet and applies it to the original Lua
-values after retention. Unrelated imports and inactive LR-2 defaults preserve
-main's original recipe bytes and 2,000-row golden digest.
+LR-2 mutates settings directly. LR-7's shared `geometry::finish` records the one
+replayable Import edit against the codec's `history.base`, after both lanes finish.
+The Lua path skips both lane passes on its generated XMP packet, then applies
+each once to the original Lua values after retention. Unrelated modern imports
+and inactive B&W/extended-curve defaults preserve the original recipe bytes
+and 2,000-row golden digest.
 
-- Nonidentity ExtendedToneCurvePV2012{,Red,Green,Blue} populate only
-  `/settings/tone/curves_extended`, and only with HDREditMode=1. Both axes divide
-  by 255 without clipping signed/HDR knots. `/settings/tone/curves` is never
-  overwritten; identity extended curves are provenance-only. Malformed curves
-  stay retained with a warning. The selected extended block replaces the normal
-  block during rendering; omitted channels in that block are identity.
+- On modern Adobe versions, nonidentity ExtendedToneCurvePV2012{,Red,Green,Blue}
+  populate `/settings/tone/curves_extended` only with HDREditMode=1. Both axes
+  divide by 255 without clipping signed/HDR knots. Extended-curve import leaves
+  ordinary `/settings/tone/curves` intact; identity extended curves are
+  provenance-only. Malformed curves
+  stay retained with a warning. Extended point/channel curves compose **after the
+  ordinary `curves.parametric` sliders** on CPU, GPU, and Adobe paths. An active
+  extended block selects the point/channel rendition; it never replaces those
+  parametric controls. Omitted extended channels are identity. All-identity HDR
+  imports retain the ordinary point curves and the same parametric sliders.
 - ConvertToGrayscale and GrayMixer* populate optional
   `/settings/color/monochrome {enabled,mixer}`. Disabled B&W with a zero mixer is
   a strict settings/history/hash no-op. A nonzero disabled mixer remains editable
@@ -186,10 +192,16 @@ main's original recipe bytes and 2,000-row golden digest.
   controls follow, so channel-curve toning survives. CPU/GPU use the same mix.
 - Adobe PV1/2 uses `/settings/tone/legacy_pv2010`, never PV2012 slider heuristics.
   The Adobe family check excludes native revision 2. Legacy values win when
-  both spellings occur; stale modern tone sliders are cleared for this branch.
+  both spellings occur; stale modern tone sliders, Clarity2012, Texture, Dehaze,
+  parametric sliders and PV2012 point curves (including extended curves) are
+  cleared for this branch. They retain exact source and get `push_ignored`
+  diagnostics with no recipe field. Even a legacy row without legacy sliders
+  gets an explicit empty block. Saved Adobe PV1/PV2 recipes without the block
+  fail rendering with "re-import needed"; re-import creates the supported block.
   HighlightRecovery precedes Recovery; Shadows precedes Blacks. Shadows=5 is
   stored as legacy blacks=5, not converted into modern blacks=-5. Brightness is
-  a bounded midtone operator, not an exposure offset.
+  a bounded rational operator; its largest relative lift is in deep shadows.
+  Contrast currently pivots at linear 0.5. Both remain documented approximations.
 - All active LR-2 mappings are `approximate`: the recipe contains numeric fields,
   exact source remains in `lrcat_develop_source`, and
   the shared `diagnostics::push_approximate` helper records an entry with
@@ -206,12 +218,12 @@ main's original recipe bytes and 2,000-row golden digest.
   decline resident/fused tone dispatch; Adobe compatibility stages remain CPU.
   Synthetic full GPU-session parity is tested alongside operator/batch parity.
 
-`DevelopSettings::required_schema_version_lr2()` returns 4 only for enabled
-monochrome, `curves_extended`, or `legacy_pv2010`; otherwise 3. The shared
-LR-SCHEMA helper was not on the rebased main. **Coordinator merge hook:** register
-this predicate with that helper before shipping/persisting these new fields;
-LR-2c does not independently change global schema read/write policy. The shared
-helper must enforce v4 writes and older-build refusal while preserving v3 bytes.
+Schema uses the shared `V4_FEATURE_PREDICATES` registry: enabled monochrome **or a
+nonzero disabled mixer**, `curves_extended`, and `legacy_pv2010` require v4.
+Each predicate uses `assert_bumped_only_when_present`; the lane-local schema
+helper is gone. LR-7 owns the first-lane LR-SCHEMA checklist changes and the
+shared approximation guard. LR-2 adds only its feature predicates/tests and its
+synthetic matrix input context (legacy process version or HDR mode).
 
-Run `bash tools/orchestrate/wp/LR-2/gates-c.sh` from the workspace root. This is
-the LR-2c gate; older LR-2b audit scripts record superseded contracts.
+Run `bash tools/orchestrate/wp/LR-2/gates-e.sh` from the workspace root for the
+LR-2e synthetic gate. Earlier scripts and handoffs are historical evidence.
