@@ -181,3 +181,10 @@ fn conflicting_radial_inversion_is_a_named_mask_limitation() {
     let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',CorrectionMasks={{What='Mask/CircularGradient',MaskID='synthetic',Left=0.2,Top=0.2,Right=0.8,Bottom=0.8,Flipped=false,MaskInverted=false}}}}}","15.4").unwrap();
     assert!(w.iter().any(|w|w.contains("radial mask inversion")),"{w:?}");
 }
+
+#[test]
+fn neutral_color_variance_is_not_named_as_a_curve_blocker() {
+    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalColorVariance={0,0,0},MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
+    assert!(w[0].contains("local tone curve"));
+    assert!(!w[0].contains("color-variance"),"{w:?}");
+}
