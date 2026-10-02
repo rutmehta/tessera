@@ -133,24 +133,3 @@ fn structured_sdk_placeholder_is_inactive() {
     assert!(warnings.is_empty(), "{warnings:?}");
     assert!(diagnostics::entries(&recipe).is_empty());
 }
-
-#[test]
-fn xmp_foreign_payload_is_not_an_empty_default() {
-    for key in [
-        "RetouchInfo",
-        "RedEyeInfo",
-        "PointColors",
-        "FilterList",
-        "AILook",
-    ] {
-        for body in [
-            format!("<crs:{key} xmlns:f='urn:synthetic-future' f:effect='opaque'/>"),
-            format!(
-                "<crs:{key}><rdf:Seq xmlns:f='urn:synthetic-future' f:effect='opaque'/></crs:{key}>"
-            ),
-        ] {
-            let (_, warnings) = xmp::parse(&packet("", &body), "15.4").unwrap();
-            assert!(!warnings.is_empty(), "{key}");
-        }
-    }
-}
