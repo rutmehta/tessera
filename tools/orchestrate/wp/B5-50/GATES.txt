@@ -1,0 +1,21 @@
+B5-50b gates
+
+Environment:
+PATH includes $HOME/.cargo/bin
+CARGO_BUILD_JOBS=4
+RAYON_NUM_THREADS=4
+CARGO_TARGET_DIR=$HOME/.cache/tessera-target/B5-50
+
+1. cargo clean -p tessera-ffi --release
+PASS; removed 30 files / 846.5 MiB before final gates.
+
+2. cd apps/mac && ./build-ffi.sh && cd ../.. && tools/orchestrate/swift-gate.sh
+PASS: SWIFT GATE OK
+927 XCTest tests, 3 skipped, 0 failures; 5 Swift Testing tests passed.
+
+3. cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+PASS: product Tessera complete in 338.73s; 0 warnings / 0 errors.
+
+4. Scope and hygiene
+PASS: git diff --check; no B5-50b Rust/Cargo.lock/board.json changes; no generated-binding drift.
+Documentation committed after gates; final working tree checked clean before push.

@@ -1,0 +1,16 @@
+B5-50b RED run (before production changes)
+Command: swift test -c release -Xswiftc -enable-testing --filter LibraryDevelopAccessibilityTests
+Commit: ce5b27e8
+8 tests; 7 failed; 110 assertion failures; 0 unexpected failures.
+
+Expected failures:
+- testEstablishedIdentifiersFromMainRemainPresent: 95 established identifier stems absent.
+- testImportStepsAndSyntheticReport: synthetic catalog root in locate/reset identifiers.
+- testKeywordIdentifierPrivacy: synthetic keyword in remove and accept/reject identifiers.
+- testLibraryAndDevelopWindows: synthetic preset and snapshot names in identifiers.
+- testMetadataUpdatesAreConditionalAndSidebarRemainsNative: unconditional metadata setters and custom sidebar replacement.
+- testSidebarFolderIdentifierPrivacy: synthetic folder path in row-name identifier.
+- testSidebarNativeSelectionAndDisclosureArePreserved: 2 selected indexes instead of 1.
+
+Passed: testPressActionIsAuditedRegardlessOfRole.
+Fixtures were generated under disposable test directories. No private paths/pixels retained here.

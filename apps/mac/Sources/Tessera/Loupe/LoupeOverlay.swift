@@ -117,6 +117,7 @@ struct LoupeOverlay: View {
                     }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .help("Local adjustments with masks (M)")
+                    .accessibilityIdentifier("develop.loupe.masks")
                 }
             }
             .padding(.horizontal, Theme.Space.gutter)

@@ -23,6 +23,7 @@ struct MasksPanel: View {
                 .toggleStyle(.checkbox)
                 .controlSize(.small)
                 .help("Show the mask tools on the loupe (M)")
+                .accessibilityIdentifier("develop.masks.showTools")
                 Spacer()
                 createMenu
             }
@@ -62,6 +63,7 @@ struct MasksPanel: View {
         }
         .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
         .help("New mask")
+        .accessibilityIdentifier("develop.masks.create").accessibilityLabel("Create mask")
     }
 
     private func arm(_ t: MaskTool) {
@@ -79,6 +81,7 @@ struct MasksPanel: View {
             VStack(alignment: .leading, spacing: Theme.Space.xxs) {
                 if renaming == g.id {
                     TextField("Name", text: $name)
+                        .accessibilityIdentifier("develop.masks.rename.\(g.id)").accessibilityLabel("Mask name")
                         .textFieldStyle(.plain)
                         .font(Theme.Fonts.caption)
                         .onSubmit { masks.rename(g.id, to: name); renaming = nil }
@@ -109,12 +112,15 @@ struct MasksPanel: View {
                        size: Theme.Height.small) {
                 masks.setEnabled(g.id, !g.enabled)
             }
+            .accessibilityIdentifier("develop.masks.row.\(g.id).visibility")
         }
         .padding(Theme.Space.xs)
         .background(RoundedRectangle(cornerRadius: Theme.Radius.control).fill(selected ? Theme.accentSubtle : Theme.clear))
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { name = g.name; renaming = g.id }
         .onTapGesture { masks.select(g.id) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("develop.masks.row.\(g.id)").accessibilityLabel("\(g.name)")
         .contextMenu {
             Button("Rename…") { name = g.name; renaming = g.id }
             Button("Duplicate") { masks.duplicate(g.id) }
@@ -164,6 +170,7 @@ struct MasksPanel: View {
                         Text(mode.title)
                     }
                     .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
+                    .accessibilityIdentifier("develop.masks.component.\(mode.title.lowercased())")
                     .accessibilityLabel("\(mode.title) component \(mode == .add ? "to" : mode == .subtract ? "from" : "with") selected mask")
                     .help("\(mode.title) a component \(mode == .add ? "to" : mode == .subtract ? "from" : "with") this mask")
                 }
@@ -171,10 +178,11 @@ struct MasksPanel: View {
             ForEach(Array(g.components.enumerated()), id: \.offset) { i, c in componentRow(g, i, c) }
             HStack(spacing: Theme.Space.s) {
                 Toggle("Invert", isOn: Binding(get: { g.invert }, set: { _ in masks.invertSelected() }))
+                    .accessibilityIdentifier("develop.masks.invert")
                     .toggleStyle(.checkbox).font(Theme.Fonts.caption).controlSize(.small)
                     .help("Invert the whole mask (X)")
                 Spacer()
-                Button("Reset Sliders") { masks.resetParams() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                Button("Reset Sliders") { masks.resetParams() }.accessibilityIdentifier("develop.masks.reset").buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
             VStack(alignment: .leading, spacing: 0) {
                 MaskAmountSlider(masks: masks, groupID: g.id).frame(height: Theme.Height.slider)
@@ -205,7 +213,7 @@ struct MasksPanel: View {
                     HStack(spacing: Theme.Space.xs) {
                         StatusLine(text: m, kind: .error).lineLimit(2)
                         if let key = c.aiKey {
-                            Button("Retry") { masks.retry(key) }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                            Button("Retry") { masks.retry(key) }.accessibilityIdentifier("develop.masks.component.\(i).retry").buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         }
                     }
                 default:
@@ -225,14 +233,17 @@ struct MasksPanel: View {
                 }
                 .menuStyle(IconMenuStyle())
                 .help("\(c.combine.title) (change how this component combines)")
+                .accessibilityIdentifier("develop.masks.component.\(i).combine").accessibilityLabel("Component combination mode")
             }
             IconButton(symbol: "circle.righthalf.filled", help: "Invert this component", on: c.invert, size: Theme.Height.small) {
                 masks.setComponentMode(i, combine: c.combine, invert: !c.invert)
             }
+            .accessibilityIdentifier("develop.masks.component.\(i).invert")
             IconButton(symbol: "xmark", help: g.components.count == 1 ? "Delete the mask" : "Remove this component",
                        size: Theme.Height.small) {
                 masks.removeComponent(i)
             }
+            .accessibilityIdentifier("develop.masks.component.\(i).remove")
         }
         .padding(.vertical, Theme.Space.xxs)
     }
@@ -250,6 +261,8 @@ struct MaskParamSlider: NSViewRepresentable {
     func makeNSView(context: Context) -> ValueSlider {
         let s = ValueSlider(frame: .zero)
         s.title = param.title
+        s.setAccessibilityIdentifier("develop.masks.slider.\(param.name)")
+        s.setAccessibilityLabel(param.title)
         s.minValue = param.range.lowerBound
         s.maxValue = param.range.upperBound
         s.defaultValue = 0
@@ -278,6 +291,8 @@ struct MaskAmountSlider: NSViewRepresentable {
     func makeNSView(context: Context) -> ValueSlider {
         let s = ValueSlider(frame: .zero)
         s.title = "Amount"
+        s.setAccessibilityIdentifier("develop.masks.amount")
+        s.setAccessibilityLabel("Mask amount")
         s.minValue = 0
         s.maxValue = 200
         s.defaultValue = 100

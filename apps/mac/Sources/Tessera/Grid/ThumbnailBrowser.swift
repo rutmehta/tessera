@@ -11,6 +11,8 @@ struct ThumbnailBrowser: NSViewRepresentable {
     func makeCoordinator() -> BrowserController { BrowserController(model: model, style: style) }
     func makeNSView(context: Context) -> NSScrollView {
         let controller = context.coordinator
+        controller.collectionView.setAccessibilityIdentifier("library.thumbnail.\(style == .grid ? "grid" : "filmstrip")")
+        controller.collectionView.setAccessibilityLabel(style == .grid ? "Photo grid" : "Filmstrip")
         // A library may already be installed (e.g. --stub at launch) before this view existed.
         DispatchQueue.main.async {
             MainActor.assumeIsolated {

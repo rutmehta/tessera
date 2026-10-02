@@ -41,6 +41,8 @@ struct ControlSlider: NSViewRepresentable {
     func makeNSView(context: Context) -> ValueSlider {
         let s = ValueSlider(frame: .zero)
         s.title = title ?? control.title
+        s.setAccessibilityIdentifier("develop.slider.\(control.id)")
+        s.setAccessibilityLabel(s.title)
         s.minValue = control.range.lowerBound
         s.maxValue = control.range.upperBound
         s.defaultValue = control.defaultValue
@@ -61,6 +63,10 @@ struct ControlSlider: NSViewRepresentable {
 
     func updateNSView(_ s: ValueSlider, context: Context) {
         _ = revision
+        let identifier = "develop.slider.\(control.id)"
+        let label = title ?? control.title
+        if s.accessibilityIdentifier() != identifier { s.setAccessibilityIdentifier(identifier) }
+        if s.accessibilityLabel() != label { s.setAccessibilityLabel(label) }
         context.coordinator.ready = ready
         // Ranges may follow the screen (the HDR headroom slider).
         s.minValue = control.range.lowerBound
@@ -111,13 +117,13 @@ struct ToneCurvePanel: View {
             HStack(spacing: Theme.Space.s) {
                 SegmentedPicker(selection: $tools.curveMode, segments: DevelopTools.CurveMode.allCases.map {
                     .init(value: $0, title: $0.rawValue)
-                }, height: Theme.Height.small, fill: false)
+                }, height: Theme.Height.small, fill: false, accessibilityPrefix: "develop.tone.mode")
                 .fixedSize()
                 Spacer(minLength: 0)
                 if tools.curveMode == .point {
                     SegmentedPicker(selection: $tools.curveChannel, segments: CurveChannel.allCases.map {
                         .init(value: $0, title: $0 == .luminance ? "L" : String($0.title.prefix($0 == .rgb ? 3 : 1)), help: $0.title)
-                    }, height: Theme.Height.small, fill: false)
+                    }, height: Theme.Height.small, fill: false, accessibilityPrefix: "develop.tone.channel")
                     .fixedSize()
                     .help("Point curve channel: RGB, Red, Green, Blue or Luminance")
                 }
@@ -133,12 +139,15 @@ struct ToneCurvePanel: View {
                     Menu("Curve Presets") {
                         ForEach(PointCurve.presets, id: \.0) { name, curve in
                             Button(name) { tools.setPointCurve(curve, channel: tools.curveChannel, final: true); tools.bump() }
+                                .accessibilityIdentifier("develop.tone.preset.\(AccessibilityKey.component(name))")
                         }
                     }
                     .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
+                    .accessibilityIdentifier("develop.tone.presets").accessibilityLabel("Curve Presets")
                     Button("Reset \(tools.curveChannel.title)") {
                         tools.setPointCurve(.identity, channel: tools.curveChannel, final: true); tools.bump()
                     }
+                    .accessibilityIdentifier("develop.tone.reset")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     Spacer()
                 }
@@ -214,9 +223,10 @@ struct HSLPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.Space.s) {
                 SegmentedPicker(selection: $property, segments: HSLProperty.allCases.map { .init(value: $0, title: $0.title) },
-                                height: Theme.Height.small)
+                                height: Theme.Height.small, accessibilityPrefix: "develop.hsl.property")
                 IconButton(symbol: "scope", help: "Targeted adjustment: drag up/down on a colour in the loupe to change its \(property.title.lowercased())",
                            on: tools.hslPicker == property, size: Theme.Height.small) { tools.toggleHSLPicker(property) }
+                    .accessibilityIdentifier("develop.hsl.target")
                     .disabled(!ready)
             }
             .padding(.bottom, Theme.Space.xs)
@@ -260,7 +270,7 @@ struct ColorGradingPanel: View {
             // Icons keep five modes inside the inspector's minimum width (no layout jump).
             SegmentedPicker(selection: $mode, segments: Self.tabs.indices.map { i in
                 .init(value: i, title: i == 0 ? "3-Way" : "", symbol: i == 0 ? nil : Self.symbols[i], help: Self.tabs[i].0)
-            }, height: Theme.Height.small)
+            }, height: Theme.Height.small, accessibilityPrefix: "develop.grading.mode")
             if let range = Self.tabs[mode].1 {
                 SubHeader(range.title)
                 GradeWheel(range: range).frame(height: 144)
@@ -300,6 +310,7 @@ struct GradeWheel: NSViewRepresentable {
         init(range: GradeRange) {
             self.range = range
             view.title = range.title
+            view.setAccessibilityIdentifier("develop.grading.\(range.rawValue).wheel")
             token = NotificationCenter.default.addObserver(forName: DevelopTools.valuesChanged, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.reload() }
             }
@@ -342,6 +353,7 @@ struct DetailPanel: View {
                            size: Theme.Height.small) {
                     tools.toggleDetailPicking()
                 }
+                .accessibilityIdentifier("develop.detail.previewArea")
                 .disabled(!ready)
                 .padding(.top, Theme.Space.s)
             }
@@ -388,6 +400,7 @@ struct EffectsPanel: View {
                     set: { tools.apply(DevelopController.patch(VignetteStyle.path, $0.rawValue), final: true,
                                        label: "Vignette Style: \($0.title)"); tools.bump() }),
                            options: VignetteStyle.allCases.map { ($0, $0.title) })
+                    .accessibilityIdentifier("develop.effects.style").accessibilityLabel("Vignette style")
             }
             .frame(height: Theme.Height.large)
             ForEach(EffectsControls.vignette) { c in
@@ -458,12 +471,13 @@ struct CropPanel: View {
         VStack(alignment: .leading, spacing: Theme.Space.xs) {
             HStack(spacing: Theme.Space.xs) {
                 if tools.cropActive {
-                    Button("Done") { tools.commitCrop() }.keyboardShortcut(.defaultAction)
+                    Button("Done") { tools.commitCrop() }.accessibilityIdentifier("develop.crop.done").keyboardShortcut(.defaultAction)
                         .buttonStyle(.theme(.primary, height: Theme.Height.small))
-                    Button("Cancel") { tools.cancelCrop() }
+                    Button("Cancel") { tools.cancelCrop() }.accessibilityIdentifier("develop.crop.cancel")
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                 } else {
                     Button("Crop & Straighten") { tools.beginCrop() }
+                        .accessibilityIdentifier("develop.crop.begin")
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .help("Open the crop tool in the loupe (R)")
                 }
@@ -474,7 +488,9 @@ struct CropPanel: View {
                     tools.straightening.toggle()
                     tools.onLoupeToolChange?()
                 }
+                .accessibilityIdentifier("develop.crop.straighten")
                 Button("Reset") { tools.resetCrop() }
+                    .accessibilityIdentifier("develop.crop.reset")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
             HStack(spacing: Theme.Space.xs) {
@@ -482,11 +498,13 @@ struct CropPanel: View {
                 Spacer()
                 MenuPicker(selection: Binding(get: { tools.cropAspect }, set: { tools.setCropAspect($0) }),
                            options: CropAspect.presets.map { ($0, $0.title) })
+                    .accessibilityIdentifier("develop.crop.aspect").accessibilityLabel("Crop aspect ratio")
                 IconButton(symbol: tools.cropPortrait ? "rectangle.portrait" : "rectangle",
                            help: "Swap landscape / portrait (X)", on: false, size: Theme.Height.small) {
                     if !tools.cropActive { tools.beginCrop() }
                     tools.flipCropOrientation()
                 }
+                .accessibilityIdentifier("develop.crop.orientation")
             }
             .controlSize(.small)
             .frame(height: Theme.Height.regular)
@@ -497,9 +515,11 @@ struct CropPanel: View {
                 MenuPicker(selection: Binding(get: { tools.cropOverlay },
                                               set: { tools.cropOverlay = $0; tools.onLoupeToolChange?() }),
                            options: CropOverlay.allCases.map { ($0, $0.title) })
+                    .accessibilityIdentifier("develop.crop.overlay").accessibilityLabel("Crop overlay")
             }
             .frame(height: Theme.Height.regular)
             Toggle("Constrain to image", isOn: $tools.constrainCrop)
+                .accessibilityIdentifier("develop.crop.constrain")
                 .font(Theme.Fonts.caption)
                 .controlSize(.small)
             Hint(tools.cropActive
@@ -520,6 +540,8 @@ struct CropAngleSlider: NSViewRepresentable {
     func makeNSView(context: Context) -> ValueSlider {
         let s = ValueSlider(frame: .zero)
         s.title = "Angle"
+        s.setAccessibilityIdentifier("develop.crop.angle")
+        s.setAccessibilityLabel("Straighten angle")
         s.minValue = -45
         s.maxValue = 45
         s.defaultValue = 0
@@ -552,7 +574,7 @@ struct PresetsPanel: View {
             if tools.presets.isEmpty {
                 Hint("No presets yet. Save the current look (all or some panels) to reuse it on other photos.")
             }
-            ForEach(tools.presets) { p in
+            ForEach(Array(tools.presets.enumerated()), id: \.element.id) { index, p in
                 Button { tools.applyPreset(p) } label: {
                     HStack {
                         Text(p.name).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary).lineLimit(1)
@@ -564,30 +586,34 @@ struct PresetsPanel: View {
                 }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
                 .help(p.groups.map(\.title).joined(separator: ", "))
-                .contextMenu { Button("Delete “\(p.name)”") { tools.deletePreset(p) } }
+                .accessibilityIdentifier("develop.presets.apply.\(index)").accessibilityLabel("Apply preset \(p.name)")
+                .contextMenu { Button("Delete “\(p.name)”") { tools.deletePreset(p) }.accessibilityIdentifier("develop.presets.delete.\(index)") }
             }
             Button("Save Preset…") {
                 name = "Preset \(tools.presets.count + 1)"
                 saving = true
             }
+            .accessibilityIdentifier("develop.presets.new")
             .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             .popover(isPresented: $saving, arrowEdge: .leading) {
                 VStack(alignment: .leading, spacing: Theme.Space.s) {
                     Text("New Preset").font(Theme.Fonts.title)
-                    TextField("Name", text: $name).textFieldStyle(.roundedBorder).frame(width: 220)
+                    TextField("Name", text: $name).accessibilityIdentifier("develop.presets.name").accessibilityLabel("Preset name").textFieldStyle(.roundedBorder).frame(width: 220)
                     SubHeader("Include")
                     ForEach(PresetGroup.allCases) { g in
                         Toggle(g.title, isOn: Binding(get: { groups.contains(g) },
                                                       set: { if $0 { groups.insert(g) } else { groups.remove(g) } }))
                             .font(Theme.Fonts.caption)
+                            .accessibilityIdentifier("develop.presets.include.\(g.rawValue)")
                     }
                     HStack(spacing: Theme.Space.s) {
                         Spacer()
-                        Button("Cancel") { saving = false }.buttonStyle(.themeBordered)
+                        Button("Cancel") { saving = false }.accessibilityIdentifier("develop.presets.cancel").buttonStyle(.themeBordered)
                         Button("Save") {
                             tools.savePreset(name: name.trimmingCharacters(in: .whitespaces), groups: groups)
                             saving = false
                         }
+                        .accessibilityIdentifier("develop.presets.save")
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.themePrimary)
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || groups.isEmpty)
@@ -613,7 +639,7 @@ struct SnapshotsPanel: View {
             if names.isEmpty {
                 Hint("Snapshots name a state you can return to.")
             }
-            ForEach(names, id: \.self) { n in
+            ForEach(Array(names.enumerated()), id: \.element) { index, n in
                 Button { model.restoreSnapshot(n) } label: {
                     HStack(spacing: Theme.Space.s) {
                         Image(systemName: "camera.viewfinder").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textSecondary)
@@ -623,8 +649,9 @@ struct SnapshotsPanel: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
+                .accessibilityIdentifier("develop.snapshots.restore.\(index)")
             }
-            Button("New Snapshot…") { model.promptSnapshot() }.buttonStyle(.theme(.bordered, height: Theme.Height.small))
+            Button("New Snapshot…") { model.promptSnapshot() }.accessibilityIdentifier("develop.snapshots.new").buttonStyle(.theme(.bordered, height: Theme.Height.small))
         }
         .disabled(!ready)
     }
@@ -667,6 +694,7 @@ struct HistoryPanel: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("develop.history.original")
             }
         }
         .disabled(!ready)
@@ -686,6 +714,7 @@ private struct HistoryRow: View {
                     .labelsHidden()
                     .controlSize(.mini)
                     .frame(width: Theme.Space.l)
+                    .accessibilityIdentifier("agent-step-toggle-\(item.id)").accessibilityLabel(item.label)
                     .help(item.enabled ? "Turn this step off (recorded as a new step)" : "Turn this step back on")
             } else {
                 Image(systemName: item.toggles != nil ? "arrow.uturn.left" : item.groupAmount != nil ? "slider.horizontal.below.rectangle" : "circle")
@@ -708,6 +737,7 @@ private struct HistoryRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("develop.history.step.\(item.id).restore").accessibilityLabel("Restore \(item.label)")
         }
         .padding(.horizontal, Theme.Space.xs)
         .frame(height: Theme.Height.regular)

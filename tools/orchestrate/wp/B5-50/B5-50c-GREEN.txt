@@ -1,0 +1,27 @@
+Test Suite 'LibraryDevelopAccessibilityTests' started at 2026-10-02 14:19:59.052.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testEstablishedIdentifiersFromMainRemainPresent]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testEstablishedIdentifiersFromMainRemainPresent]' passed (0.148 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testIdentifierFormatAllowsOnlyNamespacesOrPinnedStems]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testIdentifierFormatAllowsOnlyNamespacesOrPinnedStems]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testImportStepsAndSyntheticReport]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testImportStepsAndSyntheticReport]' passed (0.887 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testKeywordIdentifierPrivacy]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testKeywordIdentifierPrivacy]' passed (0.211 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testLibraryAndDevelopWindows]' started.
+develop original L2 calibration [first, tone, WB] ms: CPU [27.817917, 3.382625, 1.0920420000000002]; GPU [31.637791999999997, 7.247042, 3.104333]
+Context leak detected, CoreAnalytics returned false
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testLibraryAndDevelopWindows]' passed (7.001 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testMetadataUpdatesAreConditionalAndSidebarRemainsNative]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testMetadataUpdatesAreConditionalAndSidebarRemainsNative]' passed (0.002 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testModelProgressRetryIdentifiers]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testModelProgressRetryIdentifiers]' passed (0.091 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testPressActionIsAuditedRegardlessOfRole]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testPressActionIsAuditedRegardlessOfRole]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarFolderIdentifierPrivacy]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarFolderIdentifierPrivacy]' passed (0.001 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarFolderIdentifierSurvivesRebuild]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarFolderIdentifierSurvivesRebuild]' passed (0.000 seconds).
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarNativeSelectionAndDisclosureArePreserved]' started.
+Test Case '-[TesseraCoreTests.LibraryDevelopAccessibilityTests testSidebarNativeSelectionAndDisclosureArePreserved]' passed (0.099 seconds).
+Test Suite 'LibraryDevelopAccessibilityTests' passed at 2026-10-02 14:20:07.494.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 8.440 (8.442) seconds

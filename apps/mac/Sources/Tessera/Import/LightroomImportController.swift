@@ -251,10 +251,7 @@ final class LightroomImportController {
                 self.progress = nil
                 switch written {
                 case .success(let (report, markdown, url)):
-                    self.report = report
-                    self.reportMarkdown = markdown
-                    self.reportURL = url
-                    self.step = .report
+                    self.publishReport(report, markdown: markdown, url: url)
                     if !report.cancelled {
                         let folder = URL(fileURLWithPath: report.libraryPath).deletingLastPathComponent()
                         self.openLibrary(folder, "Imported \(report.imported + report.resumed) photos from "
@@ -267,6 +264,15 @@ final class LightroomImportController {
                 self.presentSheet()
             }
         }
+    }
+
+    /// Publish the completed result as one presentation state. Navigation and completion
+    /// callbacks remain with the import task; presenting a report does not open a library.
+    func publishReport(_ report: LrcatReport, markdown: String, url: URL?) {
+        self.report = report
+        reportMarkdown = markdown
+        reportURL = url
+        step = .report
     }
 
     func cancelImport() { importer?.cancel() }

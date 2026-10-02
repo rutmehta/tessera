@@ -5,6 +5,11 @@ import TesseraCore
 import TesseraFFI
 @testable import Tessera
 
+@objc private protocol ImportHostedAccessibilityApplication {
+    @objc optional func isAccessibilityEnhancedUserInterface() -> Bool
+    @objc optional func setAccessibilityEnhancedUserInterface(_ enabled: Bool)
+}
+
 @MainActor
 final class LightroomImportAccessibilityTests: XCTestCase {
     private let warning = "operator X not implemented by the CPU reference renderer"
@@ -32,10 +37,12 @@ final class LightroomImportAccessibilityTests: XCTestCase {
         await LayoutProbeHarness.settleAsync(host)
         // Materialize SwiftUI's virtual AX tree locally, without requiring test-runner
         // TCC permission or changing the user's system accessibility preferences.
-        let attribute = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
-        let previous = NSApp.accessibilityAttributeValue(attribute)
-        NSApp.accessibilitySetValue(true, forAttribute: attribute)
-        defer { NSApp.accessibilitySetValue(previous, forAttribute: attribute) }
+        let application = NSApp as AnyObject
+        guard let previous = application.isAccessibilityEnhancedUserInterface?() else {
+            return XCTFail("AppKit must support hosted accessibility activation")
+        }
+        application.setAccessibilityEnhancedUserInterface?(true)
+        defer { application.setAccessibilityEnhancedUserInterface?(previous) }
         await LayoutProbeHarness.settleAsync(host)
         let nodes = elements(host)
         XCTAssertGreaterThan(nodes.count, 1, "Hosted AX hierarchy must be populated before checking content")

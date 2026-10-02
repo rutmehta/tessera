@@ -53,6 +53,7 @@ final class CurveEditorView: NSView, KeyOwningControl {
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         setAccessibilityLabel("Tone curve")
+        setAccessibilityIdentifier("develop.tone.curve")
     }
     required init?(coder: NSCoder) { fatalError() }
 
