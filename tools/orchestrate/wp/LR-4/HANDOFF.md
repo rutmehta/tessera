@@ -285,7 +285,7 @@ schema; the ensuing RED exposed the intended schema gap.
 | Recursive AI/depth consumers | Camera Raw, smart-preview and MCP guards walk active leaves recursively. Disabled branches are skipped. |
 | FFI mask editing/metadata | Disabled brushes are not painted; nested groups have a Group type, full tree JSON and enabled flag. Disabled components are not reported rendered. Invalid nested children are dropped individually. |
 | Component range inversion | Applies (not seed) intersect range, including range-owned inversion, instead of complementing the combined wrapper. |
-| Recursion/memory | At most 8 component levels, root=1; source codec/audit also bounded. CPU recycles planes and adopts the first child; external composition adopts owned buffers and borrows immutable cached rasters. |
+| Recursion/memory | At most 8 component levels, root=1; source codec/audit also bounded. CPU recycles planes and adopts the first child; external composition adopts owned buffers and borrows immutable cached rasters. This is depth-bounded, not a two-buffer bound: allow up to roughly 10 full f32 alpha planes at depth 8 (960 MB at 24 MP), excluding RGB, refinement and cached rasters. |
 | Metadata promotion | IDs, sync IDs, names/version, MaskValue, Midpoint/Roundness and neutral local toning no longer defeat the audit. Their assumptions remain explicit. |
 | Rotated radial aspect | Uses the permitted approximate disposition: existing normalized-coordinate rotation is documented, source retained, info diagnostic emitted. Adobe pixel-space ellipse fidelity is not claimed. |
 | Upright frame | Synthetic guided-Upright test proves masks execute in sensor-oriented pre-geometry coordinates. LR-7 must preserve ordering or transform coordinates. |

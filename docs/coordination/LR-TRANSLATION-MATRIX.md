@@ -191,7 +191,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   Adobe encoding and coordinate conventions are decoded. No dedicated red-eye
   operator or Adobe cloud-generated patch/resource is represented.
 - **LR-4:** disabled components, nested trees (at most eight component levels),
-  four-bound perceptual luminance, scalar depth, individual brush dabs and color
+  four-bound display luminance, scalar depth, individual brush dabs and color
   models decode with source retained and info diagnostics. Adobe blend codes,
   pre-geometry coordinates, radial rotation in normalized coordinates, feather,
   dab flow/hardness and sample colors remain approximations. Legacy flat envelopes
@@ -277,3 +277,9 @@ Type 1 color samples now populate renderable fields under the same contract.
 Malformed/unknown tokens and LR-5 Mask/Image remain source-retained with an
 unsupported diagnostic. No Adobe-rendered chart was used to assert equivalence.
 See [LR-4c handoff](../../tools/orchestrate/wp/LR-4/HANDOFF.md).
+
+LR-4e preserves native/previously saved luminance masks in linear light. Adobe
+range imports carry `luminance_domain: "display"`, which conditionally requires
+schema 4. Parametric gradient/radial `MaskValue` is retained with an explicit
+approximation diagnostic: strength is not reproduced (unit selection is used).
+See [LR-4e handoff](../../tools/orchestrate/wp/LR-4e/HANDOFF.md).
