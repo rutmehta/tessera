@@ -259,6 +259,26 @@ Define `S(t)=max(t,0)+ln(1+exp(-abs(t)))`. For each region centre k,
     Yo = .18 * (exp(zo)-1)
     RGB *= Yo/Y
 
+The CPU and Metal evaluations use the same cancellation-free f32 formulation
+(`src/tone_math.rs` and `pipeline-gpu/src/operators.wgsl`). For `zc < .5`,
+compute the equivalent difference directly:
+
+    U(zc,k) = log1p(expm1(zc) / (1 + exp(k)))
+
+For `zc >= .5`, retain the softplus difference, avoiding an HDR `exp(zc)`
+overflow. Both backends evaluate `log1p(x)` for `abs(x) < .5` as
+`2*t*(1 + t²/3 + t⁴/5 + ... + t¹⁴/15)`, `t=x/(2+x)`, in the same Horner
+order; outside that interval they use `log(1+x)`. Both evaluate `expm1(x)`
+for `abs(x) < .5` using the same degree-ten Taylor/Horner polynomial and
+`exp(x)-1` outside. Clamp and divide each region amount by 100 **before**
+multiplying by .2. The exposure-only/neutral and `Y <= 0` bypasses are the
+same on both sides. No luminance floor or one-sided gain correction is used.
+
+This preserves the real-valued tone curve while preventing near-zero signed
+luminance from magnifying cancellation in the log and region differences.
+F32 rounding can still change: ENG-4's [handoff](../../tools/orchestrate/wp/ENG-4/HANDOFF.md)
+records the per-golden deltas and the two explained SDR quantization crossings.
+
 Every region derivative is between zero and one, so the combined derivative is
 at least .2 even at slider extremes. Operations are global and continuous, with
 no local edge filter that could create spatial halos. Luminance rescaling retains

@@ -1,0 +1,47 @@
+{
+  "base": "f6b572ba2e2f1c3983c29cb0c95a58cdc2a1f930",
+  "test_commit": "a2877dd74362fc5cee3b800fded00afeb74fb379",
+  "fix_commit": "77c9196ec04742090d6db1e8415e6c5dbb315097",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/rutmehta/.cache/tessera-target/ENG-4",
+    "CARGO_BUILD_JOBS": 4,
+    "RAYON_NUM_THREADS": 4,
+    "adapter": "Apple M4 Max",
+    "backend": "Metal"
+  },
+  "exit_codes": {
+    "release_clean": 0,
+    "three_crate_tests": 0,
+    "bench": 0,
+    "ffi": 0,
+    "clippy": 0,
+    "fmt": 0,
+    "sdr_audit": 0
+  },
+  "counts": {
+    "test": {
+      "suites": 95,
+      "passed": 482,
+      "failed": 0,
+      "ignored": 23,
+      "measured": 0,
+      "filtered": 0
+    },
+    "ffi": {
+      "suites": 53,
+      "passed": 581,
+      "failed": 0,
+      "ignored": 30,
+      "measured": 0,
+      "filtered": 0
+    },
+    "bench": {
+      "suites": 1,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 10
+    }
+  }
+}
