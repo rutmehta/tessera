@@ -104,7 +104,8 @@ fn unknown_keys_are_reported_and_the_source_is_retained() {
         "Synthetic \"Quoted\" Profile".into()
     );
     // LR-9b: Preset is saved provenance; unknown future effects still warn.
-    for key in ["SyntheticFutureKey"] {
+    {
+        let key = "SyntheticFutureKey";
         assert!(
             warnings
                 .iter()

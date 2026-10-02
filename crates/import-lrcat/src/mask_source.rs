@@ -230,10 +230,7 @@ fn correction(n: Node<'_, '_>) -> Option<()> {
     for (name, value) in fields(n)? {
         match (name.as_str(), value) {
             ("CorrectionReferenceX" | "CorrectionReferenceY", Field::Scalar(v))
-                if v.parse::<f64>().ok()?.is_finite() =>
-            {
-                ()
-            }
+                if v.parse::<f64>().ok()?.is_finite() => {}
             (
                 "LocalBrightness"
                 | "LocalContrast"
@@ -251,17 +248,11 @@ fn correction(n: Node<'_, '_>) -> Option<()> {
                     n.attributes().len() == 0
                         && !n.children().any(|n| n.is_element())
                         && n.text().and_then(|s| s.trim().parse::<f64>().ok()) == Some(0.)
-                }) =>
-            {
-                ()
-            }
+                }) => {}
             ("LocalPointColors", Field::Scalar(v)) if v.is_empty() => (),
             ("LocalPointColors", Field::Structure(n)) if sequence(n)?.is_empty() => (),
             ("LocalToningHue", Field::Scalar(v))
-                if inactive_overlay && v.parse::<f64>().ok()?.is_finite() =>
-            {
-                ()
-            }
+                if inactive_overlay && v.parse::<f64>().ok()?.is_finite() => {}
             ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
                 if v.parse::<f64>().ok()? == 0.0 => {}
             ("LocalDefringe", Field::Scalar(v)) if v.parse::<f64>().ok()? != 0.0 => return None,

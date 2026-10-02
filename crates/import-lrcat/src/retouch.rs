@@ -493,7 +493,7 @@ fn stroke(value: &Value, feather: f32) -> Option<Vec<BrushStroke>> {
             ["f", value] => flow = n(value, 0., 1.)? * 100.,
             ["h", value] => feather = (1. - n(value, 0., 1.)?) * 100.,
             ["d", x, y] => {
-                let point = [n(x, 0., 1.)?, n(y, 0., 1.)?, 1.];
+                let point = [n(x, -16., 16.)?, n(y, -16., 16.)?, 1.];
                 if stateful {
                     stamps.push(BrushStroke {
                         points: vec![point],
