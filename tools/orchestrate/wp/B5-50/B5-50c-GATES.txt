@@ -1,0 +1,15 @@
+Build complete! (10.62s)
+	 Executed 930 tests, with 3 tests skipped and 0 failures (0 unexpected) in 335.337 (335.459) seconds
+✔ Test run with 5 tests in 2 suites passed after 0.031 seconds.
+SWIFT GATE OK
+
+Strict release build:
+[0/1] Planning build
+Building for production...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+[2/4] Compiling TesseraFFI TesseraFFI.swift
+[3/5] Compiling TesseraCore AppDefaultsIsolation.swift
+[4/6] Compiling Tessera AISettingsView.swift
+[4/6] Write Objects.LinkFileList
+[5/6] Linking Tessera
+Build of product 'Tessera' complete! (273.97s)

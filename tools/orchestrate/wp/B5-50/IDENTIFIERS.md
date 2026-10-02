@@ -38,7 +38,7 @@ The native Library/Develop sidebar toggle is provided by SwiftUI/AppKit and has 
 
 Names and paths belong in accessible labels, never in identifiers. Percent encoding is not
 an anonymization mechanism. `AccessibilityKey.component` accepts only non-private keys.
-Indexes track model order; opaque UUIDs persist for the row model lifetime. Built-in tone curve
+Indexes track model order; opaque UUIDs persist for the process session. Built-in tone curve
 preset names are fixed application constants. Native toolbar parent/child wrappers may repeat
 one action's identifier. Established repeated group identifiers remain compatible with main.
 
@@ -64,7 +64,7 @@ system menus or transient popovers. UUID rows below are represented as `<opaqueI
 
 | Identifier | Accessible name |
 | --- | --- |
-| `agent-step-toggle-1` | Enable Edit |
+| `agent-step-toggle-1` | Edit |
 | `assist-panel-toggle` | Assist |
 | `detail-ai-denoise` | AI Denoise |
 | `detail-ai-denoise-amount` | Amount |
@@ -261,8 +261,8 @@ system menus or transient popovers. UUID rows below are represented as `<opaqueI
 | `develop.toolbar.workspace.0` | Library |
 | `develop.toolbar.workspace.1` | Edit photo |
 | `develop.toolbar.workspace.2` | Review |
-| `develop.transform.reset` | Reset |
-| `develop.transform.upright-reset` | Reset |
+| `transform-reset` | Reset |
+| `transform-upright-reset` | Reset |
 | `document.import.report.markdown` | Import report markdown |
 | `facetAlbum` | Album |
 | `facetCamera` | Camera |
