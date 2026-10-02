@@ -7,5 +7,6 @@ fn main() {
  encoder.set_sampling_factor(SamplingFactor::F_1_1);
  // Preserve component values. These are camera channels, despite the encoder's Ycbcr label.
  encoder.encode(&data,16,16,ColorType::Ycbcr).unwrap();
+ bytes.splice(2..2, [255,238,0,14,b'A',b'd',b'o',b'b',b'e',0,100,0,0,0,0,0]);
  std::fs::write(std::env::args().nth(1).unwrap(),bytes).unwrap();
 }

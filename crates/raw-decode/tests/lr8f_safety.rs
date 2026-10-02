@@ -201,12 +201,42 @@ fn full_seed(jxl: bool) -> Vec<u8> {
         set(&mut b, 50712, lut);
         tags[..old_n * 12].copy_from_slice(&b[40..40 + old_n * 12]);
     }
-    let ifd = b.len() as u32;
-    b[30..34].copy_from_slice(&ifd.to_le_bytes());
-    b.extend(((old_n + 3) as u16).to_le_bytes());
-    b.extend(tags);
-    b.extend(0u32.to_le_bytes());
-    b
+    // Repack the complete IFD before all payloads, so truncation exercises
+    // post-identification validation rather than just cutting off an EOF IFD.
+    let mut out = b[..38].to_vec();
+    out[30..34].copy_from_slice(&38u32.to_le_bytes());
+    out.extend(((old_n + 3) as u16).to_le_bytes());
+    let payload_start = 40 + tags.len() + 4;
+    let mut payload = Vec::new();
+    let mut tile_slot = 0;
+    for e in tags.as_chunks::<12>().0 {
+        let tag = u16::from_le_bytes(e[..2].try_into().unwrap());
+        let kind = u16::from_le_bytes(e[2..4].try_into().unwrap());
+        let count = u32::from_le_bytes(e[4..8].try_into().unwrap()) as usize;
+        let unit = match kind {
+            3 => 2,
+            4 => 4,
+            5 | 10 => 8,
+            _ => 1,
+        };
+        out.extend_from_slice(&e[..8]);
+        if tag == 324 {
+            tile_slot = out.len();
+        }
+        if count * unit <= 4 {
+            out.extend_from_slice(&e[8..]);
+        } else {
+            let old = u32::from_le_bytes(e[8..].try_into().unwrap()) as usize;
+            out.extend(((payload_start + payload.len()) as u32).to_le_bytes());
+            payload.extend_from_slice(&b[old..old + count * unit]);
+        }
+    }
+    out.extend(0u32.to_le_bytes());
+    out.extend(payload);
+    let offset = out.len() as u32;
+    out[tile_slot..tile_slot + 4].copy_from_slice(&offset.to_le_bytes());
+    out.extend(tile);
+    out
 }
 #[test]
 fn header_only_jxl_returns_error_without_render_panic() {
@@ -226,11 +256,19 @@ fn header_only_jxl_returns_error_without_render_panic() {
         .chunks(8)
         .map(|c| c.iter().enumerate().fold(0, |v, (i, b)| v | (b << i)))
         .collect();
+    let header = jxl_oxide::JxlImage::builder()
+        .read(Cursor::new(&payload))
+        .unwrap();
+    assert_eq!((header.width(), header.height()), (16, 16));
+    assert_eq!(header.num_loaded_keyframes(), 0);
     let mut b = support::lossy_dng_with_jpeg(false, false, &payload);
     set(&mut b, 259, 52546);
     let result = std::panic::catch_unwind(|| raw_decode::lossy_dng::read(&mut Cursor::new(b)));
     assert!(result.is_ok(), "header-only JXL panicked");
-    assert!(result.unwrap().is_err());
+    assert_eq!(
+        result.unwrap().err().unwrap().to_string(),
+        "JXL frame missing"
+    );
 }
 // Per-thread allocation accounting: cumulative bytes bounds peak as well. No
 // samples or allocator metadata are retained after each case.
@@ -277,7 +315,11 @@ fn seeded_full_jpeg_and_16bit_jxl_mutations_are_bounded() {
             rng ^= rng << 17;
             let mut b = seed.clone();
             if case % 2 == 0 {
-                let p = rng as usize % b.len();
+                let p = match case % 6 {
+                    0 => rng as usize % 400.min(b.len()),
+                    2 => b.len() - 1 - rng as usize % 128.min(b.len()),
+                    _ => rng as usize % b.len(),
+                };
                 b[p] ^= 1 << ((rng >> 32) % 8);
             } else {
                 b.truncate(rng as usize % b.len());
