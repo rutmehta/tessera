@@ -24,7 +24,7 @@ struct LightroomImportSheet: View {
                 }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("library.import.steps")
+            .accessibilityIdentifier("lrimport-steps")
         } content: {
             VStack(spacing: 0) {
                 Group {
@@ -48,7 +48,7 @@ struct LightroomImportSheet: View {
                         .accessibilityLabel(importer.step == .fidelity ? "Fidelity error" : "Import error")
                         .accessibilityValue(error)
                         .accessibilityIdentifier(importer.step == .fidelity && (importer.fidelity?.samples.isEmpty ?? true)
-                                                 ? "library.import.report.fidelity" : "library.import.error")
+                                                 ? "document.import.report.fidelity" : "library.import.error")
                 }
             }
         } leading: {
@@ -58,7 +58,7 @@ struct LightroomImportSheet: View {
             } else if importer.step == .mapping, let p = importer.preview {
                 Text("\(p.toImport) photo\(p.toImport == 1 ? "" : "s") will be imported · \(p.missing) missing · \(p.conflicts) skipped · \(p.virtualCopies) virtual cop\(p.virtualCopies == 1 ? "y" : "ies") kept in the bundle")
                     .monospacedDigit()
-                    .accessibilityIdentifier("library.import.plan-line")
+                    .accessibilityIdentifier("lrimport-plan-line")
             }
         } actions: {
             switch importer.step {
@@ -137,7 +137,7 @@ private struct SummaryStep: View {
                               : "The catalog has a lock file (Lightroom may be open, or quit unexpectedly). It is read from a copy and left untouched.",
                               systemImage: "lock.fill")
                             .font(Theme.Fonts.label).foregroundStyle(Theme.warning)
-                            .accessibilityIdentifier("library.import.lock-warning")
+                            .accessibilityIdentifier("lrimport-lock-warning")
                     }
                     Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 6) {
                         row("Photos", "\(s.images - s.virtualCopies)", "Virtual copies", "\(s.virtualCopies)")
@@ -148,7 +148,7 @@ private struct SummaryStep: View {
                         row("Lightroom previews", "\(s.previews)", "Disk space needed", ByteCountFormatter.fileSize(s.estimatedBytes))
                     }
                     .font(Theme.Fonts.labelNumeric)
-                    .accessibilityIdentifier("library.import.summary-counts")
+                    .accessibilityIdentifier("lrimport-summary-counts")
                     Text("Catalog version \(s.schemaVersion) · roots: \(s.roots.joined(separator: ", "))")
                         .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                     Divider()
@@ -229,7 +229,7 @@ private struct MappingStep: View {
             HStack {
                 Text(importer.folders?.libraryFolder ?? "").font(Theme.Fonts.labelMono)
                     .lineLimit(1).truncationMode(.middle)
-                    .accessibilityIdentifier("library.import.library-folder")
+                    .accessibilityIdentifier("lrimport-library-folder")
                 Spacer()
                 Button("Choose…") { importer.chooseLibraryFolder(in: NSApp.keyWindow) }.accessibilityIdentifier("library.import.chooseLibraryFolder").buttonStyle(.themeBordered)
             }
@@ -249,7 +249,7 @@ private struct MappingStep: View {
     private var foldersSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
             section("Folders", "Where Lightroom's folders are now. Locate a root folder if its drive moved or was renamed.")
-            ForEach(importer.folders?.roots ?? []) { root in
+            ForEach(Array((importer.folders?.roots ?? []).enumerated()), id: \.offset) { index, root in
                 let row = importer.preview?.roots.first { $0.catalogPath == root.catalogPath }
                 HStack(spacing: Theme.Space.s) {
                     Image(systemName: row?.exists == true ? "checkmark.circle.fill" : "questionmark.folder.fill")
@@ -264,9 +264,9 @@ private struct MappingStep: View {
                     if let row { Text("\(row.images - row.missing)/\(row.images) found").font(Theme.Fonts.captionNumeric) }
                     Button(row?.exists == true ? "Change…" : "Locate…") { importer.locate(root: root, in: NSApp.keyWindow) }
                         .buttonStyle(.themeBordered)
-                        .accessibilityIdentifier("library.import.locate.\(AccessibilityKey.component(root.catalogPath))")
+                        .accessibilityIdentifier("lrimport-locate")
                     if importer.folders?.isRelocated(root) == true {
-                        Button("Reset") { importer.folders?.reset(root.catalogPath) }.accessibilityIdentifier("library.import.resetRoot.\(AccessibilityKey.component(root.catalogPath))").buttonStyle(.themeBorderless)
+                        Button("Reset") { importer.folders?.reset(root.catalogPath) }.accessibilityIdentifier("library.import.resetRoot.\(index)").buttonStyle(.themeBorderless)
                     }
                 }
                 .padding(Theme.Space.s)
@@ -293,7 +293,7 @@ private struct MappingStep: View {
                         .font(Theme.Fonts.captionNumeric)
                     }
                 }
-                .accessibilityIdentifier("library.import.folders")
+                .accessibilityIdentifier("lrimport-folders")
             }
         }
     }
@@ -314,7 +314,7 @@ private struct MappingStep: View {
                     .font(Theme.Fonts.captionNumeric)
                 }
             }
-            .accessibilityIdentifier("library.import.selection")
+            .accessibilityIdentifier("lrimport-selection")
             if let c = importer.preview?.selection {
                 Text("\(c.keeps) Keep · \(c.rejects) Reject · \(c.undecided) Undecided · \(c.marked) marked")
                     .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textSecondary)
@@ -326,7 +326,7 @@ private struct MappingStep: View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
             section("Colour labels → marks", "Keep a label's text, map it to one of Tessera's marks (keys 6–9), or drop it.")
             if let table = importer.marks, !table.rows.isEmpty {
-                ForEach(table.rows) { row in
+                ForEach(Array(table.rows.enumerated()), id: \.offset) { index, row in
                     HStack {
                         Text(row.label).frame(width: 140, alignment: .leading)
                         Text("\(row.count) photo\(row.count == 1 ? "" : "s")").foregroundStyle(Theme.textSecondary).frame(width: 80, alignment: .leading)
@@ -340,7 +340,7 @@ private struct MappingStep: View {
                         }
                         .labelsHidden()
                         .frame(width: 220)
-                        .accessibilityIdentifier("library.import.mark.\(AccessibilityKey.component(row.label))")
+                        .accessibilityIdentifier("lrimport-mark-\(index)")
                         .accessibilityLabel("Map colour label \(row.label)")
                         Spacer()
                     }
@@ -373,7 +373,7 @@ private struct MappingStep: View {
                 }
             }
             .frame(maxWidth: 420, alignment: .leading)
-            .accessibilityIdentifier("library.import.keywords")
+            .accessibilityIdentifier("lrimport-keywords")
         }
     }
 }
@@ -403,7 +403,7 @@ private struct FidelityStep: View {
                     Toggle("Looks different (\(importer.fidelity?.differentCount ?? 0))", isOn: Binding(
                         get: { importer.fidelity?.onlyDifferent ?? false }, set: { importer.fidelity?.onlyDifferent = $0 }))
                         .toggleStyle(.checkbox)
-                        .accessibilityIdentifier("library.import.looks-different")
+                        .accessibilityIdentifier("lrimport-looks-different")
                 }
             }
             .padding(.horizontal, Theme.Space.l).padding(.vertical, Theme.Space.s)
@@ -426,7 +426,7 @@ private struct FidelityStep: View {
                     .accessibilityAddTraits(.isStaticText)
                     .accessibilityLabel("Fidelity results")
                     .accessibilityValue(fidelityDescription(grid.samples) + (importer.error.map { "\n" + $0 } ?? ""))
-                    .accessibilityIdentifier("library.import.report.fidelity")
+                    .accessibilityIdentifier("document.import.report.fidelity")
                 }
             } else if importer.busy != nil {
                 Spacer()
@@ -504,7 +504,7 @@ struct ReportStep: View {
                           systemImage: r.cancelled ? "pause.circle.fill" : "checkmark.circle.fill")
                         .font(Theme.Fonts.bodyMedium)
                         .foregroundStyle(r.cancelled ? Theme.warning : Theme.keep)
-                        .accessibilityIdentifier("library.import.report-status")
+                        .accessibilityIdentifier("lrimport-report-status")
                     Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 4) {
                         GridRow { Text("Photos written").foregroundStyle(Theme.textSecondary); Text("\(r.imported)")
                                   Text("Resumed").foregroundStyle(Theme.textSecondary); Text("\(r.resumed)") }
@@ -520,7 +520,7 @@ struct ReportStep: View {
                     .accessibilityAddTraits(.isStaticText)
                     .accessibilityLabel("Import summary")
                     .accessibilityValue("Photos written: \(r.imported)\nResumed: \(r.resumed)\nAlbums: \(r.albums)\nAlbum groups: \(r.albumGroups)\nSmart albums: \(r.smartAlbums)\nKeywords: \(r.keywords)\nSkipped: \(r.skipped.count)\nVirtual copies (bundle): \(r.virtualCopies)")
-                    .accessibilityIdentifier("library.import.report.summary")
+                    .accessibilityIdentifier("document.import.report.summary")
                     VStack(alignment: .leading, spacing: Theme.Space.s) {
                         if !r.skipped.isEmpty {
                             Text("Skipped").font(Theme.Fonts.labelSemibold)
@@ -545,7 +545,7 @@ struct ReportStep: View {
                     .accessibilityAddTraits(.isStaticText)
                     .accessibilityLabel("Import warnings")
                     .accessibilityValue(warningsDescription(r))
-                    .accessibilityIdentifier("library.import.report.warnings")
+                    .accessibilityIdentifier("document.import.report.warnings")
                     if !r.approximate.isEmpty {
                         VStack(alignment: .leading, spacing: Theme.Space.s) {
                             Text("Approximate translations").font(Theme.Fonts.labelSemibold)
@@ -557,7 +557,7 @@ struct ReportStep: View {
                         .accessibilityAddTraits(.isStaticText)
                         .accessibilityLabel("Approximate translations")
                         .accessibilityValue(LightroomImportReport.approximateLines(r).joined(separator: "\n"))
-                        .accessibilityIdentifier("library.import.report.approximate")
+                        .accessibilityIdentifier("document.import.report.approximate")
                     }
                     if let fidelity {
                         VStack(alignment: .leading, spacing: Theme.Space.s) {
@@ -569,12 +569,12 @@ struct ReportStep: View {
                         .accessibilityAddTraits(.isStaticText)
                         .accessibilityLabel("Fidelity results")
                         .accessibilityValue("Renderer: \(fidelity.renderer)\n" + fidelityDescription(fidelity.samples))
-                        .accessibilityIdentifier("library.import.report.fidelity")
+                        .accessibilityIdentifier("document.import.report.fidelity")
                     }
                     if let url = reportURL {
                         Text("Full report: \(url.path)").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                             .textSelection(.enabled)
-                            .accessibilityIdentifier("library.import.report-path")
+                            .accessibilityIdentifier("lrimport-report-path")
                     }
                     if let md = reportMarkdown {
                         DisclosureGroup("import-report.md", isExpanded: $markdownExpanded) {
@@ -639,7 +639,7 @@ private struct ImportReportTextArea: NSViewRepresentable {
         text.isVerticallyResizable = true
         text.autoresizingMask = [.width]
         text.textContainer?.widthTracksTextView = true
-        text.setAccessibilityIdentifier("library.import.report.markdown")
+        text.setAccessibilityIdentifier("document.import.report.markdown")
         text.setAccessibilityLabel("Import report markdown")
         scroll.documentView = text
         return scroll
@@ -662,10 +662,10 @@ struct LightroomImportProgressBar: View {
                           detail: importer.estimate.detail, current: p.current) {
                 Button("Cancel Import") { importer.cancelImport() }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                    .accessibilityIdentifier("library.import.cancel")
+                    .accessibilityIdentifier("lrimport-cancel")
             }
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("library.import.progress")
+            .accessibilityIdentifier("lrimport-progress")
         }
     }
 }

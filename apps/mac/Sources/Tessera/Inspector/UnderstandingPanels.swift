@@ -27,7 +27,7 @@ struct SuggestedKeywordsSection: View {
                     .padding(.top, Theme.Space.s)
                     .disabled(model.focusedItem == nil || !understanding.isAvailable)
                     .help("Suggest keywords for the selected photos on this Mac (Settings ▸ AI)")
-                    .accessibilityIdentifier("library.understanding.keyword-suggest-selection")
+                    .accessibilityIdentifier("keyword-suggest-selection")
             }
             if chips.isEmpty {
                 Hint(understanding.info?.hasKeywords == true
@@ -35,14 +35,14 @@ struct SuggestedKeywordsSection: View {
                      : "Suggestions appear here with their confidence. Nothing is applied until you accept it.")
             } else {
                 FlowRow(spacing: Theme.Space.xs) {
-                    ForEach(chips.items) { s in
-                        SuggestionChipView(suggestion: s, strong: chips.isAboveThreshold(s), selectionCount: n,
+                    ForEach(Array(chips.items.enumerated()), id: \.offset) { index, s in
+                        SuggestionChipView(suggestion: s, index: index, strong: chips.isAboveThreshold(s), selectionCount: n,
                                            accept: { all in understanding.accept(s.keyword, all: all) },
                                            reject: { understanding.reject(s.keyword) })
                     }
                 }
                 .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("library.understanding.keyword-suggestions")
+                .accessibilityIdentifier("keyword-suggestions")
                 HStack(spacing: Theme.Space.s) {
                     Text("Accept all ≥ \(Int((chips.threshold * 100).rounded())) %")
                         .font(Theme.Fonts.captionNumeric)
@@ -52,12 +52,12 @@ struct SuggestedKeywordsSection: View {
                         .controlSize(.mini)
                         .tint(Theme.textSecondary)
                         .accessibilityLabel("Accept-all threshold")
-                        .accessibilityIdentifier("library.understanding.keyword-suggestion-threshold")
+                        .accessibilityIdentifier("keyword-suggestion-threshold")
                     Button("Accept \(chips.aboveThreshold.count)") { understanding.accept("", all: true) }
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .disabled(chips.aboveThreshold.isEmpty)
                         .help("Accept every suggestion at or above the threshold (⇧-click a chip)")
-                        .accessibilityIdentifier("library.understanding.keyword-suggestions-accept-all")
+                        .accessibilityIdentifier("keyword-suggestions-accept-all")
                 }
             }
         }
@@ -66,6 +66,7 @@ struct SuggestedKeywordsSection: View {
 
 private struct SuggestionChipView: View {
     let suggestion: SuggestedKeyword
+    let index: Int
     /// At or above the accept-all threshold.
     let strong: Bool
     let selectionCount: Int
@@ -101,14 +102,14 @@ private struct SuggestionChipView: View {
             .help(help)
             .accessibilityLabel("Accept \(suggestion.keyword)")
             .accessibilityValue(suggestion.percent)
-            .accessibilityIdentifier("library.understanding.keyword-suggestion-\(AccessibilityKey.component(suggestion.keyword))")
+            .accessibilityIdentifier("keyword-suggestion-\(index)")
             Button(action: reject) {
                 Image(systemName: "xmark").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
             }
             .buttonStyle(.plain)
             .help("Reject: not suggested again for these photos")
             .accessibilityLabel("Reject \(suggestion.keyword)")
-            .accessibilityIdentifier("library.understanding.keyword-suggestion-reject-\(AccessibilityKey.component(suggestion.keyword))")
+            .accessibilityIdentifier("keyword-suggestion-reject-\(index)")
             .fixedSize()
         }
         .padding(.horizontal, Theme.Space.s - Theme.Space.xxs)
@@ -163,10 +164,10 @@ struct CaptionGenerateRow: View {
                 Button("Save") { understanding.saveDraft(caption: caption, altText: altText) }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .help("Save the caption and alt text as edited to the photo's XMP sidecar")
-                    .accessibilityIdentifier("library.understanding.caption-draft-save")
+                    .accessibilityIdentifier("caption-draft-save")
                 Button("Discard") { understanding.draft = nil }
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                    .accessibilityIdentifier("library.understanding.caption-draft-discard")
+                    .accessibilityIdentifier("caption-draft-discard")
             } else {
                 Button {
                     understanding.generateCaption()
@@ -180,7 +181,7 @@ struct CaptionGenerateRow: View {
                 .disabled(model.selectionCount > 1 || model.focusedItem == nil || busy || !understanding.isAvailable)
                 .help(model.selectionCount > 1 ? "Select one photo: a caption describes a single photo"
                       : "Describe this photo on this Mac. The text fills the fields for you to edit before saving.")
-                .accessibilityIdentifier("library.understanding.metadata-generate-caption")
+                .accessibilityIdentifier("metadata-generate-caption")
                 if busy {
                     ProgressView().controlSize(.small)
                 }
@@ -217,7 +218,7 @@ struct TextInImageBlock: View {
                     .padding(.top, Theme.Space.s)
                     .disabled(model.focusedItem == nil || busy || !understanding.isAvailable)
                     .help("Read text in the selected photos on this Mac; it becomes searchable (text:)")
-                    .accessibilityIdentifier("library.understanding.ocr-detect")
+                    .accessibilityIdentifier("ocr-detect")
             }
             if let info, info.hasOcr {
                 if info.ocrText.isEmpty {
@@ -231,7 +232,7 @@ struct TextInImageBlock: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(Theme.Space.s)
                         .background(RoundedRectangle(cornerRadius: Theme.Radius.chip).fill(Theme.well))
-                        .accessibilityIdentifier("library.understanding.ocr-text")
+                        .accessibilityIdentifier("ocr-text")
                     Button("Find Photos with This Text") {
                         let first = info.ocr.first?.text ?? info.ocrText
                         model.updateLibraryFilter {
@@ -240,7 +241,7 @@ struct TextInImageBlock: View {
                     }
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                     .help("Search the folder for “\(info.ocr.first?.text ?? "")” in captions and text in images")
-                    .accessibilityIdentifier("library.understanding.ocr-find")
+                    .accessibilityIdentifier("ocr-find")
                 }
             } else {
                 Hint("Text read from the photo appears here and in search.")
@@ -262,10 +263,10 @@ struct UnderstandingProgressBar: View {
                           current: job.state == .queued ? "Waiting…" : job.current) {
                 Button("Stop") { understanding.cancel(job.id) }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                    .accessibilityIdentifier("library.understanding.understanding-cancel")
+                    .accessibilityIdentifier("understanding-cancel")
             }
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("library.understanding.understanding-progress")
+            .accessibilityIdentifier("understanding-progress")
         }
     }
 }
@@ -282,12 +283,12 @@ struct KeywordsCaptionsSettingsSection: View {
                 get: { u.settings.autoSuggestOnImport },
                 set: { var s = u.settings; s.autoSuggestOnImport = $0; u.setSettings(s) }))
                 .disabled(!u.isAvailable)
-                .accessibilityIdentifier("library.understanding.ai-auto-suggest")
+                .accessibilityIdentifier("ai-auto-suggest")
             Toggle("Write accepted suggestions to XMP sidecars", isOn: Binding(
                 get: { u.settings.writeSuggestedKeywordsToXmp },
                 set: { var s = u.settings; s.writeSuggestedKeywordsToXmp = $0; u.setSettings(s) }))
                 .disabled(!u.isAvailable)
-                .accessibilityIdentifier("library.understanding.ai-write-suggested-xmp")
+                .accessibilityIdentifier("ai-write-suggested-xmp")
             if !u.isAvailable {
                 Hint("Open a folder to change these settings.")
             } else if let status = u.modelStatus {
@@ -295,7 +296,7 @@ struct KeywordsCaptionsSettingsSection: View {
                      : "Runs on this Mac: SigLIP keywords \(status.keywordsInstalled ? "installed" : "not installed"), "
                         + "Florence-2 captions and text \(status.captionsInstalled ? "installed" : "not installed").")
                     .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                    .accessibilityIdentifier("library.understanding.ai-caption-models")
+                    .accessibilityIdentifier("ai-caption-models")
                 if !status.testModels, !(status.keywordsInstalled && status.captionsInstalled) {
                     Hint("Install with tools/fetch_siglip.py and tools/fetch_florence.py --cache \(status.cache)")
                         .textSelection(.enabled)

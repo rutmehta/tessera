@@ -16,7 +16,7 @@ struct AssistPanel: View {
                     .toggleStyle(.checkbox)
                     .font(Theme.Fonts.caption)
                     .disabled(!model.isEngineBacked)
-                    .accessibilityIdentifier("library.assist.assist-panel-toggle")
+                    .accessibilityIdentifier("assist-panel-toggle")
                 Spacer(minLength: Theme.Space.xs)
                 SegmentedPicker(selection: Binding(get: { model.agent.preferences.assistAutomated },
                                                    set: { assist.setAutomated($0) }), segments: [
@@ -32,7 +32,7 @@ struct AssistPanel: View {
                         Spacer()
                         Text("\(Int((p.pKeep * 100).rounded())) %").font(Theme.Fonts.captionNumeric)
                             .foregroundStyle(Theme.textPrimary)
-                            .accessibilityIdentifier("library.assist.assist-pkeep")
+                            .accessibilityIdentifier("assist-pkeep")
                     }
                     ProgressView(value: p.pKeep).progressViewStyle(.linear).controlSize(.small).tint(Theme.textSecondary)
                     if !p.explanation.isEmpty {
@@ -50,7 +50,7 @@ struct AssistPanel: View {
                                 }
                             }
                         }
-                        .accessibilityIdentifier("library.assist.assist-explanation")
+                        .accessibilityIdentifier("assist-explanation")
                     }
                     if let s = assist.suggestion(for: item.id) {
                         HStack(spacing: Theme.Space.xs) {
@@ -63,14 +63,14 @@ struct AssistPanel: View {
                             Button("Confirm All") { assist.confirmAll() }
                                 .help("Confirm every suggested decision in view as one undo step (Y)")
                                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                                .accessibilityIdentifier("library.assist.assist-confirm-all")
+                                .accessibilityIdentifier("assist-confirm-all")
                         }
                     }
                 } else {
                     Hint("No prediction for this photo yet.")
                 }
                 Hint("\(assist.suggestionCount) suggested · learner has \(assist.labels) confirmed label\(assist.labels == 1 ? "" : "s"). Keep and reject decisions teach it.")
-                    .accessibilityIdentifier("library.assist.assist-status")
+                    .accessibilityIdentifier("assist-status")
             } else {
                 Hint(model.isEngineBacked
                      ? "Assist predicts keepers from sharpness, blur, exposure, faces and your past decisions, and sorts likely rejects last."
@@ -93,7 +93,7 @@ struct PeoplePanel: View {
                     Spacer()
                     Button("Show All") { assist.clearPersonFilter() }
                         .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                        .accessibilityIdentifier("library.assist.people-clear-filter")
+                        .accessibilityIdentifier("people-clear-filter")
                 }
             }
             if assist.people.isEmpty {
@@ -111,7 +111,7 @@ struct PeoplePanel: View {
                     Button("Eyes closed") { assist.filter(person: person, eyesClosed: true) }
                         .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                         .help("Show frames where \(person.name)'s eyes read closed (a geometric proxy)")
-                        .accessibilityIdentifier("library.assist.people-eyes-closed-\(person.id)")
+                        .accessibilityIdentifier("people-eyes-closed-\(person.id)")
                 }
                 .frame(height: Theme.Height.regular)
             }
@@ -132,7 +132,7 @@ struct AssistProgressBar: View {
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("library.assist.analysis-progress")
+            .accessibilityIdentifier("analysis-progress")
         }
     }
 }

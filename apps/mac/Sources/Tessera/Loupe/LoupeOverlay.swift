@@ -105,7 +105,7 @@ struct LoupeOverlay: View {
                 .background(Capsule().fill(Color(nsColor: Theme.Palette.OnImage.scrim)))
                 .help("Display information and soft proof status")
                 .accessibilityLabel("Display info")
-                .accessibilityIdentifier(model.isPhotoEditing ? "develop.loupe.displayInfo" : "library.loupe.displayInfo")
+                .accessibilityIdentifier("loupe-display-info")
                 .popover(isPresented: $displayInfoPresented, arrowEdge: .top) {
                     displayInfoPopover
                         .onExitCommand { dismissPresentedDisclosure() }
@@ -139,7 +139,7 @@ struct LoupeOverlay: View {
             .buttonStyle(.plain)
             .help("Keyboard shortcuts for this workspace")
             .accessibilityLabel("Shortcuts")
-            .accessibilityIdentifier(model.isPhotoEditing ? "develop.loupe.shortcuts" : "library.loupe.shortcuts")
+            .accessibilityIdentifier("loupe-shortcuts")
             .popover(isPresented: $shortcutsPresented, arrowEdge: .bottom) {
                 shortcutsPopover
                     .onExitCommand { dismissPresentedDisclosure() }

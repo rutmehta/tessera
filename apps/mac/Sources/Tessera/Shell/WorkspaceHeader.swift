@@ -20,7 +20,7 @@ struct WorkspaceHeader: View {
                 }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
                 .help(model.isReviewEditing ? "Return to the same review photo and draft" : "Return to \(source), preserving your selection and position")
-                .accessibilityIdentifier(model.isPhotoEditing ? "develop.workspace.library" : "library.workspace.back")
+                .accessibilityIdentifier("workspace-back-to-library")
             }
             VStack(alignment: .leading, spacing: Theme.Space.xxs) {
                 Text(target)
@@ -43,14 +43,14 @@ struct WorkspaceHeader: View {
             if model.isCachedPreviewLibrary {
                 Button("Reopen Library") { model.reopenCachedPreviewLibrary() }
                     .disabled(model.isLoading)
-                    .accessibilityIdentifier("library.workspace.reopen")
+                    .accessibilityIdentifier("reopen-cached-preview-library")
             }
             if !model.isPhotoEditing {
                 Button("Edit photo") { model.enterPhotoEdit() }
                     .buttonStyle(.theme(.bordered, height: Theme.Height.regular))
                     .disabled(!model.canEnterPhotoEdit)
                     .help(model.canEnterPhotoEdit ? "Develop the focused photo (D)" : "Choose a photo to edit")
-                    .accessibilityIdentifier("library.workspace.editPhoto")
+                    .accessibilityIdentifier("workspace-edit-photo")
             }
         }
         .padding(.horizontal, Theme.Space.gutter)

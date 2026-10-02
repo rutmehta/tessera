@@ -154,7 +154,7 @@ struct SoftProofPanel: View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
             Toggle("Soft proofing", isOn: Binding(get: { proof.enabled }, set: { _ in proof.toggle() }))
                 .help("Soft proofing (S)")
-                .accessibilityIdentifier("develop.proof.enabled")
+                .accessibilityIdentifier("softproof-toggle")
             HStack(spacing: Theme.Space.s) {
                 Text("Profile").foregroundStyle(Theme.textSecondary).frame(width: Theme.Width.label - Theme.Space.l, alignment: .leading)
                 MenuPicker(selection: Binding(get: { proof.profilePath ?? "" },

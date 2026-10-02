@@ -30,19 +30,21 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView(model: model)
-                .toolbar(removing: .sidebarToggle)
+                .toolbar(removing: model.viewMode == .document ? .sidebarToggle : nil)
                 .toolbar {
-                    // SwiftUI's automatic item has no hook for AX metadata. Keep its native
-                    // responder-chain action and symbol in an explicitly labelled item.
-                    ToolbarItem(id: "document-sidebar", placement: .navigation) {
-                        Button {
-                            NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
-                        } label: {
-                            Label(columnVisibility.wrappedValue == .detailOnly ? "Show Sidebar" : "Hide Sidebar",
-                                  systemImage: "sidebar.left")
+                    if model.viewMode == .document {
+                        // SwiftUI's automatic item has no hook for AX metadata. Keep its native
+                        // responder-chain action and symbol in an explicitly labelled item.
+                        ToolbarItem(id: "document-sidebar", placement: .navigation) {
+                            Button {
+                                NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
+                            } label: {
+                                Label(columnVisibility.wrappedValue == .detailOnly ? "Show Sidebar" : "Hide Sidebar",
+                                      systemImage: "sidebar.left")
+                            }
+                            .help("Toggle sidebar")
+                            .accessibilityIdentifier("document.toolbar.sidebar")
                         }
-                        .help("Toggle sidebar")
-                        .accessibilityIdentifier("\(axMode).toolbar.sidebar")
                     }
                 }
                 .containedColumn()
@@ -297,7 +299,7 @@ struct ContentView: View {
             }
             .buttonStyle(ToolbarButtonStyle())
             .help("Open a folder of JPEG / RAW images (⌘O)")
-            .accessibilityIdentifier("\(axMode).toolbar.open")
+            .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.open" : "\(axMode).toolbar.open")
         }
         .flatToolbarItem()
         ToolbarItem(id: "mode", placement: .principal) {
@@ -369,7 +371,7 @@ struct ContentView: View {
             }
             .toggleStyle(ToolbarToggleStyle())
             .help("Show or hide the inspector (⌥⌘I)")
-            .accessibilityIdentifier("\(axMode).toolbar.inspector")
+            .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.inspector" : "\(axMode).toolbar.inspector")
         }
         .flatToolbarItem()
     }
@@ -384,7 +386,7 @@ struct ContentView: View {
                 }
                 .toggleStyle(ToolbarToggleStyle())
                 .help("Assisted culling: keep predictions, a confidence order and suggested decisions (Y confirms, N dismisses)")
-                .accessibilityIdentifier("library.toolbar.assist")
+                .accessibilityIdentifier("toolbar-assist")
                 if model.assist.enabled {
                     Menu {
                         Picker("Mode", selection: Binding(get: { model.agent.preferences.assistAutomated },
@@ -407,7 +409,7 @@ struct ContentView: View {
                     .menuStyle(IconMenuStyle())
                     .help("Assist mode and sort")
                     .accessibilityLabel("Assist mode and sort")
-                    .accessibilityIdentifier("library.toolbar.assistMenu")
+                    .accessibilityIdentifier("toolbar-assist-menu")
                 }
             }
             }
@@ -421,7 +423,7 @@ struct ContentView: View {
                 .buttonStyle(ToolbarButtonStyle())
                 .disabled(!model.people.canMerge || model.people.detailID != nil)
                 .help("Merge the selected people into one (a named person's name wins). Select tiles with ⌘-click.")
-                .accessibilityIdentifier("library.toolbar.mergePeople")
+                .accessibilityIdentifier("toolbar-people-merge")
             }
         }
         .flatToolbarItem()
@@ -433,7 +435,7 @@ struct ContentView: View {
             .buttonStyle(ToolbarButtonStyle())
             .disabled(!model.isEngineBacked || model.agent.isRunning)
             .help("Auto Edit: the agent makes a non-generative base edit (⇧⌘A)")
-            .accessibilityIdentifier("library.toolbar.autoEdit")
+            .accessibilityIdentifier("toolbar-auto-edit")
             }
         }
         .flatToolbarItem()
@@ -444,7 +446,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(ToolbarButtonStyle())
                 .help("Agent review queue, least confident first")
-                .accessibilityIdentifier("\(axMode).toolbar.review")
+                .accessibilityIdentifier("toolbar-agent-review")
             }
         }
         .flatToolbarItem()

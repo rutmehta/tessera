@@ -189,21 +189,21 @@ struct TransformPanel: View {
                 HStack(spacing: Theme.Space.xs) {
                     Text("\(guideTool.guides.guides.count) of \(UprightGuides.maximum) guides")
                         .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textSecondary)
-                        .accessibilityIdentifier("develop.transform.guides-count")
+                        .accessibilityIdentifier("transform-guides-count")
                     Spacer()
                     Button("Clear") { guideTool.clearGuides() }
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                         .disabled(guideTool.guides.guides.isEmpty)
-                        .accessibilityIdentifier("develop.transform.guides-clear")
+                        .accessibilityIdentifier("transform-guides-clear")
                     Button("Done") { guideTool.end() }
                         .buttonStyle(.theme(.primary, height: Theme.Height.small))
-                        .accessibilityIdentifier("develop.transform.guides-done")
+                        .accessibilityIdentifier("transform-guides-done")
                 }
                 .frame(height: Theme.Height.regular)
                 Hint("Drag in the photo along lines that should be vertical or horizontal (two to four guides). Drag an end to adjust; ⌫ removes the selected guide; Return or Esc when done.")
                 if guideTool.showsUncorrected {
                     Hint("The loupe shows the uncorrected photo while you place guides; the correction returns when you are done.")
-                        .accessibilityIdentifier("develop.transform.guides-uncorrected")
+                        .accessibilityIdentifier("transform-guides-uncorrected")
                 }
             } else {
                 Hint(mode.help)
@@ -214,7 +214,7 @@ struct TransformPanel: View {
             ForEach(TransformControls.all) { c in
                 ControlSlider(control: c)
                     .frame(height: Theme.Height.slider)
-                    .accessibilityIdentifier("develop.transform." + c.path.last!.replacingOccurrences(of: "_", with: "-"))
+                    .accessibilityIdentifier("transform-" + c.path.last!.replacingOccurrences(of: "_", with: "-"))
             }
             // Constrain Crop: not rendered by the engine (M2-49 handoff), so it stays disabled
             // with the reason; a recipe that already has it on can still switch it off.
@@ -223,16 +223,16 @@ struct TransformPanel: View {
                 .controlSize(.small)
                 .disabled(DevelopEngineGaps.constrainCrop != nil && !constrain)
                 .help(DevelopEngineGaps.constrainCrop ?? "Keep the crop inside the transformed image (no blank corners)")
-                .accessibilityIdentifier("develop.transform.constrain-crop")
+                .accessibilityIdentifier("transform-constrain-crop")
                 .padding(.top, Theme.Space.xs)
             if let gap = DevelopEngineGaps.constrainCrop {
-                StatusLine(text: gap, kind: .warning).accessibilityIdentifier("develop.transform.constrain-crop-unavailable")
+                StatusLine(text: gap, kind: .warning).accessibilityIdentifier("transform-constrain-crop-unavailable")
             }
             if let d = tools.develop, d.ignores("/geometry/upright") || d.ignores("/geometry/transform") {
                 StatusLine(text: "This photo's Upright or Transform is kept in the recipe but not drawn by the loupe.",
                            kind: .warning)
                     .padding(.top, Theme.Space.s)
-                    .accessibilityIdentifier("develop.transform.preview-note")
+                    .accessibilityIdentifier("transform-preview-note")
             }
         }
         .disabled(!ready)
@@ -292,7 +292,7 @@ struct UprightModeBar: View {
                 .layoutPriority(on ? 1 : 0)
                 .help(m.help)
                 .accessibilityLabel("Upright \(m.title)")
-                .accessibilityIdentifier("develop.transform.upright-\(m.rawValue)")
+                .accessibilityIdentifier("transform-upright-\(m.rawValue)")
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
@@ -302,6 +302,6 @@ struct UprightModeBar: View {
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(Theme.hairline, lineWidth: Theme.Space.hairline))
         .opacity(enabled ? 1 : Theme.Opacity.disabled)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("develop.transform.upright")
+        .accessibilityIdentifier("transform-upright")
     }
 }

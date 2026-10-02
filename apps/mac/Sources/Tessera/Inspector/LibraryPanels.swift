@@ -18,8 +18,8 @@ struct KeywordsPanel: View {
                 Hint(model.focusedItem == nil ? "No image selected" : "No keywords")
             } else {
                 FlowRow(spacing: Theme.Space.xs) {
-                    ForEach(applied, id: \.self) { k in
-                        KeywordChip(name: k, mixed: library.mixed.contains("keywords")) {
+                    ForEach(Array(applied.enumerated()), id: \.offset) { index, k in
+                        KeywordChip(name: k, index: index, mixed: library.mixed.contains("keywords")) {
                             library.applyKeywords([k], add: false)
                         }
                     }
@@ -34,7 +34,7 @@ struct KeywordsPanel: View {
                     entry = ""
                 }
                 .disabled(model.focusedItem == nil)
-                .accessibilityIdentifier("library.keywords.entry")
+                .accessibilityIdentifier("keywordEntry")
                 .accessibilityLabel("Add keywords")
             SuggestedKeywordsSection(model: model, understanding: library.understanding)
             HStack {
@@ -50,8 +50,8 @@ struct KeywordsPanel: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(library.keywords, id: \.name) { k in
-                            KeywordTreeRow(keyword: k, applied: applied.contains(k.name), library: library,
+                        ForEach(Array(library.keywords.enumerated()), id: \.offset) { index, k in
+                            KeywordTreeRow(keyword: k, index: index, applied: applied.contains(k.name), library: library,
                                            all: library.keywords, selectionCount: n)
                         }
                     }
@@ -64,6 +64,7 @@ struct KeywordsPanel: View {
 
 struct KeywordChip: View {
     let name: String
+    var index: Int = 0
     let mixed: Bool
     let remove: () -> Void
     var body: some View {
@@ -77,7 +78,7 @@ struct KeywordChip: View {
             .buttonStyle(.plain)
             .help("Remove from the selected photos")
             .accessibilityLabel("Remove \(name)")
-            .accessibilityIdentifier("library.keywords.remove.\(AccessibilityKey.component(name))")
+            .accessibilityIdentifier("library.keywords.remove.\(index)")
             .fixedSize()
         }
         .padding(.horizontal, Theme.Space.s - Theme.Space.xxs)
@@ -90,6 +91,7 @@ struct KeywordChip: View {
 
 private struct KeywordTreeRow: View {
     let keyword: KeywordInfo
+    let index: Int
     let applied: Bool
     let library: LibraryModel
     let all: [KeywordInfo]
@@ -112,10 +114,10 @@ private struct KeywordTreeRow: View {
             }
             IconButton(symbol: "plus", help: "Add to \(selectionCount) selected photo\(selectionCount == 1 ? "" : "s")",
                        size: Theme.Height.small) { library.applyKeywords([keyword.name], add: true) }
-                .accessibilityIdentifier("library.keywords.add.\(AccessibilityKey.component(keyword.name))")
+                .accessibilityIdentifier("library.keywords.add.\(index)")
             IconButton(symbol: "minus", help: "Remove from \(selectionCount) selected photo\(selectionCount == 1 ? "" : "s")",
                        size: Theme.Height.small) { library.applyKeywords([keyword.name], add: false) }
-                .accessibilityIdentifier("library.keywords.removeTree.\(AccessibilityKey.component(keyword.name))")
+                .accessibilityIdentifier("library.keywords.removeTree.\(index)")
         }
         .frame(height: Theme.Height.regular)
         .contentShape(Rectangle())
@@ -255,7 +257,7 @@ struct MetadataPanel: View {
                 .controlSize(.small)
                 .focused($focus, equals: f)
                 .onSubmit { commit(f) }
-                .accessibilityIdentifier("library.metadata.\(key)")
+                .accessibilityIdentifier("iptc-\(key)")
                 .accessibilityLabel(label)
         }
     }

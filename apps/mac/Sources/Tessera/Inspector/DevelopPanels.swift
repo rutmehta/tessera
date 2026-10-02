@@ -63,8 +63,10 @@ struct ControlSlider: NSViewRepresentable {
 
     func updateNSView(_ s: ValueSlider, context: Context) {
         _ = revision
-        s.setAccessibilityIdentifier("develop.slider.\(control.id)")
-        s.setAccessibilityLabel(title ?? control.title)
+        let identifier = "develop.slider.\(control.id)"
+        let label = title ?? control.title
+        if s.accessibilityIdentifier() != identifier { s.setAccessibilityIdentifier(identifier) }
+        if s.accessibilityLabel() != label { s.setAccessibilityLabel(label) }
         context.coordinator.ready = ready
         // Ranges may follow the screen (the HDR headroom slider).
         s.minValue = control.range.lowerBound
@@ -435,11 +437,11 @@ struct HDRPanel: View {
                     tools.bump()
                 }))
                 .font(Theme.Fonts.caption)
-                .accessibilityIdentifier("develop.hdr.enabled")
+                .accessibilityIdentifier("hdr-toggle")
             ControlSlider(control: HDRControls.headroom(maxStops: max(edr.maxStops, 0.1)))
                 .frame(height: Theme.Height.slider)
                 .disabled(!on || !edr.isEDRCapable)
-                .accessibilityIdentifier("develop.hdr.headroom")
+                .accessibilityIdentifier("hdr-headroom")
             Text(status(edr, on: on)).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 .accessibilityIdentifier("hdr-status")
         }
@@ -572,7 +574,7 @@ struct PresetsPanel: View {
             if tools.presets.isEmpty {
                 Hint("No presets yet. Save the current look (all or some panels) to reuse it on other photos.")
             }
-            ForEach(tools.presets) { p in
+            ForEach(Array(tools.presets.enumerated()), id: \.element.id) { index, p in
                 Button { tools.applyPreset(p) } label: {
                     HStack {
                         Text(p.name).font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary).lineLimit(1)
@@ -584,8 +586,8 @@ struct PresetsPanel: View {
                 }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
                 .help(p.groups.map(\.title).joined(separator: ", "))
-                .accessibilityIdentifier("develop.presets.apply.\(AccessibilityKey.component(p.name))").accessibilityLabel("Apply preset \(p.name)")
-                .contextMenu { Button("Delete “\(p.name)”") { tools.deletePreset(p) }.accessibilityIdentifier("develop.presets.delete.\(AccessibilityKey.component(p.name))") }
+                .accessibilityIdentifier("develop.presets.apply.\(index)").accessibilityLabel("Apply preset \(p.name)")
+                .contextMenu { Button("Delete “\(p.name)”") { tools.deletePreset(p) }.accessibilityIdentifier("develop.presets.delete.\(index)") }
             }
             Button("Save Preset…") {
                 name = "Preset \(tools.presets.count + 1)"
@@ -637,7 +639,7 @@ struct SnapshotsPanel: View {
             if names.isEmpty {
                 Hint("Snapshots name a state you can return to.")
             }
-            ForEach(names, id: \.self) { n in
+            ForEach(Array(names.enumerated()), id: \.offset) { index, n in
                 Button { model.restoreSnapshot(n) } label: {
                     HStack(spacing: Theme.Space.s) {
                         Image(systemName: "camera.viewfinder").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textSecondary)
@@ -647,7 +649,7 @@ struct SnapshotsPanel: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
-                .accessibilityIdentifier("develop.snapshots.restore.\(AccessibilityKey.component(n))")
+                .accessibilityIdentifier("develop.snapshots.restore.\(index)")
             }
             Button("New Snapshot…") { model.promptSnapshot() }.accessibilityIdentifier("develop.snapshots.new").buttonStyle(.theme(.bordered, height: Theme.Height.small))
         }
@@ -712,7 +714,7 @@ private struct HistoryRow: View {
                     .labelsHidden()
                     .controlSize(.mini)
                     .frame(width: Theme.Space.l)
-                    .accessibilityIdentifier("develop.history.step.\(item.id).enabled").accessibilityLabel("Enable \(item.label)")
+                    .accessibilityIdentifier("agent-step-toggle-\(item.id)").accessibilityLabel("Enable \(item.label)")
                     .help(item.enabled ? "Turn this step off (recorded as a new step)" : "Turn this step back on")
             } else {
                 Image(systemName: item.toggles != nil ? "arrow.uturn.left" : item.groupAmount != nil ? "slider.horizontal.below.rectangle" : "circle")

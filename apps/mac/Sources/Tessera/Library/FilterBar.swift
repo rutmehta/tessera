@@ -161,7 +161,7 @@ struct FilterBar: View {
                 .lineLimit(1)
         }
         .menuStyle(ThemeMenuStyle(height: Theme.Height.small, active: !selected.isEmpty))
-        .accessibilityIdentifier("library.filter.\(title.lowercased())")
+        .accessibilityIdentifier("facet\(title)")
     }
 
     /// Person (WP M2-40): named people, multi-select (any of them), counted within the other
@@ -189,7 +189,7 @@ struct FilterBar: View {
         }
         .menuStyle(ThemeMenuStyle(height: Theme.Height.small, active: !selected.isEmpty))
         .help("Photos with any of the chosen people (named in the People view)")
-        .accessibilityIdentifier("library.filter.person")
+        .accessibilityIdentifier("facetPerson")
     }
 
     private var dateButton: some View {
@@ -242,6 +242,6 @@ struct FilterBar: View {
             Text(status == "none" ? "Not in Album" : status == "any" ? "In Album" : "Album")
         }
         .menuStyle(ThemeMenuStyle(height: Theme.Height.small, active: status != nil))
-        .accessibilityIdentifier("library.filter.album")
+        .accessibilityIdentifier("facetAlbum")
     }
 }

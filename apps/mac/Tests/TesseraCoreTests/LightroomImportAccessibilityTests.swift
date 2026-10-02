@@ -74,23 +74,23 @@ final class LightroomImportAccessibilityTests: XCTestCase {
         let markdown = "# Import report\nPhotos written: 4\n\(warning)"
         try await host(ReportStep(report: report, reportURL: nil, reportMarkdown: markdown,
             fidelity: LrcatFidelity(renderer: "native", previewsAvailable: true, samples: [failedSample]))) { nodes in
-            let summary = try value("library.import.report.summary", in: nodes)
+            let summary = try value("document.import.report.summary", in: nodes)
             for count in ["Photos written: 4", "Resumed: 1", "Albums: 5", "Album groups: 6", "Smart albums: 7",
                           "Keywords: 8", "Skipped: 1", "Virtual copies (bundle): 2"] {
                 XCTAssertTrue(summary.contains(count), summary)
             }
-            let warnings = try value("library.import.report.warnings", in: nodes)
+            let warnings = try value("document.import.report.warnings", in: nodes)
             for text in [warning, "Develop", "9", "/photos/portrait.jpg", "/photos/two.jpg", "/photos/three.jpg", "/photos/four.jpg", "/photos/five.jpg", "lost.jpg", "original not found"] {
                 XCTAssertTrue(warnings.contains(text), warnings)
             }
             XCTAssertFalse(warnings.contains("PointColors"), "approximate translations are not warnings: \(warnings)")
-            XCTAssertEqual(try value("library.import.report.approximate", in: nodes),
+            XCTAssertEqual(try value("document.import.report.approximate", in: nodes),
                            "PointColors: 3 photos; e.g. hue range semantics unverified; /photos/portrait.jpg, /photos/two.jpg")
-            let fidelity = try value("library.import.report.fidelity", in: nodes)
+            let fidelity = try value("document.import.report.fidelity", in: nodes)
             XCTAssertTrue(fidelity.contains(warning), fidelity)
             XCTAssertTrue(fidelity.contains("portrait.jpg"), fidelity)
-            XCTAssertEqual(try value("library.import.report.markdown", in: nodes), markdown)
-            let text = try XCTUnwrap(nodes.first { $0.accessibilityIdentifier?() == "library.import.report.markdown" })
+            XCTAssertEqual(try value("document.import.report.markdown", in: nodes), markdown)
+            let text = try XCTUnwrap(nodes.first { $0.accessibilityIdentifier?() == "document.import.report.markdown" })
             XCTAssertEqual(text.accessibilityRole?(), .textArea)
             XCTAssertFalse(text.isAccessibilitySelectorAllowed?(NSSelectorFromString("setAccessibilityValue:")) ?? true)
         }
@@ -101,7 +101,7 @@ final class LightroomImportAccessibilityTests: XCTestCase {
         importer.step = .fidelity
         importer.error = "Fidelity preview failed: " + warning
         try await host(LightroomImportSheet(importer: importer)) { nodes in
-            XCTAssertTrue(try value("library.import.report.fidelity", in: nodes).contains(warning))
+            XCTAssertTrue(try value("document.import.report.fidelity", in: nodes).contains(warning))
         }
     }
 
@@ -110,7 +110,7 @@ final class LightroomImportAccessibilityTests: XCTestCase {
         importer.step = .fidelity
         importer.fidelity = FidelityGrid(samples: [failedSample])
         try await host(LightroomImportSheet(importer: importer)) { nodes in
-            let fidelity = try value("library.import.report.fidelity", in: nodes)
+            let fidelity = try value("document.import.report.fidelity", in: nodes)
             XCTAssertTrue(fidelity.contains("portrait.jpg"), fidelity)
             XCTAssertTrue(fidelity.contains("failed"), fidelity)
             XCTAssertTrue(fidelity.contains(warning), fidelity)

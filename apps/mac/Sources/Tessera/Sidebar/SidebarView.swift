@@ -75,6 +75,13 @@ final class SidebarRow: NSObject {
     }
     let kind: Kind
     let key: String
+    private let opaqueAccessibilityID = UUID().uuidString
+    var accessibilityKey: String {
+        switch kind {
+        case .folder, .pendingBasket: opaqueAccessibilityID
+        default: key
+        }
+    }
     var title: String
     var count: Int?
     var swatch: NSColor?
@@ -149,7 +156,7 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         let menu = NSMenu()
         menu.delegate = self
         outline.menu = menu
-        outline.setAccessibilityIdentifier("library.sidebar.outline")
+        outline.setAccessibilityIdentifier("sidebarOutline")
         outline.setAccessibilityLabel("Library sources and collections")
         scrollView.documentView = outline
         scrollView.drawsBackground = false
@@ -553,7 +560,7 @@ final class SidebarAccessibilityOutline: NSOutlineView {
             guard let row = rowView(atRow: number, makeIfNecessary: false) else { return child }
             guard let item = item(atRow: number) as? SidebarRow else { return child }
             let label = item.title
-            let identifier = "library.sidebar.row.\(AccessibilityKey.component(item.key))"
+            let identifier = "library.sidebar.row.\(AccessibilityKey.component(item.accessibilityKey))"
             row.setAccessibilityElement(true)
             row.setAccessibilityRole(.row)
             row.setAccessibilityParent(self)
@@ -585,7 +592,7 @@ final class SidebarRowView: NSTableRowView {
         guard let outline else { return }
         let index = outline.row(for: self)
         guard index >= 0 else { return }
-        if selected { outline.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: true) }
+        if selected { outline.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
         else { outline.deselectRow(index) }
     }
     override func isAccessibilityDisclosed() -> Bool {
@@ -623,7 +630,7 @@ final class SidebarHeaderCell: NSTableCellView {
         add.isBordered = false
         add.controlSize = .small
         (add.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
-        add.setAccessibilityIdentifier("library.sidebar.add")
+        add.setAccessibilityIdentifier("sidebarAddMenu")
         add.setAccessibilityLabel("New album, album group or smart album")
         add.toolTip = "New album, album group or smart album"
         addSubview(label)
@@ -737,7 +744,7 @@ final class SidebarCell: NSTableCellView {
     func configure(_ row: SidebarRow) {
         guard let title = textField else { return }
         title.stringValue = row.title
-        title.setAccessibilityIdentifier("library.sidebar.row.\(AccessibilityKey.component(row.key)).name")
+        title.setAccessibilityIdentifier("library.sidebar.row.\(AccessibilityKey.component(row.accessibilityKey)).name")
         title.setAccessibilityLabel(row.title)
         title.isEditable = false
         let group = row.node?.kind == .group

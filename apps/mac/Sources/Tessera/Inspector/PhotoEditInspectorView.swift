@@ -14,11 +14,12 @@ struct PhotoEditInspectorView: View {
                 .init(value: PhotoInspectorTab.masks, title: "Masks"),
             ], accessibilityPrefix: "develop.inspector.tabs")
             .padding(Theme.Space.gutter)
+            .accessibilityIdentifier("photo-edit-inspector-tabs")
 
             Hairline()
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    PanelSection("Editing target", headerIdentifier: "develop.panel.Editingtarget") {
+                    PanelSection("Editing target", headerIdentifier: "develop.panel.editingTarget") {
                         Text(model.editTarget?.name ?? "No photo selected")
                             .font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary)
                             .lineLimit(1).help(model.editTarget?.name ?? "No photo selected")

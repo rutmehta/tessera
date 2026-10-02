@@ -28,7 +28,7 @@ struct AgentGroupSection: View {
             .frame(height: Theme.Height.regular)
             AmountSlider(group: group, tools: tools)
                 .frame(height: Theme.Height.slider)
-                .accessibilityIdentifier("develop.history.group.\(group.groupId).amount")
+                .accessibilityIdentifier("agent-group-amount")
             ForEach(group.steps, id: \.self) { id in
                 if let item = tools.historyItems.first(where: { $0.id == id }) {
                     AgentStepRow(item: item, tools: tools)
@@ -40,7 +40,7 @@ struct AgentGroupSection: View {
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
                         .onSubmit { redo(target) }
-                        .accessibilityIdentifier("develop.history.group.\(group.groupId).instruction")
+                        .accessibilityIdentifier("agent-group-instruction")
                         .accessibilityLabel("Redo instruction")
                     Button("Redo") { redo(target) }.accessibilityIdentifier("develop.history.group.\(group.groupId).submit")
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
@@ -51,7 +51,7 @@ struct AgentGroupSection: View {
                 Button("Redo with Instruction…") { redoOpen = true }
                     .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                     .disabled(model.agent.isRunning || !model.agent.busy.isEmpty)
-                    .accessibilityIdentifier("develop.history.group.\(group.groupId).redo")
+                    .accessibilityIdentifier("agent-group-redo")
             }
         }
         .padding(.bottom, Theme.Space.s)
@@ -88,7 +88,7 @@ private struct AgentStepRow: View {
                 .frame(width: Theme.Space.l)
                 .disabled(!item.applied)
                 .help(item.enabled ? "Turn this step off (recorded as a new step)" : "Turn this step back on")
-                .accessibilityIdentifier("develop.history.step.\(item.id).enabled")
+                .accessibilityIdentifier("agent-step-toggle-\(item.id)")
                 .accessibilityLabel("Enable \(item.label)")
             VStack(alignment: .leading, spacing: Theme.Space.xxs) {
                 Text(item.label)
@@ -120,7 +120,7 @@ private struct AmountSlider: NSViewRepresentable {
         let s = ValueSlider(frame: .zero)
         s.title = "Amount"
         s.setAccessibilityLabel("Agent group amount")
-        s.setAccessibilityIdentifier("develop.history.group.\(group.groupId).amount")
+        s.setAccessibilityIdentifier("agent-group-amount")
         s.minValue = 0
         s.maxValue = 100
         s.defaultValue = 100

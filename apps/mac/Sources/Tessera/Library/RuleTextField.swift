@@ -65,7 +65,7 @@ struct RuleTextField: NSViewRepresentable {
         field.lineBreakMode = .byClipping
         field.allowsEditingTextAttributes = false
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        field.setAccessibilityIdentifier("library.filter.rule")
+        field.setAccessibilityIdentifier("ruleTextField")
         field.setAccessibilityLabel("Search or filter rule")
         return field
     }

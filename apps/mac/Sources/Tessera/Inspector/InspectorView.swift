@@ -166,8 +166,8 @@ struct BasicPanel: View {
                     Button("New Snapshot…") { model.promptSnapshot() }.accessibilityIdentifier("develop.basic.newSnapshot")
                     let names = model.developHistory?.snapshots ?? []
                     if !names.isEmpty { Divider() }
-                    ForEach(names, id: \.self) { name in
-                        Button(name) { model.restoreSnapshot(name) }.accessibilityIdentifier("develop.basic.restoreSnapshot.\(AccessibilityKey.component(name))")
+                    ForEach(Array(names.enumerated()), id: \.offset) { index, name in
+                        Button(name) { model.restoreSnapshot(name) }.accessibilityIdentifier("develop.basic.restoreSnapshot.\(index)")
                     }
                 }
                 .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
