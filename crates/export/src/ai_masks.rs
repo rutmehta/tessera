@@ -208,23 +208,15 @@ pub(crate) fn render_with_hooks(
                 .map(|s| s.as_mut() as &mut dyn MaskSegmenter)
         });
         let Some(segmenter) = segmenter else { continue };
-        let alpha = match segmenter.segment(&shown, &request) {
-            Ok(alpha)
-                if alpha.len() == dw as usize * dh as usize
-                    && alpha.iter().all(|v| (0.0..=1.0).contains(v)) =>
-            {
-                alpha
-            }
-            result => {
-                let reason = result
-                    .err()
-                    .map_or_else(|| "invalid segmentation raster".into(), |e| e.to_string());
-                warnings.push(format!(
-                    "AI mask pending/unavailable: {reason}; local adjustment skipped"
-                ));
-                continue;
-            }
-        };
+        // No model is "unavailable" and skips the adjustment above. A backend
+        // that ran and failed, or answered with an invalid raster, is an
+        // export error: nothing is published from a broken segmentation.
+        let alpha = segmenter.segment(&shown, &request).map_err(error)?;
+        if alpha.len() != dw as usize * dh as usize
+            || alpha.iter().any(|v| !(0.0..=1.0).contains(v))
+        {
+            return Err(error("invalid segmentation raster"));
+        }
         let data = mask_ai::reorient(&alpha, dw, dh, sw, sh, |p| {
             mask_ai::unorient(p, orientation)
         });

@@ -547,11 +547,7 @@ fn component_ai_state(
     if !enabled {
         return AiMaskState::NotAi;
     }
-    let keys: Vec<_> = c
-        .active_leaves()
-        .into_iter()
-        .filter_map(component_raster_key)
-        .collect();
+    let keys: Vec<_> = c.active_leaves().filter_map(component_raster_key).collect();
     if keys.is_empty() {
         return AiMaskState::NotAi;
     }
@@ -1005,7 +1001,7 @@ impl AiMaskJob {
                 key: self.key.clone(),
                 title: component_title(&self.kind),
                 fraction,
-                message: message.into(),
+                message,
                 done: false,
                 error: None,
             });
