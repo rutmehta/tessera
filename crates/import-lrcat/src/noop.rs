@@ -224,6 +224,17 @@ pub(crate) fn xmp_table(doc: &roxmltree::Document<'_>) -> LuaTable {
             _ => LuaValue::String(s.into()),
         }
     }
+    fn syntax_attribute(a: roxmltree::Attribute<'_, '_>) -> bool {
+        a.namespace() == Some(RDF)
+            && (a.name() == "about" || (a.name() == "parseType" && a.value() == "Resource"))
+    }
+    fn field_name(namespace: Option<&str>, name: &str) -> String {
+        if namespace == Some(CRS) {
+            name.into()
+        } else {
+            format!("{{{}}}{name}", namespace.unwrap_or(""))
+        }
+    }
     fn value(n: roxmltree::Node<'_, '_>) -> LuaValue {
         if n.tag_name().name() == "ToneCurvePV2012" {
             return LuaValue::Table(LuaTable {
@@ -238,6 +249,8 @@ pub(crate) fn xmp_table(doc: &roxmltree::Document<'_>) -> LuaTable {
         }
         let children: Vec<_> = n.children().filter(|n| n.is_element()).collect();
         if children.len() == 1
+            && n.attributes().all(syntax_attribute)
+            && n.text().is_none_or(|text| text.trim().is_empty())
             && ["Seq", "Bag", "Description"]
                 .iter()
                 .any(|name| children[0].has_tag_name((RDF, *name)))
@@ -248,16 +261,22 @@ pub(crate) fn xmp_table(doc: &roxmltree::Document<'_>) -> LuaTable {
             items: vec![],
             fields: vec![],
         };
-        for a in n.attributes().filter(|a| a.namespace() == Some(CRS)) {
-            t.fields
-                .push((LuaKey::Str(a.name().into()), scalar(a.value())));
+        // Preserve foreign/unknown attributes in the policy projection so an
+        // opaque resource cannot masquerade as an empty default.
+        for a in n.attributes().filter(|a| !syntax_attribute(*a)) {
+            t.fields.push((
+                LuaKey::Str(field_name(a.namespace(), a.name())),
+                scalar(a.value()),
+            ));
         }
         for c in &children {
             if c.has_tag_name((RDF, "li")) {
                 t.items.push(value(*c));
             } else {
-                t.fields
-                    .push((LuaKey::Str(c.tag_name().name().into()), value(*c)));
+                t.fields.push((
+                    LuaKey::Str(field_name(c.tag_name().namespace(), c.tag_name().name())),
+                    value(*c),
+                ));
             }
         }
         if children.is_empty() && t.fields.is_empty() {
@@ -275,16 +294,53 @@ pub(crate) fn xmp_table(doc: &roxmltree::Document<'_>) -> LuaTable {
             && n.parent().is_some_and(|p| p.has_tag_name((RDF, "RDF")))
     }) {
         for a in desc.attributes().filter(|a| a.namespace() == Some(CRS)) {
-            t.fields
-                .push((LuaKey::Str(a.name().into()), scalar(a.value())));
+            let v = if a.name() == "ToneCurveName2012" {
+                LuaValue::String(a.value().into())
+            } else {
+                scalar(a.value())
+            };
+            t.fields.push((LuaKey::Str(a.name().into()), v));
         }
         for n in desc
             .children()
             .filter(|n| n.is_element() && n.tag_name().namespace() == Some(CRS))
         {
-            t.fields
-                .push((LuaKey::Str(n.tag_name().name().into()), value(n)));
+            let v = if n.tag_name().name() == "ToneCurveName2012"
+                && n.attributes().all(syntax_attribute)
+                && !n.children().any(|c| c.is_element())
+            {
+                LuaValue::String(n.text().unwrap_or("").into())
+            } else {
+                value(n)
+            };
+            t.fields.push((LuaKey::Str(n.tag_name().name().into()), v));
         }
     }
     t
+}
+
+#[cfg(test)]
+#[test]
+fn foreign_xmp_payload_is_not_classified_as_empty() {
+    let version = ProcessVersion::from_crs("15.4").unwrap();
+    for key in [
+        "RetouchInfo",
+        "RedEyeInfo",
+        "PointColors",
+        "FilterList",
+        "AILook",
+    ] {
+        for body in [
+            format!("<crs:{key} xmlns:f='urn:synthetic-future' f:effect='opaque'/>"),
+            format!(
+                "<crs:{key}><rdf:Seq xmlns:f='urn:synthetic-future' f:effect='opaque'/></crs:{key}>"
+            ),
+        ] {
+            let source = format!(
+                "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:crs='http://ns.adobe.com/camera-raw-settings/1.0/'><rdf:Description>{body}</rdf:Description></rdf:RDF>"
+            );
+            let doc = roxmltree::Document::parse(&source).unwrap();
+            assert!(!is_noop(key, &xmp_table(&doc), &version), "{key}");
+        }
+    }
 }
