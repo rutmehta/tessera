@@ -83,7 +83,7 @@ fn lr3_xmp_attributes_and_legacy_items() {
 fn lr3_malformed_or_unrepresentable_key_is_retained_atomically() {
     for bad in [
         "{ 'opaque' }".to_string(),
-        format!("{{ {SPOT}, {{spotType='generative'}} }}"),
+        // Generative items now produce a cloud note; mixed-list coverage is in lr9b_translation.
         format!("{{ {} }}", SPOT.replace("opacity=0.5", "opacity=2")),
     ] {
         let (r, _) = develop(

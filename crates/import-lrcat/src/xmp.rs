@@ -292,6 +292,7 @@ pub(crate) fn parse_inner(
             if let Some(root) = p.node {
                 let reason = crate::mask_source::unsupported_reason(root);
                 for warning in warnings.iter_mut().filter(|w| w.starts_with("crs:MaskGroupBasedCorrections:")) {
+                    let reason = crate::mask_source::decoder_reason(reason.clone(), warning);
                     *warning = format!("crs:MaskGroupBasedCorrections: {reason}");
                 }
             }
@@ -895,7 +896,7 @@ mod tests {
         let (r, w) = parse(&xml("", r#"<crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li><crs:CorrectionMasks><rdf:Seq><rdf:li crs:What="Mask/Sky"/><rdf:li crs:What="Mask/Future"/></rdf:Seq></crs:CorrectionMasks></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections>"#), "15.4").unwrap();
         assert!(r.settings.locals.adjustments.is_empty());
         assert!(r.unknown.contains_key("crs:MaskGroupBasedCorrections"));
-        assert!(w.iter().any(|s| s.contains("Mask/Future")));
+        assert!(w.iter().any(|s| s.contains("unrecognized mask selection kind")));
     }
     #[test]
     fn malformed_duplicate_does_not_erase_previous_valid_choice() {

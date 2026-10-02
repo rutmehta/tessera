@@ -7,6 +7,7 @@ fn untranslated_recipe_bytes_match_pre_lr1() {
         ("global", include_str!("data/lrc155/global.lua")),
         // LR-3f: this row now translates its explicit-source heal; its pin includes retouch.
         ("structures", include_str!("data/lrc155/structures.lua")),
+        // LR-9b: FillLight ignored-info entry only; lr9b_translation reconstructs the old bytes.
         ("legacy", include_str!("data/lrc155/legacy.lua")),
         (
             "future",
