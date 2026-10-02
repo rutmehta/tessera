@@ -5,7 +5,7 @@ pub use geometry::{GeometryEntry, GeometryEntryKind, apply as apply_adobe_geomet
 mod export_policy;
 mod faces;
 mod store;
-pub use develop::ImportedRecipe;
+pub use develop::{ImportedRecipe, assign_mask_group_ids};
 pub use export_policy::ExportMetadataPolicy;
 pub use faces::FaceRegion;
 mod xml;
