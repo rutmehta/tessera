@@ -1419,3 +1419,60 @@ fn lr5b_ffi_print_and_file_export_without_model_skip_unavailable_ai() {
         image::open(resolved_out.join("a.jpg")).unwrap().to_rgb8()
     );
 }
+
+/// M8: opening a developed image as a document renders through the export
+/// path as well. It must read imported rasters from the engine's explicit app
+/// directory, not from a process-global override.
+#[test]
+fn lr5b_document_from_image_reads_imported_masks_from_the_engine_app_dir() {
+    let f = fixture();
+    let mean = || {
+        let s = f
+            .engine
+            .clone()
+            .open_document_from_image(f.ids[0].clone(), true)
+            .unwrap();
+        let (w, h, px) = s.read_level(0).unwrap();
+        s.close();
+        px.chunks(4).map(|p| p[1]).sum::<f32>() / (w * h) as f32
+    };
+    let baseline = mean();
+    let store =
+        ml_segment::MaskStore::new(Path::new(&f.support).join("imported-masks"), 0).unwrap();
+    let key = store
+        .put_content_pinned(&ml_segment::MaskRaster::new(48, 32, vec![1.; 48 * 32]).unwrap())
+        .unwrap();
+    let mut ai = engine_api::recipe::MaskComponent::new(engine_api::recipe::MaskKind::Subject {
+        model: None,
+    });
+    ai.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+        resource_id: None,
+        category: "Subject".into(),
+        mask_key: Some(key),
+        regenerate: false,
+    });
+    let mut group = engine_api::recipe::LocalAdjustment {
+        components: vec![ai],
+        ..Default::default()
+    };
+    group.params.exposure = 2.;
+    let mut recipe = engine_api::recipe::Recipe {
+        image_id: Some(f.ids[0].parse().unwrap()),
+        ..Default::default()
+    };
+    recipe.settings.locals.adjustments.push(group);
+    recipe.history.base = recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(Path::new(&f.folder).join("a.jpg")).recipe,
+        &sidecar::RecipeDocument {
+            recipe,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let masked = mean();
+    assert!(
+        masked > baseline + 0.05,
+        "stored raster was not applied: {masked} vs {baseline}"
+    );
+}

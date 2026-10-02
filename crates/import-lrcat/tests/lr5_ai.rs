@@ -95,3 +95,17 @@ fn lr5b_unverified_part_ids_are_never_broadened_to_the_whole_category() {
         assert!(r.unknown.contains_key("lrcat_develop_source"));
     }
 }
+
+/// M2: the same holds when the category is spelled in `What` itself.
+#[test]
+fn lr5b_part_ids_on_named_ai_masks_are_unsupported() {
+    for what in ["Subject", "Sky", "Background"] {
+        let source = format!(
+            "s={{MaskGroupBasedCorrections={{{{LocalExposure2012=1,CorrectionMasks={{{{What='Mask/{what}',MaskSubCategoryID=3}}}}}}}}}}"
+        );
+        let (r, warnings) = import_lrcat::develop(1, &source, "15.4").unwrap();
+        assert!(r.settings.locals.adjustments.is_empty(), "{what}");
+        assert!(!warnings.is_empty(), "{what}");
+        assert!(r.unknown.contains_key("lrcat_develop_source"));
+    }
+}
