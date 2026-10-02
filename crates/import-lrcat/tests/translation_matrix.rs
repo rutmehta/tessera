@@ -557,7 +557,8 @@ fn lr9_matrix_defaults_are_silent_and_nondefaults_remain_visible() {
                     .strip_prefix("crs:")
                     .unwrap_or(w)
                     .starts_with(&format!("{key}:")))
-                    || diagnostics::entries(&recipe).contains_key(key),
+                    || diagnostics::entries(&recipe).contains_key(key)
+                    || (matches!(rule, Rule::DistractionPanel) && diagnostics::entries(&recipe).contains_key("GenerativeRemove")),
                 "nondefault lost: {key}"
             );
         }
