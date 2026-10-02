@@ -137,3 +137,12 @@ fn equivalent_retouch_aliases_are_accepted_but_conflicts_fail_closed() {
         assert!(r.unknown["lrcat_develop_source"]["properties"].get("RetouchAreas").is_some());
     }
 }
+
+#[test]
+fn equivalent_ellipse_and_flat_circle_retouch_forms_translate() {
+    for (size, accepted) in [("0.03",true),("0.06",false)] {
+        let (r,w)=lua_develop::parse(&format!("s={{RetouchAreas={{{{SpotType='clone',spotType='clone',Opacity=0.5,opacity=0.5,centerX=0.2,centerY=0.4,radius=0.03,sourceX=0.7,sourceY=0.6,Masks={{{{What='Mask/Ellipse',MaskID='synthetic',MaskSyncID='synthetic',MaskActive=true,MaskInverted=false,MaskBlendMode=0,MaskValue=1,X=0.2,Y=0.4,SizeX={size},SizeY=0.03,Alpha=0,CenterValue=1,PerimeterValue=0}}}}}}}}}}"),"15.4").unwrap();
+        assert_eq!(w.is_empty(),accepted,"{w:?}");
+        assert_eq!(r.settings.locals.retouch.len(),usize::from(accepted));
+    }
+}
