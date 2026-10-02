@@ -1,0 +1,117 @@
+[
+  {
+    "before": "ENG3 photo full GPU sign=-1 gap=0",
+    "after": "ENG3 photo full GPU sign=-1 gap=0",
+    "changed": false
+  },
+  {
+    "before": "ENG3 photo full GPU sign=1 gap=0",
+    "after": "ENG3 photo full GPU sign=1 gap=0",
+    "changed": false
+  },
+  {
+    "before": "ENG3 photo one-ulp gap=0.000061035156",
+    "after": "ENG3 photo one-ulp gap=0.000061035156",
+    "changed": false
+  },
+  {
+    "before": "ENG3 photo zero/ulp L=0.000000059300003 delta=0.0000000000000035527137 gap=0",
+    "after": "ENG3 photo zero/ulp L=0.000000059300003 delta=0.0000000000000035527137 gap=0",
+    "changed": false
+  },
+  {
+    "before": "ENG3b coloured photo crossing red=[-261.702, 263.702]",
+    "after": "ENG3b coloured photo crossing red=[-261.702, 263.702]",
+    "changed": false
+  },
+  {
+    "before": "ENG3c Photo mode=0 CPU/Metal max adjacent Y step=2.0524487e-5",
+    "after": "ENG3c Photo mode=0 CPU/Metal max adjacent Y step=2.0524487e-5",
+    "changed": false
+  },
+  {
+    "before": "ENG3c Photo mode=1 CPU/Metal max adjacent Y step=5.2970834e-5",
+    "after": "ENG3c Photo mode=1 CPU/Metal max adjacent Y step=5.2970834e-5",
+    "changed": false
+  },
+  {
+    "before": "ENG3c Photo mode=2 CPU/Metal max adjacent Y step=4.6329806e-6",
+    "after": "ENG3c Photo mode=2 CPU/Metal max adjacent Y step=4.6329806e-6",
+    "changed": false
+  },
+  {
+    "before": "ENG3c Photo mode=3 CPU/Metal max adjacent Y step=6.193295e-8",
+    "after": "ENG3c Photo mode=3 CPU/Metal max adjacent Y step=6.193295e-8",
+    "changed": false
+  },
+  {
+    "before": "ENG3c Photo mode=4 CPU/Metal max adjacent Y step=5.005859e-9",
+    "after": "ENG3c Photo mode=4 CPU/Metal max adjacent Y step=5.005859e-9",
+    "changed": false
+  },
+  {
+    "before": "ENG3 curve GPU gap=0",
+    "after": "ENG3 curve GPU gap=0.0000038146973",
+    "changed": true
+  },
+  {
+    "before": "ENG3 curve one-ulp gap=0.0000076293945",
+    "after": "ENG3 curve one-ulp gap=0.0000038146973",
+    "changed": true
+  },
+  {
+    "before": "ENG3 curve zero/ulp L=0.000000059300003 delta=0.0000000000000035527137 gap=0",
+    "after": "ENG3 curve zero/ulp L=0.000000059300003 delta=0.0000000000000035527137 gap=0",
+    "changed": false
+  },
+  {
+    "before": "ENG3b coloured curve crossing gains=[-36.238113, 38.23612]",
+    "after": "ENG3b coloured curve crossing gains=[-36.238113, 38.23612]",
+    "changed": false
+  },
+  {
+    "before": "ENG3b synthetic gradient 0..0.002: n=256 black=0.037236832 first=0.037245348 last=0.039408 min_step=8.5011125e-6 gpu_gap=1.8626451e-8 gpu_min_step=8.489937e-6",
+    "after": "ENG3b synthetic gradient 0..0.002: n=256 black=0.037236832 first=0.037245348 last=0.039407995 min_step=8.497387e-6 gpu_gap=1.1175871e-8 gpu_min_step=8.5011125e-6",
+    "changed": true
+  },
+  {
+    "before": "ENG3b RAW exposure multiplier=7.937281e-2",
+    "after": "ENG3b RAW exposure multiplier=7.937281e-2",
+    "changed": false
+  },
+  {
+    "before": "ENG3b photographic RAW darkest 255 + black: n=256 black=0.037236832 first=0.037370674 last=0.037454057 min_step=-7.450581e-9 gpu_gap=5.9604645e-8 gpu_min_step=-7.450581e-9",
+    "after": "ENG3b photographic RAW darkest 255 + black: n=256 black=0.037236832 first=0.037370674 last=0.03745405 min_step=-7.450581e-9 gpu_gap=2.9802322e-8 gpu_min_step=-3.7252903e-9",
+    "changed": true
+  },
+  {
+    "before": "ENG3c RAW floored samples=32 max RGB oracle error=2.6897474114662145e-7",
+    "after": "ENG3c RAW floored samples=32 max RGB oracle error=2.1297947050413768e-7",
+    "changed": true
+  },
+  {
+    "before": "ENG3c boundary rho=0.25: CPU endpoints=[0.03777984806001186, 0.03777984440922737] max_step=0.00000001381039618775226 Metal max_step=0.000000019764900202612345",
+    "after": "ENG3c boundary rho=0.25: CPU endpoints=[0.03777984806001186, 0.03777984440922737] max_step=0.00000001381039618775226 Metal max_step=0.000000018358230588488844",
+    "changed": true
+  },
+  {
+    "before": "ENG3c boundary rho=0.9077706: CPU endpoints=[0.03777984725274146, 0.03777984584430232] max_step=0.000000007336307318583923 Metal max_step=0.000000007020588957407092",
+    "after": "ENG3c boundary rho=0.9077706: CPU endpoints=[0.037779843496065585, 0.037779842087626456] max_step=0.000000006830785423406205 Metal max_step=0.0000000069886446005251734",
+    "changed": true
+  },
+  {
+    "before": "ENG3b blue: n=256 black=0.037236832 first=0.03724188 last=0.038524624 min_step=5.0365925e-6 gpu_gap=2.9802322e-7 gpu_min_step=5.0254166e-6",
+    "after": "ENG3b blue: n=256 black=0.037236832 first=0.03724188 last=0.038524624 min_step=5.0365925e-6 gpu_gap=1.7881393e-7 gpu_min_step=5.040318e-6",
+    "changed": true
+  },
+  {
+    "before": "ENG3b red: n=256 black=0.037236832 first=0.03725921 last=0.042935397 min_step=2.2303313e-5 gpu_gap=5.9604645e-8 gpu_min_step=2.2303313e-5",
+    "after": "ENG3b red: n=256 black=0.037236832 first=0.037259206 last=0.042935405 min_step=2.2303313e-5 gpu_gap=4.4703484e-8 gpu_min_step=2.2307038e-5",
+    "changed": true
+  },
+  {
+    "before": "ENG3b green: n=256 black=0.037236832 first=0.03729459 last=0.05191148 min_step=5.7335943e-5 gpu_gap=2.9802322e-8 gpu_min_step=5.733967e-5",
+    "after": "ENG3b green: n=256 black=0.037236832 first=0.037294585 last=0.051911484 min_step=5.7335943e-5 gpu_gap=2.9802322e-8 gpu_min_step=5.7328492e-5",
+    "changed": true
+  }
+]

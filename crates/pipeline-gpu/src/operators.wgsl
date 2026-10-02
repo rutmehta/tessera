@@ -352,6 +352,8 @@ fn curve_value(v: f32, curve: u32) -> f32 {
         - t * t * (1.0 - t) * (h * p[i + 5u]);
     return curve_decode_domain(clamp(y, y0, y1));
 }
+// 0.1% of scene-linear Rec.2020 white; matches tone_extra.rs.
+const CURVE_LUMA_FLOOR: f32 = 1e-3;
 fn curves(input: vec3<f32>) -> vec3<f32> {
     if p[9] == 0.0 && p[19] == 0.0 && p[20] == 0.0 && p[21] == 0.0 && p[22] == 0.0 && p[23] == 0.0 {
         return input;
@@ -371,7 +373,16 @@ fn curves(input: vec3<f32>) -> vec3<f32> {
     }
     for (var c = 0u; c < 3u; c += 1u) { rgb[c] = curve_value(curve_value(rgb[c], 0u), c + 1u); }
     y = 0.2627 * rgb.x + 0.678 * rgb.y + 0.0593 * rgb.z;
-    if y > 0.0 || (p[25] != 0.0 && y < 0.0) { rgb *= curve_value(y, 4u) / y; }
+    if y > 0.0 || (p[25] != 0.0 && y < 0.0) {
+        let mapped_luma = curve_value(y, 4u);
+        // k=0.25: continuous cancellation taper; nonzero Y guarantees A>0.
+        let a = 0.2627 * abs(rgb.x) + 0.678 * abs(rgb.y) + 0.0593 * abs(rgb.z);
+        let rho = abs(y) / a;
+        let denominator = max(abs(y), CURVE_LUMA_FLOOR * clamp(1.0 - rho / 0.25, 0.0, 1.0));
+        var gain = 1.0 + (mapped_luma - y) / select(-denominator, denominator, y > 0.0);
+        if denominator == abs(y) { gain = mapped_luma / y; }
+        rgb *= gain;
+    }
     else if all(rgb == vec3<f32>(0.0)) { rgb = vec3<f32>(curve_value(0.0, 4u)); }
     return clamp(rgb, vec3<f32>(-3.402823466e38), vec3<f32>(3.402823466e38));
 }

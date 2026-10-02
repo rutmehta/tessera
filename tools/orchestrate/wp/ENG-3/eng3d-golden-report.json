@@ -1,0 +1,188 @@
+{
+  "before": "cc626467",
+  "after": "bdceb473",
+  "captures": [
+    {
+      "golden": "Srgb-1.rgba",
+      "pixels": 4403,
+      "changed_pixels": 2243,
+      "max_encoded_delta": 1.9103288650512695e-05,
+      "max_distance": null,
+      "predicate": "exact match to upstream ENG-4b capture; stable tone and presence/curve/dehaze math rounding",
+      "before_sha256": "47fe0176537f718f2f499e1761d8efe619139f2310afd14f9bdee19ca2e58788",
+      "after_sha256": "0d0988e8f5ca8275a389e65be9bd2e2683962537ddd5a8fd7a9b882d9b76893c",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 1.9103288650512695e-05
+    },
+    {
+      "golden": "Srgb-0.35.rgba",
+      "pixels": 4403,
+      "changed_pixels": 2232,
+      "max_encoded_delta": 6.690621376037598e-06,
+      "max_distance": null,
+      "predicate": "exact match to upstream ENG-4b capture; stable tone and presence/curve/dehaze math rounding",
+      "before_sha256": "27ceee9a01c962d83d0bb5ab4b24beb6da77a5b183ab50861ea9ab584076a3cc",
+      "after_sha256": "c799f8d941dcce5268daa0687552f54888ba32aeabb3658698578c74dcf115cb",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 6.690621376037598e-06
+    },
+    {
+      "golden": "Srgb-0.rgba",
+      "pixels": 4403,
+      "changed_pixels": 0,
+      "max_encoded_delta": 0.0,
+      "max_distance": null,
+      "predicate": "empty change set",
+      "before_sha256": "8511f116f963d524b1bb4ccc7a71393f49b149899821e1830698e415ea88556d",
+      "after_sha256": "8511f116f963d524b1bb4ccc7a71393f49b149899821e1830698e415ea88556d",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 0.0
+    },
+    {
+      "golden": "DisplayP3-1.rgba",
+      "pixels": 4403,
+      "changed_pixels": 2237,
+      "max_encoded_delta": 4.887580871582031e-06,
+      "max_distance": null,
+      "predicate": "exact match to upstream ENG-4b capture; stable tone and presence/curve/dehaze math rounding",
+      "before_sha256": "358d878497f4461223c7ffeafab4d475f378e1074d23311e3c12359acf2fc998",
+      "after_sha256": "cae2edee1907a9d3b8b20fcd5dc4e3add0a49cebb662b7ea1f4fa6eebcb47a97",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 4.887580871582031e-06
+    },
+    {
+      "golden": "DisplayP3-0.35.rgba",
+      "pixels": 4403,
+      "changed_pixels": 2204,
+      "max_encoded_delta": 1.7136335372924805e-06,
+      "max_distance": null,
+      "predicate": "exact match to upstream ENG-4b capture; stable tone and presence/curve/dehaze math rounding",
+      "before_sha256": "30928703598e1aa03470f05c9ea112468743d05cd15adaf705937123ebcbf439",
+      "after_sha256": "830d1bf8b8ffead802104b199fe4913be5766b430ceb3924a150de3b64b86acd",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 1.7136335372924805e-06
+    },
+    {
+      "golden": "DisplayP3-0.rgba",
+      "pixels": 4403,
+      "changed_pixels": 0,
+      "max_encoded_delta": 0.0,
+      "max_distance": null,
+      "predicate": "empty change set",
+      "before_sha256": "2eb945d40e332bc1ad8b82e798262270ff06bc1a11ffcaf58c5c7aaa2081f7db",
+      "after_sha256": "2eb945d40e332bc1ad8b82e798262270ff06bc1a11ffcaf58c5c7aaa2081f7db",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 0.0
+    },
+    {
+      "golden": "AdobeRgb-1.rgba",
+      "pixels": 4403,
+      "changed_pixels": 2252,
+      "max_encoded_delta": 2.7239322662353516e-05,
+      "max_distance": null,
+      "predicate": "exact match to upstream ENG-4b capture; stable tone and presence/curve/dehaze math rounding",
+      "before_sha256": "1fea284ebec8229c60929034ab4daadc3f38871fc9b80820fd53ee802d63ea28",
+      "after_sha256": "74f6202fbc821ee2e06c0299302471e3c5c4deb2d9d8dddf28f6880ea8191225",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 2.7239322662353516e-05
+    },
+    {
+      "golden": "AdobeRgb-0.35.rgba",
+      "pixels": 4403,
+      "changed_pixels": 2228,
+      "max_encoded_delta": 9.5367431640625e-06,
+      "max_distance": null,
+      "predicate": "exact match to upstream ENG-4b capture; stable tone and presence/curve/dehaze math rounding",
+      "before_sha256": "ed77a1fca06d09a82ddb8eb16dcf4cecb5db42823c7f6ac280dd27ff2ba0dd3c",
+      "after_sha256": "54c8f25c6c53784885d4ad71aacda51b1f492ec6eac2fd0edf9a5582900bae1f",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 9.5367431640625e-06
+    },
+    {
+      "golden": "AdobeRgb-0.rgba",
+      "pixels": 4403,
+      "changed_pixels": 0,
+      "max_encoded_delta": 0.0,
+      "max_distance": null,
+      "predicate": "empty change set",
+      "before_sha256": "8fa76b18df8c1b5320bbde7be658d7de9dc752d668f9594a089d199c135b5a16",
+      "after_sha256": "8fa76b18df8c1b5320bbde7be658d7de9dc752d668f9594a089d199c135b5a16",
+      "matches_upstream_eng4b_sha256": true,
+      "max_delta_vs_stored": 0.0
+    },
+    {
+      "golden": "canon-cr3.rgb8",
+      "pixels": 250000,
+      "changed_pixels": 0,
+      "max_encoded_delta": 0,
+      "max_distance": null,
+      "predicate": "empty change set",
+      "before_sha256": "b162e74f08e4386d5139149c634204cc4f300a3d42c3f131dab06c4ce5432412",
+      "after_sha256": "b162e74f08e4386d5139149c634204cc4f300a3d42c3f131dab06c4ce5432412"
+    },
+    {
+      "golden": "fuji-raf.rgb8",
+      "pixels": 249696,
+      "changed_pixels": 0,
+      "max_encoded_delta": 0,
+      "max_distance": null,
+      "predicate": "empty change set",
+      "before_sha256": "81dc4ea60779a9ba0d4d0ca2f89df3ceff0ebfb055a2409715be498998691f86",
+      "after_sha256": "81dc4ea60779a9ba0d4d0ca2f89df3ceff0ebfb055a2409715be498998691f86"
+    },
+    {
+      "golden": "nikon-nef.rgb8",
+      "pixels": 568568,
+      "changed_pixels": 0,
+      "max_encoded_delta": 0,
+      "max_distance": null,
+      "predicate": "empty change set",
+      "before_sha256": "8cfdb18a9ad36aeb7a3784da144b2413fcf18dd401139a5122e9474fbd169cb0",
+      "after_sha256": "8cfdb18a9ad36aeb7a3784da144b2413fcf18dd401139a5122e9474fbd169cb0"
+    },
+    {
+      "golden": "sample.rgb8",
+      "pixels": 282968,
+      "changed_pixels": 0,
+      "max_encoded_delta": 0,
+      "max_distance": null,
+      "predicate": "empty change set",
+      "before_sha256": "9781bd8a01e79416cce81cea8bf03ce7c742d994b26748b0a622e9a724fe9d6e",
+      "after_sha256": "9781bd8a01e79416cce81cea8bf03ce7c742d994b26748b0a622e9a724fe9d6e"
+    },
+    {
+      "golden": "sony-arw.rgb8",
+      "pixels": 252150,
+      "changed_pixels": 0,
+      "max_encoded_delta": 0,
+      "max_distance": null,
+      "predicate": "empty change set",
+      "before_sha256": "a2f7f2e73c4887ea0e8dc99e6bb57ea8077144edcf6f952b5a4d3cb738bf72ee",
+      "after_sha256": "a2f7f2e73c4887ea0e8dc99e6bb57ea8077144edcf6f952b5a4d3cb738bf72ee"
+    }
+  ],
+  "sdr_fingerprints": [
+    {
+      "case": 0,
+      "cpu": "0x44fae39b8cad1e",
+      "gpu_tiles": "0x50eac09770927b7a",
+      "gpu_surface": "0xdbf920dcf5887ebe",
+      "matches_all_stored_values": true
+    },
+    {
+      "case": 1,
+      "cpu": "0xcc470d33eeb4d28a",
+      "gpu_tiles": "0x9888e139c4c750cd",
+      "gpu_surface": "0xfc167ff4409e51d9",
+      "matches_all_stored_values": true
+    },
+    {
+      "case": 2,
+      "cpu": "0xd1434c534f542e11",
+      "gpu_tiles": "0x9f14a1d177fda67c",
+      "gpu_surface": "0x6955ddd3131422e4",
+      "matches_all_stored_values": true
+    }
+  ],
+  "sdr_attribution_matches_upstream_exactly": true
+}

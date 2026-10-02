@@ -357,10 +357,22 @@ impl Adjustment {
                         std::array::from_fn(|c| rgb[c] * (1.0 - density + density * colour[c]));
                     let y = luminance(filtered);
                     if *preserve_luminosity {
-                        if y.abs() > 1e-10 {
-                            filtered.map(|v| v * luminance(rgb) / y)
-                        } else {
+                        if y == 0.0 {
                             rgb
+                        } else {
+                            let absolute_luma = luminance(filtered.map(f32::abs));
+                            let rho = y.abs() / absolute_luma;
+                            let denominator = y
+                                .abs()
+                                .max(PHOTO_LUMA_FLOOR * (1.0 - rho / 0.25).clamp(0.0, 1.0));
+                            if denominator == y.abs() {
+                                // Preserve ratio arithmetic outside channel cancellation.
+                                filtered.map(|v| v * luminance(rgb) / y)
+                            } else {
+                                let target = luminance(rgb);
+                                let gain = 1.0 + (target - y) / denominator.copysign(y);
+                                filtered.map(|v| v * gain)
+                            }
                         }
                     } else {
                         filtered
@@ -495,6 +507,11 @@ fn signed_power(v: f32, p: f32) -> f32 {
         v.signum() * v.abs().powf(p)
     }
 }
+// 0.1% of scene-linear Rec.2020 white, matching shaders/adjust.wgsl.
+// k=0.25 tapers continuously with |Y|/luminance(|filtered RGB|).
+// Same-sign colours retain the original ratio; exact zero bypasses A division.
+const PHOTO_LUMA_FLOOR: f32 = 1e-3;
+
 fn luminance(rgb: [f32; 3]) -> f32 {
     0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]
 }

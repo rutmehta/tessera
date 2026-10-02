@@ -81,7 +81,24 @@ by segment endpoints, with monotonicity tested to f32 epsilon.
    segments, and are limited to the radius-3 circle in normalized tangent space.
    Evaluate directly rather than introducing 4096-entry LUT quantization.
    Apply master RGB to each log-encoded component, then its R/G/B curve, then
-   luminance-only curve via luminance ratio. Absolute black can lift to neutral
+   luminance-only curve via a conditioned luminance ratio (ENG-3).
+   For nonzero active `Y`, use `A=0.2627|r|+0.678|g|+0.0593|b|`,
+   `rho=abs(Y)/A`, and `D=max(abs(Y),epsilon*clamp(1-rho/k,0,1))`,
+   with `epsilon=1e-3` and documented `k=0.25` (ENG-3c amended ruling).
+   When `D==abs(Y)`, retain literal `f(Y)/Y` arithmetic. Otherwise use
+   `1+(f(Y)-Y)/copysign(D,Y)` identically on CPU and GPU. Same-sign
+   colours have rho=1, including saturated blue, so retain the original ratio.
+   The branch switch is `D==abs(Y)`, i.e. at `rho* = k*(1-abs(Y)/epsilon)`,
+   not at `rho=k`: for `abs(Y)>=epsilon` the floor never applies, and at
+   `Y=5e-4` the switch is at `rho*=0.125`. Both branches give `f(Y)` there.
+   `eng3f_curve_actual_switch_sweeps` crosses it in rho and in `abs(Y)` on
+   CPU and Metal (ENG-3f).
+   This differs from ENG-1 for negative Y. Output luminance interpolates
+   from Y to f(Y) by abs(Y)/D; identity mapping has gain one.
+   Exact-zero handling and neutral-black lift remain unchanged. A coloured
+   cancellation crossing Y=0 with nonzero f(Y) retains a gain sign jump;
+   `eng3b_coloured_curve_zero_crossing_documented` pins it on CPU and Metal.
+   Absolute black can lift to neutral
    grey through the luminance curve. Negative component inputs bypass component
    curves; nonpositive nonblack luminance bypasses luminance curves.
    Above the final knot continue with unit slope and endpoint offset on the log

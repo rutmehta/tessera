@@ -1,0 +1,324 @@
+{
+  "source_commit": "bdceb4730f896bb9dedd803b1e17e3e1cdb08bca",
+  "base": "fbb36594b8ae97fe9ee1d5e4c36269bbe526a649",
+  "before": "cc626467",
+  "environment": {
+    "CARGO_TARGET_DIR": "$HOME/.cache/tessera-target/ENG-3",
+    "CARGO_BUILD_JOBS": 4,
+    "RAYON_NUM_THREADS": 4
+  },
+  "by_crate": {
+    "filters": {
+      "suites": 29,
+      "passed": 160,
+      "failed": 0,
+      "ignored": 8,
+      "filtered": 0
+    },
+    "pipeline-cpu": {
+      "suites": 33,
+      "passed": 203,
+      "failed": 0,
+      "ignored": 3,
+      "filtered": 0
+    },
+    "pipeline-gpu": {
+      "suites": 39,
+      "passed": 169,
+      "failed": 0,
+      "ignored": 12,
+      "filtered": 0
+    },
+    "image-core": {
+      "suites": 24,
+      "passed": 122,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    },
+    "engine-api": {
+      "suites": 16,
+      "passed": 133,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "previews": {
+      "suites": 4,
+      "passed": 28,
+      "failed": 0,
+      "ignored": 3,
+      "filtered": 0
+    },
+    "export": {
+      "suites": 33,
+      "passed": 103,
+      "failed": 0,
+      "ignored": 7,
+      "filtered": 0
+    },
+    "tessera-ffi": {
+      "suites": 58,
+      "passed": 604,
+      "failed": 0,
+      "ignored": 30,
+      "filtered": 0
+    }
+  },
+  "release_totals": {
+    "suites": 236,
+    "passed": 1522,
+    "failed": 0,
+    "ignored": 65,
+    "filtered": 0
+  },
+  "attempts": [
+    {
+      "name": "clean",
+      "command": [
+        "cargo",
+        "clean",
+        "-p",
+        "filters",
+        "-p",
+        "pipeline-cpu",
+        "-p",
+        "pipeline-gpu",
+        "-p",
+        "image-core",
+        "-p",
+        "engine-api",
+        "-p",
+        "previews",
+        "-p",
+        "export",
+        "-p",
+        "tessera-ffi"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T18:45:07.047105+00:00",
+      "end": "2026-10-02T18:45:07.949260+00:00"
+    },
+    {
+      "name": "clean-release",
+      "command": [
+        "cargo",
+        "clean",
+        "--release",
+        "-p",
+        "filters",
+        "-p",
+        "pipeline-cpu",
+        "-p",
+        "pipeline-gpu",
+        "-p",
+        "image-core",
+        "-p",
+        "engine-api",
+        "-p",
+        "previews",
+        "-p",
+        "export",
+        "-p",
+        "tessera-ffi"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T18:45:07.949601+00:00",
+      "end": "2026-10-02T18:45:08.770621+00:00"
+    },
+    {
+      "name": "measurements",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "filters",
+        "-p",
+        "pipeline-gpu",
+        "--test",
+        "eng3_luminance",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T18:45:08.770906+00:00",
+      "end": "2026-10-02T18:45:58.186097+00:00"
+    },
+    {
+      "name": "release",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "filters",
+        "-p",
+        "pipeline-cpu",
+        "-p",
+        "pipeline-gpu",
+        "-p",
+        "image-core",
+        "-p",
+        "engine-api",
+        "-p",
+        "previews",
+        "-p",
+        "export",
+        "-p",
+        "tessera-ffi",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T18:45:58.186368+00:00",
+      "end": "2026-10-02T19:04:29.174170+00:00"
+    },
+    {
+      "name": "capture-filters",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "filters",
+        "--test",
+        "camera_raw",
+        "full_develop",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T19:04:29.174731+00:00",
+      "end": "2026-10-02T19:05:09.478936+00:00"
+    },
+    {
+      "name": "capture-cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "pipeline-cpu",
+        "--test",
+        "golden",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T19:05:09.479385+00:00",
+      "end": "2026-10-02T19:05:46.294897+00:00"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T19:05:46.295332+00:00",
+      "end": "2026-10-02T19:06:52.402690+00:00"
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T19:06:52.403104+00:00",
+      "end": "2026-10-02T19:06:56.140219+00:00"
+    },
+    {
+      "name": "sdr",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "pipeline-gpu",
+        "--test",
+        "hdr_surface",
+        "sdr_output_matches_approved_fingerprints",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T19:07:04.035752+00:00",
+      "end": "2026-10-02T19:07:15.485280+00:00"
+    },
+    {
+      "name": "24mp",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "filters",
+        "--test",
+        "camera_raw_gpu",
+        "bench_24mp_cpu_gpu",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T19:07:15.485395+00:00",
+      "end": "2026-10-02T19:08:16.145212+00:00"
+    },
+    {
+      "name": "sdr-audit",
+      "command": [
+        "python3",
+        "tools/orchestrate/wp/ENG-4/sdr_audit.py",
+        "--output",
+        "/Users/rutmehta/tessera-evidence/ENG-3d/sdr-audit"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T19:08:16.145723+00:00",
+      "end": "2026-10-02T19:08:18.593314+00:00"
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-02T19:10:10.555865+00:00",
+      "end": "2026-10-02T19:10:10.583773+00:00"
+    }
+  ],
+  "logs": {
+    "24mp.log": "4d31fbef695a3996e260d84e49c18e91cfcf19287f390e02df8e2663041d46a8",
+    "capture-cpu.log": "7140bafdbbbb09826f0e3e2a4956c6f716f443d8840e55a89849e63ea23df163",
+    "capture-filters.log": "b87f49a2205e23d56df2b1110f9cae217ab1da73c7aefd30fb65f9d599b70142",
+    "clean-release.log": "669285a724e3bc14a01da81f8c1fcba077f6b4d7fbc8547c71cc7f77c5fd5b84",
+    "clean.log": "93ec2a76fa981613a060a35e467386503965e413a0518faa88adb05424e86dfc",
+    "clippy.log": "e9a0cc171cf00d3ca9237f6d9bd03276d7fa6a029b0ab3e5f798792e412bf47a",
+    "diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "measurements.log": "8a74709cf3a8125f356f9c475b4d3bf21957e930e933d87b533d20ce249e36bb",
+    "release.log": "1d513f8f912509d08ba95f6e583772f1eae50caa46d2657cf038415bef8104b7",
+    "sdr-audit.log": "e1a2c7576e37dffee4b6516b104759013a83547c0e9861d3621518c081d32328",
+    "sdr.log": "13316794713a797d5f4901e89490d2a0f06ef5feca0be7f9ed8669922a220502"
+  }
+}

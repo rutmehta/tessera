@@ -1,0 +1,203 @@
+{
+  "source_revision": "2f89448d64c644603e7e93b2102ed6f95e9ac664",
+  "baseline_revision": "6f184e5e",
+  "environment": {
+    "CARGO_BUILD_JOBS": "4",
+    "RAYON_NUM_THREADS": "4",
+    "CARGO_TARGET_DIR": "$HOME/.cache/tessera-target/ENG-3",
+    "capture_and_fixture_overrides": "unset for final gates"
+  },
+  "gates": [
+    {
+      "gate": "clean",
+      "command": [
+        "cargo",
+        "clean",
+        "-p",
+        "filters",
+        "-p",
+        "pipeline-cpu",
+        "-p",
+        "pipeline-gpu"
+      ],
+      "exit_code": 0,
+      "seconds": 0.16,
+      "log_sha256": "0bdaeb2aa6a92a0fdfec2d2cc4d0ab71946de5d0654e08c526e4629130ae0f28"
+    },
+    {
+      "gate": "clean-release",
+      "command": [
+        "cargo",
+        "clean",
+        "--release",
+        "-p",
+        "filters",
+        "-p",
+        "pipeline-cpu",
+        "-p",
+        "pipeline-gpu"
+      ],
+      "exit_code": 0,
+      "seconds": 0.15,
+      "log_sha256": "d6a01c402dbe1626e3da2264eb84a1008c37d1de34ab3caf6cb08b5d2a195990"
+    },
+    {
+      "gate": "release",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "filters",
+        "-p",
+        "pipeline-cpu",
+        "-p",
+        "pipeline-gpu",
+        "-p",
+        "image-core",
+        "-p",
+        "engine-api",
+        "-p",
+        "previews",
+        "-p",
+        "export",
+        "-p",
+        "tessera-ffi",
+        "--no-fail-fast"
+      ],
+      "exit_code": 0,
+      "seconds": 1660.03,
+      "log_sha256": "4c5162dca396daee88e708c255249dabaf2b7993b5e04037d7dbc5e601e41eed",
+      "suites": 225,
+      "totals": {
+        "passed": 1443,
+        "failed": 0,
+        "ignored": 66,
+        "measured": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 153.76,
+      "log_sha256": "5491092be8cd89cf954a2964208331131b49e82376af1057edb0f16c94f8cbc7"
+    },
+    {
+      "gate": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 2.81,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "release_by_crate": {
+    "engine-api": {
+      "passed": 120,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0
+    },
+    "export": {
+      "passed": 100,
+      "failed": 0,
+      "ignored": 7,
+      "measured": 0,
+      "filtered": 0
+    },
+    "filters": {
+      "passed": 155,
+      "failed": 0,
+      "ignored": 8,
+      "measured": 0,
+      "filtered": 0
+    },
+    "image-core": {
+      "passed": 120,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0
+    },
+    "pipeline-cpu": {
+      "passed": 179,
+      "failed": 0,
+      "ignored": 3,
+      "measured": 0,
+      "filtered": 0
+    },
+    "pipeline-gpu": {
+      "passed": 160,
+      "failed": 0,
+      "ignored": 13,
+      "measured": 0,
+      "filtered": 0
+    },
+    "previews": {
+      "passed": 28,
+      "failed": 0,
+      "ignored": 3,
+      "measured": 0,
+      "filtered": 0
+    },
+    "tessera-ffi": {
+      "passed": 581,
+      "failed": 0,
+      "ignored": 30,
+      "measured": 0,
+      "filtered": 0
+    }
+  },
+  "targeted_red": {
+    "passed": 8,
+    "failed": 5,
+    "ignored": 0
+  },
+  "targeted_green": {
+    "passed": 13,
+    "failed": 0,
+    "ignored": 0
+  },
+  "evidence_logs": [
+    {
+      "run": "red-final",
+      "log_sha256": "42145f17a64ea54774d8d8f71f6f4cbaa825aceeaf7cb7c8340e8020a99c626b"
+    },
+    {
+      "run": "green-final",
+      "log_sha256": "6e74bc636e8a68b65df05cd0e439be89bd239a3001d948403445830688f74f76"
+    },
+    {
+      "run": "before-filters",
+      "log_sha256": "f8a2e5e8dbf86508e54895756be6cee09358e722815694cc6a1f211a04949884"
+    },
+    {
+      "run": "before-raw",
+      "log_sha256": "574ef634db7cc53faf198e8ba3c29f05172db9d0b662ed4fff59fa7f581a060b"
+    },
+    {
+      "run": "after-filters",
+      "log_sha256": "bdd83fe0cb3daa7fd0534a4cb6591f495c482ba3b2a75db9753c7ee8a3314f9e"
+    },
+    {
+      "run": "after-raw",
+      "log_sha256": "5879adb64118e6a77476842d0a23c0cb027771d40b81a5166a0be270a27bf600"
+    }
+  ]
+}
