@@ -15,6 +15,7 @@ fn untranslated_recipe_bytes_match_pre_lr1() {
         ("nil-point", "s = { PointColors = nil }"),
         ("empty-point", "s = { PointColors = {} }"),
         ("opaque-point", "s = { PointColors = { 'opaque' } }"),
+        // LR-6f: active LensBlur now includes depth regeneration diagnostics and schema 4.
         (
             "pending",
             "s = { LensBlur = { Active = true }, RetouchInfo = { 'opaque' } }",

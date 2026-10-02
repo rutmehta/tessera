@@ -2181,3 +2181,7 @@ mod lrcat_mask_tests;
 #[cfg(test)]
 #[path = "lrcat_depth_tests.rs"]
 mod depth_tests;
+
+#[cfg(test)]
+#[path = "lrcat_combined_tests.rs"]
+mod combined_tests;
