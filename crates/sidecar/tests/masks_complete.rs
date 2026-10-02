@@ -43,6 +43,18 @@ mod masks;
 #[path = "../src/xml.rs"]
 mod xml;
 
+// LR-11 masks reuse the global Point Color decoder.
+#[allow(dead_code)]
+#[path = "../src/structures.rs"]
+mod structures;
+fn resource<'a>(tree: &'a xml::Tree, n: &'a xml::Node) -> &'a xml::Node {
+    n.children
+        .iter()
+        .map(|i| &tree.nodes[*i])
+        .find(|n| n.ns == xml::RDF && n.local == "Description")
+        .unwrap_or(n)
+}
+
 fn direct(kind: serde_json::Value) -> String {
     let mut locals = Vec::new();
     for (i, combine) in ["add", "subtract", "intersect"].iter().enumerate() {

@@ -1,0 +1,1 @@
+s={Sharpness=0,ColorNoiseReduction=0,MaskGroupBasedCorrections={{LocalPointColors={'0,0.5,0.5,0.5,0,0,0.5,0,0.25,0.75,1,0,0.25,0.75,1,0,0.25,0.75,1'},CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}}
