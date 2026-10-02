@@ -731,10 +731,6 @@ final class KeyRouter {
             }
         case .togglePanels:
             docs.togglePanels()
-            if !docs.panelsHidden, let viewport = docs.current?.viewport,
-               viewport.window === event.window {
-                viewport.claimKeyboardIfStray()
-            }
         case .cycleScreenMode: docs.cycleScreenMode()
         case .deleteLayer: docs.current?.deleteSelection()
         default: return false

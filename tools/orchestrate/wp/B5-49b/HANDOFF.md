@@ -32,7 +32,7 @@ Routine gates leave that variable unset. Address normalization deliberately disc
 
 ## Gates and clean-tree proof
 
-Pending final verification.
+Pending two final clean-tree gates. The first full run executed 948 XCTest tests (3 skipped) with one failure: `ShortcutIntegrityTests.testMenuAndRouterDocumentationAndMenuCollisions` detected the stale generated KeyRouter excerpt. `python3 tools/orchestrate/shortcut-audit.py --write-doc` removed the old Tab-only claim from `docs/shortcuts.md`; the audit then passed (63 menu bindings, 11 routing sources, 16 reserved chords). No shortcut rule was relaxed.
 
 ## Scope and acceptance boundaries
 
