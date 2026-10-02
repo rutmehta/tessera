@@ -326,3 +326,122 @@ dependency, board.json or apps/mac changes. No Swift gate was needed, no app was
 launched, and no original/user-media writes were performed. Local commits only;
 nothing was pushed. Every lane commit carries the requested co-author trailer.
 The docs commit containing this handoff follows `950485f3`.
+
+## LR-9c — LR-5-free restack and review corrections
+
+This section supersedes the LR-9/9b claims above about ignored cloud effects,
+unconditional embedded-profile metadata, AI-mask promotion, and the legacy
+compatibility re-pin. Branch: `wp/LR-9-restack`. It was built on `wp/LR-6-restack` at `f84aebdb` (main
+`270f0169` plus approved LR-3/LR-6) and finally rebased onto its replacement
+`4dba1640`, which has the identical tree (commit messages only).
+
+### Restack range-diff
+
+Replayed all 56 commits in `43a508e3..46b1bf54` onto `f84aebdb`, in order,
+without squash or reorder. `git range-diff` reports 53 identical patches and
+three adjusted patches:
+
+- `f987afe5`: kept the native zero-overlay regression, excluded adjacent LR-5
+  Adobe AI state round-trip context.
+- `fc6bd47a`: kept actionable mask reasons, excluded AI raster provenance
+  acceptance dependent on LR-5.
+- `38490249`: kept retouch authority and LR-9b integration behavior, excluded
+  the same LR-5 provenance acceptance block.
+
+The LR-9b AI-raster promotion test is updated to require unsupported diagnostics
+and exact source retention on this stack. No LR-5 regeneration behavior is added.
+
+The range-diff was re-run for this handoff (`git range-diff 43a508e3..46b1bf54
+f84aebdb..83fe6be4`): 56 commits on each side, 53 `=`, 3 `!` (the three above;
+the adjustments only remove LR-5-dependent lines).
+
+The lane was started by a Codex worker and completed by Claude Opus 5.5 after
+the first worker ran out of quota; the last four LR-9c commits say so.
+
+### A's findings, item by item
+
+| Item | Status | How | Test |
+| --- | --- | --- | --- |
+| B1 residual.rs cloud switches | done | `EnableDistractionRemoval`, `GenerativeRemove`, `GenerativeFill` keep their warning and get a `status: cloud`, `level: warning` diagnostic per key (`diagnostics::push_cloud`); nothing is pushed as `ignored` | `lr9c::cloud_effects_are_visible_and_filter_list_survives`, `lr9b_translation::cloud_switches_keep_each_feature_visible` |
+| B1 FilterList not dropped | done | the `retain` that removed `FilterList` is gone | same two tests; FFI `lr9c_cloud_report_apply_resume_counts_examples_and_keeps_filter_list` |
+| B1 retouch.rs generative areas | done | generative `RetouchAreas`/`RemoveAreas` push a cloud diagnostic and a `crs:GenerativeRemove` warning | `lr9c::generative_only_retouch_areas_are_cloud_not_ignored`, `lr9b_translation::generative_removal_has_one_cloud_note_per_image`, `mixed_cloud_and_patch_removal_keeps_both_dispositions` |
+| B1 report group with counts and examples | done | new `LrcatReport.cloud` (one entry per Adobe feature, one count per photo, up to five example paths), filled for written AND resumed photos; cloud reasons are removed from the report's `unsupported` list so they are not listed twice | FFI `lr9c_cloud_report_apply_resume_counts_examples_and_keeps_filter_list` (apply, then second apply = resume, equal cloud groups), `lr9c_cloud_counts_photos_once_caps_examples_and_omits_ignored` |
+| B1 `ignored` never in the report | done | `note_diagnostics` only admits `approximate`/`info` and `cloud`/`warning` | `lr9c_cloud_counts_photos_once_caps_examples_and_omits_ignored`, `lr9_ignored_diagnostics_are_not_approximate_report_entries` |
+| B1 summary / plan preview | done (found in this pass) | the previous worker also filtered cloud reasons out of the plan preview, which has no cloud group; the filter is removed so they stay in "Not fully supported" before the import | FFI `lr9c_plan_preview_keeps_cloud_effects_visible` (RED `37a940c6`, GREEN `e5e372e3`) |
+| B1 Swift sheet + Markdown | done | "Requires Adobe cloud (not rendered)" group in `ReportStep` with identifier `document.import.report.cloud` (existing identifiers untouched) and a section in `import-report.md`; a cloud-only report no longer says "No warnings." / "Everything in the catalog has a Tessera equivalent." | Swift `testCloudReportIncludesCountsAndExamples`, `testEmptyUnsupportedTextDoesNotClaimFullSupportWhenCloudContentExists`, `testReportExposesCountsWarningsAndReadOnlyMarkdown`, `testCloudOnlyReportDoesNotClaimNoWarnings` |
+| Restore tests/upright_lr7.rs | done | asserts the warning names the key, says "cannot render" and carries the verbatim cloud wording (original two clauses plus the ruling-9 wording) | `cloud_only_and_invalid_geometry_explain_missing_rendering` |
+| Restore tests/legacy_ca_lr7b.rs | done | asserts on warnings again, now also requiring the key name | `cloud_wording_is_verbatim` |
+| Restore tessera-ffi/tests/upright_lr7.rs | done | `plan.report` assertion restored with "cannot render"; the per-image check counts `cloud`, not `ignored` | `catalog_upright_renders_known_projective_corners_and_reports_cloud_features` |
+| Restore generative case in tests/retouch.rs | done, changed shape | the original case was a clone spot plus a generative spot retained atomically. A's ruling makes that mixed list translate the heal, so the restored case is a generative-only spot (still retained atomically, no operation); the mixed list is covered by the next row | `lr3_malformed_or_unrepresentable_key_is_retained_atomically` |
+| Mixed heal + generative RetouchAreas | done | heal translated with an `approximate` note, generative item adds a cloud diagnostic and warning | `lr9c::mixed_heal_and_generative_keeps_both_dispositions` |
+| S1 no-op rules | done | `Rule::Legacy` for FillLight=0, HighlightRecovery=0, Recovery=0, Blacks=5 on PV2012+; non-default values still report | `lr9c::legacy_defaults_leave_no_diagnostics`, `non_default_legacy_tone_values_are_still_reported`, `lr9b_translation::legacy_fixture_bytes_remain_unchanged` |
+| S1 no golden re-pinned | done | `tests/data/point-color-compat.txt` is byte-identical to the base (`git diff 4dba1640 -- crates/import-lrcat/tests/data/point-color-compat.txt` is empty) | `lr1_compat::untranslated_recipe_bytes_match_pre_lr1` |
+| S2 LensProfileIsEmbedded | done | silent only when the flag is off or `LensProfileEnable` is off/absent | `lr9c::embedded_profile_selected_is_not_silent`, `embedded_profile_flag_is_silent_only_when_not_selected` |
+| S3 mask `Version` | done | accepted only on `Mask/CircularGradient`; elsewhere the mask stays unsupported with source retained | `lr9c::version_on_undocumented_mask_kind_is_retained` |
+| S4 SourceY vs OffsetY | done | conflicting values reject the translation: `RetouchAreas` warning, no operation, source retained; equal values translate | `lr9c::conflicting_source_y_aliases_warn`, `source_y_aliases_conflict_names_the_key_and_agreement_translates` |
+| S4 CenterWeight on circles | done (implemented) | feather = 100 - CenterWeight*100, as for paint masks | `lr9c::circle_centerweight_controls_feather` |
+| S5 per-key range label | done | `crs:<key>: <key> is outside its supported numeric range`; no auto-tone wording | `lr9c::unrelated_out_of_range_control_does_not_claim_auto_tone` |
+| Negative ToneCurveName2012 | done | missing, duplicate-x and out-of-range points keep the warning | `lr9c::curve_name_without_valid_points_is_not_suppressed` |
+
+Goldens: against the base, the only file under `crates/import-lrcat/tests/data`
+that differs is `lr6b-untranslated-baseline.json`, one warning string
+(`DepthBasedCorrections` wording) changed by LR-9b commit `905d85b0`; its
+`recipe_bytes` are unchanged. A did not object to it in the LR-9b review, so it
+is left as is and named here so it is not a surprise. No other golden or pinned
+hash differs from the base.
+
+### Real-catalog measurement (aggregate counts only)
+
+`lr9c_aggregate` (ignored by default) on the read-only scratch copy, 21,615
+decoded develop-settings rows, 0 decode failures on both sides.
+
+| | origin/main `b7a28a9b` | this tip |
+| --- | ---: | ---: |
+| Develop-settings warning occurrences | 573,627 | 1,289 |
+| Distinct warning keys | 61 | 46 |
+| Images in the cloud group | n/a | 10 |
+
+Top residual keys at this tip: MaskGroupBasedCorrections 633,
+CustomTemperature 42, CustomTint 42, RetouchAreas 38, RemoveAreas 36, then 27
+each for AutoTone, Blacks2012, Contrast2012, Exposure2012, Highlights2012,
+Saturation, Shadows2012, Vibrance and Whites2012 (out-of-range values),
+IncrementalTemperature 22, IncrementalTint 20, SDRBrightness 20,
+SDRHighlights 20, SDRBlend 19, SDRShadows 19, SDRClarity 18, SDRContrast 18,
+DepthBasedCorrections 16, SDRWhites 12, GenerativeRemove 10, GrainSeed 10,
+OverrideLookVignette 10, RangeMaskMapInfo 8. The cloud group is 10 images:
+GenerativeRemove 10, of which 2 also carry EnableDistractionRemoval.
+MaskGroupBasedCorrections is higher than LR-9b reported because AI-mask
+promotion left with LR-5.
+
+### Gates (tip `066d63e9` before this handoff commit; docs-only afterwards)
+
+`cargo clean --release` of the touched crates first (360 files removed). One
+attempt each; nothing was rerun, relaxed or excluded.
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release -p import-lrcat` | 247 passed, 0 failed, 2 ignored |
+| `-p sidecar` | 81 passed, 0 failed |
+| `-p engine-api` | 136 passed, 0 failed |
+| `-p image-core` | 131 passed, 0 failed, 3 ignored |
+| `-p pipeline-cpu` | 210 passed, 0 failed, 3 ignored |
+| `-p pipeline-gpu` | 158 passed, 0 failed, 13 ignored |
+| `-p filters` | 154 passed, 0 failed, 8 ignored |
+| `-p previews` | 28 passed, 0 failed, 3 ignored |
+| `-p export` | 103 passed, 0 failed, 7 ignored |
+| `-p tessera-ffi` | 635 passed, 0 failed, 31 ignored |
+| `-p tessera-mcp` | 89 passed, 0 failed |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean |
+| `cargo fmt --all -- --check` | clean |
+| `apps/mac/build-ffi.sh` | ok |
+| `tools/orchestrate/swift-gate.sh` | SWIFT GATE OK: 923 XCTest executed, 3 skipped, 0 failures; 5 Swift Testing tests passed |
+| strict release build of `Tessera` | complete, no warnings |
+
+An earlier import-lrcat run in this pass failed to compile against stale
+artifacts left in the shared target directory by the previous worker's
+baseline measurement; all workspace crates were cleaned and it was rerun
+(243 passed before the four tests added in this pass). No test failed at any
+point other than the intended RED runs.
+
+Worktree clean after the gates; no Cargo.lock, board.json or generated-binding
+drift. The app was never launched.
