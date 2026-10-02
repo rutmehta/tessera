@@ -83,6 +83,10 @@ struct Metadata {
     focal_mm: f32,
     capture_time: i64,
     orientation: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    catalog_orientation: Option<u16>,
+    #[serde(default)]
+    baseline_exposure: f32,
     width: u32,
     height: u32,
     black_levels: [f32; 4],
@@ -123,6 +127,8 @@ impl Metadata {
             focal_mm: m.focal_mm,
             capture_time: m.capture_time,
             orientation: m.orientation,
+            catalog_orientation: m.catalog_orientation,
+            baseline_exposure: m.baseline_exposure,
             width: m.width,
             height: m.height,
             black_levels: m.black_levels,
@@ -152,6 +158,8 @@ impl Metadata {
             aperture: self.aperture,
             focal_mm: self.focal_mm,
             capture_time: self.capture_time,
+            catalog_orientation: self.catalog_orientation,
+            baseline_exposure: self.baseline_exposure,
             orientation: self.orientation,
             width: self.width,
             height: self.height,
@@ -175,7 +183,10 @@ impl Metadata {
             || h == 0
             || x.checked_add(w).is_none_or(|v| v > m.width)
             || y.checked_add(h).is_none_or(|v| v > m.height)
+            || !m.baseline_exposure.is_finite()
             || !(1..=8).contains(&m.orientation)
+            || m.catalog_orientation
+                .is_some_and(|o| !(1..=8).contains(&o) || m.orientation != 1)
             || m.white_level == 0
             || ![m.iso, m.shutter_s, m.aperture, m.focal_mm]
                 .iter()
@@ -602,6 +613,8 @@ mod tests {
             aperture: 4.,
             focal_mm: 50.,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width: 2,
             height: 2,

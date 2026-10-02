@@ -105,37 +105,88 @@ fn crop_radial_and_saved_upright_land_in_same_normalized_region() {
 
 #[test]
 fn imported_camera_masks_use_host_hooks_in_each_catalog_frame() {
-    use engine_api::recipe::{LocalAdjustment,LocalParams,MaskComponent,MaskKind};
+    use engine_api::recipe::{LocalAdjustment, LocalParams, MaskComponent, MaskKind};
     struct LeftHalf;
     impl image_core::mask_cache::MaskHooks for LeftHalf {
-        fn revision(&self)->u64 {1}
-        fn rasterize(&self,input:&pipeline_cpu::Image,_:&LocalAdjustment,_:u8)->engine_api::EngineResult<Vec<f32>> {
-            Ok((0..input.width()*input.height()).map(|i|if i%input.width()<input.width()/2 {1.}else{0.}).collect())
+        fn revision(&self) -> u64 {
+            1
+        }
+        fn rasterize(
+            &self,
+            input: &pipeline_cpu::Image,
+            _: &LocalAdjustment,
+            _: u8,
+        ) -> engine_api::EngineResult<Vec<f32>> {
+            Ok((0..input.width() * input.height())
+                .map(|i| {
+                    if i % input.width() < input.width() / 2 {
+                        1.
+                    } else {
+                        0.
+                    }
+                })
+                .collect())
         }
     }
-    let dir=tempfile::tempdir().unwrap();
-    let path=dir.path().join("synthetic.dng");
-    std::fs::write(&path,support::lossy_dng(false,false)).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("synthetic.dng");
+    std::fs::write(&path, support::lossy_dng(false, false)).unwrap();
     for orientation in 1..=8 {
-        let source=RawImage::open_with_catalog_orientation(ImageId(900+u128::from(orientation)),&path,Some(orientation)).unwrap();
-        for process in [ProcessVersion::NATIVE_CURRENT,ProcessVersion{family:engine_api::recipe::ProcessFamily::Adobe,revision:6}] {
-            let renderer=Renderer::new(Default::default()).for_process_version(process);
-            renderer.mask_cache().set_hooks(Some(std::sync::Arc::new(LeftHalf)));
-            let mut s=DevelopSettings::default();
-            s.detail.sharpening.amount=0.;s.detail.noise_reduction.color=0.;
-            let mut run=|s:&DevelopSettings| {
-                let mut result=Vec::new();
-                renderer.render_tiles(&source,s,&[TileCoord::new(0,0,0)],RenderOutput::SceneLinear,&CancellationToken::new(),&mut|t|result.push(t)).unwrap();
+        let source = RawImage::open_with_catalog_orientation(
+            ImageId(900 + u128::from(orientation)),
+            &path,
+            Some(orientation),
+        )
+        .unwrap();
+        for process in [
+            ProcessVersion::NATIVE_CURRENT,
+            ProcessVersion {
+                family: engine_api::recipe::ProcessFamily::Adobe,
+                revision: 6,
+            },
+        ] {
+            let renderer = Renderer::new(Default::default()).for_process_version(process);
+            renderer
+                .mask_cache()
+                .set_hooks(Some(std::sync::Arc::new(LeftHalf)));
+            let mut s = DevelopSettings::default();
+            s.detail.sharpening.amount = 0.;
+            s.detail.noise_reduction.color = 0.;
+            let run = |s: &DevelopSettings| {
+                let mut result = Vec::new();
+                renderer
+                    .render_tiles(
+                        &source,
+                        s,
+                        &[TileCoord::new(0, 0, 0)],
+                        RenderOutput::SceneLinear,
+                        &CancellationToken::new(),
+                        &mut |t| result.push(t),
+                    )
+                    .unwrap();
                 result.pop().unwrap()
             };
-            let base=run(&s);
-            s.locals.adjustments.push(LocalAdjustment {components:vec![MaskComponent::new(MaskKind::Subject{model:None})],params:LocalParams{exposure:1.,..Default::default()},..Default::default()});
-            let edited=run(&s);
-            let width=edited.layout().extent.width as usize;
-            assert_eq!(width,if orientation>=5{10}else{12});
-            for (i,(a,b)) in base.plane::<f32>(0).unwrap().iter().zip(edited.plane::<f32>(0).unwrap()).enumerate() {
-                let expected=if i%width<width/2{2.*a}else{*a};
-                assert!((b-expected).abs()<0.0001,"orientation {orientation}");
+            let base = run(&s);
+            s.locals.adjustments.push(LocalAdjustment {
+                components: vec![MaskComponent::new(MaskKind::Subject { model: None })],
+                params: LocalParams {
+                    exposure: 1.,
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+            let edited = run(&s);
+            let width = edited.layout().extent.width as usize;
+            assert_eq!(width, if orientation >= 5 { 10 } else { 12 });
+            for (i, (a, b)) in base
+                .plane::<f32>(0)
+                .unwrap()
+                .iter()
+                .zip(edited.plane::<f32>(0).unwrap())
+                .enumerate()
+            {
+                let expected = if i % width < width / 2 { 2. * a } else { *a };
+                assert!((b - expected).abs() < 0.0001, "orientation {orientation}");
             }
         }
     }

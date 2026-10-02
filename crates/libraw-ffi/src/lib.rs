@@ -144,6 +144,18 @@ impl RawFile {
             None
         }
     }
+    /// DNG's default exposure bias. LibRaw uses -999 for an absent tag and
+    /// does not apply this value when unpacking the CFA plane.
+    pub fn baseline_exposure(&self) -> f32 {
+        // SAFETY: the owned LibRaw handle remains alive for this immutable read.
+        let value = unsafe { (*self.raw).color.dng_levels.baseline_exposure };
+        if value == -999. {
+            0.
+        } else {
+            value
+        }
+    }
+
     pub fn metadata(&self) -> Metadata {
         unsafe {
             let i = &(*self.raw).other;

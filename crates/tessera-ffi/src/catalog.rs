@@ -110,6 +110,8 @@ pub(crate) struct EmbeddedMetadata;
 
 impl MetadataProvider for EmbeddedMetadata {
     fn read(&self, path: &Path) -> EngineResult<Metadata> {
+        let oriented = catalog_orientation(path).is_some();
+        let presentation_orientation = |value: u16| if oriented { 1 } else { value };
         if !image_core::RgbSource::recognizes(path) {
             // Native float LinearRaw is mosaic-free and cannot use decode_cfa.
             if path
@@ -128,17 +130,24 @@ impl MetadataProvider for EmbeddedMetadata {
                     capture_time: Some(m.capture_time.to_string()),
                     camera: Some(m.model),
                     lens: m.lens,
-                    values: vec![("orientation".into(), m.orientation.to_string())],
+                    values: vec![(
+                        "orientation".into(),
+                        presentation_orientation(m.orientation).to_string(),
+                    )],
                     ..Default::default()
                 });
             }
             if path
                 .extension()
                 .is_some_and(|e| e.eq_ignore_ascii_case("dng"))
-                && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(path)?)?
+                && let Some(metadata) =
+                    raw_decode::lossy_dng::read_metadata(&mut std::fs::File::open(path)?)?
             {
                 return Ok(Metadata {
-                    values: vec![("orientation".into(), dng.metadata.orientation.to_string())],
+                    values: vec![(
+                        "orientation".into(),
+                        presentation_orientation(metadata.orientation).to_string(),
+                    )],
                     ..Default::default()
                 });
             }
@@ -148,7 +157,10 @@ impl MetadataProvider for EmbeddedMetadata {
                 capture_time: Some(m.capture_time.to_string()),
                 camera: Some(m.model),
                 lens: m.lens,
-                values: vec![("orientation".into(), m.orientation.to_string())],
+                values: vec![(
+                    "orientation".into(),
+                    presentation_orientation(m.orientation).to_string(),
+                )],
                 ..Default::default()
             });
         }
@@ -162,7 +174,10 @@ impl MetadataProvider for EmbeddedMetadata {
             })
             .unwrap_or(1);
         Ok(Metadata {
-            values: vec![("orientation".into(), orientation.to_string())],
+            values: vec![(
+                "orientation".into(),
+                presentation_orientation(orientation as u16).to_string(),
+            )],
             ..Default::default()
         })
     }
@@ -245,6 +260,17 @@ pub(crate) fn is_offline_proxy(path: &Path) -> bool {
     lightroom_proxy(path).is_some() && source_path(path) == path
 }
 
+pub(crate) fn catalog_orientation(path: &Path) -> Option<u16> {
+    Sidecar::read_recipe(Sidecar::paths(path).recipe)
+        .ok()?
+        .recipe
+        .unknown
+        .get("lightroom_orientation")?
+        .as_u64()
+        .filter(|o| (1..=8).contains(o))
+        .map(|o| o as u16)
+}
+
 pub(crate) fn open_image(id: ImageId, owner_path: &Path) -> EngineResult<image_core::RawImage> {
     let source = source_path(owner_path);
     let render_id = if source != owner_path {
@@ -252,7 +278,12 @@ pub(crate) fn open_image(id: ImageId, owner_path: &Path) -> EngineResult<image_c
     } else {
         id
     };
-    Ok(image_core::RawImage::open(render_id, source)?.with_recipe_owner(id))
+    Ok(image_core::RawImage::open_with_catalog_orientation(
+        render_id,
+        source,
+        catalog_orientation(owner_path),
+    )?
+    .with_recipe_owner(id))
 }
 
 #[cfg(test)]
@@ -283,3 +314,7 @@ mod tests {
         assert!(metadata.camera.is_none());
     }
 }
+
+#[cfg(test)]
+#[path = "lrcat_orientation_tests.rs"]
+mod lrcat_orientation_tests;

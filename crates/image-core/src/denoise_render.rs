@@ -135,7 +135,10 @@ impl Renderer {
         }
         drop(linear);
         cancel.check()?;
-        let camera_xyz = WorkingSpace::LinearRec2020.to_xyz() * r.profile;
+        // Denoise calibration excludes the exposure gain baked into r.profile.
+        let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|row| {
+            r.image.metadata().cam_xyz[row].map(f64::from)
+        })))?;
         if !raw_selected {
             out = pipeline_cpu::post_demosaic_denoise(
                 out,

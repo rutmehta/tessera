@@ -1,7 +1,7 @@
 //! App-owned protected-source metadata; no writes are performed by path lookup.
 use super::{EngineResult, Path, PathBuf, SidecarPaths, atomic_write, resolved_path};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     sync::{Mutex, OnceLock},
 };
@@ -94,6 +94,7 @@ impl Alias {
 
 #[derive(Default)]
 struct Registry {
+    read_only: BTreeSet<PathBuf>,
     roots: BTreeMap<PathBuf, PathBuf>,
     hashes: BTreeMap<PathBuf, (FileVersion, String)>,
     aliases: BTreeMap<PathBuf, (PathBuf, Alias)>,
@@ -110,6 +111,21 @@ pub(super) fn register(source: &Path, support: &Path) {
         .unwrap_or_else(|e| e.into_inner())
         .roots
         .insert(source.to_path_buf(), resolved_path(support));
+}
+
+pub(super) fn register_read_only(source: &Path, support: &Path) {
+    let source = resolved_path(source);
+    let mut registry = registry().lock().unwrap_or_else(|e| e.into_inner());
+    registry
+        .roots
+        .insert(source.clone(), resolved_path(support));
+    registry.read_only.insert(source);
+}
+
+pub(super) fn is_read_only(image: &Path) -> bool {
+    let image = resolved_path(image);
+    let registry = registry().lock().unwrap_or_else(|e| e.into_inner());
+    image.ancestors().any(|p| registry.read_only.contains(p))
 }
 
 fn support(image: &Path) -> PathBuf {

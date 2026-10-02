@@ -140,12 +140,14 @@ fn required_polynomial_maps_only_selected_area_and_plane_before_crop() {
 
 #[test]
 fn metadata_projection_does_not_decode_or_read_jpeg_tiles() {
-    let mut bytes=support::lossy_dng(false,false);
+    let mut bytes = support::lossy_dng(false, false);
     // Metadata remains readable even when the image payload is corrupt.
-    let last=bytes.len()-100;
+    let last = bytes.len() - 100;
     bytes[last..].fill(0);
-    let metadata=raw_decode::lossy_dng::read_metadata(&mut std::io::Cursor::new(&bytes)).unwrap().unwrap();
-    assert_eq!(metadata.orientation,6);
-    assert_eq!((metadata.width,metadata.height),(12,10));
+    let metadata = raw_decode::lossy_dng::read_metadata(&mut std::io::Cursor::new(&bytes))
+        .unwrap()
+        .unwrap();
+    assert_eq!(metadata.orientation, 6);
+    assert_eq!((metadata.width, metadata.height), (12, 10));
     assert!(raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes)).is_err());
 }

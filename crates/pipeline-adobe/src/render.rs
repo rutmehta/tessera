@@ -25,6 +25,17 @@ pub fn render_linear_scaled_with_profile(
     scale: u32,
     profile: Option<&DcpProfile>,
 ) -> EngineResult<Image> {
+    render_linear_scaled_with_profile_and_locals(settings, source, scale, profile, None)
+}
+
+/// Compatibility tone/profile with host-supplied pre-geometry local masks.
+pub fn render_linear_scaled_with_profile_and_locals(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    profile: Option<&DcpProfile>,
+    locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
+) -> EngineResult<Image> {
     if matches!(source, RenderSource::CameraLinear(proxy) if !proxy.is_external_dng()) {
         return Err(EngineError::Unsupported {
             what: "Adobe rendering: original required; camera-linear Smart Previews use Native revision 2".into(),
@@ -206,7 +217,19 @@ pub fn render_linear_scaled_with_profile(
     rest.detail.noise_reduction.color = 0.;
     rest.tone = Default::default();
     rest.color = settings.color_after_curves();
-    pipeline_cpu::render_linear_scaled(&rest, &RenderSource::Rgb(&rgb), scale)
+    if let Some(locals) = locals {
+        pipeline_cpu::render_linear_scaled_with_local_hook(
+            &rest,
+            &RenderSource::Rgb(&rgb),
+            scale,
+            &Default::default(),
+            None,
+            None,
+            locals,
+        )
+    } else {
+        pipeline_cpu::render_linear_scaled(&rest, &RenderSource::Rgb(&rgb), scale)
+    }
 }
 
 /// Display sRGB after the compatibility profile/user curves (no native sigmoid).

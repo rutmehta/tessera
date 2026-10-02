@@ -19,6 +19,11 @@ impl SmartPreviewIndex {
         }
     }
 
+    /// Read-only explicit bundle root when the catalog itself is a scratch copy.
+    pub fn from_bundle(root: impl Into<PathBuf>) -> Self {
+        Self { root: root.into() }
+    }
+
     pub fn root(&self) -> &Path {
         &self.root
     }

@@ -49,7 +49,8 @@ impl Renderer {
                         | MaskKind::Brush { .. }
                         | MaskKind::LuminanceRange { .. }
                         | MaskKind::ColorRange { .. }
-                ) {
+                ) && !(external_dng && component.kind.is_ai() && self.mask_cache.has_hooks())
+                {
                     return Err(original_required(
                         "AI/depth masks need original dependencies",
                     ));
@@ -70,7 +71,11 @@ impl Renderer {
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
         cancel.check()?;
-        self.validate_camera_linear_proxy(image, settings)?;
+        if image.camera_linear_proxy().is_some() {
+            self.validate_camera_linear_proxy(image, settings)?;
+        } else {
+            self.validate_settings(settings)?;
+        }
         let Some(first) = coords.first() else {
             return cancel.check();
         };
@@ -95,8 +100,9 @@ impl Renderer {
             .copied()
             .filter(|c| unique_seen.insert(*c))
             .collect();
-        if let Some(rendered) =
-            self.try_camera_linear_resident(image, settings, &unique, output, cancel, None)?
+        if image.metadata().catalog_orientation.is_none()
+            && let Some(rendered) =
+                self.try_camera_linear_resident(image, settings, &unique, output, cancel, None)?
         {
             for tile in rendered.tiles {
                 cancel.check()?;
@@ -107,16 +113,60 @@ impl Renderer {
         // Prefix validation, original calibration/WB, captured optics, manual
         // masks and geometry all run once in their scalar reference order.
         // EXIF orientation remains the caller's responsibility, as for RAW.
-        let source = pipeline_cpu::RenderSource::CameraLinear(image.camera_linear_proxy().unwrap());
+        let source = match image.camera_linear_proxy() {
+            Some(proxy) => pipeline_cpu::RenderSource::CameraLinear(proxy),
+            None => pipeline_cpu::RenderSource::Cfa {
+                image: image.cfa(),
+                metadata: image.metadata(),
+            },
+        };
+        let locals = |input: &pipeline_cpu::Image,
+                      groups: &[engine_api::recipe::LocalAdjustment]| {
+            if !self.mask_cache.has_hooks() {
+                return pipeline_cpu::locals_image(input, groups, Default::default());
+            }
+            let mut planes = input.planes().to_vec();
+            let upstream = self.stage_chain(settings)[StageId::Color.index()].1;
+            for group in groups
+                .iter()
+                .filter(|g| g.enabled && g.amount != 0. && !g.components.is_empty())
+            {
+                cancel.check()?;
+                // This scalar route develops at full active resolution and only
+                // then reduces. External rasters use that same oriented L0 frame.
+                let mask =
+                    self.mask_cache
+                        .rasterize(input, group, 0, upstream, Default::default())?;
+                let adjusted = pipeline_cpu::adjust_local(input, &group.params, group.amount)?;
+                let blended = pipeline_cpu::blend_local(input, &adjusted, &mask)?;
+                for ((out, original), changed) in
+                    planes.iter_mut().zip(input.planes()).zip(blended.planes())
+                {
+                    for ((out, original), changed) in out.iter_mut().zip(original).zip(changed) {
+                        *out += changed - original;
+                    }
+                }
+            }
+            pipeline_cpu::Image::new(input.width(), input.height(), planes)
+        };
         let developed = if self.is_adobe() {
-            pipeline_adobe::render_linear_scaled_with_profile(
+            pipeline_adobe::render_linear_scaled_with_profile_and_locals(
                 settings,
                 &source,
                 1 << level,
                 self.dcp.as_ref().map(|(p, _)| p.as_ref()),
+                Some(&locals),
             )?
         } else {
-            pipeline_cpu::render_linear_scaled(settings, &source, 1 << level)?
+            pipeline_cpu::render_linear_scaled_with_local_hook(
+                settings,
+                &source,
+                1 << level,
+                &Default::default(),
+                None,
+                self.denoiser.as_deref(),
+                &locals,
+            )?
         };
         cancel.check()?;
         let mut seen = HashSet::new();

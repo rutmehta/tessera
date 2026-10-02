@@ -143,6 +143,8 @@ impl RgbOpticsPlan {
             aperture: 0.,
             focal_mm: 0.,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width: frame.width,
             height: frame.height,
