@@ -1086,57 +1086,186 @@ fn lr12_split_previews_are_counted_and_sampled_by_import_sheet() {
     );
 }
 
+struct ProxyFrames(std::sync::mpsc::Sender<bool>);
+impl DevelopListener for ProxyFrames {
+    fn frame_ready(&self, frame: FrameInfo) {
+        if frame.is_final {
+            let _ = self.0.send(true);
+        }
+    }
+    fn render_failed(&self, _: String) {
+        let _ = self.0.send(false);
+    }
+    fn saved(&self, _: String) {}
+}
+
 #[test]
 fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
     let s = setup();
     fixture::write_smart_previews(&s.fixture).unwrap();
     let index = import_lrcat::smart_previews::SmartPreviewIndex::new(&s.fixture.catalog);
     let db = rusqlite::Connection::open(&s.fixture.catalog).unwrap();
-    let uuids: Vec<String> = db.prepare("SELECT id_global FROM AgLibraryFile").unwrap()
-        .query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect();
+    db.execute("UPDATE Adobe_images SET orientation = 'BC'", [])
+        .unwrap();
+    let uuids: Vec<String> = db
+        .prepare("SELECT id_global FROM AgLibraryFile")
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
     for uuid in uuids {
-        std::fs::write(index.find(&uuid).unwrap(), include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng")).unwrap();
+        std::fs::write(
+            index.find(&uuid).unwrap(),
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
     }
-    let importer = s.engine.clone().open_lrcat(s.fixture.catalog.to_string_lossy().into()).unwrap();
+    let importer = s
+        .engine
+        .clone()
+        .open_lrcat(s.fixture.catalog.to_string_lossy().into())
+        .unwrap();
     let mut options = relocated(&s);
     options.import_smart_previews = true;
     let folder = options.library_folder.clone();
     importer.apply(options, None).unwrap();
-    let row = s.engine.list_images(ImageQuery::default()).unwrap().into_iter().find(|r| r.lightroom_smart_preview).unwrap();
-    let mut recipe: engine_api::recipe::Recipe = serde_json::from_str(&s.engine.get_recipe(row.id.clone()).unwrap()).unwrap();
+    let row = s
+        .engine
+        .list_images(ImageQuery::default())
+        .unwrap()
+        .into_iter()
+        .find(|r| r.lightroom_smart_preview)
+        .unwrap();
+    let mut recipe: engine_api::recipe::Recipe =
+        serde_json::from_str(&s.engine.get_recipe(row.id.clone()).unwrap()).unwrap();
     recipe.process_version = engine_api::recipe::ProcessVersion::adobe(6);
-    recipe.edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| s.tone.exposure = 0.7).unwrap();
-    s.engine.set_recipe_json(row.id.clone(), serde_json::to_string(&recipe).unwrap()).unwrap();
+    recipe
+        .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+            s.tone.exposure = 0.7;
+            s.white_balance.mode = engine_api::recipe::settings::WhiteBalanceMode::Auto;
+            s.output.gamut_mapping = engine_api::recipe::settings::GamutMapping::Clip;
+        })
+        .unwrap();
+    s.engine
+        .set_recipe_json(row.id.clone(), serde_json::to_string(&recipe).unwrap())
+        .unwrap();
     let mut failures = Vec::new();
+    let mut develop_mean = 0.;
+    let mut develop_dimensions = (0, 0);
     let cull = s.engine.open_cull_session(folder).unwrap();
-    if !cull.preview_errors().unwrap().is_empty() { failures.push("culling proxy preview failed".into()); }
+    if !cull.preview_errors().unwrap().is_empty() {
+        failures.push("culling proxy preview failed".into());
+    }
     for max_px in [256, 2048] {
         let start = std::time::Instant::now();
         loop {
             match s.engine.clone().embedded_preview(row.id.clone(), max_px) {
-                Ok(p) if p.pending && start.elapsed().as_secs() < 30 => std::thread::sleep(std::time::Duration::from_millis(10)),
+                Ok(p) if p.pending && start.elapsed().as_secs() < 30 => {
+                    std::thread::sleep(std::time::Duration::from_millis(10))
+                }
                 Ok(p) if p.bytes.is_some() => {
                     use previews::Codec;
                     let actual = previews::Jpeg.decode(&p.bytes.unwrap()).unwrap();
-                    let raw = image_core::RawImage::open_with_catalog_orientation(engine_api::id::ImageId(9), &row.path, None).unwrap();
-                    let renderer = image_core::Renderer::new(Default::default()).for_recipe(&recipe);
-                    let extent = image_core::Renderer::output_extent(&raw, &recipe.settings, 0).unwrap();
-                    let tiles = renderer.render_region(&raw, &recipe.settings, 0, image_core::PixelRect::full(extent)).unwrap();
+                    let raw = image_core::RawImage::open_with_catalog_orientation(
+                        engine_api::id::ImageId(9),
+                        &row.path,
+                        Some(6),
+                    )
+                    .unwrap();
+                    let renderer =
+                        image_core::Renderer::new(Default::default()).for_recipe(&recipe);
+                    let extent =
+                        image_core::Renderer::output_extent(&raw, &recipe.settings, 0).unwrap();
+                    develop_dimensions = (extent.width, extent.height);
+                    assert_eq!(
+                        actual.dimensions(),
+                        develop_dimensions,
+                        "catalog orientation is consumed exactly once"
+                    );
+                    let tiles = renderer
+                        .render_region(
+                            &raw,
+                            &recipe.settings,
+                            0,
+                            image_core::PixelRect::full(extent),
+                        )
+                        .unwrap();
                     let tile = &tiles[0];
                     let data = tile.samples::<u8>().unwrap();
                     // JPEG error is bounded; missing DCP's base curve is much larger.
-                    let expected_mean = data.iter().map(|v| f64::from(*v)).sum::<f64>() / data.len() as f64;
-                    let actual_mean = actual.as_raw().iter().map(|v| f64::from(*v)).sum::<f64>() / actual.as_raw().len() as f64;
-                    if (expected_mean - actual_mean).abs() > 3.0 { failures.push(format!("preview Adobe mean: {actual_mean} vs Develop {expected_mean}")); }
+                    let expected_mean =
+                        data.iter().map(|v| f64::from(*v)).sum::<f64>() / data.len() as f64;
+                    develop_mean = expected_mean;
+                    let actual_mean = actual.as_raw().iter().map(|v| f64::from(*v)).sum::<f64>()
+                        / actual.as_raw().len() as f64;
+                    if (expected_mean - actual_mean).abs() > 3.0 {
+                        failures.push(format!(
+                            "preview Adobe mean: {actual_mean} vs Develop {expected_mean}"
+                        ));
+                    }
                     break;
-                },
-                other => { failures.push(format!("preview {max_px}: {other:?}")); break; }
+                }
+                other => {
+                    failures.push(format!("preview {max_px}: {other:?}"));
+                    break;
+                }
             }
         }
     }
-    if let Err(e) = s.engine.analyze_image(row.id.clone(), AnalysisOptions { quality: true, faces: false, force: true }) { failures.push(format!("analysis: {e}")); }
+    let export = s.engine.export_batch(ExportTarget::Images { image_ids: vec![row.id.clone()] }, serde_json::json!({"destination":s._temp.path().join("lr13-export"), "format":"png", "metadata":"none"}).to_string(), None, None).unwrap();
+    if export.failed != 0 {
+        failures.push("proxy export failed".into());
+    }
+    if let Some(path) = &export.items[0].output_path {
+        let pixels = image::open(path).unwrap().into_rgb8();
+        assert_eq!(
+            pixels.dimensions(),
+            develop_dimensions,
+            "export shares Develop orientation"
+        );
+        let mean = pixels.as_raw().iter().map(|v| f64::from(*v)).sum::<f64>()
+            / pixels.as_raw().len() as f64;
+        if (mean - develop_mean).abs() > 3.0 {
+            failures.push(format!(
+                "export Adobe mean: {mean} vs Develop {develop_mean}"
+            ));
+        }
+    }
+    if let Err(e) = s.engine.analyze_image(
+        row.id.clone(),
+        AnalysisOptions {
+            quality: true,
+            faces: false,
+            force: true,
+        },
+    ) {
+        failures.push(format!("analysis: {e}"));
+    }
     match s.engine.clone().open_develop_session(row.id) {
-        Ok(session) => { session.close().unwrap(); }
+        Ok(session) => {
+            let (send, receive) = std::sync::mpsc::channel();
+            session.set_listener(Some(Arc::new(ProxyFrames(send))));
+            session.refresh().unwrap();
+            if receive
+                .recv_timeout(std::time::Duration::from_secs(30))
+                .ok()
+                != Some(true)
+            {
+                failures.push("Develop frame failed".into());
+            }
+            assert!(session.get_histogram().unwrap().red.iter().any(|v| *v != 0));
+            session.set_settings(serde_json::json!({"camera_profile":{"look":{"style":"unavailable","amount":100.0}},"lens":{"profile":{"kind":"database","profile":{"name":"unavailable"}}},"output":{"hdr":true,"hdr_headroom_stops":2.0},"effects":{"lens_blur":{}}}).to_string(), false).unwrap();
+            if receive
+                .recv_timeout(std::time::Duration::from_secs(30))
+                .ok()
+                != Some(true)
+            {
+                failures.push("Develop optional settings failed".into());
+            }
+            session.set_listener(None);
+            session.close().unwrap();
+        }
         Err(e) => failures.push(format!("Develop: {e}")),
     }
     assert!(failures.is_empty(), "{failures:#?}");
