@@ -1,5 +1,9 @@
 # Tessera task board — Machine A coordinator
 
+## Batch 42 reconciliation — 2026-10-02 17:45 UTC
+
+Replacement Machine A coordinator merged LR-2 tone/B&W/PV2010, LR-1 Point Color and LR-4 parametric masks at `270f0169a36ada716ab2e6930082f81e0c0edf20`, parents ab4c7cf5 and 669f18dc. Independently inspected batch42 evidence: tested head `669f18dcf25912e549c9768d8a5870224df160da`; Rust, Clippy, fmt, Swift gate, bindings drift and strict build exits all 0, done. Swift 920 tests, 3 skipped, 0 failures in210.281s, plus 5 Swift Testing tests passed. Tested head predates B5-48 integration: final combined main tree differs in 10 product/test files and is NOT verified by this saved run. Merge publication is confirmed; no Adobe rendering parity or final combined-tree acceptance claimed. Codex A ownership/runtime handoff remains pending. Mailbox unchanged; no duplicate work or receipt ACK.
+
 ## Batch 41 reconciliation — 2026-10-02 17:10 UTC
 
 Replacement Machine A coordinator merged B5-48/48b/48c at `ab4c7cf513398cc32b4c67acce3aa2136965d777`: click-time Export Flat snapshot, deterministic ring test and release-only latency bounds. Independently inspected `/Volumes/betterSSD/tessera-validation/batch41b/head.txt`, which matches this exact merge, and exits: Rust, Clippy, fmt, Swift gate, bindings drift and strict build all 0, done. Swift: 919 tests, 3 skipped, 0 failures, 209.895s; additional 5 Swift Testing tests passed. Earlier batch41 evidence targets ffdd9bb5 and is superseded for this merge. This confirms recorded integration gates, not GUI acceptance or general latency claims. Codex A runtime/ownership handoff remains pending; no duplicate workload launched. Mailbox remains 0 messages, 75 receipts, 6 historical in-progress entries already reconciled against integration; no receipt was ACKed.
