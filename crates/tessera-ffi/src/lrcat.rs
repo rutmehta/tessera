@@ -1525,6 +1525,18 @@ impl LrcatImport {
                 }
             };
             if r.outcome == Outcome::OfflineProxy {
+                // Catalog orientation belongs only to the proxy owner. Ordinary
+                // originals retain main's decoder orientation and recipe bytes.
+                if let Some(orientation) = image
+                    .orientation
+                    .as_deref()
+                    .and_then(import_lrcat::orientation::exif)
+                {
+                    image.recipe.unknown.insert(
+                        "lightroom_orientation".into(),
+                        serde_json::json!(orientation),
+                    );
+                }
                 image.recipe.unknown.insert(
                     "lightroom_smart_preview".into(),
                     serde_json::json!({
