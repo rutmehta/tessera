@@ -108,6 +108,41 @@ mod tests {
         ));
         assert_eq!(events.0.lock().unwrap().len(), 1);
     }
+
+    #[test]
+    fn lr13_imported_proxy_thumbnail_renders_at_thumbnail_level() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("proxy.dng");
+        std::fs::write(
+            &path,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
+        let recipe = core::Recipe::default();
+        let id = engine_api::id::ImageId(13);
+        let render = |max_px| {
+            render_imported(&path, id, &recipe, dir.path(), max_px)
+                .unwrap()
+                .0
+        };
+        let full = render(u32::MAX);
+        let (w, h) = full.dimensions();
+        let long = w.max(h);
+        assert!(long >= 8, "fixture must span several levels");
+        // A grid request renders the coarsest level that still covers it.
+        let thumb = render(long.div_ceil(4));
+        assert_eq!(thumb.dimensions(), (w.div_ceil(4), h.div_ceil(4)));
+        // A request is never upsampled or rendered coarser than it needs.
+        assert_eq!(
+            render(long.div_ceil(4) + 1).dimensions(),
+            (w.div_ceil(2), h.div_ceil(2))
+        );
+        assert_eq!(render(long).dimensions(), (w, h));
+        let mean = |i: &image::RgbImage| {
+            i.as_raw().iter().map(|v| f64::from(*v)).sum::<f64>() / i.as_raw().len() as f64
+        };
+        assert!((mean(&full) - mean(&thumb)).abs() <= 3.0);
+    }
 }
 
 use engine_api::jobs::{Job, JobContext, Priority, Scheduler};
