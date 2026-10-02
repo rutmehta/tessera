@@ -222,28 +222,75 @@ impl PreviewIndex {
                 .join(format!("{uuid}-{digest}.lrprev")),
         )
     }
+    /// Whether a legacy container or a split JPEG level exists for this exact
+    /// catalog digest. Old cache generations are never substituted.
+    pub fn has_preview(&self, image: i64) -> EngineResult<bool> {
+        Ok(!self.preview_files(image)?.is_empty())
+    }
+
+    fn preview_files(&self, image: i64) -> EngineResult<Vec<PathBuf>> {
+        let Some(legacy) = self.lrprev_path(image) else {
+            return Ok(Vec::new());
+        };
+        let mut paths = Vec::new();
+        for extension in ["lrprev", "lrfprev", "lrmprev"] {
+            let path = legacy.with_extension(extension);
+            if path.is_file() {
+                paths.push(path);
+            }
+        }
+        let Some(parent) = legacy.parent() else {
+            return Ok(paths);
+        };
+        let Some(stem) = legacy.file_stem().and_then(|s| s.to_str()) else {
+            return Ok(paths);
+        };
+        let prefix = format!("{stem}_");
+        let entries = match std::fs::read_dir(parent) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(paths),
+            Err(e) => return Err(EngineError::io_at(parent, &e)),
+        };
+        for entry in entries {
+            let entry = entry.map_err(|e| EngineError::io_at(parent, &e))?;
+            let name = entry.file_name();
+            if name
+                .to_str()
+                .and_then(|n| n.strip_prefix(&prefix))
+                .is_some_and(|n| {
+                    !n.is_empty() && n.len() <= 10 && n.bytes().all(|b| b.is_ascii_digit())
+                })
+                && entry.path().is_file()
+            {
+                paths.push(entry.path());
+            }
+        }
+        paths.sort();
+        Ok(paths)
+    }
+
     /// The smallest JPEG level whose longer edge is at least `min_edge`, else the
-    /// largest level. `Ok(None)` when the image has no cached preview.
+    /// largest level. Supports AgHg containers and newer `<uuid>-<digest>_<edge>`
+    /// JPEG files. Encoded dimensions, not the filename hint, select the level.
     pub fn jpeg(&self, image: i64, min_edge: u32) -> EngineResult<Option<Vec<u8>>> {
-        let Some(path) = self.lrprev_path(image) else {
-            return Ok(None);
-        };
-        let bytes = match std::fs::read(&path) {
-            Ok(b) => b,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(e) => return Err(EngineError::io_at(&path, &e)),
-        };
-        let sections = parse_lrprev(&bytes)?;
-        let mut levels: Vec<(u32, &Section)> = jpeg_levels(&sections)
-            .into_iter()
-            .map(|s| (jpeg_dimensions(&s.data).map_or(0, |(w, h)| w.max(h)), s))
-            .collect();
-        levels.sort_by_key(|(edge, _)| *edge);
-        Ok(levels
+        let mut levels = Vec::new();
+        for path in self.preview_files(image)? {
+            let bytes = std::fs::read(&path).map_err(|e| EngineError::io_at(&path, &e))?;
+            if bytes.starts_with(&[0xff, 0xd8]) {
+                levels.push(bytes);
+            } else {
+                levels.extend(parse_lrprev(&bytes)?.into_iter().filter_map(|section| {
+                    (section.name.starts_with("level_") && section.data.starts_with(&[0xff, 0xd8]))
+                        .then_some(section.data)
+                }));
+            }
+        }
+        levels.sort_by_key(|bytes| jpeg_dimensions(bytes).map_or(0, |(w, h)| w.max(h)));
+        let selected = levels
             .iter()
-            .find(|(edge, _)| *edge >= min_edge)
-            .or(levels.last())
-            .map(|(_, s)| s.data.clone()))
+            .position(|bytes| jpeg_dimensions(bytes).is_some_and(|(w, h)| w.max(h) >= min_edge))
+            .or_else(|| levels.len().checked_sub(1));
+        Ok(selected.map(|i| levels.swap_remove(i)))
     }
 }
 
@@ -271,8 +318,11 @@ mod tests {
         let small = jpeg(20);
         let large = jpeg(40);
         for (suffix, bytes) in [("_256", &small), ("_1024", &large)] {
-            std::fs::write(legacy.with_file_name(format!("{uuid}-{digest}{suffix}")), bytes)
-                .unwrap();
+            std::fs::write(
+                legacy.with_file_name(format!("{uuid}-{digest}{suffix}")),
+                bytes,
+            )
+            .unwrap();
         }
         std::fs::write(
             legacy.with_file_name(format!("{uuid}-cccccccccccccccccccccccccccccccc_2048")),
