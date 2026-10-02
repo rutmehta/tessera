@@ -114,7 +114,7 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
         ) {
             return Err(format!("invalid lane: {line}"));
         }
-        let approximate = match cells[4] {
+        let approximate = match cells[4].split(';').next().unwrap().trim() {
             "retained" | "unsupported-diagnostic" => continue,
             "translated" => false,
             "approximate" => true,
@@ -234,7 +234,7 @@ fn translation_matrix_matches_synthetic_import() {
     let counts = check_matrix(&matrix).unwrap();
     let lr2_rows = matrix
         .lines()
-        .filter(|line| line.contains("| LR-2 | approximate |"))
+        .filter(|line| line.contains("| LR-2 | approximate"))
         .collect::<Vec<_>>()
         .join("\n");
     let (lr2_counts, keys) = check_rows(&lr2_rows, &lua_import).unwrap();
@@ -501,7 +501,10 @@ fn lr9_matrix_defaults_are_silent_and_nondefaults_remain_visible() {
             continue;
         }
         assert!(
-            matrix.contains(&format!("`{key}`")),
+            matrix
+                .lines()
+                .any(|line| line.starts_with(&format!("| `{key}` |"))
+                    && line.contains("no-op when default")),
             "missing matrix key {key}"
         );
         let (default, nondefault, context) = match rule {
@@ -550,4 +553,13 @@ fn lr9_matrix_defaults_are_silent_and_nondefaults_remain_visible() {
             );
         }
     }
+}
+
+#[test]
+fn lr9_false_grayscale_with_saved_mixer_has_no_grayscale_report_entry() {
+    let (recipe, warnings) =
+        lua_develop::parse("s={ConvertToGrayscale=false,GrayMixerRed=20}", "15.4").unwrap();
+    assert!(warnings.is_empty());
+    assert!(!diagnostics::entries(&recipe).contains_key("ConvertToGrayscale"));
+    assert!(diagnostics::entries(&recipe).contains_key("GrayMixerRed"));
 }

@@ -51,24 +51,24 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | --- | --- | --- | --- | --- |
 | `*` | MISSING: unknown future Adobe property; classify before mapping | LR-7 | retained | — |
 | `AutoTone` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
-| `AutoToneDigest` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
-| `AutoToneDigest*` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
-| `AutoToneDigestNoSat` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
+| `AutoToneDigest` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `AutoToneDigest*` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `AutoToneDigestNoSat` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `AutoWhiteVersion` | MISSING: Adobe auto-analysis state/digest; resolved sliders belong in /settings/tone | LR-2 | unsupported-diagnostic | — |
-| `Brightness` | `/settings/tone/legacy_pv2010/brightness` | LR-2 | approximate | `75` |
+| `Brightness` | `/settings/tone/legacy_pv2010/brightness` | LR-2 | approximate; no-op when default | `75` |
 | `ChromaticAberrationB` | `/settings/lens/legacy_ca_blue` | LR-7 | approximate | `-25` |
 | `ChromaticAberrationR` | `/settings/lens/legacy_ca_red` | LR-7 | approximate | `35` |
 | `Clarity` | /settings/tone/clarity (candidate only; PV2010 operator differs) | LR-2 | unsupported-diagnostic | — |
-| `CompatibleVersion` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic | — |
-| `Contrast` | `/settings/tone/legacy_pv2010/contrast` | LR-2 | approximate | `50` |
-| `ConvertToGrayscale` | `/settings/color/monochrome/enabled` | LR-2 | approximate | `true` |
-| `CurveRefineSaturation` | MISSING: tone-curve saturation refinement | LR-2 | unsupported-diagnostic | — |
+| `CompatibleVersion` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic; no-op when default | — |
+| `Contrast` | `/settings/tone/legacy_pv2010/contrast` | LR-2 | approximate; no-op when default | `50` |
+| `ConvertToGrayscale` | `/settings/color/monochrome/enabled` | LR-2 | approximate; no-op when default | `true` |
+| `CurveRefineSaturation` | MISSING: tone-curve saturation refinement | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic | — |
 | `DepthMapInfo` | `/settings/effects/lens_blur/depth` | LR-6 | approximate | `{ DepthSource = "synthetic", BaseRawDepthTable = "synthetic-id" }` |
 | `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic | — |
 | `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
 | `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
-| `Exposure` | `/settings/tone/legacy_pv2010/exposure` | LR-2 | approximate | `1` |
+| `Exposure` | `/settings/tone/legacy_pv2010/exposure` | LR-2 | approximate; no-op when default | `1` |
 | `ExtendedToneCurveName2012` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | retained | — |
 | `ExtendedToneCurvePV2012` | `/settings/tone/curves_extended/rgb` | LR-2 | approximate | `{0,0,255,300,510,600}` |
 | `ExtendedToneCurvePV2012Blue` | `/settings/tone/curves_extended/blue` | LR-2 | approximate | `{0,0,255,300,510,600}` |
@@ -85,10 +85,10 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `GrayMixerRed` | `/settings/color/monochrome/mixer/red` | LR-2 | approximate | `25` |
 | `GrayMixerYellow` | `/settings/color/monochrome/mixer/yellow` | LR-2 | approximate | `25` |
 | `HighlightRecovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
-| `IncrementalTemperature` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
-| `IncrementalTint` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic | — |
-| `LensBlur` | `/settings/effects/lens_blur` | LR-6 | approximate | `{ Active = true, BlurAmount = 37, FocalRange = "10 20 60 80", BokehShape = 0 }` |
-| `LensProfileIsEmbedded` | MISSING: embedded-profile/Look-vignette override semantics in /settings/lens | LR-7 | unsupported-diagnostic | — |
+| `IncrementalTemperature` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `IncrementalTint` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `LensBlur` | `/settings/effects/lens_blur` | LR-6 | approximate; no-op when default | `{ Active = true, BlurAmount = 37, FocalRange = "10 20 60 80", BokehShape = 0 }` |
+| `LensProfileIsEmbedded` | MISSING: embedded-profile/Look-vignette override semantics in /settings/lens | LR-7 | unsupported-diagnostic; no-op when default | — |
 | `MaskGroupBasedCorrections` | `/settings/locals/adjustments` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask` | `/settings/locals/adjustments/0/components/0/range` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/Flipped` | `/settings/locals/adjustments/0/components/0/invert` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/CircularGradient",MaskID="synthetic",Left=0.2,Right=0.8,Top=0.1,Bottom=0.9,Flipped=false}}}}` |
@@ -104,7 +104,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `MaskGroupBasedCorrections/MaskActive` | `/settings/locals/adjustments/0/components/0/enabled` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0,MaskActive=false}}}}` |
 | `MaskGroupBasedCorrections/MaskBlendMode` | `/settings/locals/adjustments/0/components/0/combine` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0,MaskBlendMode=1}}}}` |
 | `MaskGroupBasedCorrections/Masks` | `/settings/locals/adjustments/0/components/0/group` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/Group",Masks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}}}` |
-| `OverrideLookVignette` | MISSING: embedded-profile/Look-vignette override semantics in /settings/lens | LR-7 | unsupported-diagnostic | — |
+| `OverrideLookVignette` | MISSING: embedded-profile/Look-vignette override semantics in /settings/lens | LR-7 | unsupported-diagnostic; no-op when default | — |
 | `PerspectiveAspect` | `/settings/geometry/transform/aspect` | LR-7 | translated | `1` |
 | `PerspectiveHorizontal` | `/settings/geometry/transform/horizontal` | LR-7 | translated | `1` |
 | `PerspectiveRotate` | `/settings/geometry/transform/rotate` | LR-7 | translated | `1` |
@@ -113,51 +113,51 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `PerspectiveVertical` | `/settings/geometry/transform/vertical` | LR-7 | translated | `1` |
 | `PerspectiveX` | `/settings/geometry/transform/offset_x` | LR-7 | translated | `1` |
 | `PerspectiveY` | `/settings/geometry/transform/offset_y` | LR-7 | translated | `1` |
-| `PointColors` | `/settings/color/point_colors` | LR-1 | approximate | `{{ SrcHue=0, SrcSat=0.9, SrcLum=0.5, HueShift=0.5 }}` |
+| `PointColors` | `/settings/color/point_colors` | LR-1 | approximate; no-op when default | `{{ SrcHue=0, SrcSat=0.9, SrcLum=0.5, HueShift=0.5 }}` |
 | `RangeMaskMapInfo` | MISSING: Adobe range-mask resource mapping; candidate /settings/locals/adjustments | LR-4 | unsupported-diagnostic | — |
-| `RedEyeInfo` | MISSING: red-eye correction operator in /settings/locals/retouch | LR-3 | unsupported-diagnostic | — |
+| `RedEyeInfo` | MISSING: red-eye correction operator in /settings/locals/retouch | LR-3 | unsupported-diagnostic; no-op when default | — |
 | `RetouchAreas` | `/settings/locals/retouch` | LR-3 | approximate | `{{centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType='clone',opacity=0.5,feather=0.5}}` |
-| `RetouchInfo` | `/settings/locals/retouch` | LR-3 | approximate | `{'centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType=heal'}` |
-| `SDRBlend` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
-| `SDRBrightness` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
-| `SDRClarity` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
-| `SDRContrast` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
-| `SDRHighlights` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
-| `SDRShadows` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
-| `SDRWhites` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic | — |
-| `Shadows` | `/settings/tone/legacy_pv2010/blacks` | LR-2 | approximate | `5` |
+| `RetouchInfo` | `/settings/locals/retouch` | LR-3 | approximate; no-op when default | `{'centerX=0.25,centerY=0.5,radius=0.05,sourceX=0.75,sourceY=0.5,spotType=heal'}` |
+| `SDRBlend` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `SDRBrightness` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `SDRClarity` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `SDRContrast` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `SDRHighlights` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `SDRShadows` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `SDRWhites` | MISSING: separate SDR rendition controls alongside /settings/output/hdr | LR-2 | unsupported-diagnostic; no-op when default | — |
+| `Shadows` | `/settings/tone/legacy_pv2010/blacks` | LR-2 | approximate; no-op when default | `5` |
 | `ToggleStyleAmount` | MISSING: style toggle state/digest; candidate /settings/camera_profile/look/amount | LR-2 | unsupported-diagnostic | — |
 | `ToggleStyleDigest` | MISSING: style toggle state/digest; candidate /settings/camera_profile/look/amount | LR-2 | unsupported-diagnostic | — |
 | `ToneCurve` | MISSING: legacy curve process semantics/name; candidate /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
 | `ToneCurveBlue` | MISSING: legacy curve process semantics/name; candidate /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
 | `ToneCurveGreen` | MISSING: legacy curve process semantics/name; candidate /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
 | `ToneCurveName` | MISSING: legacy curve process semantics/name; candidate /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
-| `ToneCurveName2012` | MISSING: curve preset name; points belong in /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
+| `ToneCurveName2012` | MISSING: curve preset name; points belong in /settings/tone/curves | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `ToneCurveRed` | MISSING: legacy curve process semantics/name; candidate /settings/tone/curves | LR-2 | unsupported-diagnostic | — |
 | `Upright*` | MISSING: arbitrary Upright family members/solve state in /settings/geometry | LR-7 | retained | — |
-| `UprightCenterMode` | `/settings/geometry/upright/homography` | LR-7 | approximate | `1` |
-| `UprightCenterNormX` | `/settings/geometry/upright/homography` | LR-7 | approximate | `0.25` |
-| `UprightCenterNormY` | `/settings/geometry/upright/homography` | LR-7 | approximate | `0.75` |
+| `UprightCenterMode` | `/settings/geometry/upright/homography` | LR-7 | approximate; no-op when default | `1` |
+| `UprightCenterNormX` | `/settings/geometry/upright/homography` | LR-7 | approximate; no-op when default | `0.25` |
+| `UprightCenterNormY` | `/settings/geometry/upright/homography` | LR-7 | approximate; no-op when default | `0.75` |
 | `UprightDependentDigest` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `UprightFocalLength35mm` | `/settings/geometry/upright/homography` | LR-7 | approximate | `70` |
-| `UprightFocalMode` | `/settings/geometry/upright/homography` | LR-7 | approximate | `1` |
+| `UprightFocalLength35mm` | `/settings/geometry/upright/homography` | LR-7 | approximate; no-op when default | `70` |
+| `UprightFocalMode` | `/settings/geometry/upright/homography` | LR-7 | approximate; no-op when default | `1` |
 | `UprightFourSegments*` | MISSING: arbitrary Upright family members/solve state in /settings/geometry | LR-7 | retained | — |
-| `UprightFourSegmentsCount` | `/settings/geometry/upright/guides` | LR-7 | approximate | `4` |
+| `UprightFourSegmentsCount` | `/settings/geometry/upright/guides` | LR-7 | approximate; no-op when default | `4` |
 | `UprightFourSegments_0` | `/settings/geometry/upright/guides` | LR-7 | approximate | `'0.1,0.1,0.2,0.9'` |
 | `UprightFourSegments_1` | `/settings/geometry/upright/guides` | LR-7 | approximate | `'0.1,0.1,0.2,0.9'` |
 | `UprightFourSegments_2` | `/settings/geometry/upright/guides` | LR-7 | approximate | `'0.1,0.1,0.2,0.9'` |
 | `UprightFourSegments_3` | `/settings/geometry/upright/guides` | LR-7 | approximate | `'0.1,0.1,0.2,0.9'` |
-| `UprightPreview` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
+| `UprightPreview` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic; no-op when default | — |
 | `UprightTransform*` | MISSING: arbitrary Upright family members/solve state in /settings/geometry | LR-7 | retained | — |
-| `UprightTransformCount` | solution inventory metadata retained | LR-7 | retained | — |
+| `UprightTransformCount` | solution inventory metadata retained | LR-7 | retained; no-op when default | — |
 | `UprightTransform_0` | inactive Off solution retained; no rendered effect | LR-7 | retained | — |
 | `UprightTransform_1` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
 | `UprightTransform_2` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
 | `UprightTransform_3` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
 | `UprightTransform_4` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
 | `UprightTransform_5` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
-| `UprightVersion` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic | — |
-| `Version` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic | — |
+| `UprightVersion` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic; no-op when default | — |
+| `Version` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic; no-op when default | — |
 | `Blacks` | `/settings/tone/legacy_pv2010/blacks` | LR-2 | approximate | `5` |
 | `Recovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask/LumRange` | `/settings/locals/adjustments/0/components/0/luminance_bounds` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
@@ -297,3 +297,12 @@ range imports carry `luminance_domain: "display"`, which conditionally requires
 schema 4. Parametric gradient/radial `MaskValue` is retained with an explicit
 approximation diagnostic: strength is not reproduced (unit selection is used).
 See [LR-4e handoff](../../tools/orchestrate/wp/LR-4e/HANDOFF.md).
+
+## LR-9 default disposition
+
+Rows marked `no-op when default` use the single policy table in
+`crates/import-lrcat/src/noop.rs`. Provenance is always silent; control predicates
+are value- and context-dependent. The guard tests every table key with a synthetic
+no-op and, for controls, a non-default that still warns or translates approximately.
+Exact retained source is unchanged. This status suffix does not promote the
+non-default translation or claim Adobe rendering parity.

@@ -538,6 +538,12 @@ fn issue(category: &str, reason: String, count: usize, examples: Vec<String>) ->
 /// into per-Adobe-key groups; the first photo's reason is the example.
 fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) {
     for (key, entries) in import_lrcat::diagnostics::entries(recipe) {
+        let Some(first) = entries
+            .iter()
+            .find(|e| e.level == "info" && e.status == "approximate")
+        else {
+            continue;
+        };
         match issues.iter_mut().find(|i| i.category == key) {
             Some(group) => {
                 group.count += 1;
@@ -547,7 +553,7 @@ fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) 
             }
             None => issues.push(issue(
                 &key,
-                entries[0].reason.clone(),
+                first.reason.clone(),
                 1,
                 vec![display_path(path)],
             )),

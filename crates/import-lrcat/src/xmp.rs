@@ -41,6 +41,21 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     crate::retouch::translate(&mut recipe, &mut warnings)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;
+    let doc = Document::parse(text).map_err(|e| EngineError::Decode {
+        format: "xmp".into(),
+        message: e.to_string(),
+    })?;
+    let wrapped;
+    let doc = if doc.root_element().has_tag_name((RDF, "Description")) {
+        wrapped = format!("<rdf:RDF xmlns:rdf=\"{RDF}\">{text}</rdf:RDF>");
+        Document::parse(&wrapped).map_err(|e| EngineError::Decode {
+            format: "xmp".into(),
+            message: e.to_string(),
+        })?
+    } else {
+        doc
+    };
+    crate::noop::silence(&crate::noop::xmp_table(&doc), &mut recipe, &mut warnings);
     Ok((recipe, warnings))
 }
 
