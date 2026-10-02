@@ -854,3 +854,12 @@ fn contact_thumbnail_preserves_non_square_aspect() {
         assert_eq!(contact_thumbnail(&pixels).dimensions(), expected);
     }
 }
+
+#[test]
+fn lr10_pair_metrics_report_signed_rgb_delta() {
+    let a=image::RgbImage::from_pixel(8,8,image::Rgb([30,40,50]));
+    let b=image::RgbImage::from_pixel(8,8,image::Rgb([10,50,40]));
+    let value=pair_measurement(&a,&b);
+    assert_eq!(value["mean_rgb_delta_8bit"],json!([20.,-10.,10.]));
+    assert!((value["luminance_mad_8bit"].as_f64().unwrap()-2.178).abs()<1e-8);
+}
