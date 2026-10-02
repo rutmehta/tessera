@@ -2672,6 +2672,38 @@ mod lr5_imported_tests {
 mod lr5b_unavailable_tests {
     use super::*;
     #[test]
+    fn lr5b_nested_unavailable_mask_reports_pending_ui() {
+        let mut parent = MaskComponent::new(MaskKind::Brush { strokes:vec![] });
+        parent.group = Some(vec![MaskComponent::new(MaskKind::Subject { model:None })]);
+        let group = LocalAdjustment { components:vec![parent],..Default::default() };
+        let info = group_info(&group,&HashMap::new());
+        assert!(matches!(info.components[0].ai,AiMaskState::Pending { .. }));
+    }
+    #[test]
+    fn lr5b_regenerated_imported_job_invalidates_live_frame() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(2,2,image::Rgb([100,100,100])).save(photos.join("synthetic.jpg")).unwrap();
+        let engine = Engine::open(dir.path().join("app").to_string_lossy().into_owned()).unwrap();
+        engine.index_folder(photos.to_string_lossy().into_owned()).unwrap();
+        let id = engine.list_images(crate::ImageQuery::default()).unwrap().remove(0).id;
+        let session = engine.clone().open_develop_session(id).unwrap();
+        let kind = MaskKind::Subject { model:None };
+        let mut component = MaskComponent::new(kind.clone());
+        component.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask { resource_id:None,category:"Subject".into(),mask_key:Some([49;32]),regenerate:false });
+        let key = component_raster_key(&component).unwrap();
+        {
+            let mut state = session.shared.edit_lock().unwrap();
+            state.live.locals.adjustments.push(LocalAdjustment { components:vec![component],..Default::default() });
+            state.rendered = Some(state.drawn());
+        }
+        let generation = session.shared.generation.load(Ordering::SeqCst);
+        AiMaskJob { shared:Arc::downgrade(&session.shared),key,kind }.finish(&session.shared,Ok(AlphaPlane { width:2,height:2,data:vec![1.;4] }));
+        assert!(session.shared.generation.load(Ordering::SeqCst)>generation);
+        session.close().unwrap();
+    }
+    #[test]
     fn lr5b_unavailable_inverted_and_subtracted_ai_has_zero_effect_and_pending_ui() {
         let shared = MaskShared::with_extents(vec![(2, 1)]);
         let image = pipeline_cpu::Image::new(2, 1, vec![vec![0.18; 2]; 3]).unwrap();
