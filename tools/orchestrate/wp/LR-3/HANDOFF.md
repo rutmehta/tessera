@@ -1,3 +1,151 @@
+# LR-3f: rebase-only pre-stack integration
+
+This section is current; the LR-3e and earlier sections below are historical.
+
+Local Machine B branch `wp/LR-3-retouch`; original tip `244ad145`, rebased
+without squashing all 25 lane commits onto `origin/wp/LR-5-ai-masks`
+`04217312` (main + LR-2..2f + LR-1..1c + LR-4..4f + LR-5..5b).
+No features or Cargo dependency changes. No push, board.json write, GUI launch,
+or personal catalog access. Tests use generated catalogs and authorized repo RAWs.
+
+## Conflicts and resolutions
+
+The following records every stopped replay and each conflicted file (original
+commit IDs identify the replay, not the rewritten hashes):
+
+- `65f69eb1`, `import-lrcat/src/lua_develop.rs` and `src/xmp.rs`: retain
+  `parse_without_retouch`, delegating to `parse_inner(..., false)` for Lua.
+  Preserve the base XMP mask-audit decoder. Lua applies LR-2, then geometry,
+  then retouch last, then the shared `finish` and validation. Direct XMP likewise
+  translates retouch before `finish`. The fetched base has no `masks_translated`
+  symbol; its successor `decode_with_mask_audit` path remains intact.
+- `9bdffcad`, `export/src/lib.rs`: preserve both caller-owned mask support and
+  retouch fields/defaults. Preserve both public wrappers through a common
+  resource-aware pixel renderer. FFI print passes both capabilities. Retouch's
+  existing explicit unsupported combinations remain unchanged.
+- `9bdffcad`, `image-core/src/render.rs`: retouch-aware validation alongside
+  LR-2 `validate_domain`; retain monochrome stage condition and both stage
+  operations pending the later LR-3d ordering commit.
+- `9bdffcad`, `image-core/src/resident_render.rs`: retain both Point Color and
+  retouch predicates selecting the nonresident path.
+- `9bdffcad`, `image-core/src/rgb_render.rs`: retain LR-2 post-curve color and
+  LR-3 retouch routing, subsequently moved before Detail by LR-3d.
+- `9bdffcad`, `tessera-ffi/src/export.rs`: keep mask support and brush retouch
+  registration together, including print's common resource-aware call.
+- `02cf00d0`, `tessera-ffi/src/smart_preview.rs`: base LR-7 first-lane schema
+  journal test wins; drop the duplicate LR-3 schema checklist test.
+- `bc293446`, `engine-api/src/recipe/schema.rs`: retain every predecessor's
+  predicate and recursive mask scan, adding only retouch's predicate.
+- `bc293446`, `engine-api/src/recipe/settings.rs`: Detail hashes retouch;
+  Tone keeps LR-2 monochrome / LR-1 Point Color chaining.
+- `bc293446`, `image-core/src/render.rs`: apply retouch to white-balanced
+  pixels before pre/post-curve bindings and Detail; retain monochrome condition
+  and remove the obsolete late retouch operation.
+- `bc293446`, `image-core/src/rgb_render.rs`: retouch before Detail, keep
+  pre/post-curve color order, use selected CPU ops in the monochrome block,
+  remove late retouch from Locals.
+- `bc293446`, `import-lrcat/tests/schema_version.rs`: keep the shared harness;
+  final fixture expectation accounts for the newly translated retouch rows.
+- `bc293446`, `merge/tests/recipe.rs` and `sidecar/tests/roundtrip.rs`: base
+  assert-expected-version-then-normalise pins win; no lane-local copies.
+- `bc293446`, `tessera-ffi/src/smart_preview.rs`: retain LR-7's shared test.
+- `3334718f`, `docs/coordination/LR-TRANSLATION-MATRIX.md`: preserve every base
+  row and all base notes; change only RetouchAreas/RetouchInfo rows. Drop the
+  lane-local generic approximation definition and matrix prose additions.
+- `721c8a42`, `image-core/src/render_review_tests.rs`: retain both saved-Upright
+  skip-analysis and retouch session-reuse tests.
+- `721c8a42`, `merge/tests/recipe.rs` and `sidecar/tests/roundtrip.rs`: again
+  retain base explicit version pins and normalization.
+- `3f745b70`, `engine-api/src/recipe/schema.rs`: preserve all base predicates;
+  retouch scans settings and history.base, with only its feature-presence tests.
+
+Semantic integration audit after replay: LR-3's translator now only assigns
+retouch settings; LR-7's shared `finish` alone records `Import XMP` / `xmp`.
+Diagnostics readers use `entries()` and optional field `as_deref()`. The base
+shared matrix guard remains unchanged. RGB Tone memo hashing uses the shared
+stage hash so monochrome/Point Color changes invalidate the correct prefix.
+Retouch precedes Detail/Tone; Point Color precedes B&W; masks precede Upright.
+The shared Point Color compatibility fixture's `structures` row contains a heal
+and necessarily changes under LR-3: only that row's byte length/hash is repinned
+(18101 -> 20442 bytes); all nine unaffected rows retain their exact pins. LR-7's separate fingerprint
+for the same structures row is likewise repinned; its other three rows remain
+byte-identical. The
+2,000-image integration golden was recomputed by the test and still matches
+`87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5`.
+
+## Combined regression and gates
+
+Test commit: `c58e617f` (`test(LR-3f): verify combined import and exact spot
+exterior pixels`). Semantic post-replay corrections are folded into the replayed
+LR-3e integration commit `c206de07`; no original lane commits were squashed.
+All requested gates passed on this exact source. The final documentation commit
+changes only this handoff and restores base matrix prose; its two retouch rows
+are identical to those exercised by the gates. The preliminary full run
+stopped at LR-1's structures pin; the importer follow-up exposed LR-7's pin for
+the same row. Both were updated after inspecting the retouch-only changes.
+The focused combined regression passed before the clean final run.
+
+Environment and final commands (no test filters or command-level exclusions):
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-4-parametric-masks
+export CARGO_BUILD_JOBS=4
+export RAYON_NUM_THREADS=4
+cargo clean --release -p brush -p engine-api -p export -p image-core \
+  -p import-lrcat -p pipeline-cpu -p previews -p tessera-ffi -p tessera-mcp
+cargo test --release -p import-lrcat -p engine-api -p pipeline-cpu \
+  -p pipeline-gpu -p brush -p image-core -p export -p previews \
+  -p tessera-mcp -p sidecar -p merge -p mask-store -p tessera-ffi
+cargo clippy --release --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
+(cd apps/mac && ./build-ffi.sh)
+tools/orchestrate/swift-gate.sh
+(cd apps/mac && swift build -c release --product Tessera \
+  -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors)
+```
+
+Release cleaning removed 3,548 files / 8.8 GiB; the clean compilation completed
+in 6m 33s. Final gates:
+
+| Gate | Result | Wall time |
+| --- | --- | --- |
+| Unfiltered 13-package release tests | PASS, exit 0 | 935 s |
+| Release workspace/all-target clippy, `-D warnings` | PASS, exit 0 | 33 s |
+| `cargo fmt --all -- --check` | PASS, exit 0 | 2 s |
+| `apps/mac/build-ffi.sh` | PASS, arm64 archive and generated bindings | 143 s |
+| `tools/orchestrate/swift-gate.sh` | PASS, `SWIFT GATE OK` | 434 s |
+| Strict-concurrency / warnings-as-errors Tessera release build | PASS, exit 0 | 138 s |
+
+Cargo test summaries report 1,810 passed, zero failed and 59 existing ignores
+(including child-process executions in the reported pass total). No command
+filters, skip flags, threshold changes or test exclusions were used. Repo RAW
+fixtures were exercised. The new LR-3f combined test passed in the clean gate.
+Swift gate: 920 XCTest tests, 3 skipped, zero failures; an additional 5 Swift
+Testing tests passed. FFI generation produced no tracked binding delta.
+The strict release product build completed in 137.86 s. It emitted one nonfatal
+linker warning: cached `blake3_neon.o` was built for macOS 26.2 while linking for
+15.0. Swift compilation with complete strict concurrency and warnings-as-errors
+passed; no deployment compatibility claim beyond these requested gates is made.
+
+Final audits: zero Cargo.toml / Cargo.lock delta against `04217312`; all 118 base
+matrix rows remain and only RetouchAreas/RetouchInfo differ. Base shared schema
+journal, sidecar/merge round-trip pins and translation-matrix guard are unchanged.
+The pre-existing untracked `LR-RULINGS-FROM-A.md` is untouched.
+Raw command logs are `/tmp/LR-3f-{release-final,clippy,fmt,ffi,swift-gate,swift-release}.log`;
+detailed Swift test output is `/tmp/LR-3f-swift-tests-detail.log`.
+
+
+ The LR-3f test uses a generated catalog row combining
+LR-1 Point Color, LR-2 monochrome/mixer, LR-3 heal plus clone, LR-4 nested display
+luminance range and LR-7 saved Upright. It verifies one Import edit, schema 4,
+shared per-lane diagnostics, CPU render, both spots changing pixels and exact
+exterior bits against a separately parsed row without spots. Identity Upright
+and disabled spatial Detail controls isolate literal spot footprints while all
+imported color and mask operators remain active.
+
+---
+
 # LR-3e: diagnostics conversion and retouch review fixes
 
 Local branch `wp/LR-3-retouch`, Machine B. Rebased all 17 existing lane commits

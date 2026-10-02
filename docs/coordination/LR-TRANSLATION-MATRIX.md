@@ -187,13 +187,9 @@ structure; a scalar or empty payload is not proof of full structure coverage.
   needs coordination with LR-5/6; it is not a tone curve.
 - **LR-3:** `RetouchOperation` supports heal/clone offsets, remove/skin, opacity,
   feather, enabled and targets made from mask components or mask IDs. Brush
-  strokes carry pressure/radius/flow/erase. LR-3d renders explicit-source
-  heal/clone spots before Detail/Tone with one union mask per spot; imported
-  conventions remain approximate, with exact source and info diagnostics kept.
-  Plain Mask/Circle and Seed/MaskDigest provenance are accepted; CenterValue
-  and other unknown semantics stay retained. No dedicated red-eye operator or
-  Adobe cloud-generated patch/resource is represented; enabled remove/skin
-  operations still fail explicitly in this Develop adapter.
+  strokes carry pressure/radius/flow/erase. This can express spots/strokes once
+  Adobe encoding and coordinate conventions are decoded. No dedicated red-eye
+  operator or Adobe cloud-generated patch/resource is represented.
 - **LR-4:** disabled components, nested trees (at most eight component levels),
   four-bound display luminance, scalar depth, individual brush dabs and color
   models decode with source retained and info diagnostics. Adobe blend codes,
