@@ -41,15 +41,17 @@ fn adjustment(op:u32,rgb:vec3<f32>)->vec3<f32>{
  case 25u:{return floor(clamp(rgb,vec3(0.0),vec3(1.0))*p[32]+vec3(0.5))/p[32];}
  case 26u:{let hsl=to_hsl(clamp(rgb,vec3(0.0),vec3(1.0)));return from_hsl(vec3(modulo(hsl.x+p[32],1.0),shift_unit(hsl.y,p[33]),shift_unit(hsl.z,p[34])));}
  case 27u:{let y=luma(rgb);let hi=max(max(rgb.r,rgb.g),rgb.b);let lo=min(min(rgb.r,rgb.g),rgb.b);var chroma=0.0;if hi>0.0{chroma=clamp((hi-lo)/hi,0.0,1.0);}let gain=(1.0+p[33])*(1.0+p[32]*(1.0-chroma));return vec3(y)+(rgb-vec3(y))*gain;}
- case 28u:{let filtered=rgb*(vec3(1.0-p[35])+p[35]*rgb_at(32u));let y=luma(filtered);if p[36]!=0.0 {let peak=max(abs(filtered.x),max(abs(filtered.y),abs(filtered.z)));
- // k=0.25 and filtered-channel domain match CPU. Exact zero retains fallback.
- let cancelling=abs(y)<PHOTO_LUMA_FLOOR && abs(y)<0.25*peak;
- if y!=0.0 && !cancelling{return filtered*luma(rgb)/y;}
- if y!=0.0 {
+ case 28u:{let filtered=rgb*(vec3(1.0-p[35])+p[35]*rgb_at(32u));let y=luma(filtered);if p[36]!=0.0 {
+ if y==0.0 {return rgb;}
+ // k=0.25 continuously tapers cancellation; same-sign colours have rho=1.
+ // Nonzero Y guarantees A>0, including the exact-black fallback above.
+ let rho=abs(y)/luma(abs(filtered));
+ let denominator=max(abs(y),PHOTO_LUMA_FLOOR*clamp(1.0-rho/0.25,0.0,1.0));
+ if denominator==abs(y){return filtered*luma(rgb)/y;}
  let mapped_luma = luma(rgb);
- let gain = 1.0 + (mapped_luma - y) / select(-PHOTO_LUMA_FLOOR, PHOTO_LUMA_FLOOR, y > 0.0);
+ let gain = 1.0 + (mapped_luma - y) / select(-denominator, denominator, y > 0.0);
  return filtered*gain;
- }return rgb;}return filtered;}
+ }return filtered;}
  case 29u:{return matrix(32u,rgb)+rgb_at(41u);}
  case 30u:{var t=clamp(luma(rgb),0.0,1.0);if p[17]!=0.0 {t=1.0-t;}var i=32u;for(var j=0u;j<u32(p[16])-2u;j++){if p[i+4u]>t {break;}i+=4u;}let u=(t-p[i])/(p[i+4u]-p[i]);return rgb_at(i+1u)*(1.0-u)+rgb_at(i+5u)*u;}
  case 31u:{

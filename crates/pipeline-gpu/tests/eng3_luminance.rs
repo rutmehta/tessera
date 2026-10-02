@@ -138,8 +138,8 @@ fn eng3c_curve_cancelling_pixel_signed_floor_boundaries() {
         } else {
             1. + (mapped - y) / d.copysign(y)
         };
-        for c in 0..3 {
-            let expected = rgb[c] as f64 * gain;
+        for (c, channel) in rgb.iter().enumerate() {
+            let expected = *channel as f64 * gain;
             let a = cpu.samples::<f32>().unwrap()[c * 9];
             let b = actual.samples::<f32>().unwrap()[c * 9];
             assert!(
@@ -295,8 +295,8 @@ fn eng3b_lifted_black_raw_monotone() {
         let metal = gpu
             .run(StageId::Tone, &Op::ToneExtra(&lifted()), input)
             .unwrap();
-        for c in 0..3 {
-            let expected = rgb[c] as f64 * gain;
+        for (c, channel) in rgb.iter().enumerate() {
+            let expected = *channel as f64 * gain;
             for out in [&cpu, &metal] {
                 let error = (out.samples::<f32>().unwrap()[c * 9] as f64 - expected).abs();
                 max_error = max_error.max(error);

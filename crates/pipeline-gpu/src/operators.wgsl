@@ -375,10 +375,12 @@ fn curves(input: vec3<f32>) -> vec3<f32> {
     y = 0.2627 * rgb.x + 0.678 * rgb.y + 0.0593 * rgb.z;
     if y > 0.0 || (p[25] != 0.0 && y < 0.0) {
         let mapped_luma = curve_value(y, 4u);
-        var gain = 1.0 + (mapped_luma - y) / select(-CURVE_LUMA_FLOOR, CURVE_LUMA_FLOOR, y > 0.0);
-        // k=0.25 matches CPU: small luminance relative to channel magnitude.
-        let peak = max(abs(rgb.x), max(abs(rgb.y), abs(rgb.z)));
-        if !(abs(y) < CURVE_LUMA_FLOOR && abs(y) < 0.25 * peak) { gain = mapped_luma / y; }
+        // k=0.25: continuous cancellation taper; nonzero Y guarantees A>0.
+        let a = 0.2627 * abs(rgb.x) + 0.678 * abs(rgb.y) + 0.0593 * abs(rgb.z);
+        let rho = abs(y) / a;
+        let denominator = max(abs(y), CURVE_LUMA_FLOOR * clamp(1.0 - rho / 0.25, 0.0, 1.0));
+        var gain = 1.0 + (mapped_luma - y) / select(-denominator, denominator, y > 0.0);
+        if denominator == abs(y) { gain = mapped_luma / y; }
         rgb *= gain;
     }
     else if all(rgb == vec3<f32>(0.0)) { rgb = vec3<f32>(curve_value(0.0, 4u)); }

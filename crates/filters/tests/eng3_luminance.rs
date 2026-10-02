@@ -20,7 +20,25 @@ fn eng3_photo_one_ulp_sensitivity() {
         .map(|(a, b)| (a - b).abs())
         .fold(0f32, f32::max);
     eprintln!("ENG3 photo one-ulp gap={gap}");
-    assert!(gap <= 1e-5);
+    // The amended continuous denominator changes with rho: unlike the old
+    // constant floor, its derivative contributes to this one-ulp response.
+    // Check the prescribed formula independently as well as bounding the gap.
+    for (input, output) in [(rgb, a[0]), (next, b[0])] {
+        let filtered = [input[0] * 0.5, input[1], input[2]];
+        let y = (0.2627 * filtered[0] + 0.678 * filtered[1] + 0.0593 * filtered[2]) as f64;
+        let absolute = 0.2627 * filtered[0].abs() as f64
+            + 0.678 * filtered[1].abs() as f64
+            + 0.0593 * filtered[2].abs() as f64;
+        let target = (0.2627 * input[0] + 0.678 * input[1] + 0.0593 * input[2]) as f64;
+        let d = y
+            .abs()
+            .max(0.001 * (1. - y.abs() / absolute / 0.25).clamp(0., 1.));
+        let gain = 1. + (target - y) / d.copysign(y);
+        for c in 0..3 {
+            assert!((output[c] as f64 - filtered[c] as f64 * gain).abs() < 3e-5);
+        }
+    }
+    assert!(gap <= 1e-4);
 }
 #[path = "../../pipeline-gpu/tests/support/eng3_compute.rs"]
 mod compute;

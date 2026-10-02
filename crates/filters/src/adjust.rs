@@ -357,17 +357,22 @@ impl Adjustment {
                         std::array::from_fn(|c| rgb[c] * (1.0 - density + density * colour[c]));
                     let y = luminance(filtered);
                     if *preserve_luminosity {
-                        let peak = filtered.iter().map(|v| v.abs()).fold(0.0_f32, f32::max);
-                        let cancelling = y.abs() < PHOTO_LUMA_FLOOR && y.abs() < 0.25 * peak;
-                        if y != 0.0 && !cancelling {
-                            // Preserve ratio arithmetic outside channel cancellation.
-                            filtered.map(|v| v * luminance(rgb) / y)
-                        } else if y != 0.0 {
-                            let target = luminance(rgb);
-                            let gain = 1.0 + (target - y) / PHOTO_LUMA_FLOOR.copysign(y);
-                            filtered.map(|v| v * gain)
-                        } else {
+                        if y == 0.0 {
                             rgb
+                        } else {
+                            let absolute_luma = luminance(filtered.map(f32::abs));
+                            let rho = y.abs() / absolute_luma;
+                            let denominator = y
+                                .abs()
+                                .max(PHOTO_LUMA_FLOOR * (1.0 - rho / 0.25).clamp(0.0, 1.0));
+                            if denominator == y.abs() {
+                                // Preserve ratio arithmetic outside channel cancellation.
+                                filtered.map(|v| v * luminance(rgb) / y)
+                            } else {
+                                let target = luminance(rgb);
+                                let gain = 1.0 + (target - y) / denominator.copysign(y);
+                                filtered.map(|v| v * gain)
+                            }
                         }
                     } else {
                         filtered
@@ -503,7 +508,8 @@ fn signed_power(v: f32, p: f32) -> f32 {
     }
 }
 // 0.1% of scene-linear Rec.2020 white, matching shaders/adjust.wgsl.
-// k=0.25 relative to max(|filtered RGB|) restricts the floor to cancellation.
+// k=0.25 tapers continuously with |Y|/luminance(|filtered RGB|).
+// Same-sign colours retain the original ratio; exact zero bypasses A division.
 const PHOTO_LUMA_FLOOR: f32 = 1e-3;
 
 fn luminance(rgb: [f32; 3]) -> f32 {
