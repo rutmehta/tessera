@@ -14,6 +14,7 @@ use std::{
 /// One image of the review queue, in queue order.
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct SessionImage {
+    pub lightroom_smart_preview: bool,
     pub id: String,
     pub path: String,
     /// As stored by the index (see `ImageSummary::capture_time`).
@@ -421,8 +422,11 @@ impl Inner {
                 ))
             })?;
             out.push(SessionImage {
+                lightroom_smart_preview: crate::catalog::is_offline_proxy(Path::new(&path)),
                 id: key,
-                path,
+                path: crate::catalog::source_path(Path::new(&path))
+                    .to_string_lossy()
+                    .into_owned(),
                 capture_time,
                 orientation: orientation.parse().unwrap_or(1),
                 // Reconciled from sidecars when the session opened (or the image joined).

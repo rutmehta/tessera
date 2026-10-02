@@ -239,7 +239,13 @@ final class BadgeOverlayView: NSView {
 
     /// Bottom-right status text: derived phase (unedited is implicit) and albums other than the
     /// basket target, whose membership already shows as the basket chip.
-    var smartPreviewBadge: String? { didSet { if smartPreviewBadge != oldValue { needsDisplay = true } } }
+    var smartPreviewBadge: String? { didSet {
+        if smartPreviewBadge != oldValue { needsDisplay = true }
+        setAccessibilityElement(smartPreviewBadge != nil)
+        setAccessibilityRole(.staticText)
+        setAccessibilityIdentifier("library.smart-preview-badge")
+        setAccessibilityLabel(smartPreviewBadge)
+    } }
 
     private var statusText: String? {
         var parts: [String] = smartPreviewBadge.map { [$0] } ?? []

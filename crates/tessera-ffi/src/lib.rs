@@ -157,6 +157,7 @@ pub struct ImageQuery {
 }
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct ImageSummary {
+    pub lightroom_smart_preview: bool,
     pub id: String,
     pub path: String,
     /// RAW: Unix seconds; EXIF JPEG/TIFF: ISO local date-time without a timezone.
@@ -438,8 +439,11 @@ impl Engine {
                 [&id_string], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?)))?;
 
             result.push(ImageSummary {
+                lightroom_smart_preview: catalog::is_offline_proxy(Path::new(&path)),
                 id: id_string,
-                path,
+                path: catalog::source_path(Path::new(&path))
+                    .to_string_lossy()
+                    .into_owned(),
                 capture_time,
                 orientation: orientation.parse().unwrap_or(1),
                 selection: c.index.selection(id)?.unwrap_or_default().into(),

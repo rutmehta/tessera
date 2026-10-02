@@ -16,6 +16,11 @@ struct ExportSheet: View {
 
     var body: some View {
         SheetScaffold(title: "Export", subtitle: "Pending photo edits are saved before export") {
+            if exporter.target?.hasLightroomSmartPreviews == true {
+                Text("Exporting from a 2560 px smart preview; original offline")
+                    .font(Theme.Fonts.caption)
+                    .accessibilityIdentifier("export.smart-preview-note")
+            }
             Picker("Photos", selection: Binding(get: { exporter.target?.id ?? "" }, set: { exporter.targetID = $0 })) {
                 ForEach(exporter.targets) { t in Text("\(t.title) (\(t.count))").tag(t.id) }
             }

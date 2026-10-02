@@ -199,6 +199,16 @@ private struct MappingStep: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Space.l) {
                 libraryFolder
+                if let plan = importer.preview {
+                    Text("\(plan.onlineOriginals) online originals · \(plan.offlineWithSmartPreview) offline with Smart Preview · \(plan.offlineWithoutSmartPreview) offline without Smart Preview")
+                        .font(Theme.Fonts.caption)
+                        .accessibilityIdentifier("lightroom-import.source-counts")
+                }
+                Toggle("Import offline photos using Lightroom Smart Previews", isOn: $importer.importSmartPreviews)
+                    .accessibilityIdentifier("lightroom-import.smart-previews")
+                Toggle("Copy Smart Previews into Tessera storage", isOn: $importer.copyProxies)
+                    .disabled(!importer.importSmartPreviews)
+                    .help("Keep editing if you move or remove the Lightroom catalog. Off references previews in place.")
                 foldersSection
                 selectionSection
                 marksSection

@@ -423,7 +423,7 @@ pub fn color_space_icc(space: ColorSpace) -> EngineResult<Vec<u8>> {
 /// All full-quality export entry points must admit the original source before
 /// backend/model work or output publication. Preview size is never export quality.
 fn require_full_quality_source(source: &RenderSource<'_>) -> EngineResult<()> {
-    if matches!(source, RenderSource::CameraLinear(_)) {
+    if matches!(source, RenderSource::CameraLinear(proxy) if !proxy.is_external_dng()) {
         return Err(original_required());
     }
     Ok(())

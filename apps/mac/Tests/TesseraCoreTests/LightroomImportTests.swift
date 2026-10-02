@@ -44,7 +44,7 @@ final class LightroomImportTests: XCTestCase {
         LrcatOptions(libraryFolder: library,
                      relocations: [LrcatRelocation(from: "/Volumes/Old Drive/Photos/", to: "/Volumes/Old Drive/Photos"),
                                    LrcatRelocation(from: "/Users/me/Pictures/", to: "/Users/me/Pictures")],
-                     marks: [], overwriteExistingEdits: false)
+                     marks: [], overwriteExistingEdits: false, importSmartPreviews: true, copyProxies: false)
     }
 
     func testMarkTableMapsKeepsAndDropsLabels() {
@@ -151,7 +151,7 @@ final class LightroomImportTests: XCTestCase {
     }
 
     private func plan(roots: [LrcatRootRow] = []) -> LrcatPlanPreview {
-        LrcatPlanPreview(roots: roots, folders: [], selectionRows: [], selection: LrcatSelectionCounts(
+        LrcatPlanPreview(onlineOriginals: 0, offlineWithSmartPreview: 0, offlineWithoutSmartPreview: 0, roots: roots, folders: [], selectionRows: [], selection: LrcatSelectionCounts(
             rejects: 0, keeps: 0, undecided: 0, grade1: 0, grade2: 0, grade3: 0, marked: 0),
                          marks: [], keywords: [], toImport: 0, missing: 0, virtualCopies: 0, conflicts: 0, skipped: [],
                          outsideLibrary: 0, libraryPath: "", libraryExists: false, unsupported: [], estimatedBytes: 0)

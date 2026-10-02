@@ -61,6 +61,21 @@ impl RawImage {
             format: "LinearRaw DNG".into(),
             message: e.to_string(),
         };
+        if path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
+            && let Some(dng) = raw_decode::lossy_dng::read(&mut file).map_err(decode_error)?
+        {
+            let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng)?;
+            return Ok(Self {
+                id,
+                recipe_owner: id,
+                metadata: Arc::new(proxy.original_metadata().clone()),
+                camera_linear_proxy: Some(Arc::new(proxy)),
+                cfa: None,
+                rgb: None,
+            });
+        }
         if raw_decode::linear_dng::is_linear_dng(&mut file).map_err(decode_error)? {
             let dng = raw_decode::linear_dng::read(&mut file).map_err(decode_error)?;
             return Self::from_rgb(id, crate::RgbSource::from_linear_dng(dng)?);
@@ -157,6 +172,13 @@ impl RawImage {
 
     pub fn camera_linear_proxy(&self) -> Option<&pipeline_cpu::CameraLinearProxy> {
         self.camera_linear_proxy.as_deref()
+    }
+
+    /// Keep a stable recipe identity while a relinked source uses its own render
+    /// identity. Render caches must never alias proxy and original payloads.
+    pub fn with_recipe_owner(mut self, owner: ImageId) -> Self {
+        self.recipe_owner = owner;
+        self
     }
 
     /// Catalog/recipe identity, independent of the decoded representation.
