@@ -60,3 +60,31 @@ fn default_render_from_env() {
     };
     assert!(run().is_some(), "numeric diagnostic failed");
 }
+
+#[test]
+fn baseline_exposure_is_shared_by_cfa_and_external_camera_linear_sources() {
+    let mut dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false,false))).unwrap().unwrap();
+    dng.width = 32; dng.height = 24;
+    dng.metadata.width = 32; dng.metadata.height = 24;
+    dng.metadata.default_crop = [0,0,32,24];
+    dng.metadata.orientation = 1;
+    dng.pixels = vec![[0.08;3];32*24];
+    dng.baseline_exposure = 0.75;
+    let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng).unwrap();
+    assert_eq!(proxy.original_metadata().baseline_exposure,0.75);
+    // Exposure is a shared camera-profile operation, never baked into stored samples.
+    assert_eq!(proxy.pixels().planes()[0][0],0.08);
+    let mut metadata = proxy.original_metadata().clone();
+    metadata.cfa_layout = raw_decode::CfaLayout::Bayer([[0,1],[1,2]]);
+    let cfa = raw_decode::CfaImage::from_linear(32,24,vec![0.08;32*24]).unwrap();
+    let mut s = engine_api::recipe::DevelopSettings::default();
+    s.detail.sharpening.amount=0.; s.detail.noise_reduction.color=0.;
+    let a = pipeline_cpu::render_linear_scaled(&s,&pipeline_cpu::RenderSource::Cfa{image:&cfa,metadata:&metadata},1).unwrap();
+    let b = pipeline_cpu::render_linear_scaled(&s,&pipeline_cpu::RenderSource::CameraLinear(&proxy),1).unwrap();
+    metadata.baseline_exposure=0.;
+    let zero = pipeline_cpu::render_linear_scaled(&s,&pipeline_cpu::RenderSource::Cfa{image:&cfa,metadata:&metadata},1).unwrap();
+    for ((a,b),zero) in a.planes().iter().flatten().zip(b.planes().iter().flatten()).zip(zero.planes().iter().flatten()) {
+        assert!((a-b).abs()<1e-5);
+        assert!((a-zero*2f32.powf(0.75)).abs()<1e-5);
+    }
+}
