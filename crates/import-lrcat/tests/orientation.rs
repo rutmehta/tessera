@@ -18,7 +18,7 @@ fn catalog_orientation_codes_match_exif_including_reflections() {
 }
 
 #[test]
-fn catalog_orientation_is_saved_without_an_extra_import_history_entry() {
+fn ordinary_import_retains_source_orientation_without_serializing_recipe_orientation() {
     let dir = tempfile::tempdir().unwrap();
     let fixture = import_lrcat::fixture::write(dir.path()).unwrap();
     let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
@@ -27,13 +27,14 @@ fn catalog_orientation_is_saved_without_an_extra_import_history_entry() {
     drop(db);
     let imported = import_lrcat::import(&fixture.catalog).unwrap();
     for image in imported.images {
+        assert_eq!(image.orientation.as_deref(), Some("BC"));
         assert_eq!(
             image
                 .recipe
                 .unknown
                 .get("lightroom_orientation")
                 .and_then(serde_json::Value::as_u64),
-            Some(6)
+            None
         );
         assert!(image.recipe.history.entries.len() <= 1);
     }
