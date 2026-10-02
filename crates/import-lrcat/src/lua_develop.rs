@@ -711,7 +711,9 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     for (i, (key, _)) in table.fields.iter().enumerate() {
         let raw = Value::from(text[spans[i].clone()].trim());
         if let LuaKey::Str(name) = key
-            && (retain_source(name) || keep.contains(&i))
+            && (retain_source(name)
+                || keep.contains(&i)
+                || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(name)))
         {
             source.insert(name.clone(), raw.clone());
         }

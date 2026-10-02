@@ -189,7 +189,22 @@ fn lr2b_legacy_and_hdr_roundtrip() {
     assert_eq!(v["tone"]["legacy_pv2010"]["exposure"], 1.);
     assert_eq!(v["tone"]["legacy_pv2010"]["brightness"], 75.);
     assert_eq!(v["tone"]["legacy_pv2010"]["recovery"], 20.);
-    assert_eq!(v["tone"]["curves_extended"]["rgb"][2]["x"], 2.);
+    assert!(
+        r.settings.tone.curves_extended.is_none(),
+        "HDR curves are stale on PV2010"
+    );
+    let (hdr, _) = parse(
+        "s={HDREditMode=1,ExtendedToneCurvePV2012={0,0,255,300,510,600}}",
+        "15.4",
+    )
+    .unwrap();
+    assert_eq!(
+        hdr.settings.tone.curves_extended.as_ref().unwrap().rgb.0[2].x,
+        2.
+    );
+    let back = engine_api::recipe::Recipe::from_json(&hdr.to_json().unwrap()).unwrap();
+    assert_eq!(back.settings, hdr.settings);
+    back.validate().unwrap();
     let back = engine_api::recipe::Recipe::from_json(&r.to_json().unwrap()).unwrap();
     assert_eq!(back.settings, r.settings);
     back.validate().unwrap();

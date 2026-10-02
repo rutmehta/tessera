@@ -342,7 +342,7 @@ struct Parametric {
 }
 impl Parametric {
     fn new(s: &ToneSettings) -> EngineResult<Self> {
-        let p = &s.curves_extended.as_ref().unwrap_or(&s.curves).parametric;
+        let p = &s.curves.parametric;
         let amounts = [p.shadows, p.darks, p.lights, p.highlights];
         let splits = [
             0.0,

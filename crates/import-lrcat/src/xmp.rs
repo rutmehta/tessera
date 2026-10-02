@@ -27,6 +27,7 @@ struct Property<'a> {
 pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<String>)> {
     let (mut recipe, warnings) = parse_inner(text, process_version, true)?;
     crate::geometry::finish(&mut recipe)?;
+    recipe.validate()?;
     Ok((recipe, warnings))
 }
 
@@ -214,7 +215,10 @@ pub(crate) fn parse_inner(
     }
     let mut source = serde_json::Map::new();
     for p in &properties {
-        if p.namespace == CRS && crate::lua_develop::retain_source(p.name) {
+        if p.namespace == CRS
+            && (crate::lua_develop::retain_source(p.name)
+                || (crate::lr2::is_legacy(&recipe) && crate::lr2::stale_modern_control(p.name)))
+        {
             source.insert(p.name.to_string(), json!(&text[p.range.clone()]));
         }
     }
@@ -226,15 +230,15 @@ pub(crate) fn parse_inner(
     }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
     if apply_lr2 {
-    crate::geometry::apply(
-        &mut recipe,
-        &mut warnings,
-        properties
-            .iter()
-            .filter(|p| p.namespace == CRS)
-            .map(|p| (p.name, p.raw)),
-    )?;
-    crate::lr2::xmp(&doc, &mut recipe, &mut warnings)?;
+        crate::geometry::apply(
+            &mut recipe,
+            &mut warnings,
+            properties
+                .iter()
+                .filter(|p| p.namespace == CRS)
+                .map(|p| (p.name, p.raw)),
+        )?;
+        crate::lr2::xmp(&doc, &mut recipe, &mut warnings)?;
     }
     Ok((recipe, warnings))
 }

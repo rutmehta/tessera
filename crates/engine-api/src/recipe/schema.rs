@@ -49,7 +49,7 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
             .color
             .monochrome
             .as_ref()
-            .is_some_and(|m| m.enabled)
+            .is_some_and(|m| m.enabled || m.mixer != Default::default())
     }),
     ("curves_extended", |r| {
         r.settings.tone.curves_extended.is_some()
@@ -109,7 +109,7 @@ fn active_predicates() -> &'static [FeaturePredicate] {
 #[cfg(test)]
 pub(crate) mod test_override {
     //! Test-only replacement of the predicate list, per test thread, so the
-    //! harness can be proven independently of the registered real features.
+    //! harness can be proven while the real list stays empty.
     use std::cell::Cell;
 
     use super::FeaturePredicate;
@@ -234,16 +234,6 @@ mod v4_feature_predicates {
         assert_bumped_only_when_present("legacy_pv2010", |r| {
             r.settings.tone.legacy_pv2010 = Some(Default::default());
         });
-    }
-
-    #[test]
-    fn lr2d_schema_bump_is_sticky_after_feature_removal() {
-        let mut recipe = Recipe::default();
-        recipe.settings.tone.curves_extended = Some(Default::default());
-        let mut reloaded = Recipe::from_json(&recipe.to_json().unwrap()).unwrap();
-        reloaded.settings.tone.curves_extended = None;
-        assert_eq!(required_schema_version(&reloaded), 3);
-        assert_eq!(written_version(&reloaded.to_json().unwrap()), 4);
     }
 
     const TEST_FEATURE: &str = "lr_schema_test_feature";

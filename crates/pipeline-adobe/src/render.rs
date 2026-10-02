@@ -166,7 +166,7 @@ pub fn render_linear_scaled_with_profile(
     // approximations. Point curves must not run again on the native log axis.
     extra.curves_extended = None;
     extra.curves = Default::default();
-    extra.curves.parametric = curves.parametric.clone();
+    extra.curves.parametric = settings.tone.curves.parametric.clone();
     rgb = pipeline_cpu::tone_extra_image(&rgb, &extra)?;
     let to_pro = WorkingSpace::LinearRec2020
         .conversion_to(WorkingSpace::LinearProPhoto, ChromaticAdaptation::Bradford)?;

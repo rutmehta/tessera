@@ -425,6 +425,12 @@ impl Renderer {
                     "Adobe PV1–6 required",
                 ));
             }
+            if self.config.process_version.revision <= 2 && settings.tone.legacy_pv2010.is_none() {
+                return Err(EngineError::invalid(
+                    "process_version",
+                    "Adobe PV1/PV2 re-import needed: legacy_pv2010 settings are absent",
+                ));
+            }
             let mut checked = settings.clone();
             checked.camera_profile.profile = Default::default();
             checked.tone.display_transform = Default::default();
@@ -692,6 +698,12 @@ impl Renderer {
         base.detail.sharpening.amount = 0.0;
         base.detail.noise_reduction.color = 0.0;
         base.tone = Default::default();
+        // Preserve legacy admission while neutralizing this sensor/WB prefix.
+        base.tone.legacy_pv2010 = settings
+            .tone
+            .legacy_pv2010
+            .as_ref()
+            .map(|_| Default::default());
         base.color = Default::default();
         base.locals = Default::default();
         base.effects = Default::default();

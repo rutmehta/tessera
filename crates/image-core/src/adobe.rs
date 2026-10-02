@@ -151,7 +151,7 @@ impl StageOp for AdobeStageOp {
                 let mut extra = (*s).clone();
                 extra.curves_extended = None;
                 extra.curves = Default::default();
-                extra.curves.parametric = curves.parametric.clone();
+                extra.curves.parametric = s.curves.parametric.clone();
                 let mut output = pipeline_cpu::tone_extra_image(&input, &extra)?;
                 let to_pro = WorkingSpace::LinearRec2020
                     .conversion_to(WorkingSpace::LinearProPhoto, ChromaticAdaptation::Bradford)?;

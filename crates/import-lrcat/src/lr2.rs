@@ -20,8 +20,31 @@ const CURVES: [&str; 4] = [
     "ExtendedToneCurvePV2012Blue",
 ];
 
+// PV2010 never exposed these controls; preserve their source, not their effect.
+pub(crate) fn stale_modern_control(key: &str) -> bool {
+    matches!(
+        key,
+        "Exposure2012"
+            | "Contrast2012"
+            | "Highlights2012"
+            | "Shadows2012"
+            | "Whites2012"
+            | "Blacks2012"
+            | "Clarity2012"
+            | "Texture"
+            | "Dehaze"
+    ) || key.starts_with("Parametric")
+        || key.starts_with("ToneCurvePV2012")
+        || CURVES.contains(&key)
+}
+
+pub(crate) fn is_legacy(recipe: &Recipe) -> bool {
+    recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
+        && matches!(recipe.process_version.revision, 1 | 2)
+}
+
 fn relevant(key: &str) -> bool {
-    CURVES.contains(&key)
+    stale_modern_control(key)
         || key.starts_with("GrayMixer")
         || key.starts_with("AutoToneDigest")
         || matches!(
@@ -142,12 +165,14 @@ fn curve(v: &LuaValue) -> Option<Curve> {
 }
 fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> EngineResult<()> {
     // Avoid cloning settings (including masks) on the existing fast path.
-    if values.keys().all(|k| {
-        matches!(
-            k.as_str(),
-            "Exposure2012" | "Contrast2012" | "Highlights2012" | "Shadows2012" | "Blacks2012"
-        )
-    }) {
+    if !is_legacy(recipe)
+        && values.keys().all(|k| {
+            matches!(
+                k.as_str(),
+                "Exposure2012" | "Contrast2012" | "Highlights2012" | "Shadows2012" | "Blacks2012"
+            )
+        })
+    {
         return Ok(());
     }
     let mut settings = recipe.settings.clone();
@@ -164,7 +189,7 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         if let Some(v) = values.get(key) {
             if let Some(c) = curve(v) {
                 // Identity source is provenance only; never replace an ordinary curve.
-                if settings.output.hdr && c.0.iter().any(|p| p.x != p.y) {
+                if !is_legacy(recipe) && settings.output.hdr && c.0.iter().any(|p| p.x != p.y) {
                     *target = c;
                     has_extended = true;
                     approximate.insert(
@@ -222,9 +247,7 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
             );
         }
     }
-    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
-        && recipe.process_version.revision <= 2
-    {
+    if is_legacy(recipe) {
         use engine_api::recipe::settings::LegacyPv2010;
         let n = |k: &str, min, max| values.get(k).and_then(|v| number(v, min, max));
         let legacy = LegacyPv2010 {
@@ -278,15 +301,30 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
                 approximate.insert(key.into(), reason);
             }
         }
-        if legacy != LegacyPv2010::default() {
-            // PV2010 is authoritative: stale PV2012 controls must not render twice.
-            settings.tone.exposure = 0.;
-            settings.tone.contrast = 0.;
-            settings.tone.shadows = 0.;
-            settings.tone.highlights = 0.;
-            settings.tone.whites = 0.;
-            settings.tone.blacks = 0.;
-            settings.tone.legacy_pv2010 = Some(legacy);
+        // An explicit empty block marks a freshly imported legacy row, too.
+        // PV2010 is authoritative: stale modern controls must not render.
+        settings.tone.exposure = 0.;
+        settings.tone.contrast = 0.;
+        settings.tone.shadows = 0.;
+        settings.tone.highlights = 0.;
+        settings.tone.whites = 0.;
+        settings.tone.blacks = 0.;
+        settings.tone.clarity = 0.;
+        settings.tone.texture = 0.;
+        settings.tone.dehaze = 0.;
+        settings.tone.curves = Default::default();
+        settings.tone.curves_extended = None;
+        settings.tone.legacy_pv2010 = Some(legacy);
+        for key in values.keys().filter(|key| stale_modern_control(key)) {
+            warnings.retain(|w| {
+                !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
+            });
+            crate::diagnostics::push_ignored(
+                recipe,
+                key,
+                "LR-2",
+                "PV2010 has no corresponding modern control; stale value ignored and source preserved",
+            );
         }
     }
     for (key, reason) in &approximate {
@@ -335,24 +373,9 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         }
         warnings.push(format!("{key}: retained metadata, not a pixel adjustment; digest is not an Auto Tone recipe and depth metadata is not a depth raster; source preserved"));
     }
-    if settings != recipe.settings {
-        // Import has not escaped to callers: rebuild its single initial edit.
-        let meta = recipe
-            .history
-            .entries
-            .first()
-            .map(|e| e.meta.clone())
-            .unwrap_or_else(|| engine_api::recipe::EditMeta {
-                label: "Import XMP".into(),
-                author: engine_api::recipe::Author::Import {
-                    source: "xmp".into(),
-                },
-                ..Default::default()
-            });
-        recipe.history = Default::default();
-        recipe.settings = Default::default();
-        recipe.edit(meta, |s| *s = settings)?;
-    }
+    // Both catalog lanes share geometry::finish, using the codec's history.base.
+    // Do not reset that base or record an intermediate import here.
+    recipe.settings = settings;
     Ok(())
 }
 

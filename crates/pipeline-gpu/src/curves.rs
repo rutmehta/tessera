@@ -22,7 +22,7 @@ fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
     let selected = s.curves_extended.as_ref().unwrap_or(&s.curves);
     let extended = s.curves_extended.is_some();
     p[25] = if extended { 1. } else { 0. };
-    let param = &selected.parametric;
+    let param = &s.curves.parametric;
     let amounts = [param.shadows, param.darks, param.lights, param.highlights];
     let splits = [
         0.0,

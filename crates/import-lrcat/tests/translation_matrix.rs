@@ -22,7 +22,18 @@ fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
         String::new()
     };
     // Replace the context value instead of creating duplicate Adobe properties.
-    let version = if key.starts_with("ChromaticAberration") {
+    let version = if key.starts_with("ChromaticAberration")
+        || matches!(
+            key,
+            "Exposure"
+                | "Brightness"
+                | "Contrast"
+                | "FillLight"
+                | "HighlightRecovery"
+                | "Recovery"
+                | "Shadows"
+                | "Blacks"
+        ) {
         "5.7"
     } else {
         "15.4"
@@ -44,8 +55,16 @@ fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
     } else {
         context
     };
-    lua_develop::parse(&format!("s = {{ {context} {key} = {value} }}"), version)
-        .map_err(|e| format!("{key}: {e}"))
+    let hdr = if EXTENDED_TONE_CURVE_KEYS.contains(&key) {
+        "HDREditMode=1,"
+    } else {
+        ""
+    };
+    lua_develop::parse(
+        &format!("s = {{ {context} {hdr} {key} = {value} }}"),
+        version,
+    )
+    .map_err(|e| format!("{key}: {e}"))
 }
 
 /// A synthetic import of an empty develop row: every field at its default.

@@ -812,7 +812,9 @@ pub struct ToneSettings {
     /// Legacy process branch. Absent means no legacy processing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub legacy_pv2010: Option<LegacyPv2010>,
-    /// HDR curves, replacing `curves` when present; knots may exceed 0..1.
+    /// HDR point curves replace ordinary point curves; knots may exceed 0..1.
+    /// They compose after `curves.parametric`, which remains authoritative.
+    /// The extended block's parametric member is not used.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub curves_extended: Option<ToneCurves>,
     /// Display transform.
