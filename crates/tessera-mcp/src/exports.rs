@@ -218,6 +218,9 @@ impl Console {
         let mut names = BTreeSet::new();
         for image in images.iter().copied().collect::<BTreeSet<_>>() {
             let (path, doc) = self.document(image)?;
+            if doc.recipe.settings.locals.adjustments.iter().filter(|g| g.enabled && g.amount != 0.).flat_map(|g| &g.components).flat_map(|c| c.active_leaves()).any(|c| c.kind.is_ai()) {
+                return Err(unsupported("AI mask components require inference/cache inputs absent from ToolCall"));
+            }
             self.check(&doc, request)?;
             catalog::writable(&path)?;
             let name = path

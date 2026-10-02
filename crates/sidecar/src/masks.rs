@@ -442,7 +442,11 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
                 "Sky" => "sky",
                 "Background" => "background",
                 "Object" | "Objects" => "object",
-                _ => return Err(error("unsupported Adobe person or part mask; subtype and instance identities are unverified")),
+                _ => {
+                    return Err(error(
+                        "unsupported Adobe person or part mask; subtype and instance identities are unverified",
+                    ));
+                }
             };
             c = json!({"kind":native_kind, "model":null});
             if native_kind == "object" {

@@ -20,11 +20,14 @@ fn lr5_pins_survive_eviction_replace_and_remove() {
 fn lr5b_pin_write_does_not_enumerate_the_directory() {
     use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
-    let store = MaskStore::new(dir.path(),0).unwrap();
+    let store = MaskStore::new(dir.path(), 0).unwrap();
     let pinned = dir.path().join("pinned");
     std::fs::create_dir(&pinned).unwrap();
-    std::fs::set_permissions(&pinned,std::fs::Permissions::from_mode(0o300)).unwrap();
-    let result = store.put_pinned(&[39;32],&MaskRaster::new(1,1,vec![1.]).unwrap());
-    std::fs::set_permissions(&pinned,std::fs::Permissions::from_mode(0o700)).unwrap();
-    assert!(result.is_ok(), "pin writes must not require directory read access: {result:?}");
+    std::fs::set_permissions(&pinned, std::fs::Permissions::from_mode(0o300)).unwrap();
+    let result = store.put_pinned(&[39; 32], &MaskRaster::new(1, 1, vec![1.]).unwrap());
+    std::fs::set_permissions(&pinned, std::fs::Permissions::from_mode(0o700)).unwrap();
+    assert!(
+        result.is_ok(),
+        "pin writes must not require directory read access: {result:?}"
+    );
 }

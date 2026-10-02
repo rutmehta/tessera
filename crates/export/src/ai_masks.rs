@@ -34,6 +34,17 @@ impl MaskHooks for ReadyMasks {
         group: &LocalAdjustment,
         _level: u8,
     ) -> EngineResult<Vec<f32>> {
+        // Availability gates the whole adjustment before any inversion or
+        // subtraction, including groups mixing procedural and AI components.
+        if group
+            .components
+            .iter()
+            .flat_map(|c| c.active_leaves())
+            .filter(|c| c.kind.is_ai())
+            .any(|c| !self.0.iter().any(|(ready, _)| ready == c))
+        {
+            return Ok(vec![0.; (input.width() * input.height()) as usize]);
+        }
         mask_ai::compose_with_components(input, group, |component, w, h| {
             let (_, plane) = self
                 .0
@@ -152,45 +163,68 @@ pub(crate) fn render_with_hooks(
         mask_support
             .map(std::path::Path::to_path_buf)
             .or_else(|| std::env::var_os("TESSERA_APP_SUPPORT").map(std::path::PathBuf::from))
-            .or_else(|| {
-                std::env::var_os("HOME").map(|p| {
-                    std::path::PathBuf::from(p).join("Library/Application Support/Tessera")
-                })
-            })
             .ok_or_else(|| error("set TESSERA_APP_SUPPORT to the model support directory"))
     };
     let mut loaded = None;
     let mut supplied = segmenter;
     let mut rasters = Vec::new();
+    let mut load_failed = false;
     for (component, request) in requests {
-        let Some(request) = request else {
-            let key = component
-                .adobe_ai
-                .as_ref()
-                .and_then(|s| s.mask_key)
-                .expect("imported reference");
-            let plane = mask_ai::imported_plane(&support()?, &key).map_err(error)?;
-            if (plane.width, plane.height) != (w, h) {
-                return Err(error("imported raster extent does not match original"));
-            }
-            rasters.push((component, plane));
-            continue;
-        };
-        let segmenter: &mut dyn MaskSegmenter = match supplied.as_deref_mut() {
-            Some(s) => s,
+        let request = match request {
+            Some(request) => request,
             None => {
-                if loaded.is_none() {
-                    loaded = Some(mask_ai::load_segmenter(&support()?).map_err(error)?);
+                let key = component
+                    .adobe_ai
+                    .as_ref()
+                    .and_then(|s| s.mask_key)
+                    .expect("imported reference");
+                match mask_ai::imported_plane(&support()?, &key) {
+                    Ok(plane) if (plane.width, plane.height) == (w, h) => {
+                        rasters.push((component, plane));
+                        continue;
+                    }
+                    _ => warnings.push(
+                        "regenerating AI mask: stored raster missing, corrupt or wrong extent"
+                            .into(),
+                    ),
                 }
-                loaded.as_mut().expect("loaded").as_mut()
+                mask_ai::request(&component.kind, orientation).map_err(error)?
             }
         };
-        let alpha = segmenter.segment(&shown, &request).map_err(error)?;
-        if alpha.len() != dw as usize * dh as usize
-            || alpha.iter().any(|v| !(0.0..=1.0).contains(v))
-        {
-            return Err(error("invalid segmentation raster"));
+        if supplied.is_none() && loaded.is_none() && !load_failed {
+            match support().and_then(|root| mask_ai::load_segmenter(&root).map_err(error)) {
+                Ok(model) => loaded = Some(model),
+                Err(e) => {
+                    warnings.push(format!(
+                        "AI mask pending/unavailable: {e}; local adjustment skipped"
+                    ));
+                    load_failed = true;
+                }
+            }
         }
+        let segmenter = supplied.as_deref_mut().or_else(|| {
+            loaded
+                .as_mut()
+                .map(|s| s.as_mut() as &mut dyn MaskSegmenter)
+        });
+        let Some(segmenter) = segmenter else { continue };
+        let alpha = match segmenter.segment(&shown, &request) {
+            Ok(alpha)
+                if alpha.len() == dw as usize * dh as usize
+                    && alpha.iter().all(|v| (0.0..=1.0).contains(v)) =>
+            {
+                alpha
+            }
+            result => {
+                let reason = result
+                    .err()
+                    .map_or_else(|| "invalid segmentation raster".into(), |e| e.to_string());
+                warnings.push(format!(
+                    "AI mask pending/unavailable: {reason}; local adjustment skipped"
+                ));
+                continue;
+            }
+        };
         let data = mask_ai::reorient(&alpha, dw, dh, sw, sh, |p| {
             mask_ai::unorient(p, orientation)
         });
@@ -287,43 +321,97 @@ mod lr5b_tests {
     fn lr5b_missing_stored_raster_regenerates_with_diagnostic() {
         struct Segmenter;
         impl MaskSegmenter for Segmenter {
-            fn segment(&mut self, image: &image::RgbImage, _: &mask_ai::SegmentRequest) -> anyhow::Result<Vec<f32>> {
-                Ok(vec![1.;(image.width()*image.height()) as usize])
+            fn segment(
+                &mut self,
+                image: &image::RgbImage,
+                _: &mask_ai::SegmentRequest,
+            ) -> anyhow::Result<Vec<f32>> {
+                Ok(vec![1.; (image.width() * image.height()) as usize])
             }
         }
         let dir = tempfile::tempdir().unwrap();
-        let input = Image::new(4,2,vec![vec![0.18;8];3]).unwrap();
+        let input = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
         let source = RenderSource::Rgb(&input);
         let mut c = MaskComponent::new(MaskKind::Subject { model: None });
-        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask { resource_id: None, category: "Subject".into(), mask_key: Some([47;32]), regenerate: false });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some([47; 32]),
+            regenerate: false,
+        });
         let mut settings = DevelopSettings::default();
-        let mut group = LocalAdjustment { components: vec![c], ..Default::default() };
+        let mut group = LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        };
         group.params.exposure = 1.;
         settings.locals.adjustments.push(group);
         let mut warnings = vec![];
-        let out = render_with_hooks(&source,&settings,Some(&mut Segmenter),None,None,&mut warnings,Some(dir.path())).unwrap();
-        assert!(warnings.iter().any(|w| w.contains("regenerat") && w.contains("missing")));
-        let base = render_with_support(&source,&DevelopSettings::default(),None,Some(dir.path())).unwrap();
-        assert!(out.get_pixel(0,0)[0] > base.get_pixel(0,0)[0]);
+        let out = render_with_hooks(
+            &source,
+            &settings,
+            Some(&mut Segmenter),
+            None,
+            None,
+            &mut warnings,
+            Some(dir.path()),
+        )
+        .unwrap();
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("regenerat") && w.contains("missing"))
+        );
+        let base =
+            render_with_support(&source, &DevelopSettings::default(), None, Some(dir.path()))
+                .unwrap();
+        assert!(out.get_pixel(0, 0)[0] > base.get_pixel(0, 0)[0]);
     }
     #[test]
     fn lr5b_export_without_model_skips_inverted_and_subtract_adjustments() {
         let dir = tempfile::tempdir().unwrap();
-        let input = Image::new(4,2,vec![vec![0.18;8];3]).unwrap();
+        let input = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
         let source = RenderSource::Rgb(&input);
-        let base = render_with_support(&source,&DevelopSettings::default(),None,Some(dir.path())).unwrap();
-        for subtract in [false,true] {
+        let base =
+            render_with_support(&source, &DevelopSettings::default(), None, Some(dir.path()))
+                .unwrap();
+        for subtract in [false, true] {
             let mut ai = MaskComponent::new(MaskKind::Subject { model: None });
             ai.invert = !subtract;
-            ai.combine = if subtract { engine_api::recipe::mask::MaskCombine::Subtract } else { engine_api::recipe::mask::MaskCombine::Add };
-            let mut group = LocalAdjustment { components: vec![ai], invert: true, ..Default::default() };
-            if subtract { group.components.insert(0,MaskComponent::new(MaskKind::Linear { start:[0.,0.],end:[1.,0.] })); }
+            ai.combine = if subtract {
+                engine_api::recipe::mask::MaskCombine::Subtract
+            } else {
+                engine_api::recipe::mask::MaskCombine::Add
+            };
+            let mut group = LocalAdjustment {
+                components: vec![ai],
+                invert: true,
+                ..Default::default()
+            };
+            if subtract {
+                group.components.insert(
+                    0,
+                    MaskComponent::new(MaskKind::Linear {
+                        start: [0., 0.],
+                        end: [1., 0.],
+                    }),
+                );
+            }
             group.params.exposure = 1.;
             let mut settings = DevelopSettings::default();
             settings.locals.adjustments.push(group);
             let mut warnings = vec![];
-            let out = render_with_hooks(&source,&settings,None,None,None,&mut warnings,Some(dir.path())).unwrap();
-            assert_eq!(out,base);
+            let out = render_with_hooks(
+                &source,
+                &settings,
+                None,
+                None,
+                None,
+                &mut warnings,
+                Some(dir.path()),
+            )
+            .unwrap();
+            assert_eq!(out, base);
             assert!(warnings.iter().any(|w| w.contains("unavailable")));
         }
     }

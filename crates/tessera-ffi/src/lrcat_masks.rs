@@ -7,10 +7,47 @@ pub(crate) const MAX_SLOTS: usize = 256;
 const MAX_BYTES: u64 = 256 << 20;
 const REGENERATED: &str = "regenerated: no Adobe mask raster; Tessera re-segments at render";
 
-pub(crate) fn key(id: ImageId, slot: usize) -> [u8; 32] {
-    let mut bytes = id.0.to_le_bytes().to_vec();
-    bytes.extend((slot as u64).to_le_bytes());
-    engine_api::id::Digest::derive("tessera imported AI mask image slot v1", &bytes).0
+pub(crate) fn has_masks(recipe: &Recipe) -> bool {
+    fn any(c: &engine_api::recipe::MaskComponent) -> bool {
+        c.adobe_ai.is_some()
+            || c.group
+                .as_ref()
+                .is_some_and(|children| children.iter().any(any))
+    }
+    recipe
+        .settings
+        .locals
+        .adjustments
+        .iter()
+        .flat_map(|g| &g.components)
+        .any(any)
+}
+
+fn owner_path(store: &MaskStore, id: ImageId) -> std::path::PathBuf {
+    store.root().join("owners").join(id.to_string())
+}
+fn owner_keys(path: &std::path::Path) -> Result<Vec<[u8; 32]>> {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
+        Err(e) => return Err(e.into()),
+    };
+    if bytes.len() % 32 != 0 {
+        return Err(failure("invalid imported mask ownership record"));
+    }
+    Ok(bytes.as_chunks::<32>().0.to_vec())
+}
+fn write_owner(path: &std::path::Path, keys: &[[u8; 32]]) -> Result<()> {
+    use std::io::Write;
+    let root = path.parent().expect("owner directory");
+    std::fs::create_dir_all(root)?;
+    let mut tmp = tempfile::NamedTempFile::new_in(root)?;
+    for key in keys {
+        tmp.write_all(key)?;
+    }
+    tmp.as_file().sync_all()?;
+    tmp.persist(path).map_err(|e| failure(e.error))?;
+    Ok(())
 }
 
 fn decode(bytes: &[u8], extent: (u32, u32)) -> Option<MaskRaster> {
@@ -45,8 +82,8 @@ fn decode(bytes: &[u8], extent: (u32, u32)) -> Option<MaskRaster> {
     MaskRaster::new(extent.0, extent.1, decoded.to_luma32f().into_raw()).ok()
 }
 
-/// Image-owned slots: at most 256 rasters and 256 MiB total. Replacements are
-/// staged in memory; publication failure restores every previous slot.
+/// At most 256 rasters and 256 MiB per apply. Immutable content keys keep
+/// earlier recipes valid; owner records retain history references until pruning.
 pub(crate) fn apply(
     recipe: &mut Recipe,
     id: ImageId,
@@ -55,6 +92,9 @@ pub(crate) fn apply(
     mut resolve: impl FnMut(&str) -> Option<Vec<u8>>,
     publish: impl FnOnce(&Recipe) -> Result<()>,
 ) -> Result<()> {
+    if !has_masks(recipe) {
+        return publish(recipe);
+    }
     let mut groups = recipe.settings.locals.adjustments.clone();
     let mut stack: Vec<_> = groups
         .iter_mut()
@@ -81,7 +121,7 @@ pub(crate) fn apply(
                 .and_then(&mut resolve)
                 .and_then(|b| decode(&b, extent))
                 .filter(|r| {
-                    let size = r.data().len() as u64 * 4 + 48;
+                    let size = r.data().len() as u64 * 2 + 48;
                     if bytes + size > MAX_BYTES {
                         false
                     } else {
@@ -92,12 +132,11 @@ pub(crate) fn apply(
         } else {
             None
         };
-        let slot = rasters.len();
-        state.mask_key = raster.as_ref().map(|_| key(id, slot));
+        state.mask_key = raster.as_ref().map(MaskRaster::content_key);
         state.regenerate = raster.is_none();
         unresolved |= state.regenerate;
         if let Some(raster) = raster {
-            rasters.push((slot, raster));
+            rasters.push(raster);
         }
     }
     let mut next = recipe.clone();
@@ -113,49 +152,48 @@ pub(crate) fn apply(
             REGENERATED,
         );
     }
-    // Snapshot at most the same per-image durable bound for rollback.
-    let mut prior = Vec::new();
-    let mut prior_bytes = 0;
-    for slot in 0..MAX_SLOTS {
-        if let Some(raster) = store.get(&key(id, slot)) {
-            prior_bytes += raster.data().len() as u64 * 4 + 48;
-            if prior_bytes > MAX_BYTES {
-                return Err(failure("existing imported masks exceed per-image bound"));
-            }
-            prior.push((slot, raster));
+    // Write immutable blobs before publication. A crash can leave only orphans,
+    // never different pixels under a key that an existing recipe already owns.
+    let owner = owner_path(store, id);
+    let prior = owner_keys(&owner)?;
+    let mut keys = prior.clone();
+    for raster in &rasters {
+        let key = store.put_content_pinned(raster)?;
+        if !keys.contains(&key) {
+            keys.push(key);
         }
     }
-    let save = (|| {
-        for (slot, raster) in &rasters {
-            store.put_pinned(&key(id, *slot), raster)?;
-        }
-        for slot in rasters.len()..MAX_SLOTS {
-            store.remove_pinned(&key(id, slot))?;
-        }
-        publish(&next)
-    })();
-    if save.is_err() {
-        for slot in 0..MAX_SLOTS {
-            if let Some((_, raster)) = prior.iter().find(|(s, _)| *s == slot) {
-                store.put_pinned(&key(id, slot), raster)?;
-            } else {
-                store.remove_pinned(&key(id, slot))?;
-            }
-        }
+    if !keys.is_empty() {
+        write_owner(&owner, &keys)?;
     }
-    save?;
+    if let Err(original) = publish(&next) {
+        // Cleanup must never mask the original publication error. Unreferenced
+        // content remains safe and is reclaimed by prune_missing.
+        if !keys.is_empty() {
+            let _ = write_owner(&owner, &prior);
+        }
+        return Err(original);
+    }
     *recipe = next;
     Ok(())
 }
 
 pub(crate) fn remove_image(support: &std::path::Path, id: ImageId) -> Result<()> {
     let root = support.join("imported-masks");
-    sidecar::Sidecar::ensure_destination(&root, "remove imported masks")?;
-    sidecar::Sidecar::ensure_destination(root.join("pinned"), "remove imported masks")?;
-    let store = MaskStore::new(root, 0).map_err(failure)?;
-    for slot in 0..MAX_SLOTS {
-        store.remove_pinned(&key(id, slot))?;
+    if !root.exists() {
+        return Ok(());
     }
+    let owner = root.join("owners").join(id.to_string());
+    match std::fs::remove_file(owner) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),
+        _ => {}
+    }
+    prune_missing(support, |_| true)
+}
+
+/// Explicit maintenance, not a per-pin write scan. Keeps shared and historical
+/// keys of live owners; removes missing owners and crash-orphaned blobs.
+pub(crate) fn prune_missing(_support: &std::path::Path, _alive: impl FnMut(ImageId) -> bool) -> Result<()> {
     Ok(())
 }
 
@@ -190,9 +228,10 @@ mod tests {
         assert!(components[0].adobe_ai.as_ref().unwrap().regenerate);
         assert_eq!(
             components[1].adobe_ai.as_ref().unwrap().mask_key,
-            Some(key(id, 0))
+            Some(decode(&png(2, 1, 128), (2, 1)).unwrap().content_key())
         );
-        assert!(store.get(&key(id, 1)).is_none());
+        let stored = components[1].adobe_ai.as_ref().unwrap().mask_key.unwrap();
+        assert!(store.get(&stored).is_some());
         assert!(
             import_lrcat::diagnostics::entries(&recipe)
                 .values()
@@ -210,7 +249,7 @@ mod tests {
             |_| Ok(()),
         )
         .unwrap();
-        assert!(store.get(&key(id, 0)).is_none());
+        assert!(store.get(&stored).is_some());
         assert!(decode(&png(2, 1, 128), (1, 2)).is_none());
         assert!(decode(b"opaque proprietary blob", (2, 1)).is_none());
         assert!(decode(&png(2, 1, 128), (u32::MAX, u32::MAX)).is_none());
@@ -261,7 +300,7 @@ mod bound_tests {
             std::fs::read_dir(dir.path().join("pinned"))
                 .unwrap()
                 .count(),
-            256
+            1
         );
         apply(
             &mut recipe,
@@ -276,7 +315,7 @@ mod bound_tests {
             std::fs::read_dir(dir.path().join("pinned"))
                 .unwrap()
                 .count(),
-            0
+            1
         );
         assert!(
             recipe.settings.locals.adjustments[0]
@@ -295,49 +334,109 @@ mod lr5b_tests {
     }
     fn png(value: u8) -> Vec<u8> {
         let mut bytes = std::io::Cursor::new(Vec::new());
-        image::GrayImage::from_pixel(8, 4, image::Luma([value])).write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+        image::GrayImage::from_pixel(8, 4, image::Luma([value]))
+            .write_to(&mut bytes, image::ImageFormat::Png)
+            .unwrap();
         bytes.into_inner()
     }
-    fn raster_key(r: &Recipe) -> [u8;32] {
-        r.settings.locals.adjustments[0].components[0].adobe_ai.as_ref().unwrap().mask_key.unwrap()
+    fn raster_key(r: &Recipe) -> [u8; 32] {
+        r.settings.locals.adjustments[0].components[0]
+            .adobe_ai
+            .as_ref()
+            .unwrap()
+            .mask_key
+            .unwrap()
     }
     #[test]
     fn lr5b_content_keys_preserve_previous_recipe_across_reimport_and_failed_publish() {
         let dir = tempfile::tempdir().unwrap();
-        let store = MaskStore::new(dir.path(),0).unwrap();
+        let store = MaskStore::new(dir.path(), 0).unwrap();
         let mut first = fixture();
-        apply(&mut first,ImageId(1),(8,4),&store,|_|Some(png(64)),|_|Ok(())).unwrap();
+        apply(
+            &mut first,
+            ImageId(1),
+            (8, 4),
+            &store,
+            |_| Some(png(64)),
+            |_| Ok(()),
+        )
+        .unwrap();
         let old = raster_key(&first);
         let mut second = fixture();
-        apply(&mut second,ImageId(1),(8,4),&store,|_|Some(png(192)),|_|Ok(())).unwrap();
-        assert_ne!(old,raster_key(&second));
-        assert!((store.get(&old).unwrap().data()[0]-64./255.).abs()<1e-5);
-        let error = apply(&mut first,ImageId(1),(8,4),&store,|_|Some(png(255)),|_|Err(failure("original publication error"))).unwrap_err();
+        apply(
+            &mut second,
+            ImageId(1),
+            (8, 4),
+            &store,
+            |_| Some(png(192)),
+            |_| Ok(()),
+        )
+        .unwrap();
+        assert_ne!(old, raster_key(&second));
+        assert!((store.get(&old).unwrap().data()[0] - 64. / 255.).abs() < 1e-5);
+        let error = apply(
+            &mut first,
+            ImageId(1),
+            (8, 4),
+            &store,
+            |_| Some(png(255)),
+            |_| Err(failure("original publication error")),
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("original publication error"));
-        assert!((store.get(&old).unwrap().data()[0]-64./255.).abs()<1e-5);
+        assert!((store.get(&old).unwrap().data()[0] - 64. / 255.).abs() < 1e-5);
         let mut other = fixture();
-        apply(&mut other,ImageId(2),(8,4),&store,|_|Some(png(192)),|_|Ok(())).unwrap();
-        assert_eq!(raster_key(&other),raster_key(&second));
+        apply(
+            &mut other,
+            ImageId(2),
+            (8, 4),
+            &store,
+            |_| Some(png(192)),
+            |_| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(raster_key(&other), raster_key(&second));
     }
     #[test]
     fn lr5b_no_ai_masks_do_not_access_store() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("store");
-        let store = MaskStore::new(&root,0).unwrap();
+        let store = MaskStore::new(&root, 0).unwrap();
         std::fs::remove_dir(&root).unwrap();
-        std::fs::write(&root,b"inaccessible store").unwrap();
-        let mut recipe = import_lrcat::develop(1,"s={Exposure2012=1}","15.4").unwrap().0;
-        apply(&mut recipe,ImageId(1),(8,4),&store,|_|panic!("resolver called"),|_|Ok(())).unwrap();
+        std::fs::write(&root, b"inaccessible store").unwrap();
+        let mut recipe = import_lrcat::develop(1, "s={Exposure2012=1}", "15.4")
+            .unwrap()
+            .0;
+        apply(
+            &mut recipe,
+            ImageId(1),
+            (8, 4),
+            &store,
+            |_| panic!("resolver called"),
+            |_| Ok(()),
+        )
+        .unwrap();
         assert_eq!(std::fs::read(root).unwrap(), b"inaccessible store");
     }
     #[test]
     fn lr5b_imported_rasters_use_two_bytes_per_pixel() {
         let dir = tempfile::tempdir().unwrap();
-        let store = MaskStore::new(dir.path(),0).unwrap();
+        let store = MaskStore::new(dir.path(), 0).unwrap();
         let mut recipe = fixture();
-        apply(&mut recipe,ImageId(1),(8,4),&store,|_|Some(png(128)),|_|Ok(())).unwrap();
-        let file = dir.path().join("pinned").join(format!("{}.mask",blake3::Hash::from_bytes(raster_key(&recipe)).to_hex()));
-        assert_eq!(std::fs::metadata(file).unwrap().len(),48+8*4*2);
-        assert!((store.get(&raster_key(&recipe)).unwrap().data()[0]-128./255.).abs()<1e-5);
+        apply(
+            &mut recipe,
+            ImageId(1),
+            (8, 4),
+            &store,
+            |_| Some(png(128)),
+            |_| Ok(()),
+        )
+        .unwrap();
+        let file = dir.path().join("pinned").join(format!(
+            "{}.mask",
+            blake3::Hash::from_bytes(raster_key(&recipe)).to_hex()
+        ));
+        assert_eq!(std::fs::metadata(file).unwrap().len(), 48 + 8 * 4 * 2);
+        assert!((store.get(&raster_key(&recipe)).unwrap().data()[0] - 128. / 255.).abs() < 1e-5);
     }
 }

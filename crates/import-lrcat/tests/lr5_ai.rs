@@ -2,12 +2,7 @@ use engine_api::recipe::Recipe;
 
 #[test]
 fn lr5_ai_categories_are_approximate_and_source_is_retained() {
-    for category in [
-        "Subject",
-        "Sky",
-        "Background",
-        "Object",
-    ] {
+    for category in ["Subject", "Sky", "Background", "Object"] {
         let source = format!(
             "s = {{ MaskGroupBasedCorrections = {{ {{ LocalExposure2012 = 1, CorrectionMasks = {{ {{ What = 'Mask/Image', MaskType = '{category}', MaskDigest = 'opaque-id', Left = 0, Top = 0, Right = 1, Bottom = 1 }} }} }} }} }}"
         );
@@ -34,11 +29,7 @@ fn lr5_ai_categories_are_approximate_and_source_is_retained() {
 
 #[test]
 fn lr5_numeric_subtypes_and_unknown_byte_retention() {
-    for (subtype, part, category) in [
-        (1, 0, "Subject"),
-        (2, 0, "Sky"),
-        (0, 0, "Object"),
-    ] {
+    for (subtype, part, category) in [(1, 0, "Subject"), (2, 0, "Sky"), (0, 0, "Object")] {
         let source = format!(
             "s = {{ MaskGroupBasedCorrections = {{ {{ LocalExposure2012=1, CorrectionMasks={{ {{ What='Mask/Image', MaskSubType={subtype}, MaskSubCategoryID={part}, ReferencePoint='0.25 0.5', MaskDigest='synthetic', WholeImageArea='0/1,0/1,8/1,8/1', Origin='0,0', InputDigest='invented', ModelVersion=1 }} }} }} }} }}"
         );
@@ -67,8 +58,17 @@ fn lr5_numeric_subtypes_and_unknown_byte_retention() {
 
 #[test]
 fn lr5b_person_parts_and_specific_people_are_unsupported() {
-    for fields in ["MaskType='Hair'", "MaskType='Lips'", "MaskType='Teeth'", "MaskSubType=3,MaskSubCategoryID=4", "MaskType='People',PersonID=2", "MaskType='Person'"] {
-        let source = format!("s={{MaskGroupBasedCorrections={{{{LocalExposure2012=1,CorrectionMasks={{{{What='Mask/Image',{fields}}}}}}}}}}}");
+    for fields in [
+        "MaskType='Hair'",
+        "MaskType='Lips'",
+        "MaskType='Teeth'",
+        "MaskSubType=3,MaskSubCategoryID=4",
+        "MaskType='People',PersonID=2",
+        "MaskType='Person'",
+    ] {
+        let source = format!(
+            "s={{MaskGroupBasedCorrections={{{{LocalExposure2012=1,CorrectionMasks={{{{What='Mask/Image',{fields}}}}}}}}}}}"
+        );
         let (r, warnings) = import_lrcat::develop(1, &source, "15.4").unwrap();
         assert!(r.settings.locals.adjustments.is_empty(), "{fields}");
         assert!(!warnings.is_empty(), "{fields}");

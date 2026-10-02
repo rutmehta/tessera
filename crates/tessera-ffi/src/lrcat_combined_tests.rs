@@ -150,7 +150,9 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
     assert!(recipe.settings.color.monochrome.as_ref().unwrap().enabled);
     assert_eq!(recipe.settings.locals.retouch.len(), 1);
     assert!(recipe.settings.geometry.upright.homography.is_some());
-    let mask_key = crate::lrcat_masks::key(id, 0);
+    let mask_key = ml_segment::MaskRaster::new(w, h, vec![128. / 255.; (w * h) as usize])
+        .unwrap()
+        .content_key();
     assert_eq!(
         recipe.settings.locals.adjustments[1].components[0]
             .adobe_ai

@@ -222,6 +222,19 @@ pub trait LrcatProgressListener: Send + Sync {
     fn on_progress(&self, progress: LrcatProgress);
 }
 
+/// Extent of the decoded RGB source, after the same EXIF transform as RgbSource.
+fn oriented_mask_extent(path: &Path) -> Option<(u32, u32)> {
+    use image::ImageDecoder;
+    let reader = image::ImageReader::open(path)
+        .ok()?
+        .with_guessed_format()
+        .ok()?;
+    let mut decoder = reader.into_decoder().ok()?;
+    let (w, h) = decoder.dimensions();
+    let orientation = decoder.orientation().ok()?.to_exif();
+    Some(if orientation >= 5 { (h, w) } else { (w, h) })
+}
+
 /// Caller-owned opaque resource association. Supply a full sensor-aligned
 /// grayscale PNG/TIFF, including any Adobe crop/origin expansion.
 #[uniffi::export(with_foreign)]
@@ -1515,6 +1528,16 @@ impl LrcatImport {
                     clear_pending_depth_diagnostic(&mut image.recipe);
                 }
                 let result = (|| {
+                    if !crate::lrcat_masks::has_masks(&image.recipe) {
+                        return write_image(
+                            &r.path,
+                            id,
+                            &image.recipe,
+                            &selection,
+                            &keywords,
+                            &admission,
+                        );
+                    }
                     let root = self.engine.support_dir()?.join("imported-masks");
                     Sidecar::ensure_destination(&root, "imported masks")?;
                     Sidecar::ensure_destination(root.join("pinned"), "imported masks")?;
@@ -1522,7 +1545,7 @@ impl LrcatImport {
                     crate::lrcat_masks::apply(
                         &mut image.recipe,
                         id,
-                        extent,
+                        oriented_mask_extent(&r.path).unwrap_or(extent),
                         &store,
                         |resource| {
                             mask_resolver.as_ref().and_then(|resolver| {
@@ -1537,9 +1560,9 @@ impl LrcatImport {
                 if result.is_err() {
                     let key = image_core::depth::imported_depth_key(id);
                     if let Some(prior) = prior {
-                        prior.store_pinned(&depth_store, &key).map_err(failure)?;
+                        let _ = prior.store_pinned(&depth_store, &key);
                     } else {
-                        depth_store.remove_pinned(&key)?;
+                        let _ = depth_store.remove_pinned(&key);
                     }
                 }
                 result

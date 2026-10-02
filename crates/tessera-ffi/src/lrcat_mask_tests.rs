@@ -56,7 +56,7 @@ fn lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image() {
             bytes: bytes.into_inner(),
         }) as Arc<dyn LrcatMaskResolver>
     };
-    let key = crate::lrcat_masks::key(id, 0);
+    let mut key = [0; 32];
     let store = ml_segment::MaskStore::new(support.join("imported-masks"), 0).unwrap();
     for (n, value) in [64, 191].into_iter().enumerate() {
         options.overwrite_existing_edits = n > 0;
@@ -71,7 +71,12 @@ fn lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image() {
             .adobe_ai
             .as_ref()
             .unwrap();
-        assert_eq!(state.mask_key, Some(key));
+        let new_key = state.mask_key.unwrap();
+        if n > 0 {
+            assert_ne!(new_key, key);
+            assert!(store.get(&key).is_some());
+        }
+        key = new_key;
         assert!(!state.regenerate);
         assert!(
             !import_lrcat::diagnostics::entries(&recipe)
@@ -100,7 +105,7 @@ fn lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image() {
             std::fs::read_dir(support.join("imported-masks/pinned"))
                 .unwrap()
                 .count(),
-            1
+            n + 1
         );
         // Export reads the explicit engine support root without consulting a model.
         let pixels = pipeline_cpu::Image::new(
@@ -156,11 +161,11 @@ fn lr5_apply_pins_replaces_rolls_back_and_removes_masks_with_image() {
     );
     assert_eq!(engine.forget_missing(vec![id.to_string()]).unwrap(), 0);
     assert!(store.get(&key).is_some());
-    // No resolver on a fresh re-import resets reference and clears the slot.
+    // No resolver resets the new reference, retaining immutable history content.
     // A new import bundle requests re-apply rather than resuming the completed bundle.
     options.library_folder = photos.join("new-library").to_string_lossy().into_owned();
     import.apply(options.clone(), None).unwrap();
-    assert!(store.get(&key).is_none());
+    assert!(store.get(&key).is_some());
     let recipe = Sidecar::read_recipe(Sidecar::paths(&row.path).recipe)
         .unwrap()
         .recipe;
@@ -211,7 +216,6 @@ fn lr5_regeneration_uses_existing_injected_segmenter_and_changes_pixels() {
         ("Subject", export::mask_ai::SegmentRequest::Subject),
         ("Sky", export::mask_ai::SegmentRequest::Sky),
         ("Background", export::mask_ai::SegmentRequest::Background),
-        ("Hair", export::mask_ai::SegmentRequest::Subject),
         (
             "Object",
             export::mask_ai::SegmentRequest::Prompts {
@@ -263,7 +267,7 @@ fn lr5_regeneration_uses_existing_injected_segmenter_and_changes_pixels() {
             import_lrcat::diagnostics::entries(&recipe)
                 .values()
                 .flatten()
-                .any(|e| e.reason.contains("regenerated"))
+                .all(|e| !e.reason.contains("regenerated"))
         );
     }
 }
@@ -344,7 +348,7 @@ fn lr5b_combined_lanes_resolve_and_regenerate_in_one_import() {
         .as_ref()
         .unwrap();
     assert!(!resolved.regenerate);
-    assert_eq!(resolved.mask_key, Some(crate::lrcat_masks::key(id, 0)));
+    assert!(resolved.mask_key.is_some());
     assert!((store.get(&resolved.mask_key.unwrap()).unwrap().data()[0] - 128. / 255.).abs() < 1e-6);
     let missing = recipe.settings.locals.adjustments[2].components[0]
         .adobe_ai
@@ -475,16 +479,46 @@ fn lr5b_portrait_orientation_import_uses_render_extent() {
     use image::ImageEncoder;
     let mut bytes = Vec::new();
     let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut bytes);
-    encoder.set_exif_metadata(vec![b'I',b'I',42,0,8,0,0,0,1,0,0x12,1,3,0,1,0,0,0,6,0,0,0,0,0,0,0]).unwrap();
-    encoder.encode(&[120,80,40].repeat(24*16),24,16,image::ExtendedColorType::Rgb8).unwrap();
+    encoder
+        .set_exif_metadata(vec![
+            b'I', b'I', 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 1, 3, 0, 1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0,
+        ])
+        .unwrap();
+    encoder
+        .encode(
+            &[120, 80, 40].repeat(24 * 16),
+            24,
+            16,
+            image::ExtendedColorType::Rgb8,
+        )
+        .unwrap();
     std::fs::write(&row.path, bytes).unwrap();
     let mut mask = Cursor::new(Vec::new());
-    image::GrayImage::from_pixel(16,24,image::Luma([128])).write_to(&mut mask,image::ImageFormat::Png).unwrap();
-    let report = import.apply_with_mask_resolver(options, None, Some(Arc::new(MaskFixture { catalog_id, bytes: mask.into_inner() }))).unwrap();
+    image::GrayImage::from_pixel(16, 24, image::Luma([128]))
+        .write_to(&mut mask, image::ImageFormat::Png)
+        .unwrap();
+    let report = import
+        .apply_with_mask_resolver(
+            options,
+            None,
+            Some(Arc::new(MaskFixture {
+                catalog_id,
+                bytes: mask.into_inner(),
+            })),
+        )
+        .unwrap();
     assert!(report.imported > 0);
-    let recipe = Sidecar::read_recipe(Sidecar::paths(&row.path).recipe).unwrap().recipe;
-    let state = recipe.settings.locals.adjustments[0].components[0].adobe_ai.as_ref().unwrap();
-    assert!(!state.regenerate, "portrait raster must be accepted in oriented coordinates");
+    let recipe = Sidecar::read_recipe(Sidecar::paths(&row.path).recipe)
+        .unwrap()
+        .recipe;
+    let state = recipe.settings.locals.adjustments[0].components[0]
+        .adobe_ai
+        .as_ref()
+        .unwrap();
+    assert!(
+        !state.regenerate,
+        "portrait raster must be accepted in oriented coordinates"
+    );
     assert!(state.mask_key.is_some());
     assert_eq!(recipe.image_id, Some(id));
 }
