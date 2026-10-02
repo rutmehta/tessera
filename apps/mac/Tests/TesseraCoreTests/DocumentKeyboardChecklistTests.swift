@@ -7,6 +7,10 @@ import TesseraFFI
 
 /// B5-49. Direct event delivery, never a key window. The JSONL deliberately identifies itself
 /// as a hosted trace: production InspectorFocusTrace.routeEvent excludes non-key windows.
+///
+/// B5-49c: the checklist runs twice, with Full Keyboard Access pinned on and pinned off in process
+/// (`KeyboardAccessHarness`), so neither run depends on the machine's own setting. Each variant
+/// asserts that mode's behaviour; what the pin cannot control is reported N/A with the reason.
 @MainActor
 final class DocumentKeyboardChecklistTests: XCTestCase {
     private struct NotApplicable: Error { let reason: String }
@@ -31,6 +35,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
     private var rows: [Row] = []
     private var events: [Event] = []
     private var step = ""
+    private var fka = false
     private var layoutFailed = false
     private var window: NSWindow!
     private var host: NSView!
@@ -116,6 +121,11 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         rows.append(Row(step: id, result: "N/A", sequence: "—", nativeType: "not observed",
                         handled: "not delivered", note: reason))
     }
+    private func label(_ r: NSResponder?) -> String {
+        guard let r else { return "nil" }
+        let id = (r as? NSView)?.accessibilityIdentifier() ?? ""
+        return id.isEmpty ? String(describing: type(of: r)) : id
+    }
     private func canvas() throws -> DocumentViewportView { try control("document.viewport") }
     private func eye() throws -> NSButton { try control("document.layers.row.0.visibility") }
     private func tab(shift: Bool = false) throws -> Bool { try press(48, shift ? "\u{19}" : "\t", shift: shift) }
@@ -125,15 +135,17 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
     }
 
     func testCombinedKeyboardChecklistFKAOn() throws {
-        try KeyboardAccessHarness.withMode(true) { try checklist() }
+        try KeyboardAccessHarness.withMode(true) { try checklist(fka: true) }
     }
 
     func testCombinedKeyboardChecklistFKAOff() throws {
-        try KeyboardAccessHarness.withMode(false) { try checklist() }
+        try KeyboardAccessHarness.withMode(false) { try checklist(fka: false) }
     }
 
-    private func checklist() throws {
-        rows = []; events = []
+    private func checklist(fka: Bool) throws {
+        rows = []; events = []; self.fka = fka
+        XCTAssertEqual(KeyboardAccessPolicy.isEnabled, fka, "The app policy must follow the pinned mode")
+        XCTAssertEqual(NSApplication.shared.isFullKeyboardAccessEnabled, fka, "AppKit's accessor must follow the pinned mode")
         do { try executeChecklist() }
         catch {
             let note = "Hosted setup or execution could not complete: \(error)"
@@ -141,10 +153,15 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
                             handled: "not delivered", note: note))
             XCTFail(note)
         }
-        try writeResults(fka: NSApp.isFullKeyboardAccessEnabled)
+        try writeResults(fka: KeyboardAccessPolicy.isEnabled)
         XCTAssertFalse(rows.contains { $0.result == "FAIL" })
         XCTAssertEqual(rows.first { $0.step == "22a" }?.result, "TEARDOWN")
         XCTAssertEqual(rows.first { $0.step == "17a" }?.result, "PASS")
+        // The mode-dependent rows. 17b with FKA on additionally depends on the real setting (see its note).
+        func result(_ step: String) -> String? { rows.first { $0.step == step }?.result }
+        XCTAssertEqual(result("6a"), "PASS")
+        for step in ["5", "16b"] { XCTAssertEqual(result(step), fka ? "PASS" : "N/A", "step \(step), FKA \(fka)") }
+        if !fka { XCTAssertEqual(result("17b"), "N/A") }
     }
 
     private func executeChecklist() throws {
@@ -185,14 +202,18 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         router = KeyRouter(model: model)
         let controller = NSHostingController(rootView: LayoutProbeHarness.root(Fixture(model: model)))
         let size = NSSize(width: 1100, height: 848)
-        window = LayoutProbeHarness.window(contentRect: NSRect(origin: .zero, size: size),
+        window = KeyboardTestWindow(contentRect: NSRect(origin: .zero, size: size),
             styleMask: .titled, backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.animationBehavior = .none
         window.contentViewController = controller
         window.setContentSize(size)
         host = controller.view
         host.frame = NSRect(origin: .zero, size: size)
         window.orderBack(nil)
         settle()
+        try require(host.bounds.size == size && window.contentLayoutRect.size == size,
+                    "The hosted content must be exactly \(size) pt on any display, got \(host.bounds.size)")
         try require(try doc().layers.count >= 3, "Fixture needs at least three layers")
 
         run("1a") {
@@ -248,31 +269,36 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         run("5") {
             let outline: LayersOutlineView = try self.control("document.layers.outline")
             outline.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+            let eye = try self.eye()
+            try self.require(outline.row(for: eye) == 0, "Row 0 eye identifier does not belong to row 0")
+            try self.require(eye.canBecomeKeyView == self.fka, "Pinned FKA=\(self.fka) does not control the eye's key-view eligibility")
             try self.focus(outline)
             try self.require(!self.tab(), "List Tab consumed")
             let first = self.window.firstResponder
-            let eye = try self.eye()
-            if first !== eye, !NSApp.isFullKeyboardAccessEnabled, !eye.canBecomeKeyView {
-                try self.require(!self.model.documents.panelsHidden, "List Tab hid panels")
-                throw NotApplicable(reason: "FKA off: real row eye is excluded from the native key-view loop (canBecomeKeyView=false). List Tab reaches \((first as? NSView)?.accessibilityIdentifier() ?? "unknown") instead. Button safety is independently automated with forced responder in 9–10.")
+            try self.require(!self.model.documents.panelsHidden, "List Tab hid panels")
+            guard self.fka else {
+                try self.require(first !== eye && first !== outline, "FKA off: List Tab must skip the eye and leave the list; got \(self.label(first))")
+                throw NotApplicable(reason: "FKA off (pinned): the row eye is not a key view (canBecomeKeyView=false), so no eye ring exists in this mode. Asserted instead: List Tab is unhandled, skips the eye, lands on \(self.label(first)), panels stay. Button key safety is automated with a forced responder in 9–10.")
             }
-            try self.require(first === eye, "List Tab did not reach selected row eye")
+            try self.require(first === eye, "List Tab did not reach selected row eye; got \(self.label(first))")
             try self.require(!self.tab(), "Eye Tab consumed")
-            try self.require(self.window.firstResponder !== first, "Eye Tab did not move")
+            let second = self.window.firstResponder
+            try self.require(second !== eye && second !== outline, "Eye Tab did not move")
             try self.require(!self.model.documents.panelsHidden, "Traversal hid panels")
-            return "Selected first Layers row; Tab → its eye → next control."
+            try self.focus(eye)
+            try self.require(!self.tab(shift: true), "Eye Shift-Tab consumed")
+            try self.require(self.window.firstResponder === outline, "Eye Shift-Tab did not return to the Layers list; got \(self.label(self.window.firstResponder))")
+            return "FKA on (pinned): selected first Layers row; Tab → its eye → Tab → \(self.label(second)); eye Shift-Tab → Layers list; panels stay."
         }
         run("6a") {
-            let eye = try self.eye()
-            try self.focus(eye)
+            // FKA on: continue from the eye. FKA off: the eye is not a key view, so the list is the entry.
+            let start: NSView = self.fka ? try self.eye() : try self.control("document.layers.outline", LayersOutlineView.self)
+            try self.focus(start)
             var reached: [String] = [], count = 0
             for _ in 0..<60 {
                 try self.require(!self.tab(), "Panel Tab consumed")
                 count += 1
                 try self.require(!self.model.documents.panelsHidden, "Traversal hid panels")
-                if self.window.firstResponder === eye, !NSApp.isFullKeyboardAccessEnabled, !eye.canBecomeKeyView {
-                    throw NotApplicable(reason: "FKA off: forced eye responder is not a native key view (canBecomeKeyView=false); Tab stayed on it in the combined document host. No ring progress claimed. 6b independently traverses the actual History controls.")
-                }
                 if let button = self.window.firstResponder as? HistoryHeightButton {
                     let id = button.accessibilityIdentifier()
                     if !reached.contains(id) { reached.append(id) }
@@ -283,7 +309,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             try self.require(!self.tab(shift: true), "History Shift-Tab consumed")
             let plus: NSButton = try self.control("document.history.height.increase")
             try self.require(self.window.firstResponder === plus, "Reset Shift-Tab did not return to +")
-            return "Eye → − → + → ↺ in \(count) Tabs; Shift-Tab → +."
+            return "\(self.fka ? "FKA on (pinned): eye" : "FKA off (pinned): Layers list (the eye is not a key view)") → − → + → ↺ in \(count) Tabs, every Tab unhandled; Shift-Tab → +."
         }
         run("6b") {
             let minus: NSButton = try self.control("document.history.height.decrease")
@@ -315,7 +341,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             try self.require(UserDefaults.standard.double(forKey: keys[0]) == Double(DocumentInspector.historyDefault), "Reset did not restore default")
             return "H0=\(h0), Space=\(afterSpace), Return delta=\(delta), reset=\(readout.stringValue)."
         }
-        na("8", "Native titlebar and SwiftUI toolbar focus-ring traversal requires application/key-window FKA integration; inspector traversal is automated in 5–6.")
+        na("8", "Either mode: the titlebar sidebar toggle and the SwiftUI toolbar exist only in the application window (NSToolbar + SwiftUI focus proxies). Their key-view eligibility comes from the real system setting inside AppKit/SwiftUI, which the in-process pin does not control, and toolbar traversal needs a key window. Inspector traversal is automated in 5–6.")
         run("9") {
             let eye = try self.eye(); try self.focus(eye)
             let doc = try self.doc(), count = doc.layers.count
@@ -341,7 +367,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             _ = try self.press(49, " ", up: true)
             return "One press + 30 timestamped repeat events over one simulated second + release + second press; exactly one toggle per press, no pan."
         }
-        na("11", "Titlebar sidebar uses NSApp.sendAction with no target (key-window responder chain); SwiftUI.KeyViewProxy activation needs a real focus ring; no substitute proxy is counted as acceptance.")
+        na("11", "Either mode: the titlebar sidebar toggle uses NSApp.sendAction with no target (key-window responder chain), and SwiftUI.KeyViewProxy focus follows the real system setting and needs a key window; the in-process pin controls neither. No substitute proxy is counted as acceptance.")
         run("12") {
             let engine = try Engine.open(appSupportDir: scratch.appendingPathComponent("pixel-engine").path)
             try self.model.documents.install(EngineDocumentBackend(session: try engine.newDocument(width: 96, height: 64, depth: .u8, profile: nil)))
@@ -429,8 +455,47 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             try self.focus(self.canvas())
             return "Actual layer name field editor: Delete one character, Space types, Escape cancels; reopened rename Tab stays native; L=\(count)."
         }
-        let fka = NSApp.isFullKeyboardAccessEnabled
-        na("16b", fka ? "FKA on; Properties Name → Load LUT → Dither focus ring requires key window." : "FKA off; Properties Name → Load LUT → Dither native traversal unavailable.")
+        run("16b") {
+            let doc = try self.doc(), count = doc.layers.count
+            doc.addAdjustment(.colorLookup)
+            self.model.documents.inspectorTab = .properties
+            self.settle()
+            defer {
+                _ = self.window.makeFirstResponder(try? self.canvas())
+                while doc.layers.count > count { doc.undo() }
+                self.model.documents.inspectorTab = .stack; self.settle()
+            }
+            let loadID = "document.properties.colorLookup.load", ditherID = "document.properties.colorLookup.dither"
+            let load: NSButton = try self.control(loadID), dither: NSButton = try self.control(ditherID)
+            try self.require(load.isEnabled && dither.isEnabled, "Load 3D LUT / Dither disabled")
+            try self.require(load.canBecomeKeyView == self.fka && dither.canBecomeKeyView == self.fka,
+                             "Pinned FKA=\(self.fka) does not control Load 3D LUT / Dither key-view eligibility")
+            // SwiftUI's TextField("Name") is an AppKit text field without a view-level identifier.
+            let fields = self.views(self.host).compactMap { $0 as? NSTextField }.filter {
+                $0.isEditable && $0.placeholderString == "Name" && !$0.isHiddenOrHasHiddenAncestor
+            }
+            try self.require(fields.count == 1, "Expected one Properties Name field, found \(fields.count)")
+            try self.focus(fields[0])
+            try self.require(self.window.firstResponder is NSText, "Properties Name did not begin editing")
+            guard self.fka else {
+                try self.require(!self.tab(), "Name Tab consumed")
+                let landed = self.window.firstResponder
+                try self.require(landed !== load && landed !== dither && !(landed is NSText), "FKA off: Name Tab must leave the field and skip Load 3D LUT and Dither; got \(self.label(landed))")
+                try self.require(!self.model.documents.panelsHidden, "Name Tab hid panels")
+                throw NotApplicable(reason: "FKA off (pinned): Load 3D LUT and Dither are not key views (canBecomeKeyView=false), so this traversal does not exist in this mode. Asserted instead: Name Tab is unhandled, skips both, lands on \(self.label(landed)), panels stay.")
+            }
+            var reached: [String] = [], tabs = 0
+            for _ in 0..<12 {
+                try self.require(!self.tab(), "Properties Tab consumed")
+                tabs += 1
+                try self.require(!self.model.documents.panelsHidden, "Properties traversal hid panels")
+                let id = (self.window.firstResponder as? NSView)?.accessibilityIdentifier() ?? ""
+                if [loadID, ditherID].contains(id), !reached.contains(id) { reached.append(id) }
+                if reached.count == 2 { break }
+            }
+            try self.require(reached == [loadID, ditherID], "Wrong Properties order: \(reached)")
+            return "FKA on (pinned): Properties Name field → Load 3D LUT → Dither in \(tabs) Tabs, every Tab unhandled; panels stay. Responder contract; no visible ring claimed."
+        }
         run("17a") {
             let doc = try self.doc()
             doc.addAdjustment(.colorLookup)
@@ -456,7 +521,41 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             try self.require(doc.adjustment(of: id) == initial && doc.info.historyHead == head && box.state == initialState, "Undo did not restore Dither and history head")
             return "Direct focus on real Dither; Space toggles once and adds one history entry; 30 repeats/release add none; no pan; Undo restores value, checkbox and history head."
         }
-        na("17b", "Dither → Color header → Dither native focus-ring traversal requires FKA and a key window; activation/history/Undo covered in 17a.")
+        run("17b") {
+            let doc = try self.doc(), count = doc.layers.count
+            doc.addAdjustment(.colorLookup)
+            self.model.documents.inspectorTab = .properties
+            self.settle()
+            defer {
+                _ = self.window.makeFirstResponder(try? self.canvas())
+                while doc.layers.count > count { doc.undo() }
+                self.model.documents.inspectorTab = .stack; self.settle()
+            }
+            let box: DocumentDitherNativeCheckbox = try self.control("document.properties.colorLookup.dither")
+            try self.require(box.canBecomeKeyView == self.fka, "Pinned FKA=\(self.fka) does not control Dither key-view eligibility")
+            guard self.fka else {
+                throw NotApplicable(reason: "FKA off (pinned): Dither is not a key view (canBecomeKeyView=false); there is no native traversal to or from it in this mode. Activation, history and Undo are automated in 17a.")
+            }
+            try self.focus(box)
+            try self.require(!self.tab(), "Dither Tab consumed")
+            let next = self.window.firstResponder
+            try self.require(next !== box, "Dither Tab did not move")
+            try self.require(!self.model.documents.panelsHidden, "Dither Tab hid panels")
+            let proxy = !(next is NSControl) && !(next is KeyOwningControl)
+            try self.require(!self.tab(shift: true), "Shift-Tab back consumed")
+            let returned = self.window.firstResponder === box
+            let observed = "Dither Tab is unhandled and moves to \(self.label(next)), panels stay; Shift-Tab \(returned ? "returns to Dither" : "lands on \(self.label(self.window.firstResponder))")"
+            if !returned {
+                // A hop that starts on a SwiftUI focus proxy is SwiftUI's own focus movement, which needs
+                // a key window; only native-to-native hops are judged in the background host.
+                try self.require(proxy, "Shift-Tab from \(self.label(next)) did not return to Dither")
+                throw NotApplicable(reason: "FKA on (pinned): \(observed). The return hop starts on a SwiftUI focus proxy, whose focus movement needs a key window; not judged in the background host.")
+            }
+            guard KeyboardAccessHarness.systemFullKeyboardAccess else {
+                throw NotApplicable(reason: "FKA on (pinned) on a machine whose real setting is off: SwiftUI focus proxies (the Color header) take key-view eligibility from the real setting inside SwiftUI, which no in-process pin controls, so Dither → Color header cannot be reproduced here. Asserted on this machine: \(observed).")
+            }
+            return "FKA on (pinned, real setting on): \(observed)."
+        }
         for path in ["18", "19a"] {
             run(path) {
                 let eye = try self.eye(); try self.focus(eye)
@@ -560,15 +659,65 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         let mode = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         let modeSummary = defaults.terminationStatus == 0 ? mode.trimmingCharacters(in: .whitespacesAndNewlines) : "unset (defaults exit \(defaults.terminationStatus))"
         func clean(_ value: String) -> String { value.replacingOccurrences(of: "|", with: "\\|").replacingOccurrences(of: "\n", with: " ") }
-        let header = "# B5-49 automated keyboard checklist\n\nGenerated by DocumentKeyboardChecklistTests. AppleKeyboardUIMode: \(modeSummary); AppKit FKA: \(fka). Settings read only. Isolated LayoutProbeHarness preferences; StubLibrary scanning two generated JPEGs, StubDocumentEngine with ≥3 layers; step 12 onward uses a real 96×64 engine document for pixel Clear and ownership checks. Windows ordered back, activation prohibited.\n\nTEARDOWN is cleanup only and is excluded from PASS counts. Memory addresses are normalized to `<address>`. Regenerate only with `TESSERA_REGENERATE_KEYBOARD_RESULTS=1`. PASS covers the action/responder contract described in the note, not a visible ring or physical key delivery. Split rows explicitly retain native application/FKA work. FAIL includes missing required hosted preconditions (never silently skipped). Trace is `focus-hosted.jsonl`: actual InspectorFocusTrace snapshots, direct KeyRouter handled values, all key types including Delete/tool letters/up/repeats, and layer count before every event. It does not claim production owned-key-window eligibility. Non-key steps have no sequence.\n\n| Step | Result | Sequence | before.nativeType | handled | Note |\n| --- | --- | --- | --- | --- | --- |\n"
+        let header = """
+        # B5-49 automated keyboard checklist
+
+        Generated by DocumentKeyboardChecklistTests, once per pinned Full Keyboard Access (FKA) mode: `testCombinedKeyboardChecklistFKAOn` and `testCombinedKeyboardChecklistFKAOff`. Both run on every machine, whatever its own setting.
+
+        The pin is in-process and test-only. The app's `KeyboardAccessPolicy`, `NSApplication.isFullKeyboardAccessEnabled` and `NSButton.canBecomeKeyView` follow the pinned mode; no user default or system setting is written, and none decides a result. SwiftUI focus proxies and AppKit control classes other than buttons still take their key-view eligibility from the machine's real setting; steps that need them are N/A with the reason. Generating machine, for information only: AppleKeyboardUIMode \(modeSummary); real AppKit FKA \(KeyboardAccessHarness.systemFullKeyboardAccess).
+
+        Isolated LayoutProbeHarness preferences; StubLibrary scanning two generated JPEGs, StubDocumentEngine with ≥3 layers; step 12 onward uses a real 96×64 engine document for pixel Clear and ownership checks. The window has a fixed 1100×848 pt content size that is not constrained to the screen; no assertion depends on screen size or backing scale. Windows ordered back, activation prohibited.
+
+        TEARDOWN is cleanup only and is excluded from PASS counts. Memory addresses are normalized to `<address>`. Regenerate only with `TESSERA_REGENERATE_KEYBOARD_RESULTS=1`. PASS covers the action/responder contract described in the note, not a visible ring or physical key delivery. Split rows explicitly retain native application work. FAIL includes missing required hosted preconditions (never silently skipped). Traces are `focus-hosted-fka-on.jsonl` and `focus-hosted-fka-off.jsonl`: actual InspectorFocusTrace snapshots, direct KeyRouter handled values, all key types including Delete/tool letters/up/repeats, and layer count before every event. They do not claim production owned-key-window eligibility. Non-key steps have no sequence.
+
+        """
+        let tag = fka ? "ON" : "OFF"
+        func count(_ result: String) -> Int { rows.filter { $0.result == result }.count }
         let table = rows.map { row in "| \([row.step, row.result, row.sequence.isEmpty ? "—" : row.sequence, row.nativeType.isEmpty ? "not observed" : row.nativeType, row.handled.isEmpty ? "not delivered" : row.handled, row.note].map(clean).joined(separator: " | ")) |" }.joined(separator: "\n")
+        let section = Self.sectionStart(tag) + "\n## FKA \(tag) (pinned)\n\nPASS \(count("PASS")), N/A \(count("N/A")), FAIL \(count("FAIL")), TEARDOWN \(count("TEARDOWN")); \(events.count) key events in `focus-hosted-fka-\(tag.lowercased()).jsonl`.\n\n| Step | Result | Sequence | before.nativeType | handled | Note |\n| --- | --- | --- | --- | --- | --- |\n" + table + "\n" + Self.sectionEnd(tag) + "\n"
+        // Each variant replaces only its own table, so the file is the same whichever runs first.
+        let existing = (try? String(contentsOf: directory.appendingPathComponent("RESULTS.md"), encoding: .utf8)) ?? ""
+        let sections = ["ON", "OFF"].compactMap { $0 == tag ? section : Self.section($0, in: existing) }
         for filename in ["RESULTS.md", "GUI-RESULTS.md"] {
-            try (header + table + "\n").write(to: directory.appendingPathComponent(filename), atomically: true, encoding: .utf8)
+            try (header + "\n" + sections.joined(separator: "\n")).write(to: directory.appendingPathComponent(filename), atomically: true, encoding: .utf8)
         }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         var data = Data()
         for event in events { data.append(try encoder.encode(event)); data.append(0x0a) }
         let normalized = Self.normalizeAddresses(String(decoding: data, as: UTF8.self))
-        try Data(normalized.utf8).write(to: directory.appendingPathComponent("focus-hosted.jsonl"), options: .atomic)
+        try Data(normalized.utf8).write(to: directory.appendingPathComponent("focus-hosted-fka-\(tag.lowercased()).jsonl"), options: .atomic)
+    }
+
+    private static func sectionStart(_ tag: String) -> String { "<!-- FKA-\(tag):BEGIN -->" }
+    private static func sectionEnd(_ tag: String) -> String { "<!-- FKA-\(tag):END -->" }
+    private static func section(_ tag: String, in text: String) -> String? {
+        guard let start = text.range(of: sectionStart(tag)), let end = text.range(of: sectionEnd(tag)),
+              start.lowerBound < end.lowerBound else { return nil }
+        return String(text[start.lowerBound..<end.upperBound]) + "\n"
+    }
+
+    func testEachVariantReplacesOnlyItsOwnResultTable() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let optIn = ["TESSERA_REGENERATE_KEYBOARD_RESULTS": "1"]
+        func row(_ note: String) -> Row { Row(step: "1a", result: "PASS", sequence: "", nativeType: "", handled: "", note: note) }
+        var outputs: [String] = []
+        for order in [[true, false], [false, true]] {
+            try? FileManager.default.removeItem(at: directory)
+            for fka in order + order {
+                rows = [row(fka ? "on-note" : "off-note")]; events = []
+                try writeResults(fka: fka, directory: directory, environment: optIn)
+            }
+            outputs.append(try String(contentsOf: directory.appendingPathComponent("RESULTS.md"), encoding: .utf8))
+            XCTAssertEqual(outputs.last, try String(contentsOf: directory.appendingPathComponent("GUI-RESULTS.md"), encoding: .utf8))
+            XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: directory.path)),
+                           ["RESULTS.md", "GUI-RESULTS.md", "focus-hosted-fka-on.jsonl", "focus-hosted-fka-off.jsonl"])
+        }
+        XCTAssertEqual(outputs[0], outputs[1], "The result file must not depend on which variant ran first")
+        let text = outputs[0]
+        let on = try XCTUnwrap(text.range(of: "## FKA ON (pinned)")), off = try XCTUnwrap(text.range(of: "## FKA OFF (pinned)"))
+        XCTAssertTrue(on.lowerBound < off.lowerBound)
+        XCTAssertEqual(text.components(separatedBy: "on-note").count, 2)
+        XCTAssertEqual(text.components(separatedBy: "off-note").count, 2)
     }
 }
