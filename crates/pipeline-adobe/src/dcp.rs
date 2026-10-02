@@ -608,6 +608,81 @@ impl DcpProfile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn lr10_missing_tone_uses_published_acr3_curve_but_explicit_identity_wins() {
+        let p = DcpProfile::parse(&fixture(false, 42, &base())).unwrap();
+        // Public DNG SDK ACR3 table samples at indices 128, 256, 512, 768.
+        for (input, expected) in [
+            (0.125, 0.25961),
+            (0.25, 0.52069),
+            (0.5, 0.80486),
+            (0.75, 0.93986),
+        ] {
+            close(p.apply_tone([input; 3]), [expected; 3], 0.00002);
+        }
+        let mut entries = base();
+        entries.push((50940, 11, vec![0., 0., 1., 1.]));
+        let explicit = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        close(explicit.apply_tone([0.25; 3]), [0.25; 3], 0.00002);
+    }
+
+    #[test]
+    fn lr10_look_is_deferred_until_after_exposure() {
+        let mut entries = base();
+        let plain = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        entries.extend([
+            (50981, 4, vec![1., 2., 2.]),
+            (
+                50982,
+                11,
+                vec![0., 1., 1., 0., 1., 1., 0., 1., 1., 120., 1., 1.],
+            ),
+        ]);
+        let look = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let camera = [0.2, 0.1, 0.03];
+        // The camera/WB/HueSat stage must not bake the value-dependent look.
+        close(
+            look.apply_without_tone(camera, 6504.),
+            plain.apply_without_tone(camera, 6504.),
+            0.00001,
+        );
+        assert_ne!(look.apply(camera, 6504.), plain.apply(camera, 6504.));
+    }
+
+    #[test]
+    fn lr10_encoded_value_lookup_has_hand_computed_hue_and_value() {
+        let table = Table {
+            dims: [1, 2, 2],
+            encoded: true,
+            data: vec![[0., 1., 1.], [0., 1., 1.], [0., 1., 1.], [120., 1., 0.5]],
+        };
+        // Linear red V=0.21404114048223255 encodes to .5: interpolation
+        // gives H+=60 degrees and V*=.75; decode(.375)=.11601613423276605.
+        let out = table.apply([0.21404114048223255, 0., 0.], None, 0.);
+        for (a, b) in out
+            .into_iter()
+            .zip([0.11601613423276605, 0.11601613423276605, 0.])
+        {
+            assert!((a - b).abs() < 1e-12, "{a} != {b}");
+        }
+    }
+
+    #[test]
+    fn lr10_profile_tone_preserves_hue_between_channel_extrema() {
+        let mut entries = base();
+        entries.push((50940, 11, vec![0., 0., 0.25, 0.1, 0.5, 0.3, 1., 1.]));
+        let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let to_working =
+            |pro| mul(XYZ_TO_REC2020, adapt(mul(PROPHOTO_TO_XYZ, pro), D50, D65)).map(|v| v as f32);
+        // Curve endpoints .25 -> .1, .5 -> .3. The middle channel lies
+        // halfway between them, so hue preservation requires exactly .2.
+        close(
+            p.apply_tone(to_working([0.5, 0.375, 0.25])),
+            to_working([0.3, 0.2, 0.1]),
+            0.00002,
+        );
+    }
+
     // Build actual TIFF IFDs, including out-of-line values, in either byte order.
     fn fixture(be: bool, magic: u16, entries: &[(u16, u16, Vec<f64>)]) -> Vec<u8> {
         fn u16b(v: u16, be: bool) -> [u8; 2] {
