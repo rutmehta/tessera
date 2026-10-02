@@ -327,5 +327,9 @@ fn retouch_brushes_may_cross_the_image_boundary_without_clamping() {
 #[test]
 fn ai_object_instance_metadata_names_instance_selection() {
     let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',CorrectionMasks={{What='Mask/Image',MaskSubType=0,ReferencePoint='0.5 0.5',InstanceIDs={{InstanceID=1}},InstanceBounds={{Left=0.2,Top=0.2,Right=0.8,Bottom=0.8}}}}}}}","15.4").unwrap();
-    assert!(w.iter().any(|w|w.contains("individual AI instance selection")),"{w:?}");
+    assert!(
+        w.iter()
+            .any(|w| w.contains("individual AI instance selection")),
+        "{w:?}"
+    );
 }
