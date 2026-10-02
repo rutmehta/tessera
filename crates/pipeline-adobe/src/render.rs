@@ -165,7 +165,7 @@ pub fn render_linear_scaled_with_profile_and_locals(
         pipeline_cpu::map_rgb(&mut tile, |p| basic_tone(p, &settings.tone))?;
         // ProfileToneCurve is deferred until after exposure/basic tone, once.
         if let Some(profile) = profile {
-            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_tone(p))?;
+            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_tone(profile.apply_look(p)))?;
         }
         rgb.put(&tile)?;
     }
