@@ -51,3 +51,20 @@ fn ai_raster_metadata_does_not_block_regeneration() {
     assert!(w.is_empty(),"{w:?}");
     assert_eq!(r.settings.locals.adjustments.len(),1);
 }
+
+#[test]
+fn remaining_global_effects_have_named_feature_diagnostics() {
+    for (key, value, expected) in [("SDRBrightness","20","SDR rendition"),("IncrementalTemperature","4","relative white balance"),("OverrideLookVignette","true","profile vignette"),("RemoveAreas","{{SpotType='contentAware',pm_patch='synthetic'}}","content-aware")] {
+        let (_,w)=lua_develop::parse(&format!("s={{HDREditMode=1,{key}={value}}}"),"15.4").unwrap();
+        assert!(w.iter().any(|w|w.contains(expected)),"{key}: {w:?}");
+        assert!(!w.iter().any(|w|w.contains("unsupported property")||w.contains("unknown Lua develop key")),"{w:?}");
+    }
+}
+#[test]
+fn generative_removal_has_one_cloud_note_per_image() {
+    let (r,w)=lua_develop::parse("s={EnableDistractionRemoval=true,RemoveAreas={{SpotType='generative',pm_clio_model_version='synthetic',pm_patch='synthetic'},{SpotType='generative',pm_clio_model_version='synthetic',pm_patch='synthetic'}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    let notes: Vec<_>=diagnostics::entries(&r).into_values().flatten().filter(|e|e.reason.contains("requires Adobe cloud; not translatable")).collect();
+    assert_eq!(notes.len(),1);
+    assert_eq!(notes[0].status,"ignored");
+}
