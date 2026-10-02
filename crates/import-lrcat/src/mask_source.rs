@@ -597,7 +597,7 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
                 "LocalPointColors" => Some("local point-color selection is not implemented"),
 
                 "InstanceBounds" | "InstanceIDs" => {
-                    Some("individual AI person-instance selection is not implemented")
+                    Some("individual AI instance selection is not implemented")
                 }
                 _ => None,
             } {
