@@ -125,15 +125,10 @@ fn lr6e_apply_pins_depth_before_user_edit_reimports_and_deletes_with_image() {
     std::fs::remove_file(&xmp_path).unwrap();
     std::fs::create_dir(&xmp_path).unwrap();
     options.overwrite_existing_edits = false;
-    let failed = import
-        .apply_with_depth_resolver(options.clone(), None, Some(make_resolver(255)))
-        .unwrap();
-    assert!(
-        failed
-            .skipped
-            .iter()
-            .any(|skip| skip.reason.contains("could not write sidecars"))
-    );
+    let failed = import.apply_with_depth_resolver(options.clone(), None, Some(make_resolver(255)));
+    // The per-image write is rolled back; the final catalog scan also rejects
+    // this deliberately invalid XMP destination and propagates an I/O error.
+    assert!(failed.is_err());
     let store = DepthStore::new(support.join("previews/depth-cache"), 1).unwrap();
     assert!(
         (DepthMap::cached(&store, &key).unwrap().inverse_depth()[0] - 191. / 255.).abs() < 1e-6
