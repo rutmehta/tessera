@@ -1,6 +1,8 @@
 //! Feature-specific residual diagnostics. Never include source property values.
 use engine_api::recipe::Recipe;
 
+pub(crate) const CLOUD_NOTE: &str = "requires Adobe cloud; not translatable. Export rendered pixels from Lightroom to preserve generative removal.";
+
 pub const FEATURES: &[(&str, &str)] = &[
     ("SDRBlend", "separate SDR rendition blending while HDR editing is active is not implemented"),
     ("SDRBrightness", "separate SDR rendition brightness while HDR editing is active is not implemented"),
@@ -38,7 +40,13 @@ pub const FEATURES: &[(&str, &str)] = &[
     ("PointColors", "point-color selection encoding cannot be decoded"),
 ];
 
-pub(crate) fn explain(_recipe: &Recipe, warnings: &mut Vec<String>) {
+pub(crate) fn explain(recipe: &mut Recipe, warnings: &mut Vec<String>) {
+    let cloud_keys = ["EnableDistractionRemoval", "GenerativeRemove", "GenerativeFill"];
+    let cloud_warning = warnings.iter().any(|w| w.trim_start_matches("crs:").split_once(':').is_some_and(|(key,detail)| cloud_keys.contains(&key) && detail.contains("requires Adobe cloud; not translatable")));
+    if cloud_warning {
+        crate::diagnostics::push_ignored(recipe, "GenerativeRemove", "LR-9b", CLOUD_NOTE);
+        warnings.retain(|w| !w.trim_start_matches("crs:").split_once(':').is_some_and(|(key,_)|cloud_keys.contains(&key) || key == "FilterList"));
+    }
     for warning in warnings.iter_mut() {
         let Some((key, detail)) = warning.trim_start_matches("crs:").split_once(':') else { continue; };
         if detail.contains("requires Adobe PV3 or later") { continue; }
