@@ -87,8 +87,9 @@ fn b2_instance_keys_block_the_parent_with_other_translatable_content() {
     }
 }
 
-/// Restack consequence: without AI-mask promotion an AI selection blocks its
-/// group. A decodable local operator in that group is not the reason.
+/// A selection that stays unsupported (an LR-5b person mask) blocks its group.
+/// A decodable local operator in that group is not the reason; the warning
+/// names the selection. With a supported subject mask the group translates.
 #[test]
 fn decodable_local_operators_are_not_blamed_for_an_unsupported_selection() {
     for operator in [
@@ -99,10 +100,18 @@ fn decodable_local_operators_are_not_blamed_for_an_unsupported_selection() {
         "LocalDefringe=50",
     ] {
         let source = format!(
-            "s={{MaskGroupBasedCorrections={{{{What='Correction',{operator},CorrectionMasks={{{{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}}}}}}"
+            "s={{MaskGroupBasedCorrections={{{{What='Correction',{operator},CorrectionMasks={{{{What='Mask/Image',MaskSubType=3,MaskID='synthetic'}}}}}}}}}}"
         );
+        let (subject, w) =
+            lua_develop::parse(&source.replace("MaskSubType=3", "MaskSubType=1"), "15.4").unwrap();
+        assert!(w.is_empty(), "{operator}: {w:?}");
+        assert_eq!(subject.settings.locals.adjustments.len(), 1, "{operator}");
         let (r, w) = lua_develop::parse(&source, "15.4").unwrap();
         assert_eq!(w.len(), 1, "{operator}: {w:?}");
+        assert!(
+            w[0].contains("AI person, part or instance selection"),
+            "{operator}: {w:?}"
+        );
         for label in [
             "local tone curve",
             "local point-color",
@@ -146,7 +155,7 @@ fn radial_conflict_is_named_only_when_the_flags_disagree() {
     let radial = "What='Mask/CircularGradient',Left=0.2,Top=0.2,Right=0.8,Bottom=0.8";
     let (_, w) = lua_develop::parse(
         &format!(
-            "s={{MaskGroupBasedCorrections={{{{LocalExposure2012=1,CorrectionMasks={{{{{radial},Flipped=true}},{{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}}}}}}"
+            "s={{MaskGroupBasedCorrections={{{{LocalExposure2012=1,CorrectionMasks={{{{{radial},Flipped=true}},{{What='Mask/Image',MaskSubType=3,MaskID='synthetic'}}}}}}}}}}"
         ),
         "15.4",
     )
