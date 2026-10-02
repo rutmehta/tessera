@@ -366,16 +366,18 @@ After these gates the lane's own commits were rebased from `f84aebdb` onto
 `4dba1640` (identical tree, four reworded messages below it); the rebased tree was
 checked to be byte-identical to the gated one.
 
-## Rebased onto LR-9c (121fa5a0)
+## Rebased onto LR-9c, now on main (ef376831)
 
-Per Machine A's merge order the lane now sits on `origin/wp/LR-9-restack`. It was
-first rebased onto `3be064d2`, then onto `121fa5a0` when that stack was replayed
-on main. No commit was squashed or reordered and no existing trailer was touched.
+Per Machine A's merge order the lane was rebased onto LR-9c: first onto
+`3be064d2`, then onto `121fa5a0` when that stack was replayed on main, and
+finally, after LR-9 merged, directly onto `origin/main` `ef376831` (35 lane
+commits on top). No commit was squashed or reordered and no existing trailer was touched.
 Commits are named by subject below because the hashes changed twice.
 
 ### Conflicts
 
-Textual conflicts, onto `3be064d2` (the second rebase onto `121fa5a0` had none):
+Textual conflicts, onto `3be064d2` (the rebases onto `121fa5a0` and `ef376831` had
+none; `tessera-ffi/src/lrcat.rs` declares each test module exactly once):
 
 | File | Commit | Resolution |
 | --- | --- | --- |
@@ -409,14 +411,14 @@ conflict. Three semantic gaps between the lanes were then closed, tests first:
 
 ### Real-catalog aggregate (LR-9c's opt-in `lr9c_aggregate`, read-only scratch copy)
 
-| Count | `121fa5a0` | this tip |
+| Count | `ef376831` (main) | this tip |
 | --- | --- | --- |
 | images decoded | 21,615 | 21,615 |
 | develop-settings warning occurrences | 1,289 | 769 |
 | `MaskGroupBasedCorrections` warnings | 633 | 113 |
 | images with a cloud note | 10 | 10 |
 
-The same numbers were measured at `3be064d2`. Every other warning key is
+The same numbers were measured at `3be064d2` and `121fa5a0`. Every other warning key is
 unchanged. The 520 masks that left the warning list are AI masks that now import
 as regenerating Subject/Sky/Background/Object selections; person, part and
 instance masks are among the 113 that remain.
@@ -441,4 +443,38 @@ RED for these (on the `3be064d2` stack): export lib 36 passed, 2 failed; export
 
 ### Gates on the LR-9c stack
 
-GATES_PLACEHOLDER
+Final run on `b2c70971` (this lane on `ef376831`; the commit adding this text
+changes only this file). Environment as before: `CARGO_BUILD_JOBS=5
+RAYON_NUM_THREADS=5`, `TESSERA_APP_SUPPORT` at an empty scratch directory, and
+`cargo clean -p import-lrcat -p sidecar -p engine-api -p export -p mask-ai
+-p mask-store -p tessera-ffi -p tessera-mcp` first. No rerun, no relaxed bound,
+no exclusion.
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release --no-fail-fast` for import-lrcat, sidecar, engine-api, image-core, pipeline-cpu, pipeline-gpu, filters, previews, export, tessera-ffi, tessera-mcp | exit 0; 322 result lines, 2034 passed, 0 failed, 69 ignored |
+| `cargo test --release --no-fail-fast -p tessera-ffi` with `TMPDIR` at a non-system scratch directory | exit 0; 663 passed, 0 failed, 31 ignored |
+| No-download canary: `TESSERA_SEGMENT_MODELS` pointing at a regular file, so any model load fails instead of reaching the network; export + tessera-mcp, then tessera-ffi | exit 0 both; 197 passed / 7 ignored and 663 passed / 31 ignored, 0 failed |
+| `cargo test --release -p mask-store -p mask-ai` | exit 0; 4 passed |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | exit 0 |
+| `cargo fmt --all --check` | exit 0 |
+| `cd apps/mac && ./build-ffi.sh` | exit 0; worktree clean afterwards (bindings already current) |
+| `tools/orchestrate/swift-gate.sh` | `Executed 934 tests, with 3 tests skipped and 0 failures (0 unexpected)`; Swift Testing 5 tests in 2 suites passed; `SWIFT GATE OK` |
+| strict `swift build -c release --product Tessera ... -warnings-as-errors` | exit 0 |
+
+Goldens: no golden, fixture, `Cargo.lock` or `board.json` change in the lane;
+import `golden.rs` passes; nothing re-pinned. The same full set had passed on the
+`121fa5a0`-based tip (2016 passed in the release tests, Swift 934 tests).
+
+Attempt history on the LR-9c stack, all recorded:
+- On `3be064d2`: one run used `TESSERA_SEGMENT_MODELS` as a download canary
+  pointing at an empty directory. That activates the opt-in
+  `tessera-ffi/tests/masks.rs` `subject_mask_on_the_canon_fixture_with_cached_models`,
+  which downloaded the real weights into scratch and then failed with
+  "subject coverage on the CR3: 0". The same test with the same weights fails
+  identically at `3be064d2` without any LR-5b commit, so it is pre-existing and
+  outside this lane. Every other suite in that run passed (2008 passed, 1
+  failed, 70 ignored), as did clippy, fmt, the Swift gate (923 tests) and the
+  strict build. The canary was then changed to the regular-file form above,
+  which leaves that opt-in test skipped. The next run was stopped when the base
+  moved to `121fa5a0`.
