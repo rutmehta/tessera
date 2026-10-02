@@ -362,7 +362,9 @@ On the LR-5b stack, AI raster provenance (`FullMaskSize`, `LocalInputDigest`,
 inactive when saturation is zero. LR-11 now translates local curves, local Point Color and nonzero overlay/defringe
 approximately (extended curves only for HDR output; defringe in Adobe's signed range);
 the exact source remains retained. Individual AI-instance selection
-remains an explicitly named unsupported feature and is never widened to the whole object.
+remains an explicitly named unsupported feature and is never widened to the whole object;
+person and part AI masks stay unsupported as LR-5b rules, and their warning names that
+selection rather than a decodable local operator in the same group.
 Conflicting radial inversion flags remain a named unsupported feature. LR-4 geometry, range and nested masks
 retain their existing approximation contract.
 
@@ -422,7 +424,8 @@ Each has a schema-4 predicate and a bumped-only-when-present test. Existing nonz
 `defringe`/present `color_overlay` now also require schema 4.
 
 An individual AI instance selection (`InstanceIDs`/`InstanceBounds`) is unsupported
-on every mask kind: the shared codec rejects the group, the source is retained and
+on every mask kind, including the AI kinds LR-5b translates (the check runs before
+the kind is read): the shared codec rejects the group, the source is retained and
 the warning names the instance selection. It is never rendered as the whole object
 or subject, and no recipe field, schema predicate or GPU-admission clause exists for it.
 
