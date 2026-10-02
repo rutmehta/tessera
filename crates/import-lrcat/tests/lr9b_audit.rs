@@ -74,7 +74,13 @@ fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
         if let Some(what) = get("What").and_then(scalar) {
             let class = match what.as_str() {
                 "Mask/Image" => match get("MaskSubType").and_then(scalar).as_deref() {
-                    Some("1") => "AI_subject",
+                    Some("1") => {
+                        if matches!(get("MaskInverted"), Some(LuaValue::Bool(true))) {
+                            "AI_background"
+                        } else {
+                            "AI_subject"
+                        }
+                    }
                     Some("2") => "AI_sky",
                     Some("3") => {
                         if get("MaskSubCategoryID")
@@ -95,6 +101,18 @@ fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
                 "Mask/Gradient" => "gradient",
                 "Mask/Aggregate" | "Mask/Group" => "nested_group",
                 _ => "other",
+            };
+            out.insert(format!("{prefix}/selection/{class}"));
+            if get("InstanceIDs").is_some() {
+                out.insert(format!("{prefix}/instance_parent/{class}"));
+            }
+        }
+        if prefix.ends_with("/CorrectionRangeMask") {
+            let class = match get("Type").and_then(scalar).as_deref() {
+                Some("1") => "colour_range",
+                Some("2") => "luminance_range",
+                Some("3") => "depth_range",
+                _ => "unknown_range",
             };
             out.insert(format!("{prefix}/selection/{class}"));
         }
@@ -127,17 +145,16 @@ fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
         for (key, value) in &t.fields {
             if let LuaKey::Str(key) = key {
                 let key = key.to_ascii_lowercase();
-                if let Some(previous) = folded.insert(key.clone(), value) {
-                    if key.len() <= 64
-                        && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
-                    {
-                        let class = if previous == value {
-                            "equal"
-                        } else {
-                            "different"
-                        };
-                        out.insert(format!("{prefix}/duplicate_casefold/{key}/{class}"));
-                    }
+                if let Some(previous) = folded.insert(key.clone(), value)
+                    && key.len() <= 64
+                    && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                {
+                    let class = if previous == value {
+                        "equal"
+                    } else {
+                        "different"
+                    };
+                    out.insert(format!("{prefix}/duplicate_casefold/{key}/{class}"));
                 }
             }
         }
@@ -165,37 +182,34 @@ fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
                     _ => "nil",
                 };
                 out.insert(format!("{path}/class_{class}"));
-                if key == "What"
+                if (key == "What"
                     || key == "SpotType"
                     || key == "spotType"
                     || key == "Method"
-                    || key == "SourceState"
+                    || key == "SourceState")
+                    && let LuaValue::String(s) = value
                 {
-                    if let LuaValue::String(s) = value {
-                        let kind = match s.as_str() {
-                            "Mask/Paint" => "brush",
-                            "Mask/Gradient" => "gradient",
-                            "Mask/CircularGradient" => "radial",
-                            "Mask/Image" => "AI",
-                            "Mask/Range" => "range",
-                            "Mask/Group" | "Mask/Aggregate" => "group",
-                            "Mask/RangeMask" => "range",
-                            "Mask/Ellipse" => "ellipse",
-                            "heal" => "heal",
-                            "clone" => "clone",
-                            "generative" | "generativeRemove" => "generative",
-                            "contentAware" | "contentAwareRemove" | "content-aware" => {
-                                "content_aware"
-                            }
-                            "gaussian" => "gaussian",
-                            "remove" => "remove",
-                            "healV2" | "healv2" => "heal_v2",
-                            "sourceAutoComputed" => "auto_source",
-                            "sourceSetExplicitly" => "explicit_source",
-                            _ => "other",
-                        };
-                        out.insert(format!("{path}/kind_{kind}"));
-                    }
+                    let kind = match s.as_str() {
+                        "Mask/Paint" => "brush",
+                        "Mask/Gradient" => "gradient",
+                        "Mask/CircularGradient" => "radial",
+                        "Mask/Image" => "AI",
+                        "Mask/Range" => "range",
+                        "Mask/Group" | "Mask/Aggregate" => "group",
+                        "Mask/RangeMask" => "range",
+                        "Mask/Ellipse" => "ellipse",
+                        "heal" => "heal",
+                        "clone" => "clone",
+                        "generative" | "generativeRemove" => "generative",
+                        "contentAware" | "contentAwareRemove" | "content-aware" => "content_aware",
+                        "gaussian" => "gaussian",
+                        "remove" => "remove",
+                        "healV2" | "healv2" => "heal_v2",
+                        "sourceAutoComputed" => "auto_source",
+                        "sourceSetExplicitly" => "explicit_source",
+                        _ => "other",
+                    };
+                    out.insert(format!("{path}/kind_{kind}"));
                 }
                 walk(value, &path, out);
             } else {
@@ -259,57 +273,58 @@ fn run() -> Result<(), ()> {
             .or_default() += 1;
         let mut keys = BTreeSet::new();
         for warning in &w {
-            if let Some((k, _)) = warning.trim_start_matches("crs:").split_once(':') {
-                if k.len() <= 64 && k.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
-                    keys.insert(k.to_string());
-                    if k == "MaskGroupBasedCorrections" {
-                        let labels: Vec<_> = [
-                            ("local tone curve", "local_tone_curve"),
-                            ("local point-color", "local_point_color"),
-                            ("local color-variance", "local_color_variance"),
-                            ("individual AI person-instance", "AI_person_instance"),
-                            ("local defringe", "local_defringe"),
-                            ("local color overlay", "local_color_overlay"),
-                            ("radial mask inversion", "radial_inversion_conflict"),
-                            ("AI object selection", "AI_object_geometry"),
-                            ("unrecognized AI selection", "AI_selection_subtype"),
-                            ("brush stamp", "brush_stamp_encoding"),
-                            ("range-mask selection", "range_selection_encoding"),
-                            ("unrecognized mask selection kind", "unknown_selection_kind"),
-                            ("mask geometry", "geometry_or_structure"),
-                        ]
-                        .into_iter()
-                        .filter_map(|(text, label)| warning.contains(text).then_some(label))
-                        .collect();
-                        let label = if labels.is_empty() {
-                            "unclassified".to_string()
-                        } else {
-                            labels.join("+")
-                        };
-                        *counts
-                            .entry(format!("mask_reason_classes/{label}"))
-                            .or_default() += 1;
-                    }
-                    let reason = [
-                        "local tone curve",
-                        "local point-color",
-                        "local color-variance",
-                        "individual AI person-instance",
-                        "local defringe",
-                        "local color overlay",
-                        "mask geometry",
-                        "number outside CRS range",
-                        "invalid boolean",
-                        "unknown choice",
-                        "unsupported property",
-                        "unknown Lua develop key",
-                        "duplicate property superseded",
+            if let Some((k, _)) = warning.trim_start_matches("crs:").split_once(':')
+                && k.len() <= 64
+                && k.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            {
+                keys.insert(k.to_string());
+                if k == "MaskGroupBasedCorrections" {
+                    let labels: Vec<_> = [
+                        ("local tone curve", "local_tone_curve"),
+                        ("local point-color", "local_point_color"),
+                        ("local color-variance", "local_color_variance"),
+                        ("individual AI person-instance", "AI_person_instance"),
+                        ("local defringe", "local_defringe"),
+                        ("local color overlay", "local_color_overlay"),
+                        ("radial mask inversion", "radial_inversion_conflict"),
+                        ("AI object selection", "AI_object_geometry"),
+                        ("unrecognized AI selection", "AI_selection_subtype"),
+                        ("brush stamp", "brush_stamp_encoding"),
+                        ("range-mask selection", "range_selection_encoding"),
+                        ("unrecognized mask selection kind", "unknown_selection_kind"),
+                        ("mask geometry", "geometry_or_structure"),
                     ]
                     .into_iter()
-                    .find(|r| warning.contains(r))
-                    .unwrap_or("structured_or_other");
-                    *counts.entry(format!("reasons/{k}/{reason}")).or_default() += 1;
+                    .filter_map(|(text, label)| warning.contains(text).then_some(label))
+                    .collect();
+                    let label = if labels.is_empty() {
+                        "unclassified".to_string()
+                    } else {
+                        labels.join("+")
+                    };
+                    *counts
+                        .entry(format!("mask_reason_classes/{label}"))
+                        .or_default() += 1;
                 }
+                let reason = [
+                    "local tone curve",
+                    "local point-color",
+                    "local color-variance",
+                    "individual AI person-instance",
+                    "local defringe",
+                    "local color overlay",
+                    "mask geometry",
+                    "number outside CRS range",
+                    "invalid boolean",
+                    "unknown choice",
+                    "unsupported property",
+                    "unknown Lua develop key",
+                    "duplicate property superseded",
+                ]
+                .into_iter()
+                .find(|r| warning.contains(r))
+                .unwrap_or("structured_or_other");
+                *counts.entry(format!("reasons/{k}/{reason}")).or_default() += 1;
             }
         }
         for (key, entries) in import_lrcat::diagnostics::entries(&r) {
