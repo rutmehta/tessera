@@ -266,9 +266,11 @@ mod v4_feature_predicates {
 
     #[test]
     fn lens_blur_requires_v4_only_when_present() {
-        assert_bumped_only_when_present("lens_blur", |r| {
-            r.settings.effects.lens_blur = Some(Default::default());
-        });
+        let mut native = Recipe::default();
+        native.settings.effects.lens_blur = Some(Default::default());
+        native.history.base = native.settings.clone();
+        assert_eq!(required_schema_version(&native), 3);
+        assert_eq!(written_version(&native.to_json().unwrap()), 3);
         for field in ["focus_falloff", "adobe", "depth"] {
             assert_bumped_only_when_present("lens_blur", |r| {
                 let value = match field {

@@ -1,5 +1,8 @@
 //! Synthetic LR-6 acceptance probes. No catalog or user image is read.
 use engine_api::recipe::Recipe;
+use import_lrcat::diagnostics;
+#[path = "lr6_fields/mod.rs"]
+mod lr6_fields;
 
 const LENS_BLUR: &str = r#"s = { LensBlur = {
     Version = 1, Active = true, BlurAmount = 37,
@@ -114,13 +117,13 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
         let (recipe, warnings) =
             import_lrcat::develop(1, &format!("s = {{ LensBlur = {raw} }}"), "15.4").unwrap();
         assert!(warnings.is_empty(), "{source_key}: {warnings:?}");
+        lr6_fields::check_lr6_fields(&recipe, "LensBlur", "/settings/effects/lens_blur").unwrap();
         let records = import_lrcat::diagnostics::entries(&recipe);
         assert!(
-            records["LensBlur"]
-                .iter()
-                .any(|d| d.field == "/settings/effects/lens_blur"
-                    && d.level == "info"
-                    && d.reason.contains(source_key)),
+            records["LensBlur"].iter().any(|d| d.field.as_deref()
+                == Some("/settings/effects/lens_blur")
+                && d.level == "info"
+                && d.reason.contains(source_key)),
             "{source_key}"
         );
         let json = serde_json::to_value(&recipe).unwrap();
@@ -166,13 +169,14 @@ fn every_documented_adobe_field_is_present_and_source_is_exact() {
         )
         .unwrap();
         assert!(warnings.is_empty(), "{source_key}: {warnings:?}");
+        lr6_fields::check_lr6_fields(&recipe, "DepthMapInfo", "/settings/effects/lens_blur/depth")
+            .unwrap();
         let records = import_lrcat::diagnostics::entries(&recipe);
         assert!(
-            records["DepthMapInfo"]
-                .iter()
-                .any(|d| d.field == "/settings/effects/lens_blur/depth"
-                    && d.level == "info"
-                    && d.reason.contains(source_key)),
+            records["DepthMapInfo"].iter().any(|d| d.field.as_deref()
+                == Some("/settings/effects/lens_blur/depth")
+                && d.level == "info"
+                && d.reason.contains(source_key)),
             "{source_key}"
         );
         let json = serde_json::to_value(&recipe).unwrap();
@@ -314,13 +318,13 @@ fn lr6c_diagnostics_describe_only_translated_fields() {
     )
     .unwrap();
     let info = import_lrcat::diagnostics::entries(&recipe);
-    assert_eq!(info["LensBlur"].len(), 1);
+    assert_eq!(info["LensBlur"].len(), 2);
     assert!(info["LensBlur"][0].reason.contains("BlurAmount"));
     assert!(!info["LensBlur"][0].reason.contains("Active"));
     assert!(!info.contains_key("DepthMapInfo"));
     let (off, _) =
         import_lrcat::develop(1, "s = { LensBlur = { Active = false } }", "15.4").unwrap();
-    assert!(!off.unknown.contains_key("lrcat_translation_diagnostics"));
+    assert!(!off.unknown.contains_key(diagnostics::KEY));
 }
 
 #[test]
@@ -329,5 +333,52 @@ fn lr6d_exact_active_boolean_has_no_approximation() {
         import_lrcat::develop(1, "s = { LensBlur = { Active = true } }", "15.4").unwrap();
     assert!(r.settings.effects.lens_blur.is_some());
     assert!(warnings.is_empty());
-    assert!(import_lrcat::diagnostics::entries(&r).is_empty());
+    let entries = diagnostics::entries(&r);
+    assert_eq!(entries["LensBlur"].len(), 1);
+    assert!(
+        entries["LensBlur"][0]
+            .reason
+            .starts_with("regenerated depth:")
+    );
+}
+
+#[test]
+fn lr6e_missing_depth_has_one_explicit_regeneration_reason() {
+    for (companion, key) in [
+        ("", "LensBlur"),
+        (", DepthMapInfo = { DepthSource = 1 }", "DepthMapInfo"),
+    ] {
+        let (r, warnings) = import_lrcat::develop(
+            1,
+            &format!("s = {{ LensBlur = {{ Active = true }}{companion} }}"),
+            "15.4",
+        )
+        .unwrap();
+        assert!(warnings.is_empty());
+        assert!(
+            r.settings
+                .effects
+                .lens_blur
+                .as_ref()
+                .unwrap()
+                .depth
+                .as_ref()
+                .unwrap()
+                .regenerate
+        );
+        let entries = diagnostics::entries(&r);
+        let reasons: Vec<_> = entries[key]
+            .iter()
+            .filter(|d| d.reason.starts_with("regenerated depth:"))
+            .collect();
+        assert_eq!(reasons.len(), 1);
+        assert_eq!(
+            reasons[0].field.as_deref(),
+            Some("/settings/effects/lens_blur/depth")
+        );
+        assert_eq!(reasons[0].level, "info");
+        assert_eq!(reasons[0].status, "approximate");
+        assert_eq!(reasons[0].lane, "LR-6");
+        r.validate().unwrap();
+    }
 }
