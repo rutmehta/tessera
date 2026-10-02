@@ -1011,6 +1011,37 @@ mod tests {
         );
     }
 
+    #[test]
+    fn lr10_unknown_illuminant_uses_first_calibration_like_sdk() {
+        let mut entries = base();
+        entries[1].2 = vec![0.];
+        let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let known = DcpProfile::parse(&fixture(false, 42, &base())).unwrap();
+        close(
+            p.apply_without_tone([0.1, 0.2, 0.3], 5003.),
+            known.apply_without_tone([0.1, 0.2, 0.3], 5003.),
+            0.00001,
+        );
+    }
+
+    #[test]
+    fn lr10_output_referred_dng_has_no_implicit_tone_or_shadow_subtraction() {
+        let mut entries = base();
+        entries[1].2 = vec![23.];
+        entries.push((50879, 3, vec![1.]));
+        let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        close(p.apply_tone([0.25; 3]), [0.25; 3], 0.00001);
+        close(
+            p.apply([0.96422 * 0.02, 0.02, 0.82521 * 0.02], 5003.),
+            [0.02; 3],
+            0.00001,
+        );
+        // An explicit curve still overrides the output-referred default.
+        entries.push((50940, 11, vec![0., 0., 0.5, 0.25, 1., 1.]));
+        let explicit = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        close(explicit.apply_tone([0.5; 3]), [0.25; 3], 0.00002);
+    }
+
     // Build actual TIFF IFDs, including out-of-line values, in either byte order.
     fn fixture(be: bool, magic: u16, entries: &[(u16, u16, Vec<f64>)]) -> Vec<u8> {
         fn u16b(v: u16, be: bool) -> [u8; 2] {
