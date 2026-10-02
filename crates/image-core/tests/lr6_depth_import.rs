@@ -313,3 +313,80 @@ fn lr6d_imported_depth_survives_cache_eviction_and_reopen() {
     let store = DepthStore::new(tmp.path(), 1100).unwrap();
     assert_eq!(DepthMap::cached(&store, &key), Some(depth));
 }
+
+#[test]
+fn lr6e_render_does_not_write_resources_or_recipe() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = DepthStore::new(tmp.path(), 100000).unwrap();
+    let r = recipe();
+    let before = r.to_json().unwrap();
+    let renderer =
+        Renderer::new(RendererConfig::default()).with_depth(Arc::new(provider().with_store(store)));
+    renderer.apply_depth_effects(&input(), &r.settings).unwrap();
+    assert_eq!(r.to_json().unwrap(), before);
+    assert_eq!(
+        std::fs::read_dir(tmp.path()).unwrap().count(),
+        0,
+        "render must not persist estimated or imported depth"
+    );
+}
+
+#[test]
+fn lr6e_reimport_replaces_one_pin_per_image_and_user_edits_keep_it() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = DepthStore::new(tmp.path(), 1100).unwrap();
+    let mut keys = Vec::new();
+    for value in [64, 191] {
+        let mut r = recipe();
+        r.image_id = Some(engine_api::id::ImageId(66));
+        let mut bytes = Cursor::new(Vec::new());
+        image::GrayImage::from_pixel(16, 16, image::Luma([value]))
+            .write_to(&mut bytes, image::ImageFormat::Png)
+            .unwrap();
+        provider()
+            .prepare_lens_blur_depth(&mut r, &input(), &store, |_| Some(bytes.get_ref().clone()))
+            .unwrap();
+        let key = r
+            .settings
+            .effects
+            .lens_blur
+            .as_ref()
+            .unwrap()
+            .depth
+            .as_ref()
+            .unwrap()
+            .mask_key
+            .unwrap();
+        keys.push(key);
+        r.edit(engine_api::recipe::EditMeta::user("exposure", 1), |s| {
+            s.tone.exposure = 1.
+        })
+        .unwrap();
+        let saved = Recipe::from_json(&r.to_json().unwrap()).unwrap();
+        assert_eq!(
+            saved
+                .settings
+                .effects
+                .lens_blur
+                .as_ref()
+                .unwrap()
+                .depth
+                .as_ref()
+                .unwrap()
+                .mask_key,
+            Some(key)
+        );
+        assert!(
+            (DepthMap::cached(&store, &key).unwrap().inverse_depth()[0] - value as f32 / 255.)
+                .abs()
+                < 1e-6
+        );
+        assert_eq!(
+            std::fs::read_dir(tmp.path().join("pinned"))
+                .unwrap()
+                .count(),
+            1
+        );
+    }
+    assert_eq!(keys[0], keys[1], "ownership key is stable across reimport");
+}

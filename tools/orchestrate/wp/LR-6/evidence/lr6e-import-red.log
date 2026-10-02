@@ -1,0 +1,103 @@
+    Blocking waiting for file lock on build directory
+   Compiling num-traits v0.2.19
+   Compiling bitflags v2.13.2
+   Compiling vcpkg v0.2.15
+   Compiling pkg-config v0.3.34
+   Compiling rustybuzz v0.20.1
+   Compiling libsqlite3-sys v0.38.2
+   Compiling foldhash v0.2.0
+   Compiling euclid v0.22.14
+   Compiling hashbrown v0.17.1
+   Compiling lyon_geom v1.0.19
+   Compiling lyon_path v1.0.19
+   Compiling lyon_algorithms v1.0.21
+   Compiling lyon_tessellation v1.0.22
+   Compiling lyon v1.0.19
+   Compiling vector v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/vector)
+   Compiling typography v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/typography)
+   Compiling getrandom v0.4.3
+   Compiling rustix v1.1.5
+   Compiling anyhow v1.0.104
+   Compiling engine-api v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/engine-api)
+   Compiling hashlink v0.12.2
+   Compiling errno v0.3.14
+   Compiling same-file v1.0.6
+   Compiling fallible-iterator v0.3.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling mutate_once v0.1.2
+   Compiling kamadak-exif v0.6.1
+   Compiling walkdir v2.5.0
+   Compiling once_cell v1.21.4
+   Compiling pxfm v0.1.30
+   Compiling zune-core v0.5.3
+   Compiling fastrand v2.5.0
+   Compiling tempfile v3.27.0
+   Compiling rusqlite v0.40.2
+   Compiling zune-jpeg v0.5.15
+   Compiling index v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/index)
+   Compiling moxcms v0.8.1
+   Compiling byteorder-lite v0.1.0
+   Compiling image v0.25.10
+   Compiling library v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/library)
+   Compiling sidecar v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/sidecar)
+   Compiling roxmltree v0.20.0
+   Compiling import-lrcat v0.1.0 (/Users/rutmehta/Developer/lightroom/.worktrees/LR-6-lens-blur/crates/import-lrcat)
+    Finished `release` profile [optimized] target(s) in 2m 13s
+     Running tests/lr6_lens_blur.rs (/Users/rutmehta/.cache/tessera-target/LR-6-lens-blur/release/deps/lr6_lens_blur-9f0481c5a6f982e5)
+
+running 13 tests
+test lr6d_exact_active_boolean_has_no_approximation ... FAILED
+test xmp_depth_attributes_retain_exact_fragment_without_warnings ... FAILED
+test lr6e_missing_depth_has_one_explicit_regeneration_reason ... FAILED
+test lr6c_inactive_and_depth_only_do_not_enable_blur ... ok
+test lr6c_import_has_one_import_authored_history_entry ... ok
+test lr6c_diagnostics_describe_only_translated_fields ... FAILED
+test lr6_missing_adobe_depth_records_regeneration_in_recipe ... ok
+test lr6_lua_lens_blur_approximates_with_exact_source ... ok
+test untranslated_inputs_are_byte_identical_to_dcf07355 ... ok
+test focal_range_preserves_outer_endpoints_and_shapes_have_renderable_interpretations ... ok
+test lr6_xmp_lens_blur_approximates_with_exact_source ... ok
+test lr6_export_synthetic_recipe_for_cpu_gate ... ok
+test every_documented_adobe_field_is_present_and_source_is_exact ... FAILED
+
+failures:
+
+---- lr6d_exact_active_boolean_has_no_approximation stdout ----
+
+thread 'lr6d_exact_active_boolean_has_no_approximation' (57348733) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:338:23:
+no entry found for key
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- xmp_depth_attributes_retain_exact_fragment_without_warnings stdout ----
+
+thread 'xmp_depth_attributes_retain_exact_fragment_without_warnings' (57348736) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:277:10:
+called `Option::unwrap()` on a `None` value
+
+---- lr6e_missing_depth_has_one_explicit_regeneration_reason stdout ----
+
+thread 'lr6e_missing_depth_has_one_explicit_regeneration_reason' (57348734) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:347:79:
+called `Option::unwrap()` on a `None` value
+
+---- lr6c_diagnostics_describe_only_translated_fields stdout ----
+
+thread 'lr6c_diagnostics_describe_only_translated_fields' (57348730) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:322:5:
+assertion `left == right` failed
+  left: 1
+ right: 2
+
+---- every_documented_adobe_field_is_present_and_source_is_exact stdout ----
+
+thread 'every_documented_adobe_field_is_present_and_source_is_exact' (57348724) panicked at crates/import-lrcat/tests/lr6_lens_blur.rs:173:100:
+called `Result::unwrap()` on an `Err` value: "DepthMapInfo.DepthSource: missing translated fields"
+
+
+failures:
+    every_documented_adobe_field_is_present_and_source_is_exact
+    lr6c_diagnostics_describe_only_translated_fields
+    lr6d_exact_active_boolean_has_no_approximation
+    lr6e_missing_depth_has_one_explicit_regeneration_reason
+    xmp_depth_attributes_retain_exact_fragment_without_warnings
+
+test result: FAILED. 8 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p import-lrcat --test lr6_lens_blur`
