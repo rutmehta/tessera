@@ -100,12 +100,12 @@ fn literal(value: LuaValue) -> Option<Value> {
             let mut fields = Map::new();
             for (key, value) in t.fields {
                 let LuaKey::Str(key) = key else { return None };
-                if fields
-                    .insert(key.to_ascii_lowercase(), literal(value)?)
-                    .is_some()
-                {
+                let key = key.to_ascii_lowercase();
+                let value = literal(value)?;
+                if fields.get(&key).is_some_and(|previous| previous != &value) {
                     return None;
                 }
+                fields.insert(key, value);
             }
             Value::Object(fields)
         }
