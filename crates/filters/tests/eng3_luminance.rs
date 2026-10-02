@@ -275,3 +275,77 @@ fn eng3c_photo_chroma_continuity_and_primary_ramps() {
         eprintln!("ENG3c Photo mode={mode} CPU/Metal max adjacent Y step={max_step:e}");
     }
 }
+
+#[path = "../../pipeline-gpu/tests/support/eng3_switch.rs"]
+mod switch;
+#[test]
+fn eng3f_photo_actual_switch_sweeps() {
+    use compositor::{
+        geom::Rect,
+        raster::{Depth, Raster},
+    };
+    use engine_api::tile::Extent;
+    use filters::{Effect, Filter, FilterParams, gpu::GpuFilters};
+    let params = FilterParams {
+        amount: 1.,
+        adjust: Adjustment::PhotoFilter {
+            colour: [0.5, 0.8, 0.5],
+            density: 1.,
+            preserve_luminosity: true,
+        },
+        ..Default::default()
+    };
+    // Filtered pixels are (r, g, 0) with r > 0 > g, so 0.2627 r = (A + L) / 2
+    // and 0.678 g = (L - A) / 2. The source is (r / 0.5, g / 0.8, 0), hence the
+    // target (source luminance) is T = (A + L) + (L - A) / 1.6
+    //   = L * (1.625 + 0.375 / rho), with T - L = L * q, q = 0.625 + 0.375 / rho.
+    // Floor branch, D >= L, Yout = L + (T - L) * L / D:
+    //   d/d rho = -(0.375 L / rho^2) * L / D + L q * L * eps / (k D^2); the two
+    //             terms have opposite signs, so |.| <= max(0.375 L / rho^2, q eps / k)
+    //   d/d L   = 1 + 2 q L / D <= 1 + 2 q
+    // Ratio branch: |d/d rho| = 0.375 L / rho^2 and d/d L = 1 + q, both covered.
+    let slopes = |d: &switch::Domain| {
+        let q = 0.625 + 0.375 / d.rho_min;
+        [
+            (0.375 * d.y_max / (d.rho_min * d.rho_min)).max(q * switch::EPSILON / switch::K),
+            1. + 2. * q,
+        ]
+    };
+    let gpu = GpuFilters::new().unwrap();
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    for sweep in switch::sweeps() {
+        let wanted = sweep.pixels();
+        let n = wanted.len();
+        let mut input = Raster::new(Extent::new(n as u32, 1), 4, Depth::F32, 0.);
+        input
+            .edit_region(Rect::of_extent(input.extent()), 1, |x, _, p| {
+                let filtered = wanted[x as usize];
+                *p = [filtered[0] / 0.5, filtered[1] / 0.8, 0., 0.7];
+            })
+            .unwrap();
+        // The filtered pixels the operator really conditions (f32 tint products).
+        let filtered: Vec<_> = (0..n)
+            .map(|i| {
+                let p = input.pixel(i as u32, 0);
+                [p[0] * 0.5, p[1] * 0.8, 0.]
+            })
+            .collect();
+        let cpu = Effect::Adjust.apply(&input, &params, &cancel).unwrap();
+        let metal = gpu.apply(Effect::Adjust, &input, &params, &cancel).unwrap();
+        for (backend, out) in [("CPU", cpu), ("Metal", metal)] {
+            let outputs: Vec<_> = (0..n)
+                .map(|i| {
+                    let p = out.pixel(i as u32, 0);
+                    assert_eq!(p[3], 0.7);
+                    [p[0], p[1], p[2]]
+                })
+                .collect();
+            let measured = sweep.check("Photo Filter", backend, &filtered, &outputs, slopes);
+            assert!(measured.switch_step <= measured.max_step);
+            // Past the switch the source luminance is preserved exactly.
+            let source = input.pixel(n as u32 - 1, 0);
+            let target = switch::luma([source[0], source[1], source[2]]);
+            assert!((switch::luma(outputs[n - 1]) - target).abs() < 1e-7);
+        }
+    }
+}

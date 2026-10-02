@@ -105,6 +105,45 @@ fn eng3_curve_zero_delta_vs_one_ulp() {
     assert!(gap <= 1e-8);
 }
 #[test]
+fn eng3_curve_signed_floor_boundaries() {
+    use engine_api::recipe::settings::ToneCurves;
+    let s = ToneSettings {
+        curves_extended: Some(ToneCurves {
+            luminance: Curve(vec![
+                CurvePoint { x: -1., y: 0.1 },
+                CurvePoint { x: 1., y: 0.1 },
+            ]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let gpu = GpuStageOp::new(Arc::new(GpuContext::new().unwrap()));
+    // Flat luminance segment gives an independently known mapped luminance.
+    let mapped = 0.18_f64 * ((0.1_f32 as f64) * (1.0_f64 / 0.18).ln_1p()).exp_m1();
+    for lum in [
+        -0.002_f32, -0.001001, -0.000999, -1e-6, 1e-6, 0.000999, 0.001001, 0.002,
+    ] {
+        let rgb = [lum; 3];
+        let input = patch(rgb);
+        let cpu = CpuStageOp
+            .run(StageId::Tone, &Op::ToneExtra(&s), input.clone())
+            .unwrap();
+        let actual = gpu.run(StageId::Tone, &Op::ToneExtra(&s), input).unwrap();
+        // Neutral signed greys do not cancel: retain the original ratio.
+        let expected = mapped;
+        for c in 0..3 {
+            let a = cpu.samples::<f32>().unwrap()[c * 9];
+            let b = actual.samples::<f32>().unwrap()[c * 9];
+            assert!(
+                (f64::from(a) - expected).abs() < 1e-7,
+                "CPU L={lum}: {a} vs {expected}"
+            );
+            assert!((a - b).abs() < 1e-7, "GPU L={lum}: {a} vs {b}");
+        }
+    }
+}
+
+#[test]
 fn eng3c_curve_cancelling_pixel_signed_floor_boundaries() {
     use engine_api::recipe::settings::ToneCurves;
     let s = ToneSettings {
@@ -304,7 +343,7 @@ fn eng3b_lifted_black_raw_monotone() {
             }
         }
     }
-    assert!(floored > 0);
+    assert_eq!(floored, 32);
     eprintln!("ENG3c RAW floored samples={floored} max RGB oracle error={max_error:e}");
 }
 #[test]
@@ -365,7 +404,8 @@ fn eng3c_primary_shadow_ramps() {
 fn eng3c_curve_chroma_boundary_continuity() {
     let gpu = GpuStageOp::new(Arc::new(GpuContext::new().unwrap()));
     let s = lifted();
-    // Cross both the old Y/max boundary and the new rho=k boundary at fixed Y.
+    // Historical ratio-branch checks; neither crosses D=|Y|.
+    // ENG-3f below covers the actual switch rho*=k*(1-|Y|/epsilon).
     for center in [0.25_f32, 0.25 / (2. * 0.2627 - 0.25)] {
         let mut ys = Vec::new();
         let mut gs = Vec::new();
@@ -393,5 +433,65 @@ fn eng3c_curve_chroma_boundary_continuity() {
         );
         assert!(step(&ys) < 1e-6);
         assert!(step(&gs) < 1e-6);
+    }
+}
+
+#[path = "support/eng3_switch.rs"]
+mod switch;
+#[test]
+fn eng3f_curve_actual_switch_sweeps() {
+    let gpu = GpuStageOp::new(Arc::new(GpuContext::new().unwrap()));
+    let s = lifted();
+    // f64 form of the lifted curve (see `monotone_evidence`) and its slope:
+    // f'(y) = 0.9 * (1 + f / 0.18) / (1 + y / 0.18) <= 0.9 * (1 + f(y_max) / 0.18).
+    let f = |y: f64| 0.18 * (0.1 * (1_f64 / 0.18).ln_1p() + 0.9 * (y / 0.18).ln_1p()).exp_m1();
+    // Target T = f(Y) does not depend on rho. Floor branch, D >= |Y|:
+    //   d/d rho = (f - Y) * Y * eps / (k * D^2)      <= (f - Y) * eps / (k * Y)
+    //   d/d Y   = 1 + (f' - 1) * Y / D + (f - Y) / D <= f' + (f - Y) / Y
+    // Ratio branch: d/d rho = 0 and d/d Y = f', both smaller.
+    let slopes = |d: &switch::Domain| {
+        let lift = f(d.y_max) - d.y_min;
+        let slope = (0.9 * (1. + f(d.y_max) / 0.18)).max(1.);
+        [
+            lift * switch::EPSILON / (switch::K * d.y_min),
+            slope + lift / d.y_min,
+        ]
+    };
+    for sweep in switch::sweeps() {
+        let pixels = sweep.pixels();
+        let n = pixels.len();
+        let mut cpu = Vec::new();
+        let mut metal = Vec::new();
+        // Tile interiors are limited to 256 samples per side.
+        for chunk in pixels.chunks(256) {
+            let m = chunk.len();
+            let input = Tile::from_samples(
+                TileCoord::new(0, 0, 0),
+                TileLayout {
+                    extent: Extent::new(m as u32, 1),
+                    halo: 0,
+                    channels: 3,
+                },
+                (0..3)
+                    .flat_map(|c| chunk.iter().map(move |p| p[c]))
+                    .collect(),
+            )
+            .unwrap();
+            let a = CpuStageOp
+                .run(StageId::Tone, &Op::ToneExtra(&s), input.clone())
+                .unwrap();
+            let b = gpu.run(StageId::Tone, &Op::ToneExtra(&s), input).unwrap();
+            for (out, list) in [(&a, &mut cpu), (&b, &mut metal)] {
+                let d = out.samples::<f32>().unwrap();
+                list.extend((0..m).map(|i| [d[i], d[m + i], d[2 * m + i]]));
+            }
+        }
+        for (backend, outputs) in [("CPU", cpu), ("Metal", metal)] {
+            let measured = sweep.check("curve", backend, &pixels, &outputs, slopes);
+            assert!(measured.switch_step <= measured.max_step);
+            // Both branches reach f(Y) at the switch, so the sweep ends on it.
+            let last = switch::luma(outputs[n - 1]);
+            assert!((last - f(switch::luma(pixels[n - 1]))).abs() < 2e-6);
+        }
     }
 }
