@@ -65,10 +65,16 @@ fn retouch_brush_metadata_and_vertical_offset_translate() {
 }
 
 #[test]
-fn active_local_curves_name_the_missing_feature() {
-    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=1}}}}}","15.4").unwrap();
-    assert!(w.iter().any(|w| w.contains("local tone curve")), "{w:?}");
-    assert!(!w.iter().any(|w| w.contains("mask source retained")));
+fn active_local_curves_now_translate_with_named_approximation() {
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=1}}}}}","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    assert!(r.settings.locals.adjustments[0].params.curves.is_some());
+    assert!(
+        diagnostics::entries(&r)
+            .values()
+            .flatten()
+            .any(|d| d.lane == "LR-11" && d.status == "approximate")
+    );
 }
 #[test]
 fn ai_raster_metadata_does_not_block_regeneration() {
@@ -138,11 +144,15 @@ fn retouch_offsety_is_the_absolute_source_y_spelling() {
 }
 
 #[test]
-fn ai_group_rejection_reports_the_effect_that_blocks_promotion() {
-    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
-    assert_eq!(w.len(), 1, "{w:?}");
-    assert!(w[0].contains("local tone curve"), "{w:?}");
-    assert!(!w[0].contains("unsupported mask kind"));
+fn ai_group_with_local_curve_now_translates() {
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    assert!(r.settings.locals.adjustments[0].params.curves.is_some());
+    assert!(
+        r.settings.locals.adjustments[0].components[0]
+            .adobe_ai
+            .is_some()
+    );
 }
 #[test]
 fn zero_local_color_variance_is_inactive() {
@@ -270,9 +280,9 @@ fn conflicting_radial_inversion_is_a_named_mask_limitation() {
 
 #[test]
 fn neutral_color_variance_is_not_named_as_a_curve_blocker() {
-    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalColorVariance={0,0,0},MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
-    assert!(w[0].contains("local tone curve"));
-    assert!(!w[0].contains("color-variance"), "{w:?}");
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalColorVariance={0,0,0},MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    assert!(r.settings.locals.adjustments[0].params.curves.is_some());
 }
 
 #[test]
@@ -330,11 +340,21 @@ fn retouch_brushes_may_cross_the_image_boundary_without_clamping() {
 }
 
 #[test]
-fn ai_object_instance_metadata_names_instance_selection() {
-    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',CorrectionMasks={{What='Mask/Image',MaskSubType=0,ReferencePoint='0.5 0.5',InstanceIDs={{InstanceID=1}},InstanceBounds={{Left=0.2,Top=0.2,Right=0.8,Bottom=0.8}}}}}}}","15.4").unwrap();
+fn ai_object_instance_metadata_names_approximate_instance_selection() {
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',CorrectionMasks={{What='Mask/Image',MaskSubType=0,ReferencePoint='0.5 0.5',InstanceIDs={{InstanceID=1}},InstanceBounds={{Left=0.2,Top=0.2,Right=0.8,Bottom=0.8}}}}}}}","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
     assert!(
-        w.iter()
-            .any(|w| w.contains("individual AI instance selection")),
-        "{w:?}"
+        diagnostics::entries(&r)
+            .values()
+            .flatten()
+            .any(|d| d.status == "approximate" && d.reason.contains("per-instance"))
+    );
+    assert!(
+        r.settings.locals.adjustments[0].components[0]
+            .adobe_ai
+            .as_ref()
+            .unwrap()
+            .instance_hint
+            .is_some()
     );
 }
