@@ -1,3 +1,8 @@
+> LR-4d supersedes the diagnostic channel described below: imports now use
+> `import_lrcat::diagnostics::{push_approximate, entries}`. See the
+> [LR-4d handoff](../../tools/orchestrate/wp/LR-4d/HANDOFF.md) for the conversion
+> and full Rust gates, including repository RAW fixtures.
+
 # LR-4c: review corrections and auditable approximations
 
 This supersedes the LR-4/LR-4b claims about source promotion, schema version,

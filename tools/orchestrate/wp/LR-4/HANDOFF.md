@@ -1,3 +1,6 @@
+> Latest: [LR-4d shared diagnostics conversion and gates](../LR-4d/HANDOFF.md).
+> The LR-4c review is in [LR-4C-PARAMETRIC-MASKS.md](../../../../docs/coordination/LR-4C-PARAMETRIC-MASKS.md).
+
 # LR-4b follow-up — Machine B, local only
 
 **Partial completion.** Four-bound luminance and radial inversion are implemented;
