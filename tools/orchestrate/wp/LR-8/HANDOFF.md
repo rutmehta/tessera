@@ -384,3 +384,152 @@ Cherry-pick order: `ec2f312ac4bfc8717f7a103c23b000541cca025d` (RED),
 `46965d1cfca6a95b1901e102586ea3685aaa2bdd` (fix), then the documentation commit
 containing this LR-8f section. Each ends with the requested Claude Opus 5.5
 co-author trailer.
+
+### LR-8g (on top of approved 3a60b599)
+
+All four Machine A follow-ups are addressed. Production changes remain solely
+in `crates/raw-decode/src/lossy_dng.rs`; tests and synthetic generators/fixtures
+remain in raw-decode. No Cargo.lock or board.json changes, private fixtures,
+GUI actions, dependency changes, or generated bindings.
+
+1. **Large originals:** the actual full camera RGB buffer uses three f32 values
+   per pixel (12 bytes). Its checked allocation is capped at **1.5 GiB =
+   134,217,728 pixels**, replacing both the 64-Mpixel ceiling and the overly
+   conservative 24-byte/padded-pixel 512-MiB budget. The constant's doc comment
+   explains the 100-MP headroom and that this is an output cap, not total process
+   memory: the final crop can coexist with the full buffer, costing up to
+   another 1.5 GiB. Tile scratch and compressed storage retain independent
+   limits. Sequential tile decoding does not require summing padded working
+   sets. All geometry/calibration/header validation before output allocation,
+   checked aggregate compressed bytes <= file size and <=128 MiB, <=65,536
+   tiles, <=32 MiB per compressed tile, JPEG dimension limits before decode,
+   and pre-initialization JXL AllocTracker limits remain intact.
+   A complete 6144x4096 (25,165,824-pixel) synthetic original decodes and every
+   channel is checked. Metadata admission additionally checks 10000x10000 and
+   the exact 32768x4096 cap; 32769x4096 is rejected by both readers with the
+   specific decoded-byte-budget error. The older budget regression now targets
+   that new boundary; mutation allocation/time and wall-clock bounds are intact.
+2. **Adobe markers:** transform 2 (YCCK) and unknown transforms fail closed;
+   contradictory markers fail closed regardless of ordering. The test covers
+   [2], [0,1], [1,0], [0,2], and [2,0]. Existing duplicate transform-0 and actual
+   camera/YCbCr pixel tests continue to pass.
+3. **Multi-frame JXL:** animation headers are rejected during header validation;
+   after loading, exactly one total frame is required (including internal
+   frames), before render_frame. A complete independently verified two-keyframe
+   synthetic animation pins rejection. Missing-frame protection remains.
+4. **JXL copy:** TileSamples owns jxl-oxide's FrameBuffer directly; the extra
+   `frame.buf().to_vec()` allocation/copy is removed. Sample promotion and
+   normalization arithmetic are unchanged.
+
+**Private parity (numbers only):** baseline `3a60b599` versus implementation
+`bb1bc53f`, default settings, scale 1. Both runs passed; source opened read-only.
+Each output is 2560x1707 with 13,109,760 values: decoded camera f32, linear
+render f32, and RGB8 each have maximum absolute difference **0**, and each is
+**bit-identical**. Temporary pixel outputs and the temporary comparison test
+were deleted. No private content or derivative is committed.
+
+**Seeded mutation rerun:** unchanged seed `0x8f5eed1234567890`, 512 invocations;
+maximum cumulative tracked allocation **2,452,291 bytes**, slowest **339 us**,
+JXL case 0, pixel reader (`metadata=false`). Existing <768 MiB and <2-second
+per-invocation assertions pass without relaxation. Log: `/tmp/lr8g-mutation.log`.
+
+**Attempt ledger:**
+
+- Synthetic JPEG generator: initial rustc linking failed because the temporary
+  rlib filename did not start with `lib`; renamed it and generation succeeded.
+  A preliminary Python Pillow availability check found it unavailable; no
+  installation or dependency change was made. C/libjxl JXL generation passed.
+- `/tmp/lr8g-private-before.log`: baseline parity extraction passed (1.70 s).
+- `/tmp/lr8g-red.log`: all four new regressions failed as intended; RED commit
+  `6a5de47e8391a6bc9f843ffa1c02e0de4faa8adc` precedes implementation.
+- `/tmp/lr8g-green-1.log`: 7 existing decode tests and 13/14 LR-8e tests passed;
+  the old budget test reached missing ColorMatrix because its 8192-square
+  geometry is now admitted. Updated only that policy-specific geometry to the
+  new cap boundary (not any mutation or timing assertion).
+- `/tmp/lr8g-green-2.log`: all 32 focused tests passed; mutation max allocation
+  2,452,291 bytes, max time 360 us. Added slowest-case identity to diagnostics
+  and reran the mutation test in `/tmp/lr8g-mutation.log`, passing as above.
+- `/tmp/lr8g-private-after.log`: implementation parity extraction passed (1.46 s);
+  byte comparisons of all three outputs passed.
+- `/tmp/lr8g-clean.log`: requested `cargo clean -p raw-decode`, zero debug files.
+  `/tmp/lr8g-clean-release.log`: additionally cleaned actual release artifacts,
+  165 files / 82.2 MiB. No gate had started before these cleans.
+- `/tmp/lr8g-release-1.log`: **PASS on the first gate attempt**, 210 completed
+  test/doc-test suites, **1,503 passed, zero failed, 56 existing ignores**.
+  Clean release compilation took 5m 53s. The requested seven crates ran with
+  `--test-threads=1`, including streaming-memory and latency assertions; no
+  retry, extra skip, or bound change was needed. Command:
+  `cargo test --locked --release -p raw-decode -p image-core -p pipeline-cpu
+  -p import-lrcat -p previews -p export -p tessera-ffi -- --test-threads=1`.
+- `/tmp/lr8g-clippy-1.log`: `cargo clippy --locked --release --workspace
+  --all-targets -- -D warnings` **PASS**, first attempt, 18.45 s.
+- `/tmp/lr8g-fmt.log`: `cargo fmt --all -- --check` **PASS**; final documentation
+  completion rerun also passed. `git diff --check` **PASS**. Cargo.lock and all
+  board.json files remain unchanged against the approved baseline.
+
+All Cargo runs used `$HOME/.cargo/bin` on PATH,
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-8e`, and `CARGO_BUILD_JOBS=4`.
+Other Rust builds were active; this lane's release suites were serialized and
+Clippy started only after tests finished.
+
+Cherry-pick order: `6a5de47e8391a6bc9f843ffa1c02e0de4faa8adc` (RED),
+`bb1bc53f9fe420e5af6bff1796a341b8a6c6c8dc` (fix), then the docs commit containing
+this LR-8g section. All three end with the requested Claude Opus 5.5 trailer.
+
+#### LR-8g verification and completion (Claude Opus 5.5, after the Codex worker ran out of quota)
+
+The section above was written by the Codex worker, whose session ended
+before it could commit these docs. The committed code (`6a5de47e` RED,
+`bb1bc53f` fix) was re-read item by item and every measurement and gate was
+re-run independently on `bb1bc53f`; no source change was needed.
+
+| Item | Status | Where / test |
+| --- | --- | --- |
+| 1. Budget from the real f32×3 output | done | `MAX_DECODED_BYTES` = 1.5 GiB = 134,217,728 px, doc comment states cap and reasoning; the 24 B/padded-pixel 512 MiB sum is gone. `lr8g_full_resolution_24mp_original_decodes` (6144×4096 = 25,165,824 px, full decode, all channels checked), `lr8g_output_budget_admits_100mp_and_exact_cap_rejects_next_column` (10000×10000 and 32768×4096 admitted; 32769×4096 rejected by both readers with "total decoded byte budget exceeded"), `total_decoded_output_budget_is_checked` |
+| 1. B2 protections kept | done | geometry check precedes any allocation; tile count ≤ 65,536; Σ compressed ≤ file size and ≤ 128 MiB; ≤ 32 MiB per tile; JPEG max width/height and JXL `AllocTracker` set before decode (all unchanged in the diff) |
+| 2. YCCK and contradictory Adobe markers | done | `without_adobe` fails closed on transform > 1 and on any second marker with a different transform; `lr8g_ycck_and_contradictory_adobe_markers_fail_closed` covers [2], [0,1], [1,0], [0,2], [2,0] |
+| 3. Multi-frame JXL | done | animation header rejected, and `num_loaded_frames() != 1` rejected before render; `lr8g_multi_frame_jxl_is_rejected` (fixture independently verified to hold two keyframes) |
+| 4. JXL f32 frame copy | done | `TileSamples::Jxl` owns the `FrameBuffer`; `frame.buf().to_vec()` removed |
+
+Note for Machine A on item 1: the unchanged 128 MiB aggregate compressed-byte
+cap is a hard error, not a `None` fallback, so an original whose compressed
+tiles total more than 128 MiB is still refused whatever its pixel count.
+
+**Private parity, re-run with a real baseline build (numbers only):** the
+single production file was temporarily swapped to its `3a60b599` content,
+the same temporary comparison test was run, the file was restored and the
+test re-run on `bb1bc53f`. 2560×1707; decoded camera f32 (52,439,040 bytes),
+linear render f32 (52,439,040 bytes) and RGB8 (13,109,760 bytes) are each
+**byte-identical** (`cmp`), maximum difference 0. Temporary outputs and the
+temporary test were deleted; the worktree source equals `bb1bc53f`.
+
+**Seeded mutation re-run** (seed `0x8f5eed1234567890`, 512 invocations, run
+alone): maximum tracked allocation **2,452,291 bytes**; slowest case
+**5,666 µs**, JXL case 22, pixel reader (`metadata=false`), measured while
+other lanes were building (the Codex run measured 339 µs, JXL case 0). The
+<768 MiB and <2 s assertions are unchanged and pass.
+
+**Gates on `bb1bc53f`** (`CARGO_BUILD_JOBS=5`, `RAYON_NUM_THREADS=5`, target
+`$HOME/.cache/tessera-target/LR-8e`), after `cargo clean -p raw-decode`
+(0 debug files) and `cargo clean --release -p raw-decode` (153 files,
+74.7 MiB). Command: `cargo test --locked --release -p raw-decode
+-p image-core -p pipeline-cpu -p import-lrcat -p previews -p export
+-p tessera-ffi --no-fail-fast -- --test-threads=1`. Machine load average was
+27–47 throughout. Every attempt:
+
+- Attempt 1: 210 suites, **1,502 passed, 1 failed, 56 ignored**. Failure:
+  `export --test workflow script_timeout_cancellation_empty_and_spawn_failure`
+  (unchanged crate; its 1-second script timeout expired before the script
+  wrote its marker). Re-run of that suite alone: 3/3 pass; whole export
+  crate alone, serialized: 106 passed, 0 failed, 7 ignored.
+- Attempt 2: 210 suites, **1,502 passed, 1 failed, 56 ignored**. Failure:
+  `previews tests::raw_without_jpeg_is_rendered` (unchanged crate; took
+  3.057 s against its 3.0 s wall-clock budget; it passed in attempt 1).
+  Re-run of previews alone, serialized: 23 passed, 0 failed, 3 ignored
+  (2.244 s for that test).
+- Attempt 3: **PASS — 210 suites, 1,503 passed, 0 failed, 56 ignored.**
+
+No bound, assertion or command was changed between attempts.
+`cargo clippy --locked --release --workspace --all-targets -- -D warnings`:
+PASS. `cargo fmt --all -- --check`: PASS. `git diff --check`: PASS.
+Cargo.lock and board.json untouched.
