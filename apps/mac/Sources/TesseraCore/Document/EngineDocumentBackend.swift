@@ -457,9 +457,6 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
     private var historyMap = DocumentHistoryIDMap()
     private var listener: EngineDocumentListenerAdapter?
     private var closed = false
-    // A reservation holds the native session open until its worker takes a snapshot.
-    // This lock only protects Swift bookkeeping; never hold it across a native call.
-    private var exportReservations = 0
 
     public init(session: DocumentSession) { self.session = session }
 
@@ -613,19 +610,10 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
         closed = true
         let l = listener
         listener = nil
-        let closeSession = exportReservations == 0
         lock.unlock()
         l?.cancel()
         session.setListener(listener: nil)
-        if closeSession { session.close() }
-    }
-
-    private func releaseExportReservation() {
-        let closeSession = lock.withLock {
-            exportReservations -= 1
-            return closed && exportReservations == 0
-        }
-        if closeSession { session.close() }
+        session.close()
     }
 }
 
@@ -633,66 +621,10 @@ public final class EngineDocumentBackend: DocumentBackend, @unchecked Sendable {
 
 /// `beginExportFlat` captures an immediate immutable snapshot through the native publication
 /// lock, independent of render/edit locks. UI callers capture at confirm, then run the job
-/// on a worker. `prepareExportFlat` remains available for callers that deliberately defer
-/// acquisition and need to reserve the session across close. Other backends (the stub)
-/// run their synchronous `exportFlat` on a detached task.
+/// on a worker. Other backends (the stub) run their synchronous `exportFlat` on a detached task.
 public protocol DocumentFlatExporting: AnyObject, Sendable {
     func beginExportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
         -> DocumentFlatExport
-    func prepareExportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
-        -> DocumentFlatExportPreparation
-}
-
-/// A cancellable request before its worker has acquired the native session snapshot.
-public final class DocumentFlatExportPreparation: @unchecked Sendable {
-    private let prepare: @Sendable () throws -> DocumentFlatExport
-    private let lock = NSLock()
-    private var started = false
-    private var cancelled = false
-    private var job: DocumentFlatExport?
-
-    init(prepare: @escaping @Sendable () throws -> DocumentFlatExport) { self.prepare = prepare }
-
-    /// Consume a deferred reservation once on its worker. A concurrent Cancel is
-    /// forwarded even if it arrived before the snapshot existed.
-    public func snapshot() throws -> DocumentFlatExport {
-        assert(!Thread.isMainThread, "Export Flat session snapshot must run off main")
-        try lock.withLock {
-            guard !started else { throw DocumentError.invalid("Export preparation already started") }
-            started = true
-        }
-        let prepared = try prepare()
-        let shouldCancel = lock.withLock {
-            job = prepared
-            return cancelled
-        }
-        if shouldCancel { prepared.cancel() }
-        return prepared
-    }
-
-    public func cancel() {
-        let current = lock.withLock {
-            cancelled = true
-            return job
-        }
-        current?.cancel()
-    }
-}
-
-/// Also releases an abandoned preparation, without making a native call under a Swift lock.
-private final class ExportSnapshotReservation: @unchecked Sendable {
-    private let lock = NSLock()
-    private var release: (@Sendable () -> Void)?
-    init(release: @escaping @Sendable () -> Void) { self.release = release }
-    func finish() {
-        let action = lock.withLock {
-            let action = release
-            release = nil
-            return action
-        }
-        action?()
-    }
-    deinit { finish() }
 }
 
 /// One Export Flat of a document snapshot. Independent of the document: closing it does not stop the export.
@@ -722,19 +654,6 @@ public final class DocumentFlatExport: @unchecked Sendable {
 }
 
 extension EngineDocumentBackend: DocumentFlatExporting {
-    public func prepareExportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
-        -> DocumentFlatExportPreparation {
-        try lock.withLock {
-            guard !closed else { throw DocumentError.invalid("Document is closed") }
-            exportReservations += 1
-        }
-        let reservation = ExportSnapshotReservation { [self] in releaseExportReservation() }
-        return DocumentFlatExportPreparation { [self] in
-            defer { reservation.finish() }
-            return try beginExportFlat(path: path, format: format, quality: quality, color: color)
-        }
-    }
-
     public func beginExportFlat(path: String, format: DocExportFormat, quality: UInt8, color: DocExportColor) throws
         -> DocumentFlatExport {
         DocumentFlatExport(try bridged {
