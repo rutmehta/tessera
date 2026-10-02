@@ -1,5 +1,8 @@
 # LR-8: editable Lightroom Smart Preview sources
 
+See [the LR-8b follow-up](LR-8b-HANDOFF.md) for catalog orientation, shared
+BaselineExposure, current preview-cache decoding and real-catalog validation.
+
 Branch: `wp/LR-8-smart-preview-proxies`, local only. Continuation above `33093751`.
 Implementation commit: `03ea43ee`; preceded by five RED regression commits.
 
