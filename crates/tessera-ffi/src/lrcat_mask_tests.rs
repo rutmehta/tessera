@@ -267,3 +267,174 @@ fn lr5_regeneration_uses_existing_injected_segmenter_and_changes_pixels() {
         );
     }
 }
+
+#[test]
+fn lr5b_combined_lanes_resolve_and_regenerate_in_one_import() {
+    struct SubjectSegmenter(usize);
+    impl export::mask_ai::MaskSegmenter for SubjectSegmenter {
+        fn segment(
+            &mut self,
+            image: &image::RgbImage,
+            request: &export::mask_ai::SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            assert_eq!(request, &export::mask_ai::SegmentRequest::Subject);
+            self.0 += 1;
+            Ok(vec![0.75; (image.width() * image.height()) as usize])
+        }
+    }
+    let source = r#"s = {
+        PointColors={{SrcHue=0,SrcSat=0.5,SrcLum=0.5,HueShift=0.2}},
+        ConvertToGrayscale=true, GrayMixerRed=25,
+        PerspectiveUpright=1, UprightTransform_1='1,0,0,0,1,0,0.02,0,1',
+        MaskGroupBasedCorrections={
+            {LocalExposure2012=0.5,CorrectionMasks={
+                {What='Mask/RangeMask',CorrectionRangeMask={Type=2,LumMin=0.1,LumMax=0.9}}
+            }},
+            {LocalExposure2012=1,CorrectionMasks={
+                {What='Mask/Image',MaskSubType=1,MaskDigest='resolved-subject'}
+            }},
+            {LocalExposure2012=0.5,CorrectionMasks={
+                {What='Mask/Image',MaskSubType=1,MaskDigest='missing-subject'}
+            }}
+        }
+    }"#;
+    let (mut recipe, warnings) = import_lrcat::develop(123, source, "15.4").unwrap();
+    assert!(warnings.is_empty(), "{warnings:?}");
+    let temp = tempfile::tempdir().unwrap();
+    let support = temp.path();
+    let store = ml_segment::MaskStore::new(support.join("imported-masks"), 0).unwrap();
+    let id = engine_api::id::ImageId(123);
+    let mut png = Cursor::new(Vec::new());
+    image::GrayImage::from_pixel(8, 4, image::Luma([128]))
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+    let mut requests = Vec::new();
+    crate::lrcat_masks::apply(
+        &mut recipe,
+        id,
+        (8, 4),
+        &store,
+        |resource| {
+            requests.push(resource.to_owned());
+            (resource == "resolved-subject").then(|| png.get_ref().clone())
+        },
+        |published| {
+            published.validate()?;
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(requests, ["resolved-subject", "missing-subject"]);
+    let mut recipe = Recipe::from_json(&recipe.to_json().unwrap()).unwrap();
+    assert_eq!(engine_api::recipe::required_schema_version(&recipe), 4);
+    assert_eq!(recipe.history.entries.len(), 1);
+    assert!(matches!(
+        recipe.history.entries[0].meta.author,
+        engine_api::recipe::Author::Import { .. }
+    ));
+    assert_eq!(recipe.settings.color.point_colors.len(), 1);
+    assert!(recipe.settings.color.monochrome.as_ref().unwrap().enabled);
+    assert!(recipe.settings.geometry.upright.homography.is_some());
+    assert_eq!(
+        serde_json::to_value(&recipe.settings.locals.adjustments[0].components[0]).unwrap()["luminance_domain"],
+        "display"
+    );
+    let resolved = recipe.settings.locals.adjustments[1].components[0]
+        .adobe_ai
+        .as_ref()
+        .unwrap();
+    assert!(!resolved.regenerate);
+    assert_eq!(resolved.mask_key, Some(crate::lrcat_masks::key(id, 0)));
+    assert!((store.get(&resolved.mask_key.unwrap()).unwrap().data()[0] - 128. / 255.).abs() < 1e-6);
+    let missing = recipe.settings.locals.adjustments[2].components[0]
+        .adobe_ai
+        .as_ref()
+        .unwrap();
+    assert!(missing.regenerate);
+    assert!(missing.mask_key.is_none());
+    let entries = import_lrcat::diagnostics::entries(&recipe);
+    let value = serde_json::to_value(&recipe).unwrap();
+    assert_eq!(value["schema_version"], 4);
+    for lane in ["LR-1", "LR-2", "LR-4", "LR-5", "LR-7"] {
+        let notes: Vec<_> = entries
+            .values()
+            .flatten()
+            .filter(|e| e.lane == lane)
+            .collect();
+        assert!(!notes.is_empty(), "missing {lane}: {entries:?}");
+        for note in notes {
+            assert_eq!(note.status, "approximate");
+            assert_eq!(note.level, "info");
+            assert!(
+                note.field
+                    .as_deref()
+                    .is_some_and(|p| value.pointer(p).is_some())
+            );
+        }
+    }
+    assert_eq!(
+        entries
+            .values()
+            .flatten()
+            .filter(|e| e.reason.starts_with("regenerated:"))
+            .count(),
+        1
+    );
+    let settings = recipe.settings.clone();
+    assert!(recipe.undo().unwrap());
+    assert_eq!(recipe.settings, recipe.history.base);
+    assert!(recipe.redo().unwrap());
+    assert_eq!(recipe.settings, settings);
+    let before = recipe.to_json().unwrap();
+    let pixels = pipeline_cpu::Image::new(8, 4, vec![vec![0.18; 32]; 3]).unwrap();
+    let input = export::ExportImage {
+        source: pipeline_cpu::RenderSource::Rgb(&pixels),
+        name: "synthetic-lr5b",
+        sequence: 1,
+        date: "",
+        metadata: None,
+    };
+    let render = export::RenderRequest {
+        color_space: export::ColorSpace::Srgb,
+        resize: export::Resize::None,
+        sharpen_for: export::SharpenFor::None,
+        scale: 1,
+    };
+    let mut segmenter = SubjectSegmenter(0);
+    let rgb = export::render_pixels_with_mask_support(
+        &input,
+        &recipe,
+        &render,
+        &engine_api::jobs::CancellationToken::new(),
+        Some(&mut segmenter),
+        Some(support),
+    )
+    .unwrap();
+    assert_eq!(
+        segmenter.0, 1,
+        "only the missing subject needs segmentation"
+    );
+    assert!(rgb.as_raw().iter().all(|v| v.is_finite()));
+    let mut baseline = recipe.clone();
+    baseline
+        .edit(engine_api::recipe::EditMeta::user("baseline", 1), |s| {
+            s.locals.adjustments.clear();
+        })
+        .unwrap();
+    let plain = export::render_pixels_with_mask_support(
+        &input,
+        &baseline,
+        &render,
+        &engine_api::jobs::CancellationToken::new(),
+        None,
+        Some(support),
+    )
+    .unwrap();
+    assert!(
+        rgb.as_raw()
+            .iter()
+            .zip(plain.as_raw())
+            .any(|(a, b)| (a - b).abs() > 0.01)
+    );
+    assert_eq!(recipe.to_json().unwrap(), before);
+}
