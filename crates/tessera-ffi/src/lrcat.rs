@@ -2034,3 +2034,7 @@ mod lrcat_resume_tests {
         assert!(report.imported > 0);
     }
 }
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "lrcat_profile.rs"]
+mod lrcat_profile;
