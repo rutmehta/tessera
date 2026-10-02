@@ -283,7 +283,7 @@ pub(crate) fn open_image(
     } else {
         None
     };
-    let rgb = export::render_pixels(
+    let rgb = export::render_pixels_with_mask_support(
         &image,
         &recipe,
         &export::RenderRequest {
@@ -297,6 +297,8 @@ pub(crate) fn open_image(
             Some(s) => Some(s.as_mut()),
             None => None,
         },
+        // Imported rasters live under this engine's explicit app directory.
+        Some(engine.support_dir()?),
     )?;
     let extent = Extent::new(rgb.width(), rgb.height());
     let mut rgba = Vec::with_capacity(extent.area() as usize * 4);

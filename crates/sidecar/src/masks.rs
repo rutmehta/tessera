@@ -50,6 +50,17 @@ fn get(t: &Tree, n: &Node, ns: &str, name: &str) -> Option<String> {
         .map(|a| a.value.clone())
         .or_else(|| child(t, n, ns, name).map(|c| c.text.clone()))
 }
+/// Adobe part IDs are unverified: a mask carrying one is never rendered as
+/// its whole category.
+fn reject_part_id(t: &Tree, n: &Node) -> EngineResult<()> {
+    if get(t, n, CRS, "MaskSubCategoryID").is_some_and(|part| number(&part).ok() != Some(0.)) {
+        return Err(error(
+            "unsupported Adobe AI mask part; part identities are unverified",
+        ));
+    }
+    Ok(())
+}
+
 fn number(s: &str) -> EngineResult<f64> {
     let f: f64 = s.trim().parse().map_err(error)?;
     if !f.is_finite() {
@@ -439,13 +450,7 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
             };
             // A part ID selects a sub-region of whatever category carries it.
             // The IDs are unverified, so never widen one to the whole category.
-            if get(t, n, CRS, "MaskSubCategoryID")
-                .is_some_and(|part| number(&part).ok() != Some(0.))
-            {
-                return Err(error(
-                    "unsupported Adobe AI mask part; part identities are unverified",
-                ));
-            }
+            reject_part_id(t, n)?;
             let native_kind = match category.as_str() {
                 "Subject" => "subject",
                 "Sky" => "sky",
@@ -602,6 +607,7 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
                 && native_kind.is_none()
                 && matches!(kind, "subject" | "sky" | "background")
             {
+                reject_part_id(t, n)?;
                 c["adobe_ai"] = json!({"category":what.trim_start_matches("Mask/"),"resource_id":get(t,n,CRS,"MaskDigest"),"mask_key":null,"regenerate":true});
             }
             let keys: &[&str] = match kind {
