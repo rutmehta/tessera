@@ -564,11 +564,26 @@ fn scratch_directory(variable: &str, fresh: bool) -> SafeResult<PathBuf> {
     Ok(path)
 }
 
+// Private scratch diagnostic only. Never include these errors in aggregate output:
+// decoder and sidecar errors may contain source identities.
+fn pair_checked<T, E: std::fmt::Debug>(
+    app: &Path,
+    stage: u32,
+    value: std::result::Result<T, E>,
+) -> SafeResult<T> {
+    value.map_err(|error| {
+        let _ = std::fs::write(
+            app.join("pair-error.private"),
+            format!("{stage}: {error:?}"),
+        );
+    })
+}
+
 fn pair_pixels(path: &Path, app: &Path) -> SafeResult<image::RgbImage> {
     use image_core::{PixelRect, Renderer, RendererConfig};
-    let doc = safe(Sidecar::read_recipe(Sidecar::paths(path).recipe))?;
+    let doc = pair_checked(app, 1, Sidecar::read_recipe(Sidecar::paths(path).recipe))?;
     let id = app_image_id(path).ok_or(())?;
-    let source = safe(crate::catalog::open_image(id, path))?;
+    let source = pair_checked(app, 2, crate::catalog::open_image(id, path))?;
     // This is exactly the viewport's CPU Develop settings admission. Retained
     // unsupported edits stay in the sidecar; no rewritten/default recipe is saved.
     let mut settings = crate::develop::session_renderable(&doc.recipe.settings, true, false);
@@ -579,7 +594,7 @@ fn pair_pixels(path: &Path, app: &Path) -> SafeResult<image::RgbImage> {
         ..Default::default()
     });
     let masks = crate::develop::masks::MaskShared::new(&source);
-    safe(masks.load_imported(app, &settings))?;
+    pair_checked(app, 3, masks.load_imported(app, &settings))?;
     renderer
         .mask_cache()
         .set_hooks(Some(std::sync::Arc::new(crate::develop::masks::Hooks(
@@ -587,15 +602,23 @@ fn pair_pixels(path: &Path, app: &Path) -> SafeResult<image::RgbImage> {
         ))));
     let mut level = 0;
     while level < image_core::render::MAX_LEVEL {
-        let e = safe(Renderer::output_extent(&source, &settings, level + 1))?;
+        let e = pair_checked(
+            app,
+            4,
+            Renderer::output_extent(&source, &settings, level + 1),
+        )?;
         if e.width.max(e.height) < 1024 {
             break;
         }
         level += 1;
     }
-    let extent = safe(Renderer::output_extent(&source, &settings, level))?;
-    let tiles = safe(renderer.render_region(&source, &settings, level, PixelRect::full(extent)))?;
-    let pixels = safe(crate::lrcat_fidelity::stitch(extent, &tiles))?;
+    let extent = pair_checked(app, 5, Renderer::output_extent(&source, &settings, level))?;
+    let tiles = pair_checked(
+        app,
+        6,
+        renderer.render_region(&source, &settings, level, PixelRect::full(extent)),
+    )?;
+    let pixels = pair_checked(app, 7, crate::lrcat_fidelity::stitch(extent, &tiles))?;
     Ok(image::imageops::thumbnail(&pixels, 1024, 1024))
 }
 
