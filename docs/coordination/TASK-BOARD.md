@@ -1,5 +1,9 @@
 # Tessera task board — Machine A coordinator
 
+## Batch 49 reconciliation — 2026-10-02 22:25 UTC
+
+Replacement A coordinator merged LR-9/9b/9c import-report no-op policy, cloud group and real-mask promotion at `ef376831190257e13134c2c726439506f1c60c08`. Independently inspected batch49/head.txt: exact merged main commit. Rust, Clippy, fmt, Swift gate, bindings drift and strict build exits all0, done. Swift934 tests/3skipped/0failures in209.083s, plus5 Swift Testing tests. This verifies recorded integration gates, not GUI or Adobe rendering acceptance. Codex A ownership/runtime handoff remains pending; mailbox unchanged, no duplicate workload or receipt ACK.
+
 ## Batch 48 reconciliation — 2026-10-02 21:30 UTC
 
 Replacement A coordinator merged ENG-3 continuous cancellation floor at `eaf2322fc4a0b74a8bccda649a6e5e3384768bdf`. Independently inspected batch48 head `95b7b63df8ea9a321fab8a4b0e765beda05d1a19` and verified zero tree diff to merged main. Rust, 24MP benchmark, Clippy, fmt, Swift gate, bindings drift and strict build exits all0, done. Swift931 tests/3skipped/0failures in209.022s, plus5 Swift Testing tests. Current merged tree validation is confirmed; no GUI or Adobe-oracle acceptance inferred. Codex A runtime/ownership handoff remains pending, mailbox unchanged, no duplicate workload or receipt ACK.
