@@ -30,3 +30,11 @@ fn documented_mask_controls_promote_without_discarding_real_edits() {
     assert_eq!(diagnostics::entries(&r)["MaskGroupBasedCorrections"][0].status,"approximate");
     assert!(r.unknown["lrcat_develop_source"]["properties"].get("MaskGroupBasedCorrections").is_some());
 }
+
+#[test]
+fn retouch_brush_metadata_and_vertical_offset_translate() {
+    let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='heal',Method='heal',HealVersion=2,SourceState='sourceSetExplicitly',SourceX=0.7,OffsetY=0.1,Feather=0.3,Masks={{What='Mask/Paint',MaskID='synthetic',MaskSyncID='synthetic',CenterWeight=0.7,Radius=0.03,Flow=1,MaskActive=true,MaskInverted=false,MaskBlendMode=0,MaskValue=1,Dabs={'d 0.2 0.4','d 0.3 0.5'}}}}}}","15.4").unwrap();
+    assert!(w.is_empty(),"{w:?}");
+    assert_eq!(r.settings.locals.retouch.len(),1);
+    assert!(matches!(r.settings.locals.retouch[0].kind,engine_api::recipe::mask::RetouchKind::Heal{..}));
+}
