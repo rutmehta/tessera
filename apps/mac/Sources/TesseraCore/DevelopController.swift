@@ -104,6 +104,7 @@ public final class DevelopController {
     /// Settings not drawn by this pipeline version (kept in the recipe), as JSON pointers
     /// (`/geometry/upright/mode`). Refreshed on open, history moves and each recorded commit.
     public private(set) var ignoredSettings: [String] = []
+    public var renderNotices: [String] { (try? session.renderNotices()) ?? [] }
 
     /// Whether the loupe skips any setting under `prefix` (e.g. `/geometry/transform`).
     public func ignores(_ prefix: String) -> Bool { ignoredSettings.contains { $0.hasPrefix(prefix) } }
