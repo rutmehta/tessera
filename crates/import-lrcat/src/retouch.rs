@@ -291,6 +291,7 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
             .iter()
             .map(|m| stroke(m, feather))
             .collect::<Option<Vec<_>>>()?
+            .into_iter().flatten().collect()
     } else {
         let center = point(&fields, "centerx", "centery")?;
         vec![BrushStroke {
@@ -343,7 +344,7 @@ fn equivalent_circle_mask(value: &Value, flat: &Map<String, Value>) -> Option<bo
         && number(flat,"radius")? == number(&mask,"sizey")?)
 }
 
-fn stroke(value: &Value, feather: f32) -> Option<BrushStroke> {
+fn stroke(value: &Value, feather: f32) -> Option<Vec<BrushStroke>> {
     let fields = fields(value)?;
     let allowed = [
         "what",
@@ -383,32 +384,39 @@ fn stroke(value: &Value, feather: f32) -> Option<BrushStroke> {
     let radius = bounded(number(&fields, "radius")?, 1e-6, 1.0)?;
     if fields.get("what")?.as_str()? == "Mask/Circle" {
         let center = point(&fields, "centerx", "centery")?;
-        return Some(BrushStroke {
+        return Some(vec![BrushStroke {
             points: vec![[center[0], center[1], 1.0]],
             radius,
             feather,
             flow: percent(&fields, "flow", 1.0)?,
             erase: false,
-        });
+        }]);
     }
+    let dabs = fields.get("dabs")?.as_array()?;
+    if dabs.is_empty() || dabs.len() > 65_536 { return None; }
+    let stateful = dabs.iter().any(|dab| dab.as_str().and_then(|s|s.split_whitespace().next()).is_some_and(|s|matches!(s,"r"|"f"|"h")));
+    let mut radius = radius;
+    let mut flow = percent(&fields, "flow", 1.0)?;
+    let mut feather = if fields.contains_key("centerweight") { 100. - percent(&fields,"centerweight",0.5)? } else { feather };
     let mut points = Vec::new();
-    for dab in fields.get("dabs")?.as_array()? {
+    let mut stamps = Vec::new();
+    for dab in dabs {
         let tokens: Vec<_> = dab.as_str()?.split_whitespace().collect();
-        if tokens.len() != 3 || tokens[0] != "d" {
-            return None;
+        let n = |s: &str, min, max| bounded(s.parse::<f32>().ok()?, min, max);
+        match tokens.as_slice() {
+            ["r", value] => radius = n(value,1e-6,1.)?,
+            ["f", value] => flow = n(value,0.,1.)? * 100.,
+            ["h", value] => feather = (1. - n(value,0.,1.)?) * 100.,
+            ["d", x, y] => {
+                let point = [n(x,0.,1.)?,n(y,0.,1.)?,1.];
+                if stateful {
+                    stamps.push(BrushStroke { points: vec![point], radius, feather, flow, erase: false });
+                } else { points.push(point); }
+            }
+            _ => return None,
         }
-        let x = bounded(tokens[1].parse::<f32>().ok()?, 0.0, 1.0)?;
-        let y = bounded(tokens[2].parse::<f32>().ok()?, 0.0, 1.0)?;
-        points.push([x, y, 1.0]);
     }
-    if points.is_empty() {
-        return None;
-    }
-    Some(BrushStroke {
-        points,
-        radius,
-        feather,
-        flow: percent(&fields, "flow", 1.0)?,
-        erase: false,
-    })
+    if stateful { return (!stamps.is_empty()).then_some(stamps); }
+    if points.is_empty() { return None; }
+    Some(vec![BrushStroke { points, radius, feather, flow, erase: false }])
 }
