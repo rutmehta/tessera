@@ -1020,3 +1020,54 @@ fn lr10_saved_contact_metrics_from_env() {
     )
     .unwrap();
 }
+
+// Aggregate-only recipe audit. No source files are resolved or opened.
+#[test]
+#[ignore = "LR-12 private read-only recipe admission audit"]
+fn lr12_recipe_audit_from_env() {
+    std::panic::set_hook(Box::new(|_| {}));
+    let run = || -> SafeResult<Value> {
+        let _quiet = Quiet::new()?;
+        let catalog = PathBuf::from(std::env::var_os("TESSERA_LRCAT_PROFILE").ok_or(())?);
+        if !safe(catalog.canonicalize())?.starts_with("/private/tmp") {
+            return Err(());
+        }
+        let mut counts = BTreeMap::<String, usize>::new();
+        let defaults = safe(serde_json::to_value(
+            engine_api::recipe::DevelopSettings::default(),
+        ))?;
+        safe(import_lrcat::import_each_with_storage(
+            &catalog,
+            None,
+            |_| Ok(()),
+            |image| {
+                *counts.entry("images".into()).or_default() += 1;
+                let mut settings = image.recipe.settings;
+                if image.recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe {
+                    settings.camera_profile.profile = Default::default();
+                    settings.tone.display_transform = Default::default();
+                }
+                let fields = serde_json::to_value(&settings)?;
+                for (stage, values) in fields.as_object().unwrap() {
+                    for (field, value) in values.as_object().into_iter().flatten() {
+                        if value == &defaults[stage][field] {
+                            continue;
+                        }
+                        let mut isolated = defaults.clone();
+                        isolated[stage][field] = value.clone();
+                        let isolated = serde_json::from_value(isolated)?;
+                        if pipeline_cpu::validate_settings(&isolated).is_err() {
+                            *counts.entry(format!("{stage}/{field}")).or_default() += 1;
+                        }
+                    }
+                }
+                Ok(())
+            },
+        ))?;
+        Ok(json!(counts))
+    };
+    match run() {
+        Ok(value) => println!("{value}"),
+        Err(()) => panic!("aggregate audit failed"),
+    }
+}
