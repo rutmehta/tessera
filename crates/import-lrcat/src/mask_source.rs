@@ -253,7 +253,16 @@ fn correction(n: Node<'_, '_>) -> Option<()> {
                 if inactive_overlay && v.parse::<f64>().ok()?.is_finite() => {}
             ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
                 if v.parse::<f64>().ok()? == 0.0 => {}
-            ("LocalDefringe", Field::Scalar(v)) if v.parse::<f64>().ok()? != 0.0 => return None,
+            ("LocalDefringe", Field::Scalar(v))
+                if (0.0..=100.0).contains(&v.parse::<f64>().ok()?) => {}
+            ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
+                if v.parse::<f64>().ok()?.is_finite() => {}
+            (
+                "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve"
+                | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve"
+                | "LocalPointColors",
+                Field::Structure(_),
+            ) => (),
             ("CorrectionMasks", Field::Structure(n)) => {
                 for n in sequence(n)? {
                     component(n)?;
@@ -296,6 +305,7 @@ pub(crate) fn audited_approximation(root: Node<'_, '_>) -> bool {
     // flat shapes (the 29c baseline), even though their geometry already maps.
     let new_shape = root.descendants().any(|n| {
         n.attribute((CRS,"What")).or_else(|| n.has_tag_name((CRS,"What")).then(|| n.text()).flatten()).is_some_and(|what| matches!(what, "Mask/Image" | "Mask/Subject" | "Mask/Sky" | "Mask/Background" | "Mask/People" | "Mask/Person" | "Mask/Object")) || [
+            "MainCurve", "RedCurve", "GreenCurve", "BlueCurve", "ExtendedMainCurve", "ExtendedRedCurve", "ExtendedGreenCurve", "ExtendedBlueCurve",
             "MaskType",
             "MaskDigest",
             "Dabs",
@@ -315,6 +325,10 @@ pub(crate) fn audited_approximation(root: Node<'_, '_>) -> bool {
         ]
         .iter()
         .any(|key| n.has_tag_name((CRS, *key)) || n.attribute((CRS, *key)).is_some())
+            || n.has_tag_name((CRS,"LocalPointColors")) && sequence(n).is_some_and(|items| items.iter().any(|item| {
+                item.children().any(|n|n.is_element()) || item.attributes().len()!=0 || item.text().is_some_and(|s| !s.trim().is_empty() && !s.split(',').all(|v|v.trim().parse::<f64>()==Ok(-1.)))
+            }))
+            || n.attribute((CRS,"LocalDefringe")).or_else(|| n.has_tag_name((CRS,"LocalDefringe")).then(||n.text()).flatten()).is_some_and(|s|s.parse::<f64>().is_ok_and(|v| v!=0.))
             // Neutral MaskValue=1 was already present in legacy flat shapes.
             // Accept it in the audit, but do not change their retained envelope
             // solely because that no-op metadata is present.
@@ -403,6 +417,98 @@ pub(crate) fn record_approximation_diagnostics(
     recipe: &mut engine_api::recipe::Recipe,
     root: Node<'_, '_>,
 ) {
+    let mut extra_notes = Vec::new();
+    for (i, g) in recipe.settings.locals.adjustments.iter().enumerate() {
+        let p = &g.params;
+        let source_fields =
+            sequence(root).and_then(|groups| groups.get(i).and_then(|n| fields(*n)));
+        let has_source = |key: &str| source_fields.as_ref().is_some_and(|f| f.contains_key(key));
+        for (present, key, field, reason) in [
+            (
+                p.curves.is_some() && has_source("MainCurve"),
+                "MainCurve",
+                "curves",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves_extended.is_some() && has_source("ExtendedMainCurve"),
+                "ExtendedMainCurve",
+                "curves_extended",
+                "local extended point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves.is_some() && has_source("RedCurve"),
+                "RedCurve",
+                "curves",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves.is_some() && has_source("GreenCurve"),
+                "GreenCurve",
+                "curves",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves.is_some() && has_source("BlueCurve"),
+                "BlueCurve",
+                "curves",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves_extended.is_some() && has_source("ExtendedRedCurve"),
+                "ExtendedRedCurve",
+                "curves_extended",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves_extended.is_some() && has_source("ExtendedGreenCurve"),
+                "ExtendedGreenCurve",
+                "curves_extended",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves_extended.is_some() && has_source("ExtendedBlueCurve"),
+                "ExtendedBlueCurve",
+                "curves_extended",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.color_overlay.is_some() && has_source("LocalToningHue"),
+                "LocalToningHue",
+                "color_overlay",
+                "local tint blends a luminance-preserving hue at the requested saturation",
+            ),
+            (
+                p.point_colors.is_some(),
+                "LocalPointColors",
+                "point_colors",
+                "local Point Color uses the shared HSL operator before monochrome",
+            ),
+            (
+                p.color_overlay.is_some(),
+                "LocalToningSaturation",
+                "color_overlay",
+                "local tint blends a luminance-preserving hue at the requested saturation",
+            ),
+            (
+                p.defringe != 0.,
+                "LocalDefringe",
+                "defringe",
+                "local defringe uses Tessera edge-selective purple and green suppression",
+            ),
+        ] {
+            if present {
+                extra_notes.push((
+                    format!("MaskGroupBasedCorrections/{key}"),
+                    format!("/settings/locals/adjustments/{i}/params/{field}"),
+                    reason,
+                ));
+            }
+        }
+    }
+    for (key, path, reason) in extra_notes {
+        crate::diagnostics::push_approximate(recipe, &key, &path, "LR-11", reason);
+    }
     let mut categories = Vec::new();
     let mut stack: Vec<_> = recipe
         .settings
@@ -673,9 +779,9 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
             if let Some(reason) = match name {
                 "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve"
                 | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve" => {
-                    Some("local tone curve rendering is not implemented")
+                    Some("local tone curve encoding cannot be decoded")
                 }
-                "LocalPointColors" => Some("local point-color selection is not implemented"),
+                "LocalPointColors" => Some("local point-color encoding cannot be decoded"),
 
                 "InstanceBounds" | "InstanceIDs" => {
                     Some("individual AI instance selection is not implemented")
@@ -724,11 +830,11 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
             for (key, label) in [
                 (
                     "LocalDefringe",
-                    "local defringe rendering is not implemented",
+                    "local defringe value is outside the supported range",
                 ),
                 (
                     "LocalToningSaturation",
-                    "local color overlay rendering is not implemented",
+                    "local color overlay encoding cannot be decoded",
                 ),
             ] {
                 if f.get(key)
@@ -748,6 +854,9 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
 }
 
 pub(crate) fn decoder_reason(reason: String, warning: &str) -> String {
+    if warning.contains("radial Flipped") {
+        return "radial mask inversion flags conflict".into();
+    }
     if reason != "mask geometry, blend mode or selection encoding cannot be rendered" {
         return reason;
     }

@@ -789,6 +789,19 @@ impl Renderer {
         };
         let mut developed =
             pipeline_cpu::apply_retouch(wb, &settings.locals.retouch, self.retouch.as_deref())?;
+        let (point_groups, remaining_groups) = if settings
+            .color
+            .monochrome
+            .as_ref()
+            .is_some_and(|m| m.enabled)
+        {
+            pipeline_cpu::split_local_point_colors(&settings.locals.adjustments)
+        } else {
+            (
+                Vec::new(),
+                std::borrow::Cow::Borrowed(settings.locals.adjustments.as_slice()),
+            )
+        };
         let pre_curve = settings.color_before_curves();
         let post_curve = settings.color_after_curves();
         let mut point_effects = settings.effects.clone();
@@ -804,6 +817,32 @@ impl Renderer {
                 Op::EffectsInCrop(&point_effects, e, &settings.geometry.crop),
             ),
         ] {
+            if stage == StageId::Tone && matches!(op, Op::Color(_)) && !point_groups.is_empty() {
+                let base = &developed;
+                let mut planes = base.planes().to_vec();
+                for group in point_groups
+                    .iter()
+                    .filter(|g| g.enabled && g.amount != 0. && !g.components.is_empty())
+                {
+                    let adjusted = pipeline_cpu::adjust_local(base, &group.params, group.amount)?;
+                    let mask = self.mask_cache.rasterize(
+                        base,
+                        group,
+                        level,
+                        self.stage_chain(settings)[StageId::Tone.index()].1,
+                        Default::default(),
+                    )?;
+                    let blended = pipeline_cpu::blend_local(base, &adjusted, &mask)?;
+                    for ((out, original), local) in
+                        planes.iter_mut().zip(base.planes()).zip(blended.planes())
+                    {
+                        for ((v, b), a) in out.iter_mut().zip(original).zip(local) {
+                            *v += a - b;
+                        }
+                    }
+                }
+                developed = pipeline_cpu::Image::new(base.width(), base.height(), planes)?;
+            }
             if stage == StageId::Tone
                 && matches!(op, Op::Color(_))
                 && !pre_curve.monochrome.as_ref().is_some_and(|m| m.enabled)
@@ -822,7 +861,7 @@ impl Renderer {
                 let upstream = self.stage_chain(settings)[StageId::Color.index()].1;
                 let base = developed;
                 let mut planes = base.planes().to_vec();
-                for group in &settings.locals.adjustments {
+                for group in remaining_groups.iter() {
                     cancel.check()?;
                     if !group.enabled || group.amount == 0.0 || group.components.is_empty() {
                         continue;
@@ -866,7 +905,13 @@ impl Renderer {
         // Avoid mixing the spot's CPU result with GPU rounding in Detail/Tone.
         // Preserve Adobe process selection and any resolved DCP profile.
         let cpu;
-        let renderer = if settings.locals.retouch.is_empty() {
+        let renderer = if settings.locals.retouch.is_empty()
+            && !settings
+                .locals
+                .adjustments
+                .iter()
+                .any(|g| g.enabled && g.requires_cpu())
+        {
             self
         } else {
             let cached = self.cpu_retouch.get_or_init(|| {

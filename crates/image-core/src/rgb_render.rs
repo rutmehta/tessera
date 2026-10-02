@@ -97,6 +97,17 @@ impl Renderer {
                 self.config.process_version,
             ),
         );
+        if settings
+            .locals
+            .adjustments
+            .iter()
+            .any(|g| g.enabled && g.requires_cpu())
+        {
+            key = ParamHash::chain(
+                key,
+                ParamHash::of(StageId::Decode, &"local-adjustments-cpu-v1"),
+            );
+        }
         let mut memo = self.rgb_memo.lock().expect("RGB memo poisoned");
         key = ParamHash::chain(key, ParamHash::of(StageId::Lens, &settings.lens));
         let lens_key = key;
@@ -178,7 +189,26 @@ impl Renderer {
             );
             (rgb, correction)
         };
-        let ops: &dyn StageOp = if settings.locals.retouch.is_empty() {
+        let (point_groups, remaining_groups) = if settings
+            .color
+            .monochrome
+            .as_ref()
+            .is_some_and(|m| m.enabled)
+        {
+            pipeline_cpu::split_local_point_colors(&settings.locals.adjustments)
+        } else {
+            (
+                Vec::new(),
+                std::borrow::Cow::Borrowed(settings.locals.adjustments.as_slice()),
+            )
+        };
+        let ops: &dyn StageOp = if settings.locals.retouch.is_empty()
+            && !settings
+                .locals
+                .adjustments
+                .iter()
+                .any(|g| g.enabled && g.requires_cpu())
+        {
             self.ops.as_ref()
         } else {
             &CpuStageOp
@@ -212,6 +242,11 @@ impl Renderer {
                 }
                 StageId::Tone => {
                     let toned = run(Op::Tone(&settings.tone))?;
+                    let toned = if point_groups.is_empty() {
+                        toned
+                    } else {
+                        pipeline_cpu::locals_image(&toned, &point_groups, Default::default())?
+                    };
                     let toned = if settings
                         .color
                         .monochrome
@@ -230,11 +265,9 @@ impl Renderer {
                     ops.run_image(stage, &Op::ToneExtra(&settings.tone), toned, cancel)?
                 }
                 StageId::Color => run(Op::Color(&settings.color_after_curves()))?,
-                StageId::Locals => pipeline_cpu::locals_image(
-                    &rgb,
-                    &settings.locals.adjustments,
-                    Default::default(),
-                )?,
+                StageId::Locals => {
+                    pipeline_cpu::locals_image(&rgb, &remaining_groups, Default::default())?
+                }
                 StageId::Effects => {
                     let developed = self.apply_depth_effects(&rgb, settings)?;
                     if self.depth_visualisation {

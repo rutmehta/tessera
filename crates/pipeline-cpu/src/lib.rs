@@ -6,7 +6,7 @@ mod denoise;
 pub use denoise::*;
 mod locals;
 pub mod masks;
-pub use locals::{adjust_local, blend_local, locals_image};
+pub use locals::{adjust_local, blend_local, locals_image, split_local_point_colors};
 mod color_detail;
 mod geometry_effects;
 mod point_color;
