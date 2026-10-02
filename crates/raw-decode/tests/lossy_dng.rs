@@ -153,3 +153,29 @@ fn metadata_projection_does_not_decode_or_read_jpeg_tiles() {
     assert_eq!((metadata.width, metadata.height), (12, 10));
     assert!(raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes)).is_err());
 }
+
+#[test]
+fn linear_raw_accepts_as_shot_white_xy_instead_of_neutral() {
+    let mut bytes = support::lossy_dng(false, false);
+    let count = u16::from_le_bytes(bytes[38..40].try_into().unwrap()) as usize;
+    let entry = (0..count)
+        .map(|i| 40 + i * 12)
+        .find(|&i| u16::from_le_bytes(bytes[i..i + 2].try_into().unwrap()) == 50728)
+        .unwrap();
+    let payload = u32::from_le_bytes(bytes[entry + 8..entry + 12].try_into().unwrap()) as usize;
+    bytes[entry..entry + 2].copy_from_slice(&50729u16.to_le_bytes());
+    bytes[entry + 4..entry + 8].copy_from_slice(&2u32.to_le_bytes());
+    for (i, value) in [1u32, 4, 1, 4].into_iter().enumerate() {
+        bytes[payload + i * 4..payload + i * 4 + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    // xy=(.25,.25) -> XYZ=(1,1,2). The synthetic ColorMatrix is identity,
+    // so the reciprocal camera neutral is (1,1,.5), normalized to green.
+    let decoded = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes))
+        .unwrap().unwrap();
+    assert_eq!(decoded.metadata.as_shot_wb, [1., 1., 0.5, 1.]);
+    let metadata = raw_decode::lossy_dng::read_metadata(&mut std::io::Cursor::new(&bytes))
+        .unwrap().unwrap();
+    assert_eq!(metadata.as_shot_wb, decoded.metadata.as_shot_wb);
+    bytes[payload + 8..payload + 12].copy_from_slice(&0u32.to_le_bytes());
+    assert!(raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes)).is_err());
+}
