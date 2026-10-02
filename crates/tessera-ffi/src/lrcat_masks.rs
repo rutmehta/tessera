@@ -440,3 +440,24 @@ mod lr5b_tests {
         assert!((store.get(&raster_key(&recipe)).unwrap().data()[0] - 128. / 255.).abs() < 1e-5);
     }
 }
+
+#[cfg(test)]
+mod lr5b_prune_tests {
+    use super::*;
+    #[test]
+    fn lr5b_prune_missing_collects_orphans_and_preserves_shared_live_content() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path().join("imported-masks"),0).unwrap();
+        let shared = store.put_content_pinned(&MaskRaster::new(1,1,vec![0.5]).unwrap()).unwrap();
+        let gone = store.put_content_pinned(&MaskRaster::new(1,1,vec![1.]).unwrap()).unwrap();
+        let orphan = store.put_content_pinned(&MaskRaster::new(1,1,vec![0.]).unwrap()).unwrap();
+        write_owner(&owner_path(&store,ImageId(1)),&[shared,gone]).unwrap();
+        write_owner(&owner_path(&store,ImageId(2)),&[shared]).unwrap();
+        prune_missing(dir.path(),|id|id == ImageId(2)).unwrap();
+        assert!(store.get(&shared).is_some());
+        assert!(store.get(&gone).is_none());
+        assert!(store.get(&orphan).is_none());
+        assert!(!owner_path(&store,ImageId(1)).exists());
+        assert!(owner_path(&store,ImageId(2)).exists());
+    }
+}
