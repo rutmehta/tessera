@@ -713,6 +713,46 @@ mod tests {
         );
     }
 
+    fn neutral_profile() -> Vec<(u16, u16, Vec<f64>)> {
+        let mut entries = base();
+        entries[1].2 = vec![23.];
+        entries.push((50940, 11, vec![0., 0., 1., 1.]));
+        entries
+    }
+
+    #[test]
+    fn lr10_baseline_and_profile_offset_are_added_once() {
+        for kind in [5, 10] {
+            let mut entries = neutral_profile();
+            entries.extend([
+                (50730, 10, vec![1.]),
+                (51109, kind, vec![1.]),
+                (51110, 4, vec![1.]),
+            ]);
+            let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+            close(
+                p.apply([0.96422 * 0.05, 0.05, 0.82521 * 0.05], 5003.),
+                [0.2; 3],
+                0.0001,
+            );
+        }
+    }
+
+    #[test]
+    fn lr10_auto_black_uses_sdk_shadow_ramp_and_none_bypasses_it() {
+        let mut entries = neutral_profile();
+        let auto = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        entries.push((51110, 4, vec![1.]));
+        let none = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let camera = [0.96422 * 0.02, 0.02, 0.82521 * 0.02];
+        close(none.apply(camera, 5003.), [0.02; 3], 0.00001);
+        // SDK defaults: shadows=5, shadowScale=stage3Gain=1; black=.005.
+        // Above black+radius=.0075 the ramp is (x-.005)/(.995).
+        close(auto.apply(camera, 5003.), [0.015075377; 3], 0.00001);
+        entries.last_mut().unwrap().2 = vec![2.];
+        assert!(DcpProfile::parse(&fixture(false, 42, &entries)).is_err());
+    }
+
     // Build actual TIFF IFDs, including out-of-line values, in either byte order.
     fn fixture(be: bool, magic: u16, entries: &[(u16, u16, Vec<f64>)]) -> Vec<u8> {
         fn u16b(v: u16, be: bool) -> [u8; 2] {
