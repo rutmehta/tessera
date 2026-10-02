@@ -157,7 +157,7 @@ final class LightroomImportTests: XCTestCase {
                          outsideLibrary: 0, libraryPath: "", libraryExists: false, unsupported: [], estimatedBytes: 0)
     }
 
-    private func report(folder: String, cancelled: Bool = false, approximate: [LrcatIssue] = []) -> LrcatReport {
+    private func report(folder: String, cancelled: Bool = false, approximate: [LrcatIssue] = [], cloud: [LrcatIssue] = []) -> LrcatReport {
         LrcatReport(catalogPath: "/Lr/Fixture.lrcat", cancelled: cancelled, imported: 4, resumed: 1, virtualCopies: 1,
                     skipped: [LrcatSkip(name: "lost-01.jpg", path: "/Photos/2026/portraits/lost-01.jpg",
                                         reason: "original not found (relocate its folder if the drive moved)"),
@@ -165,7 +165,7 @@ final class LightroomImportTests: XCTestCase {
                     unsupported: [LrcatIssue(category: "Develop settings", reason: "crs:FutureKnob: unknown key; source preserved",
                                              count: 1, examples: ["ceremony-01.jpg"]),
                                   LrcatIssue(category: "Smart collections", reason: "rule is kept | cannot run", count: 1, examples: ["Blue label"])],
-                    approximate: approximate,
+                    approximate: approximate, cloud: cloud,
                     albums: 2, albumGroups: 1, smartAlbums: 2, keywords: 6,
                     selection: LrcatSelectionCounts(rejects: 1, keeps: 3, undecided: 1, grade1: 1, grade2: 1, grade3: 1, marked: 2),
                     libraryPath: folder + "/library.json", bundlePath: folder + "/.tessera-import/Fixture-1234abcd",
@@ -215,6 +215,15 @@ final class LightroomImportTests: XCTestCase {
         XCTAssertTrue(md.contains("only read, never written"))
         XCTAssertTrue(md.hasSuffix("\n"))
         XCTAssertFalse(md.contains("Approximate translations"), "no group without approximate entries")
+    }
+
+    func testCloudReportIncludesCountsAndExamples() {
+        let r = report(folder: "/Photos", cloud: [LrcatIssue(category: "GenerativeFill",
+            reason: "requires Adobe cloud; not translatable", count: 2, examples: ["/Photos/a.jpg", "/Photos/b.jpg"])])
+        let md = LightroomImportReport.markdown(report: r)
+        XCTAssertTrue(md.contains("## Requires Adobe cloud (not rendered)"), md)
+        XCTAssertTrue(md.contains("| GenerativeFill | 2 | requires Adobe cloud; not translatable | /Photos/a.jpg, /Photos/b.jpg |"), md)
+        XCTAssertFalse(LightroomImportReport.markdown(report: report(folder: "/Photos")).contains("Requires Adobe cloud"))
     }
 
     func testReportMarkdownGroupsApproximateTranslationsPerAdobeKey() {

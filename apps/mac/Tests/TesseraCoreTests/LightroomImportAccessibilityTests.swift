@@ -68,6 +68,8 @@ final class LightroomImportAccessibilityTests: XCTestCase {
             unsupported: [LrcatIssue(category: "Develop", reason: warning, count: 9, examples: ["/photos/portrait.jpg", "/photos/two.jpg", "/photos/three.jpg", "/photos/four.jpg", "/photos/five.jpg"])],
             approximate: [LrcatIssue(category: "PointColors", reason: "hue range semantics unverified", count: 3,
                                      examples: ["/photos/portrait.jpg", "/photos/two.jpg"])],
+            cloud: [LrcatIssue(category: "GenerativeRemove", reason: "requires Adobe cloud; not translatable",
+                count: 2, examples: ["/photos/one.jpg", "/photos/two.jpg"])],
             albums: 5, albumGroups: 6, smartAlbums: 7, keywords: 8,
             selection: LrcatSelectionCounts(rejects: 0, keeps: 0, undecided: 0, grade1: 0, grade2: 0, grade3: 0, marked: 0),
             libraryPath: "/Photos/library.json", bundlePath: "/Photos/bundle", indexed: 5, seconds: 0.1)
@@ -86,6 +88,11 @@ final class LightroomImportAccessibilityTests: XCTestCase {
             XCTAssertFalse(warnings.contains("PointColors"), "approximate translations are not warnings: \(warnings)")
             XCTAssertEqual(try value("document.import.report.approximate", in: nodes),
                            "PointColors: 3 photos; e.g. hue range semantics unverified; /photos/portrait.jpg, /photos/two.jpg")
+            let cloud = try value("document.import.report.cloud", in: nodes)
+            for text in ["GenerativeRemove", "2 photos", "requires Adobe cloud; not translatable", "/photos/one.jpg", "/photos/two.jpg"] {
+                XCTAssertTrue(cloud.contains(text), cloud)
+            }
+            XCTAssertFalse(warnings.contains("GenerativeRemove"))
             let fidelity = try value("document.import.report.fidelity", in: nodes)
             XCTAssertTrue(fidelity.contains(warning), fidelity)
             XCTAssertTrue(fidelity.contains("portrait.jpg"), fidelity)
