@@ -367,7 +367,7 @@ the first worker ran out of quota; the last four LR-9c commits say so.
 | B1 retouch.rs generative areas | done | generative `RetouchAreas`/`RemoveAreas` push a cloud diagnostic and a `crs:GenerativeRemove` warning | `lr9c::generative_only_retouch_areas_are_cloud_not_ignored`, `lr9b_translation::generative_removal_has_one_cloud_note_per_image`, `mixed_cloud_and_patch_removal_keeps_both_dispositions` |
 | B1 report group with counts and examples | done | new `LrcatReport.cloud` (one entry per Adobe feature, one count per photo, up to five example paths), filled for written AND resumed photos; cloud reasons are removed from the report's `unsupported` list so they are not listed twice | FFI `lr9c_cloud_report_apply_resume_counts_examples_and_keeps_filter_list` (apply, then second apply = resume, equal cloud groups), `lr9c_cloud_counts_photos_once_caps_examples_and_omits_ignored` |
 | B1 `ignored` never in the report | done | `note_diagnostics` only admits `approximate`/`info` and `cloud`/`warning` | `lr9c_cloud_counts_photos_once_caps_examples_and_omits_ignored`, `lr9_ignored_diagnostics_are_not_approximate_report_entries` |
-| B1 summary / plan preview | done (found in this pass) | the previous worker also filtered cloud reasons out of the plan preview, which has no cloud group; the filter is removed so they stay in "Not fully supported" before the import | FFI `lr9c_plan_preview_keeps_cloud_effects_visible` (RED `37a940c6`, GREEN `e5e372e3`) |
+| B1 summary / plan preview | done (found in this pass) | the previous worker also filtered cloud reasons out of the plan preview, which has no cloud group; the filter is removed so they stay in "Not fully supported" before the import | FFI `lr9c_plan_preview_keeps_cloud_effects_visible` (RED `c002bd6f`, GREEN `3b47161e`) |
 | B1 Swift sheet + Markdown | done | "Requires Adobe cloud (not rendered)" group in `ReportStep` with identifier `document.import.report.cloud` (existing identifiers untouched) and a section in `import-report.md`; a cloud-only report no longer says "No warnings." / "Everything in the catalog has a Tessera equivalent." | Swift `testCloudReportIncludesCountsAndExamples`, `testEmptyUnsupportedTextDoesNotClaimFullSupportWhenCloudContentExists`, `testReportExposesCountsWarningsAndReadOnlyMarkdown`, `testCloudOnlyReportDoesNotClaimNoWarnings` |
 | Restore tests/upright_lr7.rs | done | asserts the warning names the key, says "cannot render" and carries the verbatim cloud wording (original two clauses plus the ruling-9 wording) | `cloud_only_and_invalid_geometry_explain_missing_rendering` |
 | Restore tests/legacy_ca_lr7b.rs | done | asserts on warnings again, now also requiring the key name | `cloud_wording_is_verbatim` |
@@ -413,7 +413,7 @@ GenerativeRemove 10, of which 2 also carry EnableDistractionRemoval.
 MaskGroupBasedCorrections is higher than LR-9b reported because AI-mask
 promotion left with LR-5.
 
-### Gates (tip `066d63e9` before this handoff commit; docs-only afterwards)
+### Gates (run on `066d63e9`, tree-identical to `373f5aa5` after the final rebase; docs-only afterwards)
 
 `cargo clean --release` of the touched crates first (360 files removed). One
 attempt each; nothing was rerun, relaxed or excluded.
@@ -445,3 +445,8 @@ point other than the intended RED runs.
 
 Worktree clean after the gates; no Cargo.lock, board.json or generated-binding
 drift. The app was never launched.
+
+After the gates the lane's 66 commits were rebased with `git rebase --onto
+4dba1640 f84aebdb` (no conflicts); `git diff` between the pre- and post-rebase
+tips is empty. Hashes quoted in the restack range-diff section above
+(`f84aebdb..83fe6be4`) are the pre-rebase ones.
