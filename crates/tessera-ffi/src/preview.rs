@@ -138,10 +138,28 @@ mod tests {
             (w.div_ceil(2), h.div_ceil(2))
         );
         assert_eq!(render(long).dimensions(), (w, h));
-        let mean = |i: &image::RgbImage| {
-            i.as_raw().iter().map(|v| f64::from(*v)).sum::<f64>() / i.as_raw().len() as f64
-        };
-        assert!((mean(&full) - mean(&thumb)).abs() <= 3.0);
+        // Same picture: every thumbnail sample lies inside its (partial-edge)
+        // source bin. The viewport reduces before the display transform, so
+        // the exact average is neither the encoded nor the display-linear mean.
+        for (x, y, pixel) in thumb.enumerate_pixels() {
+            for c in 0..3 {
+                let bin: Vec<u8> = (y * 4..(y * 4 + 4).min(h))
+                    .flat_map(|sy| (x * 4..(x * 4 + 4).min(w)).map(move |sx| (sx, sy)))
+                    .map(|(sx, sy)| full.get_pixel(sx, sy)[c])
+                    .collect();
+                let (low, high) = (*bin.iter().min().unwrap(), *bin.iter().max().unwrap());
+                assert!(
+                    (low.saturating_sub(2)..=high.saturating_add(2)).contains(&pixel[c]),
+                    "thumbnail sample {} outside its Develop bin {low}..={high}",
+                    pixel[c]
+                );
+            }
+        }
+        assert_ne!(
+            thumb.get_pixel(0, 0),
+            thumb.get_pixel(2, 0),
+            "gradient kept"
+        );
     }
 }
 
@@ -430,14 +448,28 @@ pub(crate) fn cull_preview_hash(
     ))))
 }
 
+/// Coarsest engine level whose long edge still covers `max_px`: a request is
+/// never upsampled and never rendered finer than it needs.
+fn thumbnail_level(extent: engine_api::tile::Extent, max_px: u32) -> u8 {
+    let long = extent.width.max(extent.height);
+    let mut level = 0;
+    while level < image_core::render::MAX_LEVEL && long.div_ceil(1 << (level + 1)) >= max_px.max(1)
+    {
+        level += 1;
+    }
+    level
+}
+
 /// Imported sources use Develop's source boundary, embedded DCP and renderable
 /// settings. In particular no LinearRaw source reaches the LibRaw CFA decoder.
+/// The frame is produced at the level a `max_px` request needs (the viewport's
+/// coarse-level contract), so display encoding and stitching are thumbnail-sized.
 fn render_imported(
     path: &Path,
     id: engine_api::id::ImageId,
     recipe: &core::Recipe,
     support: &Path,
-    _max_px: u32,
+    max_px: u32,
 ) -> Result<(image::RgbImage, u16)> {
     let image = catalog::open_image(id, path)?;
     let settings = crate::develop::session_renderable(&recipe.settings, true, false);
@@ -447,9 +479,17 @@ fn render_imported(
     renderer
         .mask_cache()
         .set_hooks(Some(Arc::new(crate::develop::masks::Hooks(masks))));
-    let extent = image_core::Renderer::output_extent(&image, &settings, 0)?;
-    let tiles =
-        renderer.render_region(&image, &settings, 0, image_core::PixelRect::full(extent))?;
+    let level = thumbnail_level(
+        image_core::Renderer::output_extent(&image, &settings, 0)?,
+        max_px,
+    );
+    let extent = image_core::Renderer::output_extent(&image, &settings, level)?;
+    let tiles = renderer.render_region(
+        &image,
+        &settings,
+        level,
+        image_core::PixelRect::full(extent),
+    )?;
     Ok((
         crate::lrcat_fidelity::stitch(extent, &tiles)?,
         image.metadata().orientation,
