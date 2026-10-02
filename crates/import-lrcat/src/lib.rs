@@ -1154,15 +1154,7 @@ fn flush(
 ) -> EngineResult<()> {
     let translated = par_map(batch, |p| translate(p, image_id(p.id)));
     for (p, result) in batch.drain(..).zip(translated) {
-        let (mut recipe, notes) = result?;
-        if let Some(value) = text(&p.image, "orientation")
-            .as_deref()
-            .and_then(orientation::exif)
-        {
-            recipe
-                .unknown
-                .insert("lightroom_orientation".into(), serde_json::json!(value));
-        }
+        let (recipe, notes) = result?;
         for note in notes {
             report.push(p.id, note);
         }
