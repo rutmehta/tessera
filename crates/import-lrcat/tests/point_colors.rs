@@ -8,7 +8,7 @@ fn packet(csv: &str) -> String {
     )
 }
 #[test]
-fn point_color_lua_maps_shifts_and_all_feathers_without_pending_source() {
+fn point_color_lua_maps_shifts_and_all_feathers_with_exact_source() {
     let (r, _) = lua_develop::parse(LUA, "15.4").unwrap();
     assert_eq!(r.settings.color.point_colors.len(), 1);
     let p = &r.settings.color.point_colors[0];
@@ -22,7 +22,7 @@ fn point_color_lua_maps_shifts_and_all_feathers_without_pending_source() {
     for key in ["hue", "saturation", "luminance"] {
         assert_eq!(j["selection"][key], serde_json::json!([0., 0.25, 0.75, 1.]));
     }
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown["lrcat_develop_source"]["properties"]["PointColors"].is_string());
     r.validate().unwrap();
 }
 #[test]
@@ -31,7 +31,7 @@ fn point_color_xmp_numeric_sequence_matches_lua() {
     assert_eq!(r.settings.color.point_colors.len(), 1);
     let (lua, _) = lua_develop::parse(LUA, "15.4").unwrap();
     assert_eq!(r.settings, lua.settings);
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown["lrcat_develop_source"]["properties"]["PointColors"].is_string());
 }
 #[test]
 fn point_color_partial_or_unknown_shape_stays_atomic_and_retained() {
@@ -113,7 +113,7 @@ fn point_color_explicit_lua_array_indices_translate_without_losing_order() {
         r.settings,
         lua_develop::parse(LUA, "15.4").unwrap().0.settings
     );
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown["lrcat_develop_source"]["properties"]["PointColors"].is_string());
 }
 
 #[test]
@@ -168,7 +168,7 @@ fn point_color_skips_placeholder_among_real_records() {
     )
     .unwrap();
     assert_eq!(r.settings.color.point_colors.len(), 1, "{warnings:?}");
-    assert!(!r.unknown.contains_key("lrcat_develop_source"));
+    assert!(r.unknown["lrcat_develop_source"]["properties"]["PointColors"].is_string());
 }
 #[test]
 fn point_color_requires_pv3_or_later() {
@@ -181,4 +181,40 @@ fn point_color_requires_pv3_or_later() {
         "{warnings:?}"
     );
     assert!(r.unknown["lrcat_develop_source"]["properties"]["PointColors"].is_string());
+}
+
+#[test]
+fn lr1c_shared_approximation_diagnostics_and_single_combined_import() {
+    let lua = "s = { PointColors={{SrcHue=0,SrcSat=0.5,SrcLum=0.5,HueShift=0.5}}, ConvertToGrayscale=true, GrayMixerRed=20, PerspectiveUpright=1, UprightTransform_1='1,0,0,0,1,0,0.2,0,1' }";
+    let xml = packet(CSV).replace("<crs:PointColors>", "<crs:ConvertToGrayscale>True</crs:ConvertToGrayscale><crs:GrayMixerRed>20</crs:GrayMixerRed><crs:PerspectiveUpright>1</crs:PerspectiveUpright><crs:UprightTransform_1>1,0,0,0,1,0,0.2,0,1</crs:UprightTransform_1><crs:PointColors>");
+    for (r, warnings) in [
+        lua_develop::parse(lua, "15.4").unwrap(),
+        xmp::parse(&xml, "15.4").unwrap(),
+    ] {
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let entries = import_lrcat::diagnostics::entries(&r);
+        let point = entries
+            .get("PointColors")
+            .expect("shared PointColors diagnostic");
+        assert_eq!(point.len(), 1);
+        assert_eq!(point[0].level, "info");
+        assert_eq!(point[0].status, "approximate");
+        assert_eq!(point[0].lane, "LR-1");
+        assert_eq!(
+            point[0].field.as_deref(),
+            Some("/settings/color/point_colors")
+        );
+        for key in ["PointColors", "ConvertToGrayscale", "UprightTransform_1"] {
+            assert!(entries.contains_key(key), "missing {key}");
+            assert!(r.unknown["lrcat_develop_source"]["properties"][key].is_string());
+        }
+        assert!(!r.unknown.contains_key("tessera_import_info"));
+        assert_eq!(r.history.entries.len(), 1);
+        assert!(matches!(
+            r.history.entries[0].meta.author,
+            engine_api::recipe::Author::Import { .. }
+        ));
+        assert_eq!(r.history.state_at(r.history.head).unwrap(), r.settings);
+        r.validate().unwrap();
+    }
 }

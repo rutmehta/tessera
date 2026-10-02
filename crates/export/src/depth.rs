@@ -413,6 +413,80 @@ mod tests {
     }
 
     #[test]
+    fn lr1c_depth_export_declines_resident_points() {
+        let context = Arc::new(pipeline_gpu::GpuContext::new().unwrap());
+        let (cfa, metadata) = raw_fixture();
+        let source = RenderSource::Cfa {
+            image: &cfa,
+            metadata: &metadata,
+        };
+        let mut settings = cfa_test::settings();
+        settings
+            .color
+            .point_colors
+            .push(engine_api::recipe::settings::PointColor {
+                hue_shift: 30.,
+                range: 100.,
+                ..Default::default()
+            });
+        let result = render_resident_cfa(
+            &source,
+            &settings,
+            1,
+            Arc::new(cfa_test::Inference::default()),
+            context,
+            &engine_api::jobs::CancellationToken::new(),
+        )
+        .unwrap();
+        assert!(
+            result.is_none(),
+            "caller must continue through CPU for points"
+        );
+    }
+
+    #[test]
+    fn lr1c_depth_export_keeps_point_selection_before_monochrome() {
+        let support = tempfile::tempdir().unwrap();
+        let linear = |v: f32| ((v + 0.055) / 1.055).powf(2.4);
+        let image = Image::new(
+            8,
+            6,
+            [0.75, 0.25, 0.25].map(|v| vec![linear(v); 48]).to_vec(),
+        )
+        .unwrap();
+        let mut settings = DevelopSettings::default();
+        settings.color = serde_json::from_value(serde_json::json!({
+            "monochrome":{"enabled":true},
+            "point_colors":[{"hue_shift":30.,"range":50.,"selection":{
+                "source_hsl":[0.,0.5,0.5],"hue":[0.,0.25,0.75,1.],
+                "saturation":[0.,0.25,0.75,1.],"luminance":[0.,0.25,0.75,1.]
+            }}]
+        }))
+        .unwrap();
+        settings.effects.lens_blur = Some(LensBlur::default());
+        let provider = DepthProvider::from_map(
+            ml_depth::DepthMap::from_prediction(8, 6, vec![0.; 48]).unwrap(),
+        );
+        let (actual, warnings) = render(
+            &RenderSource::Rgb(&image),
+            &settings,
+            1,
+            support.path(),
+            None,
+            Some(&provider),
+        )
+        .unwrap();
+        let y = 0.2627 * linear(0.75) + 0.6780 * linear(0.5) + 0.0593 * linear(0.25);
+        let expected = pipeline_cpu::sigmoid(y, Default::default());
+        assert!(warnings.is_empty());
+        for pixel in actual.pixels() {
+            for sample in pixel.0 {
+                assert!((sample - expected).abs() < 2e-6, "{sample} vs {expected}");
+            }
+        }
+    }
+
+    #[test]
     fn supplied_depth_blurs_before_geometry() {
         let support = tempfile::tempdir().unwrap();
         let values: Vec<f32> = (0..32 * 24)

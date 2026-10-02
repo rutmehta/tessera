@@ -336,3 +336,59 @@ fn tone_is_one_persistent_agent_entry_and_histogram_tracks_render() {
         response => panic!("{response:?}"),
     }
 }
+
+#[test]
+fn lr1c_preview_point_selection_precedes_monochrome() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("point.png");
+    image::RgbImage::from_pixel(8, 6, image::Rgb([191, 64, 64]))
+        .save(&path)
+        .unwrap();
+    let mut recipe = engine_api::recipe::Recipe::default();
+    recipe.settings.color = serde_json::from_value(json!({
+        "monochrome":{"enabled":true},
+        "point_colors":[{"hue_shift":30.,"range":100.,"selection":{
+            "source_hsl":[0.,0.5,0.5],"hue":[0.,0.,1.,1.],
+            "saturation":[0.,0.,1.,1.],"luminance":[0.,0.,1.,1.]
+        }}]
+    }))
+    .unwrap();
+    recipe.history.base = recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(&path).recipe,
+        &sidecar::RecipeDocument {
+            recipe: recipe.clone(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let selected = console.render_preview(id, 8).unwrap();
+    drop(console);
+    recipe.settings.color.point_colors.clear();
+    recipe.history.base = recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(&path).recipe,
+        &sidecar::RecipeDocument {
+            recipe,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut console = Console::open(dir.path().join("app2")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let plain = console.render_preview(id, 8).unwrap();
+    assert_ne!(
+        selected, plain,
+        "Point Color must select before B&W removes saturation"
+    );
+    for (a, b) in selected.pixels().zip(plain.pixels()) {
+        assert!(
+            a[0] > b[0] + 5,
+            "red-to-orange shift must increase neutral luminance"
+        );
+        assert!((i16::from(a[0]) - i16::from(a[1])).abs() <= 1);
+        assert!((i16::from(a[1]) - i16::from(a[2])).abs() <= 1);
+    }
+}

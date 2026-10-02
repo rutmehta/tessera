@@ -176,6 +176,13 @@ mod v4_feature_predicates {
     }
 
     #[test]
+    fn lr1c_point_colors_bumps_only_when_present() {
+        assert_bumped_only_when_present("point_colors", |r| {
+            r.settings.color.point_colors.push(Default::default());
+        });
+    }
+
+    #[test]
     fn lr7d_homography() {
         assert_bumped_only_when_present("upright_homography", |r| {
             r.settings.geometry.upright.homography =

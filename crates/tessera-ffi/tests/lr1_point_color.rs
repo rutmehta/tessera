@@ -30,7 +30,7 @@ fn synthetic_lua_point_color_renders_expected_pixels() {
         .recipe;
     assert_eq!(recipe.settings.color.point_colors.len(), 1);
     recipe.validate().unwrap();
-    assert!(!recipe.unknown.contains_key("lrcat_develop_source"));
+    assert!(recipe.unknown["lrcat_develop_source"]["properties"]["PointColors"].is_string());
     pipeline_cpu::validate_settings(&recipe.settings).unwrap();
     let mut tile =
         pipeline_cpu::Image::new(1, 1, [0.75, 0.25, 0.25].map(|v| vec![linear(v)]).to_vec())

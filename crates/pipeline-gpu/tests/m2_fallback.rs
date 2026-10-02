@@ -167,10 +167,22 @@ fn curve_color_validation_and_neutral_bits() {
             .is_err()
     );
     color = ColorSettings::default();
-    color.point_colors.push(Default::default());
-    assert!(
-        gpu.run(StageId::Tone, &Op::Color(&color), tile.clone())
-            .is_err()
+    color
+        .point_colors
+        .push(engine_api::recipe::settings::PointColor {
+            hue_shift: 30.,
+            range: 100.,
+            ..Default::default()
+        });
+    let expected = CpuStageOp
+        .run(StageId::Tone, &Op::Color(&color), tile.clone())
+        .unwrap();
+    let actual = gpu
+        .run(StageId::Tone, &Op::Color(&color), tile.clone())
+        .unwrap();
+    assert_eq!(
+        actual.samples::<f32>().unwrap(),
+        expected.samples::<f32>().unwrap()
     );
     tile.samples_mut::<f32>().unwrap()[0] = f32::INFINITY;
     for op in [
@@ -397,4 +409,82 @@ fn point_color_render_routes_around_resident_gpu() {
             }
         }
     }
+}
+
+#[test]
+fn lr1c_monochrome_point_operator_and_gpu_session_keep_colour_selection() {
+    use engine_api::recipe::{DevelopSettings, settings::MonochromeSettings};
+    use image_core::{PixelRect, RenderOutput, Renderer, RendererConfig, TileCache};
+    let gpu = Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap())));
+    let mut s = DevelopSettings::default();
+    s.color
+        .point_colors
+        .push(engine_api::recipe::settings::PointColor {
+            luminance_shift: 40.,
+            range: 100.,
+            selection: Some(engine_api::recipe::settings::PointColorSelection {
+                source_hsl: [0., 0.5, 0.5],
+                hue: [0., 0., 1., 1.],
+                saturation: [0., 0., 1., 1.],
+                luminance: [0., 0., 1., 1.],
+            }),
+            ..Default::default()
+        });
+    s.color.monochrome = Some(MonochromeSettings {
+        enabled: true,
+        ..Default::default()
+    });
+    let input = image();
+    let op = Op::Color(&s.color);
+    let tile = input.tile(TileCoord::new(0, 0, 0), 0, 1).unwrap();
+    let cpu = CpuStageOp.run(StageId::Tone, &op, tile.clone()).unwrap();
+    let batch = gpu
+        .run_chain_batch(
+            &[(StageId::Tone, op)],
+            vec![tile],
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    assert_eq!(
+        cpu.samples::<f32>().unwrap(),
+        batch[0].samples::<f32>().unwrap()
+    );
+    let raw = common::synthetic(1812, 19, 17, common::RGGB, [0, 0, 19, 17]);
+    let renderer = Renderer::with_ops(
+        gpu,
+        Arc::new(TileCache::new(16 << 20)),
+        RendererConfig::default(),
+    );
+    assert!(!renderer.can_render_resident(&raw, &s).unwrap());
+    let rect = PixelRect::full(raw.level_extent(0));
+    let baseline = {
+        let mut plain = s.clone();
+        plain.color.point_colors.clear();
+        renderer
+            .render_region_as(&raw, &plain, 0, rect, RenderOutput::SceneLinear)
+            .unwrap()
+    };
+    let actual = renderer
+        .render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    let expected = Renderer::new(RendererConfig::default())
+        .render_region_as(&raw, &s, 0, rect, RenderOutput::SceneLinear)
+        .unwrap();
+    let mut change = 0_f32;
+    for ((a, b), c) in actual.iter().zip(&expected).zip(&baseline) {
+        for ((a, b), c) in a
+            .samples::<f32>()
+            .unwrap()
+            .iter()
+            .zip(b.samples::<f32>().unwrap())
+            .zip(c.samples::<f32>().unwrap())
+        {
+            assert!((a - b).abs() < 1e-4);
+            change = change.max((a - c).abs());
+        }
+    }
+    assert!(
+        change > 0.01,
+        "points lost their colour selection before B&W"
+    );
 }
