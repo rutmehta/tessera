@@ -245,7 +245,6 @@ fn correction(n: Node<'_, '_>) -> Option<()> {
                 Field::Scalar(v),
             ) if v.parse::<f64>().ok()? == 0.0 => (),
             ("LocalCurveRefineSaturation", Field::Scalar(v)) if v.parse::<f64>().ok()? == 100.0 => {
-                ()
             }
             ("LocalColorVariance", Field::Structure(n))
                 if sequence(n)?.iter().all(|n| {
