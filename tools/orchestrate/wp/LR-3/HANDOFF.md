@@ -431,3 +431,64 @@ registration must not be read as successful spot rendering from a proxy.
 - Local changes only. No board.json, Swift gate, app launch, push, or personal
   catalog access. All new fixtures are synthetic. Every LR-3d commit ends with
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+## Restack without LR-5
+
+Binding review: A-ROUND2 approves LR-3e/3f; replay onto approved LR-4
+5e0633e1, excluding rejected LR-5 through 04217312. All 27 original
+commits remain in order, with their original test-before-fix sequence.
+This is the single extra documentation commit.
+
+Finding-by-finding:
+- DONE — LR-5-free base: rebase 04217312..85af5278 onto 5e0633e1.
+- DONE — preserve LR-3 behavior: caller-owned retouch remains in export/print;
+  only LR-5 mask-support wrappers/arguments are removed. Existing
+  lr3f_combined_import_preserves_history_diagnostics_and_spot_exterior
+  retains its LR-1/2/3/4/7 coverage; it had no LR-5 portion to drop.
+- DONE — range order and minimal delta: 21 equal patches; four initial commits differ only by the appended required
+  Opus co-author trailer (original Fable credit preserved); 17db7d32 differs
+  only for absent LR-5 export/print context and c206de07 only for formatting
+  of removed LR-5 wrappers. No squash or reorder.
+- DONE — clean-target release tests: import-lrcat + engine-api, --locked,
+  no filters/exclusions; 314 passed, 0 failed, 0 ignored.
+  synthetic_catalog_output_including_retained_source and
+  streaming_matches_import_and_plan_json_is_byte_identical passed with
+  the approved golden unchanged.
+- DEFERRED BY A — post-merge LR-12 findings (unused Upright admission,
+  vec![1;5], Lua hook order, v4_features_used assertion, dual memo memory
+  note, MCP scale-switch owner note) belong to the explicit later cleanup
+  lane; changing them here would violate exact approved LR-3 behavior.
+- DONE — no Cargo.lock or board.json delta; original branch preserved.
+  Final combined gates and explicit new-branch push are recorded in LR-6.
+
+Range-diff summary (before this documentation-only commit):
+
+```text
+ 1:  a15cb131 !  1:  7c9900c7 test(LR-3): specify synthetic retouch mapping and CPU spot rendering
+ 2:  4acda95b !  2:  ec850181 test(LR-3): cover unknown methods and inherited XMP prefixes
+ 3:  5b63b197 !  3:  10a32d6e feat(LR-3): translate explicit-source heal and clone retouch records
+ 4:  c925989b !  4:  39a524e1 docs(LR-3): record retouch evidence and renderer integration blockers
+ 5:  d0fc3d9d =  5:  a47fc2ec test(LR-3b): require heal and clone rendering through Develop CPU
+ 6:  e4302f4c =  6:  21c8015c docs(LR-3b): record RED render test and confirmed dependency cycle
+ 7:  17db7d32 !  7:  e070a403 feat(LR-3c): render Develop retouch through caller-owned brush kernels
+ 8:  4a339097 =  8:  92aec4d9 test(LR-3c): cover kernel parity import export and GPU retouch routing
+ 9:  e8e5bec4 =  9:  ae172efc feat(LR-3c): preserve retouch through library previews and FFI admission
+10:  965f5610 = 10:  7b609b11 docs(LR-3c): record construction audit and completed gate evidence
+11:  9cf490c1 = 11:  2b59191e test(LR-3d): pin source retention, history, schema and render regressions
+12:  53f23aaf = 12:  2995e0a6 test(LR-3d): cover union sources, matrix evidence and geometry stage ordering
+13:  f837d043 = 13:  9b50ab63 test(LR-3d): require retouch at the requested MCP preview resolution
+14:  88ad4a43 = 14:  936ccd11 fix(LR-3d): correct retouch ordering, union masks and approximate import contract
+15:  04ea0bd5 = 15:  8656b909 test(LR-3d): preserve scaled output for inactive spots and pin M2 ordering
+16:  77a8bf2a = 16:  c3f19959 fix(LR-3d): preserve inactive spot identity in scaled previews
+17:  228bc644 = 17:  b27265fd docs(LR-3d): record retouch contracts and base-tip verification
+18:  b958e537 = 18:  97dd0c26 test(LR-3e): pin mixed imports, scaled isolation and session Upright reuse
+19:  9f9c36b3 = 19:  552a0067 test(LR-3e): measure Metal spot Upright reuse and real scaled spot support
+20:  19dff392 = 20:  2f237d75 test(LR-3e): distinguish cold admission from repeated Upright analysis
+21:  c206de07 ! 21:  e37db276 fix(LR-3e): isolate scaled retouch and share import diagnostics and provenance
+22:  58855fd9 = 22:  9c4bb08a perf(LR-3e): retain session CPU fallback memo and Upright analysis
+23:  72fc7ce7 = 23:  dad99a30 test(LR-3e): pin MCP spot exterior bits across preview source paths
+24:  d8efb65c = 24:  04bc419c fix(LR-3e): keep MCP preview scale independent of active spots
+25:  62b7cd99 = 25:  d33b4a95 docs(LR-3e): record final review gates and remaining serial Liquify limit
+26:  c58e617f = 26:  120f5e9f test(LR-3f): verify combined import and exact spot exterior pixels
+27:  85af5278 = 27:  219bf1c2 docs(LR-3f): record rebase resolutions and release gate evidence
+```
