@@ -302,6 +302,7 @@ fn seeded_full_jpeg_and_16bit_jxl_mutations_are_bounded() {
     let mut rng = 0x8f5eed1234567890u64;
     let mut max_bytes = 0;
     let mut max_time = std::time::Duration::ZERO;
+    let mut slowest_case = (false, 0, false);
     for jxl in [false, true] {
         let seed = full_seed(jxl);
         assert!(
@@ -337,7 +338,10 @@ fn seeded_full_jpeg_and_16bit_jxl_mutations_are_bounded() {
                 let elapsed = start.elapsed();
                 let allocated = ALLOC.with(|v| v.replace(None).unwrap());
                 max_bytes = max_bytes.max(allocated);
-                max_time = max_time.max(elapsed);
+                if elapsed > max_time {
+                    max_time = elapsed;
+                    slowest_case = (jxl, case, metadata);
+                }
                 assert!(result.is_ok(), "jxl={jxl} case={case} metadata={metadata}");
                 assert!(
                     allocated < 768 * 1024 * 1024,
@@ -351,7 +355,7 @@ fn seeded_full_jpeg_and_16bit_jxl_mutations_are_bounded() {
         }
     }
     eprintln!(
-        "mutation cases=512 max_allocated_bytes={max_bytes} max_time_us={}",
+        "mutation cases=512 max_allocated_bytes={max_bytes} max_time_us={} slowest_jxl_case_metadata={slowest_case:?}",
         max_time.as_micros()
     );
 }

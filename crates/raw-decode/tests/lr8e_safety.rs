@@ -72,12 +72,13 @@ fn oversized_tiles_rejected_before_payload_or_calibration() {
     rejected(&f, "tile dimensions");
 }
 #[test]
-fn total_decoded_tile_budget_is_checked() {
+fn total_decoded_output_budget_is_checked() {
     let mut f = base();
-    f[0].3 = 8192;
-    f[1].3 = 8192;
-    f[6].3 = 8192;
-    f[7].3 = 8192;
+    // One column beyond the 1.5 GiB RGB f32 output cap.
+    f[0].3 = 32769;
+    f[1].3 = 4096;
+    f[6].3 = 32769;
+    f[7].3 = 4096;
     rejected(&f, "decoded byte budget");
 }
 #[test]
