@@ -1,0 +1,87 @@
+{
+  "base": "b3c8a5315a8dd88b0796eb44e9d0e72d488ac459",
+  "source_commit": "2e4a13394bc84e1803d01bb04ab81d4de58f6afe",
+  "release": {
+    "command": "cargo test --release -p filters -p pipeline-cpu -p pipeline-gpu -p image-core -p engine-api -p previews -p export -p tessera-ffi --no-fail-fast -- --test-threads=1",
+    "exit_code": 0,
+    "suites": 225,
+    "passed": 1445,
+    "failed": 0,
+    "ignored": 66,
+    "measured": 0,
+    "filtered": 0,
+    "by_crate": {
+      "engine_api": {
+        "passed": 120,
+        "failed": 0,
+        "ignored": 0
+      },
+      "export": {
+        "passed": 100,
+        "failed": 0,
+        "ignored": 7
+      },
+      "filters": {
+        "passed": 156,
+        "failed": 0,
+        "ignored": 8
+      },
+      "image_core": {
+        "passed": 120,
+        "failed": 0,
+        "ignored": 2
+      },
+      "pipeline_cpu": {
+        "passed": 179,
+        "failed": 0,
+        "ignored": 3
+      },
+      "pipeline_gpu": {
+        "passed": 161,
+        "failed": 0,
+        "ignored": 13
+      },
+      "previews": {
+        "passed": 28,
+        "failed": 0,
+        "ignored": 3
+      },
+      "tessera_ffi": {
+        "passed": 581,
+        "failed": 0,
+        "ignored": 30
+      }
+    }
+  },
+  "clippy": {
+    "command": "cargo clippy --workspace --all-targets -- -D warnings",
+    "exit_code": 0
+  },
+  "fmt": {
+    "command": "cargo fmt --all -- --check",
+    "exit_code": 0
+  },
+  "goldens": {
+    "captures": 14,
+    "changed_pixels": 0,
+    "changed_fingerprints": 0
+  },
+  "logs": {
+    "after-cpu.log": "d25abea5bee038a5f2c2dff9236f7663eb0cc5ae3417d02204ca18628af2cc68",
+    "after-filters.log": "db4497c0e999064a38eae175d0b3578b16c46d01da212f653cfb6364d0533fea",
+    "before-cpu.log": "10777acbe23b10924b7f6ba87d589100373537b82def52312eeb72f25b4eac37",
+    "before-filters.log": "80321c3e2ec9622d2397198368491deb8b878fb717792ba58a8eb790f2321d2e",
+    "clean.log": "2b0a462e572a9cb75c5ac9fa9c0df10ce8e9944c2a96c7abd75615a4796e4780",
+    "clippy.log": "0ed7262f6268002105bf09716638b69dc212dc72ab1a185844b4e69df15c257e",
+    "diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "document-viewport-rerun.log": "973c442db57bf711bd6bcb9eee86350d50d017d7b07ae10c9af05c982df885c7",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "green-cpu-gpu.log": "e9e563ec840affaaa900d2ae9f47744c0252569953c5535818dd08a904a8a1d8",
+    "green.log": "87058d68d913af1f590f0b0a97e76ff40248baa230e2c4d1583476888750abd6",
+    "red-filters.log": "79ceea6b5189dea39256e8dc81f05e8ab6c99c5446519d9e21558324e933fe69",
+    "red.log": "123c79e0d30eff9df5736a7a757a9bdb303915f1cf08cb2af4428fc2ff079537",
+    "release-initial.log": "748f18475900e197184edab241590b4ab02ed852d2f38230ab3ca89a012400c6",
+    "release-ring-failure.log": "c3b8d7d5483771a11aea8f6159eeca1b7f75394fcee48da1619134ecd6eca947",
+    "release.log": "deb65fbccd442fe1d4e75c3361930c542539d4398c31066417b381cd79187732"
+  }
+}

@@ -299,12 +299,12 @@ It is a reference throughput report, not an interactive-latency guarantee:
 
 Preserve-luminosity recombination uses `epsilon=1e-3` in scene-linear
 Rec.2020 (0.1% of white). For filtered luminance `L`, source luminance `f`,
-and `peak=max(abs(filtered RGB))`, conditioning applies only when
-`0<abs(L)<epsilon` AND `abs(L)<0.25*peak`. The documented relative threshold
-`k=0.25` distinguishes cancellation-scale luminance from neutral deep shadows.
-Outside that predicate, nonzero L retains `channel*f/L`, including ordinary
-near-black greys. Inside it, CPU and WGSL both use
-`gain=1+(f-L)/copysign(epsilon,L)` and `channel*gain`.
+and `A=0.2627|r|+0.678|g|+0.0593|b|` on filtered RGB, set
+`rho=abs(L)/A` and `D=max(abs(L),epsilon*clamp(1-rho/k,0,1))` with
+`k=0.25` (ENG-3c amended ruling). This continuously tapers the floor;
+same-sign colours have rho=1, including saturated-blue shadows.
+When `D==abs(L)`, retain literal `channel*f/L` arithmetic. Otherwise CPU
+and WGSL use `gain=1+(f-L)/copysign(D,L)` and `channel*gain`.
 Exact zero retains the source-RGB fallback; identity controls and alpha are
 unchanged. The negative-L formula differs from ENG-1's positive-denominator
 form. It retains a gain sign discontinuity at zero for coloured cancelling
