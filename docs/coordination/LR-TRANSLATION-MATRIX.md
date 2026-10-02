@@ -196,8 +196,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `MaskGroupBasedCorrections/LocalToningHue` | `/settings/locals/adjustments/0/params/color_overlay` | LR-11 | approximate | `{{LocalToningHue=120,LocalToningSaturation=50,CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
 | `MaskGroupBasedCorrections/LocalToningSaturation` | `/settings/locals/adjustments/0/params/color_overlay` | LR-11 | approximate | `{{LocalToningHue=120,LocalToningSaturation=50,CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
 | `MaskGroupBasedCorrections/LocalDefringe` | `/settings/locals/adjustments/0/params/defringe` | LR-11 | approximate | `{{LocalDefringe=50,CorrectionMasks={{What="Mask/Gradient",MaskID="synthetic",FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}` |
-| `MaskGroupBasedCorrections/InstanceIDs` | MISSING: per-instance AI object segmentation is not implemented | LR-11 | unsupported-diagnostic | — |
-| `MaskGroupBasedCorrections/InstanceBounds` | MISSING: per-instance AI object segmentation is not implemented | LR-11 | unsupported-diagnostic | — |
+| `MaskGroupBasedCorrections/InstanceIDs` | MISSING: per-instance AI object segmentation is not implemented; an instance selection is never widened to the whole object | LR-11 | unsupported-diagnostic | — |
+| `MaskGroupBasedCorrections/InstanceBounds` | MISSING: per-instance AI object segmentation is not implemented; an instance selection is never widened to the whole object | LR-11 | unsupported-diagnostic | — |
 | `MaskGroupBasedCorrections/Flipped+MaskInverted` | MISSING: documented precedence for conflicting radial inversion flags | LR-11 | unsupported-diagnostic | — |
 
 ## Per-lane representation notes
@@ -360,8 +360,9 @@ zero `LocalColorVariance` arrays and `Version` on `Mask/CircularGradient` only.
 On the LR-5b stack, AI raster provenance (`FullMaskSize`, `LocalInputDigest`,
 `LocalInputDigestVersion`) is accepted on AI mask kinds, which regenerate (LR-5b). A saved toning hue is
 inactive when saturation is zero. LR-11 now translates local curves, local Point Color and nonzero overlay/defringe
-approximately; the exact source remains retained. Individual AI-instance selection
-remains an explicitly named unsupported feature on this LR-5-free stack.
+approximately (extended curves only for HDR output; defringe in Adobe's signed range);
+the exact source remains retained. Individual AI-instance selection
+remains an explicitly named unsupported feature and is never widened to the whole object.
 Conflicting radial inversion flags remain a named unsupported feature. LR-4 geometry, range and nested masks
 retain their existing approximation contract.
 
@@ -390,22 +391,47 @@ measurements, remaining classes, source-contract evidence and clean gates.
 
 ## LR-11 per-mask adjustments
 
-Local ordinary and extended point curves use the global `ToneCurves` representation
-and spline operator. Extended channels inherit ordinary-channel values when absent.
-Local Point Color uses LR-1's decoder and CPU operator; a monochrome pipeline moves
-only that operator before B&W and includes mask/point changes in the tone cache key.
+Local point curves use the global `ToneCurves` representation and spline operator.
+Extended (HDR-domain) local curves follow the global rule: `Extended*Curve` fills
+`curves_extended` only when the image selects HDR output (`HDREditMode`), the
+process is not legacy, and the points are not the identity; an extended channel
+then inherits the ordinary-channel values it does not supply. On SDR images the
+ordinary local curve renders and the extended source is provenance only (still
+validated). The matrix guard therefore evaluates the `Extended*Curve` rows in an
+HDR context, as it does for `ExtendedToneCurvePV2012`.
+
+Local Point Color uses LR-1's decoder and CPU operator. It is ONE stage in every
+render path, whether B&W is on or off: after basic Tone, before monochrome
+conversion and before the global point curves (`pipeline_cpu::split_local_point_colors`).
+Every other local control keeps its position after global colour. The Tone stage
+hash covers local Point Color in both modes.
+
 Overlay uses a hue tint scaled to the original scene-linear luminance, blended by
-saturation. Defringe reuses the global edge-selective purple/green suppression,
-with local 0..100 mapped to the operator's 0..20 amount. These are explicit Tessera
-approximations, not Adobe pixel-parity claims. Curve amount scales the scene-linear
-curve delta; Point Color scales its shifts; overlay/defringe scale their strengths.
-All are applied through the group's alpha and disabled/zero-amount groups are inert.
+saturation. Local defringe accepts Adobe's signed `-100..=100`. A positive value
+reuses the global edge-selective purple/green suppression, with local 0..100 mapped
+to the operator's 0..20 amount. A negative value (Adobe: protect the area from
+global defringe) is kept with its source, adds no local defringe and changes no
+pixel; its approximation note says the protection is not rendered. These are
+explicit Tessera approximations, not Adobe pixel-parity claims. Curve amount scales
+the scene-linear curve delta; Point Color scales its shifts; overlay/defringe scale
+their strengths. All are applied through the group's alpha and disabled/zero-amount
+groups are inert.
 
 `curves`, `curves_extended`, and `point_colors` are optional and omitted when absent.
 Each has a schema-4 predicate and a bumped-only-when-present test. Existing nonzero
-`defringe`/present `color_overlay` now also require schema 4. Individual AI
-object-instance selection is not translated on this LR-5-free stack: the source is
-retained with a named warning. No model interface was added.
+`defringe`/present `color_overlay` now also require schema 4.
+
+An individual AI instance selection (`InstanceIDs`/`InstanceBounds`) is unsupported
+on every mask kind: the shared codec rejects the group, the source is retained and
+the warning names the instance selection. It is never rendered as the whole object
+or subject, and no recipe field, schema predicate or GPU-admission clause exists for it.
+
+Approximation notes pair a recipe group with its source group by the codec's stable
+group id (`sidecar::assign_mask_group_ids`: a native `ts:LocalId` is kept, foreign
+groups take the lowest unused id in source order), never by index. A retained group
+is reported with the reason the decoder actually hit: a local operator is named only
+when it fails to decode, and the radial conflict only when `Flipped` and
+`MaskInverted` disagree.
 
 All CPU-only local fields fail GPU admission before resident dispatch. The
 compositor fallback test requires exactly equal pixels (absolute tolerance 0),
