@@ -18,7 +18,7 @@ fn xmp_every_default_is_silent_and_retains_source() {
         }
         let (attrs,body) = match rule {
             Rule::Provenance => (format!("crs:{key}=\"synthetic\""),String::new()),
-            Rule::False => (format!("crs:{key}=\"False\""),String::new()),
+            Rule::DistractionPanel | Rule::False => (format!("crs:{key}=\"False\""),String::new()),
             Rule::Empty | Rule::PointColors => (String::new(),format!("<crs:{key}><rdf:Seq/></crs:{key}>")),
             Rule::Zero => (format!("crs:{key}=\"0\""),String::new()),
             Rule::Number(n) | Rule::Legacy(n) | Rule::Upright(n) | Rule::Sdr(n) => (format!("crs:{key}=\"{n}\""),String::new()),
@@ -97,6 +97,7 @@ fn duplicate_controls_are_not_silenced() {
 #[test]
 fn empty_filter_payload_and_enabled_empty_panel_are_not_effects() {
     for source in [
+        "s={EnableDistractionRemoval=true}",
         "s={AILook={}}",
         "s={FilterList={}}",
         "s={EnableDistractionRemoval=true,FilterList={}}",
@@ -112,4 +113,23 @@ fn empty_filter_payload_and_enabled_empty_panel_are_not_effects() {
     ] {
         assert!(!lua_develop::parse(source, "15.4").unwrap().1.is_empty());
     }
+}
+
+#[test]
+fn structured_sdk_placeholder_is_inactive() {
+    let range = "{LowerNone=-1,LowerFull=-1,UpperFull=-1,UpperNone=-1}";
+    let source = format!(
+        "s={{PointColors={{{{SrcHue=-1,SrcSat=-1,SrcLum=-1,HueShift=-1,SatScale=-1,LumScale=-1,RangeAmount=-1,HueRange={range},SatRange={range},LumRange={range}}}}}}}"
+    );
+    let lua_develop::LuaValue::Table(table) = lua_develop::read(&source).unwrap() else {
+        panic!("expected synthetic table")
+    };
+    assert!(import_lrcat::noop::is_noop(
+        "PointColors",
+        &table,
+        &engine_api::recipe::ProcessVersion::from_crs("15.4").unwrap()
+    ));
+    let (recipe, warnings) = lua_develop::parse(&source, "15.4").unwrap();
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert!(diagnostics::entries(&recipe).is_empty());
 }
