@@ -488,6 +488,12 @@ fn lr4c_nested_camera_raw_uses_cpu_fallback_with_identical_pixels() {
     renderer
         .set_filter_evaluator(Arc::new(filters::CompositorFilters))
         .unwrap();
+    let mut control = settings.clone();
+    control["locals"]["adjustments"][0]["components"][0] =
+        serde_json::json!({"kind":"linear","start":[0,0],"end":[1,0]});
+    let control_doc = document_with_alpha(vec![filter("camera_raw", serde_json::json!({"settings":control}))], true);
+    compare(&control_doc, &mut renderer, &cpu, 1e-5);
+    assert_eq!(renderer.filter_fallbacks(), 0);
     compare(&doc, &mut renderer, &cpu, 0.0);
     assert!(renderer.filter_fallbacks() > 0);
     // The existing fractional-alpha source exercises premultiplication too;

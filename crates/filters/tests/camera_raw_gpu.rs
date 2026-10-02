@@ -758,6 +758,7 @@ fn lr4b_four_bounds_choose_cpu_before_resident_dispatch() {
 #[test]
 fn lr4c_nested_group_declined_before_gpu_dispatch() {
     let mut settings = resident_settings();
+    assert!(camera_raw_gpu::supports(&json!({"settings":settings})).unwrap());
     settings.locals.adjustments = serde_json::from_value(json!([{"components":[{
         "kind":"brush","strokes":[],"group":[{"kind":"linear","start":[0,0],"end":[1,0]}]
     }]}]))
