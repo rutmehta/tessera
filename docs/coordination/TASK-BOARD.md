@@ -1,5 +1,9 @@
 # Tessera task board — Machine A coordinator
 
+## Batch 48 reconciliation — 2026-10-02 21:30 UTC
+
+Replacement A coordinator merged ENG-3 continuous cancellation floor at `eaf2322fc4a0b74a8bccda649a6e5e3384768bdf`. Independently inspected batch48 head `95b7b63df8ea9a321fab8a4b0e765beda05d1a19` and verified zero tree diff to merged main. Rust, 24MP benchmark, Clippy, fmt, Swift gate, bindings drift and strict build exits all0, done. Swift931 tests/3skipped/0failures in209.022s, plus5 Swift Testing tests. Current merged tree validation is confirmed; no GUI or Adobe-oracle acceptance inferred. Codex A runtime/ownership handoff remains pending, mailbox unchanged, no duplicate workload or receipt ACK.
+
 ## Batches 43/44/47 reconciliation — 2026-10-02 21:15 UTC
 
 Main `f7bab45c` now integrates LR-3 retouch and LR-6 Lens Blur (restacked without LR-5), following B5-50 accessibility audit `c281bc56` and B5-51 aggregate import profiler `fc02b2aa`. Independently inspected batch43b tested head `e6642c4ca2a0f2baaf1f2af18130402b8be861fe`: Rust/Clippy/fmt/Swift/drift/strict all0, done; Swift931 tests/3skipped/0failures in215.777s. Diff to main is only docs/coordination/CODEX-BRIEF-2026-10-02-rulings.md, so current product tree matches validated tree. Batch47 Swift/drift/strict all0 (931/3skip/0fail); batch44b Rust/Clippy/fmt/drift all0, no Swift run in that rerun. No GUI or Adobe rendering acceptance inferred.
