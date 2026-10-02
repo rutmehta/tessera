@@ -845,9 +845,17 @@ fn proxy_profile() -> std::result::Result<Value, u32> {
         .ok_or(42u32)?;
     let mut proxies: Vec<_> = resolved
         .iter()
-        .filter(|r| r.outcome == Outcome::OfflineProxy)
+        .filter(|r| {
+            r.outcome == Outcome::OfflineProxy
+                && previews
+                    .lrprev_path(import.plan.images[r.index].catalog_id)
+                    .is_some_and(|p| p.is_file())
+        })
         .collect();
     proxies.sort_by_key(|r| import.plan.images[r.index].catalog_id);
+    if proxies.len() < 12 {
+        return Err(43);
+    }
     let step = (proxies.len() / 12).max(1);
     let mut pairs = Vec::new();
     for (n, row) in proxies.iter().step_by(step).take(12).enumerate() {
@@ -871,7 +879,9 @@ fn proxy_profile() -> std::result::Result<Value, u32> {
         status(100 + n as u32).map_err(|_| 170u32)?;
     }
     status(5).map_err(|_| 171u32)?;
-    Ok(json!({"profile":profile,"sample_step":step,"pairs":pairs}))
+    Ok(
+        json!({"profile":profile,"comparable_proxies":proxies.len(),"sample_step":step,"pairs":pairs}),
+    )
 }
 
 #[test]
