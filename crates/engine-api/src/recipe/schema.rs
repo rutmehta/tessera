@@ -33,54 +33,59 @@ pub const RECIPE_SCHEMA_VERSION_V4: u32 = 4;
 pub type FeaturePredicate = (&'static str, fn(&Recipe) -> bool);
 
 /// Every schema 4 feature, by diagnostic name.
-const V4_FEATURE_PREDICATES: &[FeaturePredicate] = &[
-    ("retouch", |r| {
-        !r.settings.locals.retouch.is_empty() || !r.history.base.locals.retouch.is_empty()
-    }),
-    ("point_colors", |r| {
-        !r.settings.color.point_colors.is_empty()
-    }),
-    ("mask_luminance_display", |r| {
-        mask_feature(r, |c| {
-            matches!(
-                c.kind,
-                super::MaskKind::LuminanceRange {
-                    luminance_domain: super::mask::LuminanceDomain::Display,
-                    ..
-                }
-            )
-        })
-    }),
-    ("lens_blur", |r| r.settings.effects.lens_blur.is_some()),
-    ("upright_homography", |r| {
-        r.settings.geometry.upright.homography.is_some()
-    }),
-    ("upright_homography_mode", |r| {
-        r.settings.geometry.upright.homography_mode.is_some()
-    }),
-    ("legacy_ca_red", |r| r.settings.lens.legacy_ca_red.is_some()),
-    ("legacy_ca_blue", |r| {
-        r.settings.lens.legacy_ca_blue.is_some()
-    }),
-    ("monochrome", |r| {
-        r.settings
-            .color
-            .monochrome
-            .as_ref()
-            .is_some_and(|m| m.enabled || m.mixer != Default::default())
-    }),
-    ("curves_extended", |r| {
-        r.settings.tone.curves_extended.is_some()
-    }),
-    ("legacy_pv2010", |r| r.settings.tone.legacy_pv2010.is_some()),
-    ("mask_component_disabled", |r| {
-        mask_feature(r, |c| !c.enabled)
-    }),
-    ("mask_groups", |r| mask_feature(r, |c| c.group.is_some())),
-    ("mask_luminance_bounds", |r| {
-        mask_feature(r, |c| c.luminance_bounds.is_some())
-    }),
-];
+const V4_FEATURE_PREDICATES: &[FeaturePredicate] =
+    &[
+        ("retouch", |r| {
+            !r.settings.locals.retouch.is_empty() || !r.history.base.locals.retouch.is_empty()
+        }),
+        ("point_colors", |r| {
+            !r.settings.color.point_colors.is_empty()
+        }),
+        ("mask_luminance_display", |r| {
+            mask_feature(r, |c| {
+                matches!(
+                    c.kind,
+                    super::MaskKind::LuminanceRange {
+                        luminance_domain: super::mask::LuminanceDomain::Display,
+                        ..
+                    }
+                )
+            })
+        }),
+        ("lens_blur", |r| {
+            r.settings.effects.lens_blur.as_ref().is_some_and(|b| {
+                b.focus_falloff.is_some() || b.adobe.is_some() || b.depth.is_some()
+            })
+        }),
+        ("upright_homography", |r| {
+            r.settings.geometry.upright.homography.is_some()
+        }),
+        ("upright_homography_mode", |r| {
+            r.settings.geometry.upright.homography_mode.is_some()
+        }),
+        ("legacy_ca_red", |r| r.settings.lens.legacy_ca_red.is_some()),
+        ("legacy_ca_blue", |r| {
+            r.settings.lens.legacy_ca_blue.is_some()
+        }),
+        ("monochrome", |r| {
+            r.settings
+                .color
+                .monochrome
+                .as_ref()
+                .is_some_and(|m| m.enabled || m.mixer != Default::default())
+        }),
+        ("curves_extended", |r| {
+            r.settings.tone.curves_extended.is_some()
+        }),
+        ("legacy_pv2010", |r| r.settings.tone.legacy_pv2010.is_some()),
+        ("mask_component_disabled", |r| {
+            mask_feature(r, |c| !c.enabled)
+        }),
+        ("mask_groups", |r| mask_feature(r, |c| c.group.is_some())),
+        ("mask_luminance_bounds", |r| {
+            mask_feature(r, |c| c.luminance_bounds.is_some())
+        }),
+    ];
 
 fn mask_feature(recipe: &Recipe, uses: fn(&super::MaskComponent) -> bool) -> bool {
     // Include disabled subtrees and retouch areas: re-enabling them must not

@@ -383,7 +383,11 @@ fn apply(values: &Values, recipe: &mut Recipe, warnings: &mut Vec<String>) -> En
         warnings.retain(|w| {
             !w.starts_with(&format!("crs:{key}:")) && !w.starts_with(&format!("{key}:"))
         });
-        if key.starts_with("AutoToneDigest") {
+        // LR-6 owns depth when the final decoded Lens Blur is active. Keep
+        // this metadata-only fallback byte-identical for inactive/standalone rows.
+        if key.starts_with("AutoToneDigest")
+            || (key == "DepthMapInfo" && settings.effects.lens_blur.is_some())
+        {
             continue;
         }
         warnings.push(format!("{key}: retained metadata, not a pixel adjustment; digest is not an Auto Tone recipe and depth metadata is not a depth raster; source preserved"));

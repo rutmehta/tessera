@@ -176,9 +176,7 @@ pub(crate) fn parse_inner(
         if let Some(previous) = accepted.insert((p.namespace, p.name), i) {
             removed.push(properties[previous].range.clone());
         }
-        if key.is_none()
-            && !(p.name == "DepthMapInfo" && original.recipe.settings.effects.lens_blur.is_some())
-        {
+        if key.is_none() {
             diagnostics.push((qualified, p.raw, "unsupported property".into()));
         } else if key == Some(CrsKey::ProcessVersion) {
             match ProcessVersion::from_crs(p.raw) {
@@ -205,6 +203,14 @@ pub(crate) fn parse_inner(
     };
     let mut recipe = imported.recipe;
     let mut warnings = imported.warnings;
+    // Both unsupported-property filtering and approximation use the final,
+    // normalized recipe, including duplicate-property resolution.
+    let active_depth = !verified_native && recipe.settings.effects.lens_blur.is_some();
+    if active_depth {
+        diagnostics.retain(|(key, _, reason)| {
+            key != "crs:DepthMapInfo" || reason != "unsupported property"
+        });
+    }
     warnings.retain(|w| !w.starts_with("crs:ExtendedToneCurve"));
     if properties.iter().any(|p| {
         p.namespace == CRS
@@ -301,7 +307,7 @@ pub(crate) fn parse_inner(
         );
     }
     if !verified_native {
-        approximate_depth(&mut recipe, &properties, &mut warnings)?;
+        approximate_depth(&mut recipe, &properties, &mut warnings, active_depth);
     }
     recipe.unknown.insert("sidecar_xmp".into(), json!(text));
     if apply_lr2 {
@@ -461,9 +467,9 @@ fn approximate_depth(
     recipe: &mut Recipe,
     properties: &[Property<'_>],
     warnings: &mut Vec<String>,
-) -> EngineResult<()> {
+    active: bool,
+) {
     use engine_api::recipe::settings::LensBlurDepth;
-    let active = recipe.settings.effects.lens_blur.is_some();
     for p in properties.iter().filter(|p| p.namespace == CRS) {
         if !matches!(p.name, "LensBlur" | "DepthMapInfo") {
             continue;
@@ -532,7 +538,13 @@ fn approximate_depth(
                 );
             }
         }
-        recipe.set_lens_blur_depth(depth)?;
+        recipe
+            .settings
+            .effects
+            .lens_blur
+            .as_mut()
+            .expect("active")
+            .depth = Some(depth);
     }
     if active
         && recipe
@@ -542,12 +554,34 @@ fn approximate_depth(
             .as_ref()
             .is_some_and(|b| b.depth.is_none())
     {
-        recipe.set_lens_blur_depth(LensBlurDepth {
+        recipe
+            .settings
+            .effects
+            .lens_blur
+            .as_mut()
+            .expect("active")
+            .depth = Some(LensBlurDepth {
             regenerate: true,
             ..Default::default()
-        })?;
+        });
     }
-    Ok(())
+    if active {
+        let key = if properties
+            .iter()
+            .any(|p| p.namespace == CRS && p.name == "DepthMapInfo")
+        {
+            "DepthMapInfo"
+        } else {
+            "LensBlur"
+        };
+        crate::diagnostics::push_approximate(
+            recipe,
+            key,
+            "/settings/effects/lens_blur/depth",
+            "LR-6",
+            "regenerated depth: no Adobe depth resource; Tessera estimates depth at render",
+        );
+    }
 }
 
 const LENS_BLUR_FIELDS: &[(&str, &str)] = &[
