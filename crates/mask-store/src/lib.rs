@@ -84,26 +84,16 @@ impl MaskStore {
 
     /// Remove a durable import slot. Missing slots are harmless.
     pub fn remove_pinned(&self, key: &[u8; 32]) -> io::Result<()> {
+        let _lock = self.io.lock().unwrap_or_else(|e| e.into_inner());
         let path = self
             .root
             .join("pinned")
             .join(format!("{}.mask", blake3::Hash::from_bytes(*key).to_hex()));
         match fs::remove_file(path) {
+            Ok(()) => Ok(()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-            result => result,
+            Err(e) => Err(e),
         }
-    }
-    /// Durable slots are separate from the inference LRU. Owners must replace
-    /// slots on reimport and remove them with their image record.
-    pub fn put_pinned(&self, key: &[u8; 32], raster: &MaskRaster) -> io::Result<()> {
-        if raster.data.len() as u64 * 4 + 48 > Self::MAX_PINNED_BYTES {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "imported mask exceeds 256 MiB",
-            ));
-        }
-        let _lock = self.io.lock().unwrap_or_else(|e| e.into_inner());
-        Self::new(self.root.join("pinned"), u64::MAX)?.put(key, raster)
     }
 
     pub fn new(root: impl AsRef<Path>, cap: u64) -> io::Result<Self> {
@@ -154,8 +144,17 @@ impl MaskStore {
         MaskRaster::new(width, height, data).ok()
     }
     /// Durable imported resources live outside the evictable cache budget.
-    /// A separate directory also protects them from other store instances' eviction.
+    /// Callers key one slot per image, replace it on reimport, and remove it with
+    /// the image record. Each raster is bounded to 256 MiB including its header.
+    /// A separate directory protects it from other store instances' eviction.
     pub fn put_pinned(&self, key: &[u8; 32], raster: &MaskRaster) -> io::Result<()> {
+        if raster.data.len() as u64 * 4 + 48 > Self::MAX_PINNED_BYTES {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "imported raster exceeds 256 MiB bound",
+            ));
+        }
+        let _lock = self.io.lock().unwrap_or_else(|e| e.into_inner());
         Self::new(self.root.join("pinned"), u64::MAX)?.put(key, raster)
     }
 

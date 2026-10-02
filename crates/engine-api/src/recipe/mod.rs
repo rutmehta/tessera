@@ -422,9 +422,9 @@ impl Recipe {
         Ok(())
     }
 
-    /// Attach resolved Lens Blur resources to the current Import entry without
-    /// creating an edit. A user-authored head (or no head) is left untouched;
-    /// callers can still use the prepared raster without persisting its key.
+    /// Attach Lens Blur resources during import apply without creating an edit.
+    /// A user-authored head (or no head) is left untouched. The importer must
+    /// call this before publishing the recipe; rendering never calls it.
     /// History ids/authors remain intact and replay of the head stays valid.
     pub fn set_lens_blur_depth(&mut self, depth: settings::LensBlurDepth) -> EngineResult<()> {
         let mut next = self.settings.clone();

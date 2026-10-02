@@ -177,32 +177,32 @@ impl Renderer {
             .depth
             .as_ref()
             .ok_or_else(|| error("depth provider is not installed"))?;
-        let depth = if let Some(store) = &provider.store {
-            // Rendering accepts immutable settings. Resource preparation on this
-            // transient recipe uses the same store/resolver/regeneration path as
-            // explicit host preparation, without adding a history entry.
-            let mut prepared = engine_api::recipe::Recipe {
-                settings: settings.clone(),
-                history: engine_api::recipe::History {
-                    base: settings.clone(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-            if settings.effects.lens_blur.is_some() {
-                provider.prepare_lens_blur_depth(&mut prepared, input, store, |_| None)?
-            } else {
+        // Rendering only reads imported resources; estimates never alter the recipe.
+        let imported = settings
+            .effects
+            .lens_blur
+            .as_ref()
+            .and_then(|blur| blur.depth.as_ref())
+            .and_then(|depth| depth.mask_key)
+            .and_then(|key| {
+                provider
+                    .store
+                    .as_ref()
+                    .and_then(|store| DepthMap::cached(store, &key))
+            })
+            .filter(|depth| (depth.width(), depth.height()) == (input.width(), input.height()));
+        let depth = match imported {
+            Some(depth) => depth,
+            None => {
+                provider.validate_model(
+                    settings
+                        .effects
+                        .lens_blur
+                        .as_ref()
+                        .and_then(|b| b.depth_model.as_ref()),
+                )?;
                 provider.estimate(input)?
             }
-        } else {
-            provider.validate_model(
-                settings
-                    .effects
-                    .lens_blur
-                    .as_ref()
-                    .and_then(|blur| blur.depth_model.as_ref()),
-            )?;
-            provider.estimate(input)?
         };
         *provider.latest.lock().map_err(error)? = Some(depth.clone());
         if self.depth_visualisation {
@@ -221,81 +221,96 @@ impl Renderer {
     }
 }
 
-impl DepthProvider {
-    /// Resolve opaque catalog resource IDs through a caller-owned association.
-    /// Only independently decodable grayscale PNG/TIFF resources are accepted;
-    /// proprietary helper tables are cache misses, never interpreted as paths.
-    /// Rasters live exclusively in mask-store. Regeneration uses this provider,
-    /// so a model-backed provider must be installed explicitly by the caller.
-    pub fn prepare_lens_blur_depth(
-        &self,
-        recipe: &mut engine_api::recipe::Recipe,
-        input: &Image,
-        store: &ml_depth::DepthStore,
-        mut resolve: impl FnMut(&str) -> Option<Vec<u8>>,
-    ) -> EngineResult<DepthMap> {
-        let mut settings = recipe.settings.clone();
-        let blur = settings
-            .effects
-            .lens_blur
-            .as_mut()
-            .ok_or_else(|| error("LensBlur missing"))?;
-        let state = blur.depth.get_or_insert_with(Default::default);
-        if let Some(key) = state.mask_key
-            && let Some(depth) = DepthMap::cached(store, &key)
-            && (depth.width(), depth.height()) == (input.width(), input.height())
-        {
-            return Ok(depth);
-        }
-        let mut imported = None;
-        for id in [&state.base_layered_depth_table, &state.base_raw_depth_table]
-            .into_iter()
-            .flatten()
-        {
-            let Some(bytes) = resolve(id) else { continue };
-            let Ok(format) = image::guess_format(&bytes) else {
-                continue;
-            };
-            if !matches!(format, image::ImageFormat::Png | image::ImageFormat::Tiff) {
-                continue;
-            }
-            let Ok(decoded) = image::load_from_memory_with_format(&bytes, format) else {
-                continue;
-            };
-            if !matches!(
-                decoded.color(),
-                image::ColorType::L8 | image::ColorType::L16
-            ) || (decoded.width(), decoded.height()) != (input.width(), input.height())
-            {
-                continue;
-            }
-            let values = decoded.to_luma32f().into_raw();
-            imported = Some(
-                DepthMap::from_normalized_inverse(input.width(), input.height(), values)
-                    .map_err(error)?,
-            );
-            break;
-        }
-        let imported_resource = imported.is_some();
-        let depth = match imported {
-            Some(depth) => depth,
-            None => {
-                self.validate_model(blur.depth_model.as_ref())?;
-                self.estimate(input)?
-            }
-        };
-        let key = depth.resource_key();
-        if imported_resource {
-            depth.store_pinned(store, &key).map_err(error)?;
-        } else {
-            depth.store(store, &key).map_err(error)?;
-        }
-        if DepthMap::cached(store, &key).as_ref() != Some(&depth) {
-            return Err(error("depth resource was not retained by mask-store"));
-        }
-        state.mask_key = Some(key);
-        state.regenerate = false;
-        recipe.set_lens_blur_depth(state.clone())?;
-        Ok(depth)
+/// One durable depth slot per image. Reimport replaces the slot rather than
+/// accumulating content-addressed pins. The host removes it with the image record.
+pub fn imported_depth_key(id: engine_api::id::ImageId) -> [u8; 32] {
+    engine_api::id::Digest::derive("tessera imported lens depth image v1", &id.0.to_le_bytes()).0
+}
+
+/// Import-apply only: resolve opaque IDs through the existing caller-owned
+/// association and store an independently decodable grayscale PNG/TIFF raster.
+/// No inference, path interpretation, history entry, or diagnostic is performed.
+/// Missing/invalid resources leave regeneration pending and remove a prior pin.
+pub fn import_lens_blur_depth(
+    recipe: &mut engine_api::recipe::Recipe,
+    extent: (u32, u32),
+    store: &ml_depth::DepthStore,
+    mut resolve: impl FnMut(&str) -> Option<Vec<u8>>,
+) -> EngineResult<Option<DepthMap>> {
+    let id = recipe
+        .image_id
+        .ok_or_else(|| error("depth import requires image identity"))?;
+    let key = imported_depth_key(id);
+    let Some(blur) = recipe.settings.effects.lens_blur.as_ref() else {
+        store.remove_pinned(&key).map_err(error)?;
+        return Ok(None);
+    };
+    if !recipe
+        .history
+        .head
+        .and_then(|head| recipe.history.entry(head))
+        .is_some_and(|entry| matches!(entry.meta.author, engine_api::recipe::Author::Import { .. }))
+    {
+        return Err(error(
+            "depth resources must be attached during import apply",
+        ));
     }
+    let mut state = blur.depth.clone().unwrap_or_default();
+    let mut imported = None;
+    for id in [&state.base_layered_depth_table, &state.base_raw_depth_table]
+        .into_iter()
+        .flatten()
+    {
+        let Some(bytes) = resolve(id) else { continue };
+        if bytes.len() as u64 > ml_depth::DepthStore::MAX_PINNED_BYTES {
+            continue;
+        }
+        let Ok(format) = image::guess_format(&bytes) else {
+            continue;
+        };
+        if !matches!(format, image::ImageFormat::Png | image::ImageFormat::Tiff) {
+            continue;
+        }
+        // Inspect dimensions before decoding, bounding both stored and decoded rasters.
+        let reader = image::ImageReader::with_format(std::io::Cursor::new(&bytes), format);
+        let Ok((width, height)) = reader.into_dimensions() else {
+            continue;
+        };
+        if (width, height) != extent
+            || u64::from(width)
+                .saturating_mul(u64::from(height))
+                .saturating_mul(4)
+                .saturating_add(48)
+                > ml_depth::DepthStore::MAX_PINNED_BYTES
+        {
+            continue;
+        }
+        let Ok(decoded) = image::load_from_memory_with_format(&bytes, format) else {
+            continue;
+        };
+        if !matches!(
+            decoded.color(),
+            image::ColorType::L8 | image::ColorType::L16
+        ) {
+            continue;
+        }
+        imported = Some(
+            DepthMap::from_normalized_inverse(width, height, decoded.to_luma32f().into_raw())
+                .map_err(error)?,
+        );
+        break;
+    }
+    state.mask_key = imported.as_ref().map(|_| key);
+    state.regenerate = imported.is_none();
+    // Verify history and all recipe invariants before changing any owned resource.
+    let mut next = recipe.clone();
+    next.set_lens_blur_depth(state)?;
+    next.validate()?;
+    if let Some(depth) = &imported {
+        depth.store_pinned(store, &key).map_err(error)?;
+    } else {
+        store.remove_pinned(&key).map_err(error)?;
+    }
+    *recipe = next;
+    Ok(imported)
 }

@@ -229,6 +229,13 @@ pub trait LrcatMaskResolver: Send + Sync {
     fn resolve(&self, catalog_image_id: i64, resource_id: String) -> Option<Vec<u8>>;
 }
 
+/// Caller-owned association of opaque Adobe resource IDs with this catalog image.
+/// Return None for missing/proprietary resources; IDs are never filesystem paths.
+#[uniffi::export(with_foreign)]
+pub trait LrcatDepthResolver: Send + Sync {
+    fn resolve(&self, catalog_image_id: i64, resource_id: String) -> Option<Vec<u8>>;
+}
+
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct LrcatReport {
     pub catalog_path: String,
@@ -1190,15 +1197,36 @@ impl LrcatImport {
         options: LrcatOptions,
         listener: Option<Arc<dyn LrcatProgressListener>>,
     ) -> Result<LrcatReport> {
-        self.apply_with_mask_resolver(options, listener, None)
+        self.apply_with_resolvers(options, listener, None, None)
     }
 
-    /// Apply with a caller-owned association to independently decoded AI masks.
+    /// Apply with caller-associated AI mask resources.
     pub fn apply_with_mask_resolver(
         &self,
         options: LrcatOptions,
         listener: Option<Arc<dyn LrcatProgressListener>>,
         resolver: Option<Arc<dyn LrcatMaskResolver>>,
+    ) -> Result<LrcatReport> {
+        self.apply_with_resolvers(options, listener, resolver, None)
+    }
+
+    /// Apply with caller-associated depth resources.
+    pub fn apply_with_depth_resolver(
+        &self,
+        options: LrcatOptions,
+        listener: Option<Arc<dyn LrcatProgressListener>>,
+        resolver: Option<Arc<dyn LrcatDepthResolver>>,
+    ) -> Result<LrcatReport> {
+        self.apply_with_resolvers(options, listener, None, resolver)
+    }
+
+    /// Apply both independent resource resolvers before publishing one recipe.
+    pub fn apply_with_resolvers(
+        &self,
+        options: LrcatOptions,
+        listener: Option<Arc<dyn LrcatProgressListener>>,
+        mask_resolver: Option<Arc<dyn LrcatMaskResolver>>,
+        depth_resolver: Option<Arc<dyn LrcatDepthResolver>>,
     ) -> Result<LrcatReport> {
         self.cancel.store(false, Ordering::SeqCst);
         let started = Instant::now();
@@ -1341,6 +1369,10 @@ impl LrcatImport {
                 Outcome::Skip(reason) => Some(self.skip_row(r, reason.clone())),
                 _ => None,
             }));
+        let depth_root = self.engine.support_dir()?.join("previews/depth-cache");
+        Sidecar::ensure_destination(&depth_root, "imported depth")?;
+        Sidecar::ensure_destination(depth_root.join("pinned"), "imported depth")?;
+        let depth_store = image_core::ml_depth::DepthStore::new(&depth_root, 256 << 20)?;
         let total = work.len() as u32;
         // Test aid for the acceptance walk: slow the per-photo loop down so the
         // non-modal progress and Cancel can be exercised on the small fixture.
@@ -1372,10 +1404,11 @@ impl LrcatImport {
             if state.done.contains(&image.catalog_id) {
                 report.resumed += 1;
                 count_selection(&mut report.selection, &selection);
-                let published = Sidecar::read_recipe(Sidecar::paths(&r.path).recipe).ok();
+                // Report the applied resource outcome, not the unresolved spool copy.
+                let applied = Sidecar::read_recipe(Sidecar::paths(&r.path).recipe).ok();
                 note_approximate(
                     &mut report.approximate,
-                    published.as_ref().map_or(&image.recipe, |d| &d.recipe),
+                    applied.as_ref().map_or(&image.recipe, |doc| &doc.recipe),
                     &r.path,
                 );
                 continue;
@@ -1419,17 +1452,15 @@ impl LrcatImport {
                 {
                     return Err(failure(reason));
                 }
-                let support = self.engine.support_dir()?;
-                let root = support.join("imported-masks");
-                Sidecar::ensure_destination(&root, "imported masks")?;
-                Sidecar::ensure_destination(root.join("pinned"), "imported masks")?;
-                let store = ml_segment::MaskStore::new(root, 0)?;
-                let extent = if resolver.is_some() {
+                image.recipe.image_id = Some(id);
+                // Resolution is read-only and is never inferred from resource ID text.
+                let extent = if mask_resolver.is_some() || depth_resolver.is_some() {
                     image::image_dimensions(&r.path)
                         .ok()
                         .or_else(|| {
                             raw_decode::RawSource::open(&r.path).ok().map(|raw| {
                                 let meta = raw.metadata();
+                                // image-core renders the active area before geometry.
                                 (meta.default_crop[2], meta.default_crop[3])
                             })
                         })
@@ -1437,18 +1468,52 @@ impl LrcatImport {
                 } else {
                     (0, 0)
                 };
-                crate::lrcat_masks::apply(
+                let prior = image_core::ml_depth::DepthMap::cached(
+                    &depth_store,
+                    &image_core::depth::imported_depth_key(id),
+                );
+                let imported = image_core::depth::import_lens_blur_depth(
                     &mut image.recipe,
-                    id,
                     extent,
-                    &store,
+                    &depth_store,
                     |resource| {
-                        resolver
-                            .as_ref()
-                            .and_then(|r| r.resolve(image.catalog_id, resource.into()))
+                        depth_resolver.as_ref().and_then(|resolver| {
+                            resolver.resolve(image.catalog_id, resource.into())
+                        })
                     },
-                    |recipe| write_image(&r.path, id, recipe, &selection, &keywords, &admission),
-                )
+                )?;
+                if imported.is_some() {
+                    clear_pending_depth_diagnostic(&mut image.recipe);
+                }
+                let result = (|| {
+                    let root = self.engine.support_dir()?.join("imported-masks");
+                    Sidecar::ensure_destination(&root, "imported masks")?;
+                    Sidecar::ensure_destination(root.join("pinned"), "imported masks")?;
+                    let store = ml_segment::MaskStore::new(root, 0)?;
+                    crate::lrcat_masks::apply(
+                        &mut image.recipe,
+                        id,
+                        extent,
+                        &store,
+                        |resource| {
+                            mask_resolver.as_ref().and_then(|resolver| {
+                                resolver.resolve(image.catalog_id, resource.into())
+                            })
+                        },
+                        |recipe| {
+                            write_image(&r.path, id, recipe, &selection, &keywords, &admission)
+                        },
+                    )
+                })();
+                if result.is_err() {
+                    let key = image_core::depth::imported_depth_key(id);
+                    if let Some(prior) = prior {
+                        prior.store_pinned(&depth_store, &key).map_err(failure)?;
+                    } else {
+                        depth_store.remove_pinned(&key)?;
+                    }
+                }
+                result
             })();
             match result {
                 Ok(()) => {
@@ -1633,6 +1698,34 @@ impl State {
 }
 
 /// Recipe to `.edits/<stem>.json`, selection + keywords to `<file>.xmp`.
+fn clear_pending_depth_diagnostic(recipe: &mut Recipe) {
+    if let Some(groups) = recipe
+        .unknown
+        .get_mut(import_lrcat::diagnostics::KEY)
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for key in ["LensBlur", "DepthMapInfo"] {
+            if let Some(entries) = groups
+                .get_mut(key)
+                .and_then(serde_json::Value::as_array_mut)
+            {
+                entries.retain(|entry| {
+                    !(entry["lane"] == "LR-6"
+                        && entry["reason"]
+                            .as_str()
+                            .is_some_and(|reason| reason.starts_with("regenerated depth:")))
+                });
+                if entries.is_empty() {
+                    groups.remove(key);
+                }
+            }
+        }
+        if groups.is_empty() {
+            recipe.unknown.remove(import_lrcat::diagnostics::KEY);
+        }
+    }
+}
+
 fn write_image(
     path: &Path,
     id: ImageId,
@@ -1680,8 +1773,10 @@ fn write_image(
     let paths = Sidecar::paths(path);
     Sidecar::ensure_writable_destination(&paths.recipe)?;
     Sidecar::ensure_writable_destination(&ours)?;
-    Sidecar::write_recipe(paths.recipe, &doc)?;
+    // Publish the recipe last: a failure before its key is visible lets apply
+    // restore the prior imported-depth slot without exposing a dangling key.
     Sidecar::write_xmp(&ours, &packet)?;
+    Sidecar::write_recipe(paths.recipe, &doc)?;
     Ok(())
 }
 
