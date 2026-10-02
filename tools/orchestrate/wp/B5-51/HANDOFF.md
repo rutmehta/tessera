@@ -375,3 +375,52 @@ system-setting change, real-catalog profiling, protected-library access, board
 change, or lockfile change was needed. The follow-up changes only this handoff and
 `crates/tessera-ffi/src/lrcat_profile.rs`. The authorized publication is
 `git push origin wp/B5-51`; Machine A remains the sole merger.
+
+## B5-51c: environment-independent profiler fixture
+
+Machine A's release gate exposed that `profile_synthetic_fixture` used
+`tempfile::tempdir()`, which follows `TMPDIR`. Fix commit `113b7ffb` changes it to
+`tempfile::tempdir_in(system_temp_dir().unwrap())`: both its catalog fixture and
+app directory now live under the same Darwin system temp root the guard accepts.
+The guard remains unchanged.
+
+Audited all profiler call sites and sibling fixture allocation in `tessera-ffi`.
+`profile_rejects_lightroom_bundle_app_dirs` and
+`audit_catalog_is_immutable_and_read_only` already use explicit `/tmp` roots.
+`profile_rejects_tmpdir_widening` intentionally creates a directory outside the
+allowed roots and overrides only its child process's `TMPDIR`; it must retain that
+setup to verify rejection. `profile_from_env` creates no fixtures and remains
+opt-in. No other profiler fixture needed an allocation change.
+
+Verification on Machine B used:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_DIR="$HOME/.cache/tessera-target/B5-51"
+export CARGO_BUILD_JOBS=4
+export RAYON_NUM_THREADS=4
+mkdir -p "$CARGO_TARGET_DIR/tmp-alt"
+TMPDIR="$CARGO_TARGET_DIR/tmp-alt" cargo test --release -p tessera-ffi
+unset TMPDIR
+cargo test --release -p tessera-ffi
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
+git diff --check
+```
+
+| Gate | Result |
+|---|---|
+| Release suite, non-system `TMPDIR=$HOME/.cache/tessera-target/B5-51/tmp-alt` | **585 passed, 31 ignored, 0 failed** |
+| Release suite, `TMPDIR` unset | **585 passed, 31 ignored, 0 failed** |
+| Workspace Clippy, all targets, `-D warnings` | **Passed** |
+| Formatting and whitespace checks | **Passed** |
+
+Both release runs completed successfully across 53 unit, integration and doc-test
+result groups. Each includes the synthetic profile, immutable audit, both profiler
+rejection tests, and the streaming memory gate. Existing vendored LibRaw C++
+deprecation notices remain build-script output. Full local gate logs are under
+`$CARGO_TARGET_DIR/B5-51c-logs/` (`test-tmpdir-alt.log`, `test-tmpdir-unset.log`,
+and `clippy.log`).
+
+Only the synthetic test allocation and this handoff changed. Publication target:
+`origin/wp/B5-51`; Machine A remains the sole merger.
