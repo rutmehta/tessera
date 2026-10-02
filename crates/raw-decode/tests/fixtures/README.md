@@ -26,3 +26,16 @@ and Adobe APP14 / RGB component-ID invariance. The gradient tolerance is
 `linear-gradient.dng` is the synthetic JPEG above wrapped by
 `tests/support::lossy_dng(false, false)`. It is used by the opt-in catalog fixture
 builder, with no dependency on a RAW encoder or any photographic input.
+
+LR-8f explicitly adds Adobe APP14 transform 0 to the camera-code JPEG and its
+synthetic DNG wrapper. JFIF without that marker denotes YCbCr and is converted
+by the decoder; the pixel regression tests strip/replace APP14 to cover both.
+
+`linear-gradient-16.jxl` is a 16x16 lossless RGB 16-bit synthetic ramp generated
+by `generate-gradient-16.rs` with already-locked zune-jpegxl 0.5.2 and zune-core
+0.5.3. Build the generator with rustc --edition 2024, passing their cached rlibs
+with --extern and the release dependency directory with -L dependency. Its
+output path is relative to the workspace root. No dependency change is needed.
+The mutation wrapper adds a full 65536-entry identity LinearizationTable,
+calibration, crop, ActiveArea, and all three opcode lists (identity MapPolynomial
+in List2). Both full seeds must successfully decode before mutation begins.
