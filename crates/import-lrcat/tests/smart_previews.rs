@@ -27,3 +27,14 @@ fn derives_only_file_uuid_paths_and_never_writes_to_bundle() {
         assert_eq!(index.expected_path(bad), None);
     }
 }
+
+#[test]
+fn explicit_bundle_does_not_depend_on_scratch_catalog_location() {
+    let dir = tempfile::tempdir().unwrap();
+    let bundle = dir.path().join("Original Smart Previews.lrdata");
+    let index = SmartPreviewIndex::from_bundle(bundle.clone());
+    assert_eq!(index.root(), bundle);
+    let uuid = "ABCD1234-5678-90AB-CDEF-1234567890AB";
+    assert_eq!(index.expected_path(uuid).unwrap(), bundle.join("A/ABCD").join(format!("{uuid}.dng")));
+    assert!(!bundle.exists());
+}
