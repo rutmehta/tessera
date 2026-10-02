@@ -109,3 +109,27 @@ fn lr5b_part_ids_on_named_ai_masks_are_unsupported() {
         assert!(r.unknown.contains_key("lrcat_develop_source"));
     }
 }
+
+/// Stacked on LR-9c: a retained person or part mask says so in the report
+/// instead of the generic "cannot be rendered" reason, and the same raster
+/// provenance fields that LR-9c sees on real masks do not hide it.
+#[test]
+fn lr5b_person_and_part_masks_name_the_unsupported_selection() {
+    for fields in [
+        "MaskSubType=3,MaskSubCategoryID=4",
+        "MaskSubType=1,MaskSubCategoryID=4",
+        "MaskType='Hair'",
+    ] {
+        let source = format!(
+            "s={{MaskGroupBasedCorrections={{{{What='Correction',LocalExposure2012=1,CorrectionMasks={{{{What='Mask/Image',{fields},MaskID='synthetic',FullMaskSize='synthetic-size',LocalInputDigest='synthetic-digest',LocalInputDigestVersion=1}}}}}}}}}}"
+        );
+        let (r, warnings) = import_lrcat::develop(1, &source, "15.4").unwrap();
+        assert!(r.settings.locals.adjustments.is_empty(), "{fields}");
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("AI person, part or instance selection")),
+            "{fields}: {warnings:?}"
+        );
+    }
+}

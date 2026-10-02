@@ -71,16 +71,10 @@ fn active_local_curves_name_the_missing_feature() {
     assert!(!w.iter().any(|w| w.contains("mask source retained")));
 }
 #[test]
-fn ai_raster_metadata_remains_unsupported_without_lr5() {
+fn ai_raster_metadata_does_not_block_regeneration() {
     let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalExposure2012=0.5,CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic',FullMaskSize='synthetic-size',LocalInputDigest='synthetic-digest',LocalInputDigestVersion=1}}}}}","15.4").unwrap();
-    assert!(
-        w.iter().any(|w| w.contains("MaskGroupBasedCorrections")),
-        "{w:?}"
-    );
-    assert!(r.settings.locals.adjustments.is_empty());
-    assert!(
-        r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].is_string()
-    );
+    assert!(w.is_empty(), "{w:?}");
+    assert_eq!(r.settings.locals.adjustments.len(), 1);
 }
 
 #[test]
