@@ -89,7 +89,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `ExtendedToneCurvePV2012Blue` | `/settings/tone/curves_extended/blue` | LR-2 | approximate | `{0,0,255,300,510,600}` |
 | `ExtendedToneCurvePV2012Green` | `/settings/tone/curves_extended/green` | LR-2 | approximate | `{0,0,255,300,510,600}` |
 | `ExtendedToneCurvePV2012Red` | `/settings/tone/curves_extended/red` | LR-2 | approximate | `{0,0,255,300,510,600}` |
-| `FillLight` | `/settings/tone/legacy_pv2010/fill_light` | LR-2 | approximate | `30` |
+| `FillLight` | `/settings/tone/legacy_pv2010/fill_light` | LR-2 | approximate; no-op when default | `30` |
 | `GrainSeed` | MISSING: explicit seed in /settings/effects/grain | LR-2 | unsupported-diagnostic | — |
 | `GrayMixerAqua` | `/settings/color/monochrome/mixer/aqua` | LR-2 | approximate | `25` |
 | `GrayMixerBlue` | `/settings/color/monochrome/mixer/blue` | LR-2 | approximate | `25` |
@@ -99,7 +99,7 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `GrayMixerPurple` | `/settings/color/monochrome/mixer/purple` | LR-2 | approximate | `25` |
 | `GrayMixerRed` | `/settings/color/monochrome/mixer/red` | LR-2 | approximate | `25` |
 | `GrayMixerYellow` | `/settings/color/monochrome/mixer/yellow` | LR-2 | approximate | `25` |
-| `HighlightRecovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
+| `HighlightRecovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate; no-op when default | `20` |
 | `IncrementalTemperature` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `IncrementalTint` | MISSING: relative white-balance delta; /settings/white_balance uses absolute controls | LR-2 | unsupported-diagnostic; no-op when default | — |
 | `LensBlur` | `/settings/effects/lens_blur` | LR-6 | approximate; no-op when default | `{ Active = true, BlurAmount = 37, FocalRange = "10 20 60 80", BokehShape = 0 }` |
@@ -173,8 +173,8 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `UprightTransform_5` | `/settings/geometry/upright/homography` | LR-7 | approximate | `'1,0,0,0,1,0,0.2,0,1'` |
 | `UprightVersion` | MISSING: Adobe solve metadata or projective matrix in /settings/geometry | LR-7 | unsupported-diagnostic; no-op when default | — |
 | `Version` | MISSING: Adobe application compatibility metadata (not /process_version) | LR-7 | unsupported-diagnostic; no-op when default | — |
-| `Blacks` | `/settings/tone/legacy_pv2010/blacks` | LR-2 | approximate | `5` |
-| `Recovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate | `20` |
+| `Blacks` | `/settings/tone/legacy_pv2010/blacks` | LR-2 | approximate; no-op when default | `5` |
+| `Recovery` | `/settings/tone/legacy_pv2010/recovery` | LR-2 | approximate; no-op when default | `20` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask/LumRange` | `/settings/locals/adjustments/0/components/0/luminance_bounds` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask/Type=2` | `/settings/locals/adjustments/0/components/0/range` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=2,LumRange="0.1 0.3 0.7 0.9"}}}}}` |
 | `MaskGroupBasedCorrections/CorrectionRangeMask/Type=3` | `/settings/locals/adjustments/0/components/0/range` | LR-4 | approximate | `{{CorrectionMasks={{What="Mask/RangeMask",CorrectionRangeMask={Type=3,DepthMin=0.2,DepthMax=0.8}}}}}` |
@@ -332,23 +332,28 @@ editing state; explicit Develop settings/crop geometry remain authoritative.
 
 Mask promotion admits `CorrectionReferenceX/Y`, zero legacy local sliders,
 `LocalCurveRefineSaturation=100`, zero `LocalGrain`/`LocalCorrectedDepth`,
-zero `LocalColorVariance` arrays, radial `Version`, and AI raster provenance
-`FullMaskSize`/`LocalInputDigest`/`LocalInputDigestVersion`. A saved toning hue is
+zero `LocalColorVariance` arrays and `Version` on `Mask/CircularGradient` only.
+AI raster provenance stays unsupported on this LR-5-free stack. A saved toning hue is
 inactive when saturation is zero. Real local curves, local point color, nonzero
 local overlay/defringe and individual AI-instance selection remain explicitly
-named unsupported features. LR-4/LR-5 geometry, range, nested masks and AI
-regeneration retain their existing approximation contract, including MaskValue.
+named unsupported features. LR-4 geometry, range and nested masks retain their existing approximation contract.
 
 Retouch accepts `HealVersion`, `MaskID`, `CenterWeight`, and absolute source-Y
 spelling `OffsetY`. Stateful dab commands `r`/`f`/`h` update stamp radius, flow
-and hardness; `CenterWeight` maps to brush feather. Equal uppercase/lowercase aliases are accepted; conflicts
+and hardness; `CenterWeight` maps to brush and circle feather.
+Conflicting `SourceY` and `OffsetY` values retain source and warn. Equal uppercase/lowercase aliases are accepted; conflicts
 fail closed. A redundant ellipse is accepted only when its center and both radii
 match the supported flat circular spot and its selection controls are neutral.
 The nonempty modern `RetouchAreas` list supersedes `RetouchInfo`, including when
 unsupported, so stale legacy spots cannot render as a fallback; independent
 supported `RemoveAreas` operations append with unique IDs. Content-aware Adobe
-patch pixels remain unsupported. Generative/cloud removals record one ignored
-info note per image with the text `requires Adobe cloud; not translatable`.
+patch pixels remain unsupported. Generative remove/fill and distraction removal
+retain warnings and cloud diagnostics with `requires Adobe cloud; not translatable`.
+The import report groups these under **Requires Adobe cloud (not rendered)**,
+with photo counts and examples. Mixed heal/generative lists retain the heal
+approximation and cloud diagnostic. Nonempty `FilterList` remains unsupported.
+`ignored` is reserved for values with no visual effect and stays out of reports.
+`LensProfileIsEmbedded` is silent only when an embedded profile is not selected.
 
 `lr9b_translation` contains synthetic positive/negative reason-class fixtures.
 `lr9b_named_residuals_have_matrix_rows_and_keep_exact_source` verifies every
