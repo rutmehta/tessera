@@ -190,9 +190,41 @@ impl Renderer {
                     .as_ref()
                     .and_then(|store| DepthMap::cached(store, &key))
             })
-            .filter(|depth| (depth.width(), depth.height()) == (input.width(), input.height()));
+            .filter(|depth| {
+                let full = engine_api::tile::Extent::new(depth.width(), depth.height());
+                let wanted = engine_api::tile::Extent::new(input.width(), input.height());
+                (0..32).any(|level| full.at_level(level) == wanted)
+            });
         let depth = match imported {
-            Some(depth) => depth,
+            Some(depth) if (depth.width(), depth.height()) == (input.width(), input.height()) => {
+                depth
+            }
+            Some(depth) => {
+                // Imported rasters are full-size; preview levels sample the same
+                // pre-geometry coordinate system without creating another file.
+                let raster = image::ImageBuffer::<image::Luma<f32>, _>::from_raw(
+                    depth.width(),
+                    depth.height(),
+                    depth.inverse_depth().to_vec(),
+                )
+                .expect("validated depth extent");
+                let resized = image::imageops::resize(
+                    &raster,
+                    input.width(),
+                    input.height(),
+                    image::imageops::FilterType::Triangle,
+                );
+                DepthMap::from_normalized_inverse(
+                    input.width(),
+                    input.height(),
+                    resized
+                        .into_raw()
+                        .into_iter()
+                        .map(|v| v.clamp(0., 1.))
+                        .collect(),
+                )
+                .map_err(error)?
+            }
             None => {
                 provider.validate_model(
                     settings
