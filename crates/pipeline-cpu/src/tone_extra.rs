@@ -587,6 +587,33 @@ mod tests {
         );
     }
     #[test]
+    fn eng4b_curve_presence_axis_uses_shared_stable_math() {
+        // Dense synthetic dark-to-HDR sweep, including both series boundaries.
+        // Curves and presence use this same encode/decode pair.
+        for i in 0..=20000 {
+            let input = 2.0_f32.powf(-30.0 + 40.0 * i as f32 / 20000.0);
+            let scale = crate::tone_math::log_one_plus(1.0 / 0.18);
+            let expected = crate::tone_math::log_one_plus(input / 0.18) / scale;
+            let reference = f64::from(input / 0.18).ln_1p() / f64::from(scale);
+            assert!((f64::from(encode(input)) - reference).abs() <= 3e-7 * reference);
+            assert_eq!(
+                encode(input).to_bits(),
+                expected.to_bits(),
+                "encode {input}"
+            );
+            let expected = 0.18 * crate::tone_math::exp_minus_one(input * scale);
+            if input * scale < 80.0 {
+                let reference = f64::from(0.18_f32) * f64::from(input * scale).exp_m1();
+                assert!((f64::from(decode(input)) - reference).abs() <= 3e-7 * reference);
+                assert_eq!(
+                    decode(input).to_bits(),
+                    expected.to_bits(),
+                    "decode {input}"
+                );
+            }
+        }
+    }
+    #[test]
     fn log_axis_is_scalar_single_precision() {
         let input = 0.3_f32;
         let actual: f32 = encode(input);

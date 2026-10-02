@@ -563,6 +563,10 @@ fn bench_24mp_cpu_gpu() {
     let presence_off = measure("off", settings);
     let presence_on = measure("on", rich_settings());
     assert!(
+        presence_on <= presence_off + 1e-4,
+        "24MP presence increased RGB error: on={presence_on}, off={presence_off}"
+    );
+    assert!(
         presence_off < 0.01,
         "24MP presence-off RGB error {presence_off}"
     );

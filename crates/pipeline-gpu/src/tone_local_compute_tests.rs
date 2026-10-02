@@ -202,3 +202,52 @@ fn local_presence_conditions_near_black_like_cpu() {
         }
     }
 }
+
+// Synthetic signed detail with tiny positive luminance exercises the log-axis
+// round trip before the conditioned presence gain magnifies rounding errors.
+#[test]
+fn eng4b_dark_local_presence_matches_cpu() {
+    let ctx = GpuContext::new().unwrap();
+    let (w, h) = (65, 17);
+    let pixels: Vec<_> = (0..w * h)
+        .map(|i| {
+            let y = 2.0_f32.powf(-24.0 + 14.0 * (i % 101) as f32 / 100.0);
+            [
+                -0.007,
+                -0.006,
+                (y + 0.2627 * 0.007 + 0.678 * 0.006) / 0.0593,
+            ]
+        })
+        .collect();
+    let input = Image::new(
+        w,
+        h,
+        (0..3)
+            .map(|c| pixels.iter().map(|p| p[c]).collect())
+            .collect(),
+    )
+    .unwrap();
+    for (texture, clarity) in [(100., 0.), (0., -100.), (80., 60.)] {
+        let settings = ToneSettings {
+            texture,
+            clarity,
+            ..Default::default()
+        };
+        let actual = tone_local::run(&ctx, &input, &settings).unwrap();
+        let expected = pipeline_cpu::tone_extra_image(&input, &settings).unwrap();
+        let max = actual
+            .planes()
+            .iter()
+            .flatten()
+            .zip(expected.planes().iter().flatten())
+            .map(|(a, b)| {
+                assert!(a.is_finite() && b.is_finite());
+                (a - b).abs()
+            })
+            .fold(0.0_f32, f32::max);
+        assert!(
+            max <= 1e-6,
+            "dark local presence {texture}/{clarity}: {max}"
+        );
+    }
+}
