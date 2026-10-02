@@ -1,5 +1,13 @@
 //! Synthetic only. JPEG generation source lives beside linear-gradient.jpg.
 pub fn lossy_dng(be: bool, strips: bool) -> Vec<u8> {
+    lossy_dng_with_jpeg(
+        be,
+        strips,
+        include_bytes!("../fixtures/linear-gradient.jpg"),
+    )
+}
+
+pub fn lossy_dng_with_jpeg(be: bool, strips: bool, jpeg: &[u8]) -> Vec<u8> {
     let short = |v: u16| if be { v.to_be_bytes() } else { v.to_le_bytes() };
     let long = |v: u32| if be { v.to_be_bytes() } else { v.to_le_bytes() };
     let shorts = |v: &[u16]| v.iter().flat_map(|&v| short(v)).collect::<Vec<_>>();
@@ -36,7 +44,6 @@ pub fn lossy_dng(be: bool, strips: bool) -> Vec<u8> {
         (50728, 5, 3, longs(&[1, 2, 1, 1, 2, 3])),
         (50778, 3, 1, shorts(&[21])),
     ];
-    let jpeg = include_bytes!("../fixtures/linear-gradient.jpg");
     tags.extend(if strips {
         vec![
             (273, 4, 1, longs(&[0])),

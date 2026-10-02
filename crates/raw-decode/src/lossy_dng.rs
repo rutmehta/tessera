@@ -1,0 +1,514 @@
+//! Lightroom lossy LinearRaw DNG. JPEG components are camera channels, not display RGB.
+//! Bounded classic TIFF reader; no LibRaw pixel unpack or native JPEG dependency.
+use crate::{CfaLayout, RawMetadata};
+use engine_api::color::ColorMatrix3;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io::{self, Read, Seek, SeekFrom},
+};
+use zune_jpeg::{
+    JpegDecoder,
+    zune_core::{bytestream::ZCursor, options::DecoderOptions},
+};
+
+type Tags = BTreeMap<u16, Tag>;
+#[derive(Clone)]
+struct Tag {
+    kind: u16,
+    bytes: Vec<u8>,
+}
+struct Tiff<'a, R> {
+    input: &'a mut R,
+    size: u64,
+    le: bool,
+    budget: usize,
+}
+fn invalid(s: impl ToString) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, s.to_string())
+}
+impl<R: Read + Seek> Tiff<'_, R> {
+    fn u16(&self, b: &[u8]) -> u16 {
+        if self.le {
+            u16::from_le_bytes(b[..2].try_into().unwrap())
+        } else {
+            u16::from_be_bytes(b[..2].try_into().unwrap())
+        }
+    }
+    fn u32(&self, b: &[u8]) -> u32 {
+        if self.le {
+            u32::from_le_bytes(b[..4].try_into().unwrap())
+        } else {
+            u32::from_be_bytes(b[..4].try_into().unwrap())
+        }
+    }
+    fn at(&mut self, offset: u64, n: usize) -> io::Result<Vec<u8>> {
+        if offset.checked_add(n as u64).is_none_or(|v| v > self.size) {
+            return Err(invalid("TIFF range outside file"));
+        }
+        self.input.seek(SeekFrom::Start(offset))?;
+        let mut bytes = vec![0; n];
+        self.input.read_exact(&mut bytes)?;
+        Ok(bytes)
+    }
+    fn ifd(&mut self, offset: u32) -> io::Result<(Tags, u32)> {
+        let count = self.at(offset as u64, 2)?;
+        let n = self.u16(&count) as usize;
+        if n > 4096 {
+            return Err(invalid("IFD entry budget exceeded"));
+        }
+        let entries = self.at(offset as u64 + 2, n * 12 + 4)?;
+        let mut tags = Tags::new();
+        for e in entries[..n * 12].as_chunks::<12>().0 {
+            let id = self.u16(e);
+            let kind = self.u16(&e[2..]);
+            // Only pixel-layout and calibration tags are retained. In particular,
+            // embedded originals, maker notes, XMP and profile tables are never allocated.
+            if !matches!(id,254|256..=259|262|271..=274|277..=279|284|322..=325|330|50712..=50717|50719..=50722|50728|50730|50778|50779|50829|50964|50965|51008|51009|51022)
+            {
+                continue;
+            }
+            let unit = match kind {
+                1 | 2 | 7 => 1,
+                3 => 2,
+                4 | 9 | 11 | 13 => 4,
+                5 | 10 | 12 => 8,
+                _ => return Err(invalid("unsupported TIFF field type")),
+            };
+            let bytes = (self.u32(&e[4..]) as usize)
+                .checked_mul(unit)
+                .ok_or_else(|| invalid("tag overflow"))?;
+            self.budget = self
+                .budget
+                .checked_add(bytes)
+                .ok_or_else(|| invalid("tag overflow"))?;
+            if self.budget > 8 * 1024 * 1024 {
+                return Err(invalid("metadata budget exceeded"));
+            }
+            let bytes = if bytes <= 4 {
+                e[8..8 + bytes].to_vec()
+            } else {
+                self.at(self.u32(&e[8..]) as u64, bytes)?
+            };
+            if tags.insert(id, Tag { kind, bytes }).is_some() {
+                return Err(invalid("duplicate TIFF tag"));
+            }
+        }
+        Ok((tags, self.u32(&entries[n * 12..])))
+    }
+    fn numbers(&self, tags: &Tags, id: u16) -> io::Result<Vec<f64>> {
+        let Some(t) = tags.get(&id) else {
+            return Ok(Vec::new());
+        };
+        let unit = match t.kind {
+            1 => 1,
+            3 => 2,
+            4 | 9 | 13 => 4,
+            5 | 10 => 8,
+            _ => return Err(invalid("non-numeric TIFF field")),
+        };
+        t.bytes
+            .chunks_exact(unit)
+            .map(|b| {
+                let value = match t.kind {
+                    1 => b[0] as f64,
+                    3 => self.u16(b) as f64,
+                    4 | 13 => self.u32(b) as f64,
+                    9 => (self.u32(b) as i32) as f64,
+                    5 | 10 => {
+                        let (a, b) = if t.kind == 10 {
+                            (
+                                (self.u32(b) as i32) as f64,
+                                (self.u32(&b[4..]) as i32) as f64,
+                            )
+                        } else {
+                            (self.u32(b) as f64, self.u32(&b[4..]) as f64)
+                        };
+                        if b == 0. {
+                            return Err(invalid("zero rational denominator"));
+                        }
+                        a / b
+                    }
+                    _ => unreachable!(),
+                };
+                Ok(value)
+            })
+            .collect()
+    }
+    fn scalar(&self, t: &Tags, id: u16, default: f64) -> io::Result<f64> {
+        let v = self.numbers(t, id)?;
+        if v.len() > 1 {
+            return Err(invalid("scalar tag has multiple values"));
+        }
+        Ok(v.first().copied().unwrap_or(default))
+    }
+    fn ints(&self, t: &Tags, id: u16) -> io::Result<Vec<usize>> {
+        self.numbers(t, id)?
+            .into_iter()
+            .map(|v| {
+                if v < 0. || v > u32::MAX as f64 || v.fract() != 0. {
+                    Err(invalid("integer tag required"))
+                } else {
+                    Ok(v as usize)
+                }
+            })
+            .collect()
+    }
+}
+
+/// Cropped, black-subtracted and white-normalized camera RGB; orientation is
+/// retained in metadata for the source boundary to consume exactly once.
+pub struct LossyDng {
+    pub width: usize,
+    pub height: usize,
+    pub pixels: Vec<[f32; 3]>,
+    pub metadata: RawMetadata,
+    pub color_matrices: [Option<[[f64; 3]; 3]>; 2],
+    pub forward_matrices: [Option<[[f64; 3]; 3]>; 2],
+    pub calibration_illuminants: [u16; 2],
+    pub baseline_exposure: f32,
+}
+
+/// Returns None for another TIFF/RAW layout. Malformed supported containers fail closed.
+pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
+    let size = input.seek(SeekFrom::End(0))?;
+    if size < 8 {
+        return Err(invalid("truncated TIFF header"));
+    }
+    let mut t = Tiff {
+        input,
+        size,
+        le: true,
+        budget: 0,
+    };
+    let header = t.at(0, 8)?;
+    t.le = match &header[..2] {
+        b"II" => true,
+        b"MM" => false,
+        _ => return Ok(None),
+    };
+    if t.u16(&header[2..]) != 42 {
+        return Ok(None);
+    }
+    let mut pending = vec![t.u32(&header[4..])];
+    let mut visited = BTreeSet::new();
+    let mut root = None;
+    let mut selected = None;
+    while let Some(offset) = pending.pop() {
+        if offset == 0 {
+            continue;
+        }
+        if !visited.insert(offset) || visited.len() > 64 {
+            return Err(invalid("cyclic or excessive TIFF IFD graph"));
+        }
+        let (tags, next) = t.ifd(offset)?;
+        pending.push(next);
+        for child in t.ints(&tags, 330)? {
+            pending.push(child as u32);
+        }
+        if t.scalar(&tags, 254, 0.)? == 0.
+            && t.scalar(&tags, 262, 0.)? == 34892.
+            && t.scalar(&tags, 277, 0.)? == 3.
+            && t.scalar(&tags, 259, 0.)? == 52546.
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "JPEG XL-compressed LinearRaw DNG requires a JPEG XL decoder",
+            ));
+        }
+        if t.scalar(&tags, 254, 0.)? == 0.
+            && t.scalar(&tags, 262, 0.)? == 34892.
+            && t.scalar(&tags, 259, 0.)? == 34892.
+            && t.scalar(&tags, 277, 0.)? == 3.
+        {
+            if selected.is_some() {
+                return Err(invalid("ambiguous full-resolution LinearRaw IFD"));
+            }
+            selected = Some(tags.clone());
+        }
+        if root.is_none() {
+            root = Some(tags);
+        }
+    }
+    let Some(mut tags) = selected else {
+        return Ok(None);
+    };
+    // DNG calibration and orientation commonly live in IFD0, image geometry in SubIFD.
+    for (id, tag) in root.unwrap_or_default() {
+        if matches!(
+            id,
+            271 | 272 | 274 | 50721 | 50722 | 50728 | 50730 | 50778 | 50779 | 50964 | 50965
+        ) {
+            tags.entry(id).or_insert(tag);
+        }
+    }
+    let dimension = |id| -> io::Result<usize> {
+        let v = t.ints(&tags, id)?;
+        if v.len() != 1 || v[0] == 0 || v[0] > 65535 {
+            return Err(invalid("invalid image dimension"));
+        }
+        Ok(v[0])
+    };
+    let width = dimension(256)?;
+    let height = dimension(257)?;
+    if width
+        .checked_mul(height)
+        .is_none_or(|n| n > 64 * 1024 * 1024)
+    {
+        return Err(invalid("pixel budget exceeded"));
+    }
+    if t.scalar(&tags, 284, 1.)? != 1. {
+        return Err(invalid("planar JPEG unsupported"));
+    }
+    let bits = t.ints(&tags, 258)?;
+    if !matches!(bits.len(), 1 | 3) || bits.iter().any(|&v| v != 8) {
+        return Err(invalid("8-bit JPEG codes required"));
+    }
+    if tags.contains_key(&50715) || tags.contains_key(&50716) {
+        return Err(invalid("BlackLevelDelta unsupported"));
+    }
+    let repeat = t.ints(&tags, 50713)?;
+    if !repeat.is_empty() && repeat != [1, 1] {
+        return Err(invalid("spatial BlackLevelRepeatDim unsupported"));
+    }
+    let black = t.numbers(&tags, 50714)?;
+    let white = t.numbers(&tags, 50717)?;
+    if !matches!(black.len(), 0 | 1 | 3) || !matches!(white.len(), 0 | 1 | 3) {
+        return Err(invalid("spatial black/white levels unsupported"));
+    }
+    let levels = |v: &[f64], default: f64| -> [f64; 3] {
+        std::array::from_fn(|c| v.get(c).or(v.first()).copied().unwrap_or(default))
+    };
+    let black = levels(&black, 0.);
+    let white = levels(&white, 255.);
+    if (0..3).any(|c| white[c] <= black[c]) {
+        return Err(invalid("invalid black/white interval"));
+    }
+    let lut = t.numbers(&tags, 50712)?;
+    if !lut.is_empty() && lut.len() != 256 {
+        return Err(invalid("256-entry linearization table required"));
+    }
+    let (tw, th, offsets, counts) = if tags.contains_key(&324) {
+        (
+            dimension(322)?,
+            dimension(323)?,
+            t.ints(&tags, 324)?,
+            t.ints(&tags, 325)?,
+        )
+    } else {
+        (
+            width,
+            dimension(278)?,
+            t.ints(&tags, 273)?,
+            t.ints(&tags, 279)?,
+        )
+    };
+    let across = width.div_ceil(tw);
+    let down = height.div_ceil(th);
+    if offsets.len() != across * down || offsets.len() != counts.len() {
+        return Err(invalid("invalid tile/strip count"));
+    }
+    let mut pixels = vec![[0.; 3]; width * height];
+    for (i, (&offset, &count)) in offsets.iter().zip(&counts).enumerate() {
+        if count > 32 * 1024 * 1024 {
+            return Err(invalid("JPEG tile budget exceeded"));
+        }
+        let bytes = t.at(offset as u64, count)?;
+        let jpeg = without_adobe(&bytes)?;
+        let mut decoder = JpegDecoder::new_with_options(
+            ZCursor::new(&jpeg),
+            DecoderOptions::default()
+                .set_max_width(tw)
+                .set_max_height(th),
+        );
+        decoder.decode_headers().map_err(invalid)?;
+        let info = decoder
+            .info()
+            .ok_or_else(|| invalid("JPEG header missing"))?;
+        let space = decoder
+            .input_colorspace()
+            .ok_or_else(|| invalid("JPEG colorspace missing"))?;
+        if info.components != 3 || space.num_components() != 3 {
+            return Err(invalid("three JPEG components required"));
+        }
+        // Equal input/output ColorSpace selects zune's component interleave path,
+        // not YCbCr->RGB. RGB component IDs are likewise preserved without conversion.
+        decoder.set_options((*decoder.options()).jpeg_set_out_colorspace(space));
+        let decoded = decoder.decode().map_err(invalid)?;
+        let (dw, dh) = (info.width as usize, info.height as usize);
+        let (ox, oy) = ((i % across) * tw, (i / across) * th);
+        let (cw, ch) = (tw.min(width - ox), th.min(height - oy));
+        if dw < cw || dh < ch || dw > tw || dh > th || decoded.len() != dw * dh * 3 {
+            return Err(invalid("JPEG dimensions disagree with TIFF"));
+        }
+        for y in 0..ch {
+            for x in 0..cw {
+                for c in 0..3 {
+                    let code = decoded[(y * dw + x) * 3 + c] as usize;
+                    let linear = lut.get(code).copied().unwrap_or(code as f64);
+                    pixels[(oy + y) * width + ox + x][c] =
+                        ((linear - black[c]) / (white[c] - black[c])) as f32;
+                }
+            }
+        }
+    }
+    let origin = t.ints(&tags, 50719)?;
+    let crop = t.ints(&tags, 50720)?;
+    let active = t.ints(&tags, 50829)?;
+    if !origin.is_empty() && origin.len() != 2
+        || !crop.is_empty() && crop.len() != 2
+        || !active.is_empty() && active.len() != 4
+    {
+        return Err(invalid("invalid crop tags"));
+    }
+    let area = if active.is_empty() {
+        [0, 0, height, width]
+    } else {
+        [active[0], active[1], active[2], active[3]]
+    };
+    if area[0] >= area[2] || area[1] >= area[3] || area[2] > height || area[3] > width {
+        return Err(invalid("invalid ActiveArea"));
+    }
+    let left = origin.first().copied().unwrap_or(0) + area[1];
+    let top = origin.get(1).copied().unwrap_or(0) + area[0];
+    let cw = crop.first().copied().unwrap_or(area[3] - area[1]);
+    let ch = crop.get(1).copied().unwrap_or(area[2] - area[0]);
+    if cw == 0 || ch == 0 || left + cw > area[3] || top + ch > area[2] {
+        return Err(invalid("crop outside image"));
+    }
+    let pixels = (top..top + ch)
+        .flat_map(|y| {
+            pixels[y * width + left..y * width + left + cw]
+                .iter()
+                .copied()
+        })
+        .collect();
+    let matrix = |id| -> io::Result<Option<[[f64; 3]; 3]>> {
+        let v = t.numbers(&tags, id)?;
+        if v.is_empty() {
+            return Ok(None);
+        }
+        if v.len() != 9 {
+            return Err(invalid("3x3 matrix required"));
+        }
+        Ok(Some(std::array::from_fn(|r| {
+            std::array::from_fn(|c| v[r * 3 + c])
+        })))
+    };
+    let color_matrices = [matrix(50721)?, matrix(50722)?];
+    let forward_matrices = [matrix(50964)?, matrix(50965)?];
+    let calibration_illuminants = [
+        t.scalar(&tags, 50778, 0.)? as u16,
+        t.scalar(&tags, 50779, 0.)? as u16,
+    ];
+    let cm = if calibration_illuminants[1] == 21 {
+        color_matrices[1].or(color_matrices[0])
+    } else {
+        color_matrices[0].or(color_matrices[1])
+    }
+    .ok_or_else(|| invalid("missing ColorMatrix"))?;
+    let inverse = ColorMatrix3(cm).inverse().map_err(invalid)?;
+    let neutral = t.numbers(&tags, 50728)?;
+    if neutral.len() != 3 || neutral.iter().any(|v| *v <= 0.) {
+        return Err(invalid("positive AsShotNeutral required"));
+    }
+    let wb = [
+        (neutral[1] / neutral[0]) as f32,
+        1.,
+        (neutral[1] / neutral[2]) as f32,
+        1.,
+    ];
+    let orientation = t.scalar(&tags, 274, 1.)? as u16;
+    if !(1..=8).contains(&orientation) {
+        return Err(invalid("invalid orientation"));
+    }
+    let text = |id| {
+        tags.get(&id)
+            .map(|v| {
+                String::from_utf8_lossy(&v.bytes)
+                    .trim_end_matches('\0')
+                    .to_string()
+            })
+            .unwrap_or_default()
+    };
+    let opcode_lists = [51008, 51009, 51022].map(|id| tags.get(&id).map(|t| t.bytes.clone()));
+    let metadata = RawMetadata {
+        make: text(271),
+        model: text(272),
+        lens: None,
+        iso: 0.,
+        shutter_s: 0.,
+        aperture: 0.,
+        focal_mm: 0.,
+        capture_time: 0,
+        orientation,
+        width: cw as u32,
+        height: ch as u32,
+        cfa_layout: CfaLayout::Unsupported,
+        black_levels: [0.; 4],
+        white_level: 1,
+        as_shot_wb: wb,
+        camera_to_xyz: inverse,
+        cam_xyz: std::array::from_fn(|r| {
+            if r < 3 {
+                cm[r].map(|v| v as f32)
+            } else {
+                [0.; 3]
+            }
+        }),
+        rgb_cam: [[0.; 4]; 3],
+        default_crop: [0, 0, cw as u32, ch as u32],
+        has_gain_map: false,
+        has_opcode_list: opcode_lists.iter().any(Option::is_some),
+        opcode_lists,
+    };
+    Ok(Some(LossyDng {
+        width: cw,
+        height: ch,
+        pixels,
+        metadata,
+        color_matrices,
+        forward_matrices,
+        calibration_illuminants,
+        baseline_exposure: t.scalar(&tags, 50730, 0.)? as f32,
+    }))
+}
+
+// Adobe APP14 transform=0 is labelled CMYK by zune even for three components.
+// DNG's LinearRaw tag is authoritative: omit APP14 from this private JPEG copy,
+// retain SOF/SOS component IDs, then ask zune for its *input* colorspace unchanged.
+fn without_adobe(bytes: &[u8]) -> io::Result<Vec<u8>> {
+    if !bytes.starts_with(&[255, 216]) {
+        return Err(invalid("JPEG SOI required"));
+    }
+    let mut out = bytes[..2].to_vec();
+    let mut p = 2;
+    while p < bytes.len() {
+        let start = p;
+        if bytes[p] != 255 {
+            return Err(invalid("invalid JPEG marker"));
+        }
+        while p < bytes.len() && bytes[p] == 255 {
+            p += 1;
+        }
+        let marker = *bytes
+            .get(p)
+            .ok_or_else(|| invalid("truncated JPEG marker"))?;
+        p += 1;
+        if marker == 218 || marker == 217 {
+            out.extend_from_slice(&bytes[start..]);
+            return Ok(out);
+        }
+        let len = bytes
+            .get(p..p + 2)
+            .ok_or_else(|| invalid("truncated JPEG segment"))?;
+        let len = u16::from_be_bytes(len.try_into().unwrap()) as usize;
+        if len < 2 || p + len > bytes.len() {
+            return Err(invalid("invalid JPEG segment length"));
+        }
+        if marker != 238 || !bytes[p + 2..p + len].starts_with(b"Adobe") {
+            out.extend_from_slice(&bytes[start..p + len]);
+        }
+        p += len;
+    }
+    Err(invalid("JPEG scan missing"))
+}
