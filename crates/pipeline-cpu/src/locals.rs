@@ -301,8 +301,16 @@ pub fn blend_local(base: &Image, adjusted: &Image, mask: &[f32]) -> EngineResult
     )
 }
 
-/// Split local Point Color into a pre-monochrome pass. Other controls retain their
-/// post-global position. Caller invokes this only when monochrome is enabled.
+/// Split local Point Color into its own pass.
+///
+/// Local Point Color is ONE stage in every render path, whether B&W is on or
+/// off: after basic Tone and before monochrome conversion and the global point
+/// curves (`tone_extra`). It selects on scene colour, so it has to precede the
+/// B&W mix, and keeping it there when B&W is off means the global curves act on
+/// its result in both modes. Every other local control keeps its position after
+/// global colour. Returns `(point-colour groups, remaining groups)`; a group
+/// with other controls appears in both, with Point Color only in the first.
+/// The Tone stage hash covers the first set (`DevelopSettings::stage_hashes`).
 pub fn split_local_point_colors(
     groups: &[LocalAdjustment],
 ) -> (

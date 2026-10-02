@@ -331,7 +331,8 @@ pub struct LocalParams {
     /// output, a non-legacy process and non-identity points.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub curves_extended: Option<ToneCurves>,
-    /// Point Color selection, evaluated before monochrome conversion.
+    /// Point Color selection. One stage in every mode: after basic tone and
+    /// before monochrome conversion and the global point curves.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub point_colors: Option<Vec<PointColor>>,
     /// Exposure, EV.
