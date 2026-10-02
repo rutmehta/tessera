@@ -17,10 +17,10 @@ fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
                     LuaValue::Table(_) => "structure", LuaValue::String(_) => "string", _ => "nil",
                 };
                 out.insert(format!("{path}/class_{class}"));
-                if key == "What" || key == "SpotType" || key == "spotType" {
+                if key == "What" || key == "SpotType" || key == "spotType" || key == "Method" || key == "SourceState" {
                     if let LuaValue::String(s) = value {
                         let kind = match s.as_str() {
-                            "Mask/Paint" => "brush", "Mask/Gradient" => "gradient", "Mask/CircularGradient" => "radial", "Mask/Image" => "AI", "Mask/Range" => "range", "Mask/Group" | "Mask/Aggregate" => "group", "Mask/RangeMask" => "range", "Mask/Ellipse" => "ellipse", "heal" => "heal", "clone" => "clone", "generative" | "generativeRemove" => "generative", "contentAware" | "contentAwareRemove" => "content_aware", _ => "other",
+                            "Mask/Paint" => "brush", "Mask/Gradient" => "gradient", "Mask/CircularGradient" => "radial", "Mask/Image" => "AI", "Mask/Range" => "range", "Mask/Group" | "Mask/Aggregate" => "group", "Mask/RangeMask" => "range", "Mask/Ellipse" => "ellipse", "heal" => "heal", "clone" => "clone", "generative" | "generativeRemove" => "generative", "contentAware" | "contentAwareRemove" | "content-aware" => "content_aware", "gaussian" => "gaussian", "remove" => "remove", "healV2" | "healv2" => "heal_v2", "sourceAutoComputed" => "auto_source", "sourceSetExplicitly" => "explicit_source", _ => "other",
                         };
                         out.insert(format!("{path}/kind_{kind}"));
                     }
@@ -55,7 +55,9 @@ fn run() -> Result<(), ()> {
         let mut keys = BTreeSet::new();
         for warning in &w {
             if let Some((k,_)) = warning.trim_start_matches("crs:").split_once(':') {
-                if k.len() <= 64 && k.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') { keys.insert(k.to_string()); }
+                if k.len() <= 64 && k.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') { keys.insert(k.to_string());
+                    let reason = ["number outside CRS range", "invalid boolean", "unknown choice", "unsupported property", "unknown Lua develop key", "duplicate property superseded"].into_iter().find(|r| warning.contains(r)).unwrap_or("structured_or_other");
+                    *counts.entry(format!("reasons/{k}/{reason}")).or_default() += 1; }
             }
         }
         for key in &keys { *counts.entry(format!("warnings/{key}/{family}")).or_default() += 1; }
@@ -64,6 +66,10 @@ fn run() -> Result<(), ()> {
         let mut fields = BTreeSet::new();
         for (k,v) in &t.fields {
             if let LuaKey::Str(k) = k {
+                if keys.contains(k) {
+                    let class = match v { LuaValue::Number(_) => "number", LuaValue::String(_) => "string", LuaValue::Bool(_) => "boolean", LuaValue::Table(_) => "structure", _ => "nil" };
+                    *counts.entry(format!("source_types/{k}/{class}")).or_default() += 1;
+                }
                 if keys.contains(k) && matches!(k.as_str(), "MaskGroupBasedCorrections" | "RetouchAreas" | "RetouchInfo" | "RemoveAreas") { walk(v,k,&mut fields); }
             }
         }
