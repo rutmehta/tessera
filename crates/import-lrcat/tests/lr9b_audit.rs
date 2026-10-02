@@ -25,12 +25,15 @@ fn walk(v: &LuaValue, prefix: &str, out: &mut BTreeSet<String>) {
             out.insert(format!("{prefix}/sequence/{label}"));
         }
         for item in &t.items { walk(item, prefix, out); }
-        let mut folded = BTreeSet::new();
-        for (key, _) in &t.fields {
+        let mut folded = BTreeMap::new();
+        for (key, value) in &t.fields {
             if let LuaKey::Str(key) = key {
                 let key = key.to_ascii_lowercase();
-                if !folded.insert(key.clone()) && key.len() <= 64 && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
-                    out.insert(format!("{prefix}/duplicate_casefold/{key}"));
+                if let Some(previous) = folded.insert(key.clone(), value) {
+                    if key.len() <= 64 && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+                        let class = if previous == value { "equal" } else { "different" };
+                        out.insert(format!("{prefix}/duplicate_casefold/{key}/{class}"));
+                    }
                 }
             }
         }
@@ -100,6 +103,7 @@ fn run() -> Result<(), ()> {
         for key in &keys { *counts.entry(format!("warnings/{key}/{family}")).or_default() += 1; }
         *counts.entry("warning_occurrences".into()).or_default() += w.len() as u64;
         let Ok(LuaValue::Table(t)) = import_lrcat::lua_develop::read(&source) else { continue; };
+        *counts.entry("generic_warning_occurrences".into()).or_default() += w.iter().filter(|w| ["unsupported property", "unknown Lua develop key", "mask source retained"].iter().any(|s|w.contains(s))).count() as u64;
         let mut fields = BTreeSet::new();
         for (k,v) in &t.fields {
             if let LuaKey::Str(k) = k {
@@ -107,7 +111,10 @@ fn run() -> Result<(), ()> {
                     let class = match v { LuaValue::Number(_) => "number", LuaValue::String(_) => "string", LuaValue::Bool(_) => "boolean", LuaValue::Table(_) => "structure", _ => "nil" };
                     *counts.entry(format!("source_types/{k}/{class}")).or_default() += 1;
                 }
-                if keys.contains(k) && matches!(k.as_str(), "MaskGroupBasedCorrections" | "RetouchAreas" | "RetouchInfo" | "RemoveAreas") { walk(v,k,&mut fields); }
+                if matches!(k.as_str(), "MaskGroupBasedCorrections" | "RetouchAreas" | "RetouchInfo" | "RemoveAreas") {
+                    walk(v,&format!("all/{k}"),&mut fields);
+                    if keys.contains(k) { walk(v,k,&mut fields); }
+                }
             }
         }
         for f in fields { *counts.entry(format!("fields/{f}")).or_default() += 1; }

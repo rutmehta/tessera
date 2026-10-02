@@ -99,3 +99,12 @@ fn zero_local_color_variance_is_inactive() {
     assert!(w.is_empty(),"{w:?}");
     assert_eq!(r.settings.locals.adjustments[0].params.exposure,0.5);
 }
+
+#[test]
+fn mixed_cloud_and_patch_removal_keeps_both_dispositions() {
+    let (r,w)=lua_develop::parse("s={RemoveAreas={{SpotType='generative',pm_clio_model_version='synthetic',pm_patch='synthetic'},{SpotType='contentAware',pm_patch='synthetic'}}}","15.4").unwrap();
+    assert_eq!(w.len(),1,"{w:?}");
+    assert!(w[0].contains("content-aware"));
+    let notes: Vec<_>=diagnostics::entries(&r).into_values().flatten().filter(|e|e.reason.contains("requires Adobe cloud; not translatable")).collect();
+    assert_eq!(notes.len(),1);
+}
