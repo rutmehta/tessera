@@ -309,3 +309,99 @@ separately for the measurement above.
    runs before the kind is read, so instance selections stay unsupported.
 4. `sidecar` gained one public Rust function, `assign_mask_group_ids`. No UniFFI
    signature or Swift source changed.
+
+---
+
+## LR-11b — Rebased onto LR-5b final
+
+Machine A accepted the three LR-11b open points (negative local defringe as
+`approximate` with its note; native `curves_extended` on non-HDR keeps rendering;
+the ruling-driven test-input changes). The lane was then rebased with
+`git rebase --onto 4393cac4 3be064d2`. `4393cac4` is `origin/wp/LR-5b-ai-masks`,
+which is main `ef376831` (LR-9 stack merged) plus the 35 LR-5/5b/5c commits.
+No squash or reorder, and no trailers were touched. The pre-rebase tip is kept
+locally as `backup/LR-11-restack-pre-5b` (`80a9de08`).
+
+### Conflicts and how they were resolved
+
+| Commit | File | Resolution |
+|---|---|---|
+| feat(LR-11) `9fe8fd85` | `engine-api/src/recipe/schema.rs` | Kept LR-5b's `adobe_ai_mask` predicate test and LR-11's five `local_*` tests. |
+| feat(LR-11) | `import-lrcat/src/mask_source.rs` `audited_approximation` | Kept LR-5b's AI-kind admission, `MaskType` and `MaskDigest` in the audit key list, and added LR-11's curve keys. |
+| feat(LR-11) | `import-lrcat/src/mask_source.rs` `record_approximation_diagnostics` | LR-11's per-operator notes come first, then LR-5b's AI category notes, unchanged. |
+| docs(LR-11) `fb6a7d09` | translation matrix prose | LR-5b's AI raster-provenance sentence plus LR-11's operator sentence. |
+
+All LR-11b commits applied cleanly. The B2 instance rejection in
+`sidecar::masks::import_component` runs before the mask kind is read, so it also
+covers the AI kinds that LR-5b translates. LR-5b's own person/part rejection is
+unchanged.
+
+range-diff `3be064d2..80a9de08` → `4393cac4..HEAD`:
+
+- `=` for commits 1 and 5–14, and for the HANDOFF commit 16.
+- `!` for 2–4: context changes, plus the conflict resolutions above.
+- `!` for 15: one matrix line, whose context now carries LR-5b's wording.
+- Two commits are new.
+
+New commits:
+
+- `b9e3a8c0` test(LR-11b): with LR-5b back, a subject AI mask regenerates. A group
+  with a decodable local curve, Point Color, overlay or defringe on a subject mask
+  therefore translates with no warning. The tests that check the real blocker is
+  named now use an LR-5b person mask (`MaskSubType=3`, still unsupported). The
+  warning must name "AI person, part or instance selection" and must not name the
+  decodable operator. The radial-conflict test uses the same person mask, and each
+  test also checks that the subject variant translates.
+  - Affected tests: `lr11b::decodable_local_operators_are_not_blamed_for_an_unsupported_selection`,
+    `lr11b::radial_conflict_is_named_only_when_the_flags_disagree`,
+    `lr9b_translation::ai_group_with_a_decodable_local_curve_translates_and_a_person_mask_names_itself`
+    and `neutral_color_variance_is_not_named_as_a_curve_blocker`.
+  - This is a test-input change only. No code change was needed: LR-5b's
+    `decoder_reason` needle already names person/part masks, and LR-11b's
+    operator needles run only when the decoder failed on that operator.
+- `07de76e4` docs(LR-11b): matrix wording for the LR-5b stack.
+
+### Real-catalog measurement (aggregate counts only)
+
+Run with `lr9c_aggregate::aggregate_only` on the read-only scratch copy. At both
+points: 21,615 images decoded, 0 decode failures, 46 distinct warning keys.
+
+| Point | Develop-settings warnings | `MaskGroupBasedCorrections` |
+|---|---:|---:|
+| LR-5b final `4393cac4` | 769 | 113 |
+| LR-11b tip | **738** | **82** |
+
+This is where LR-11's benefit shows: 31 mask images now translate with no warning.
+
+Remaining mask warnings at the tip (static reason labels, counted outside the repo):
+
+| Reason | Images |
+|---|---:|
+| AI person, part or instance selection (LR-5b ruling) | 64 |
+| Individual AI instance selection (B2) | 17 |
+| Generic reason | 1 |
+
+At `4393cac4`, 54 images carried a "local … is not implemented" reason. 31 of them
+now translate. The other 22 also contain a person/part mask, so they now report that
+mask as the reason (42 → 64). The one radial "inversion flags conflict" at
+`4393cac4` was a mislabel: its radial carries `Flipped=true` with no disagreeing
+`MaskInverted`, and the group fails the audit for another reason. It now carries the
+generic reason.
+
+### Gates on the rebased tip (`07de76e4`; this commit adds only this section)
+
+`cargo clean --release -p` ran first for the same twelve crates as before.
+
+| Gate | Result |
+|---|---|
+| `cargo test --release --locked --no-fail-fast` for import-lrcat, sidecar, engine-api, image-core, pipeline-cpu, pipeline-gpu, filters, previews, export, tessera-ffi, tessera-mcp, compositor | exit 0; **2,406 passed, 0 failed, 80 ignored**, 386 suites |
+| `TMPDIR=<scratch dir> cargo test --release --locked --no-fail-fast -p tessera-ffi` | exit 0; **670 passed, 0 failed, 31 ignored**, 63 suites |
+| `cargo clippy --release --locked --workspace --all-targets -- -D warnings` | exit 0 |
+| `cargo fmt --all -- --check` | exit 0 |
+| `apps/mac/build-ffi.sh` | exit 0 |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: 934 XCTest tests (3 skipped, 0 failures) and 5 Swift Testing tests |
+| strict release build of `Tessera` | complete, exit 0 |
+| Worktree after the Swift gates | clean |
+| Goldens | none modified or re-pinned in `4393cac4..HEAD`; the only data files added are the synthetic `lr11`/`lr11b` fixtures |
+
+Nothing was rerun or serialized, and no command-level exclusions were used.
