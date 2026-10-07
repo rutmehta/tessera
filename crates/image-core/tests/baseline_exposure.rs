@@ -40,3 +40,25 @@ fn adobe_adds_baseline_and_user_exposure_once() {
     assert_eq!(render(0.75, -0.25, version), render(0., 0.5, version));
     assert_ne!(render(0.75, -0.25, version), render(0., 0., version));
 }
+
+#[test]
+fn adobe_rejects_underflowing_baseline_gain_without_a_profile() {
+    let mut m = common::metadata(32, 24, common::RGGB, [0, 0, 32, 24]);
+    m.baseline_exposure = -150.;
+    let raw = raw_decode::CfaImage::from_linear(32, 24, vec![0.08; 32 * 24]).unwrap();
+    let image = RawImage::new(ImageId(85), Arc::new(raw), Arc::new(m)).unwrap();
+    let renderer = Renderer::new(RendererConfig {
+        process_version: ProcessVersion::adobe(6),
+        ..Default::default()
+    });
+    assert!(
+        renderer
+            .render_region(
+                &image,
+                &DevelopSettings::default(),
+                0,
+                PixelRect::full(image.active_extent())
+            )
+            .is_err()
+    );
+}
