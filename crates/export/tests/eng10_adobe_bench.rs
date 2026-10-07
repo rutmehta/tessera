@@ -196,10 +196,12 @@ fn eng10_adobe_bench_worker() {
         }
         // Web preset (long edge 2048, the FFI's binning picks the scale) for
         // 20 exports of the decoded source, through the default batch path.
-        "batch20" => {
+        // `batch20-full`: the same 20 exports at full size (render scale 1).
+        "batch20" | "batch20-full" => {
+            let full = case == "batch20-full";
             let fit = 2048. / f64::from(w.max(h));
             let mut scale = 1;
-            while scale < 8 && fit * f64::from(scale * 2) <= 1.0 {
+            while !full && scale < 8 && fit * f64::from(scale * 2) <= 1.0 {
                 scale *= 2;
             }
             let names: Vec<String> = (0..20).map(|i| format!("bench-{i}")).collect();
@@ -224,9 +226,19 @@ fn eng10_adobe_bench_worker() {
                 &items,
                 &export::ExportSettings {
                     output_dir: dir.path().into(),
-                    format: export::Format::Jpeg { quality: 85 },
-                    resize: export::Resize::LongEdge(2048),
-                    sharpen_for: export::SharpenFor::Screen,
+                    format: export::Format::Jpeg {
+                        quality: if full { 90 } else { 85 },
+                    },
+                    resize: if full {
+                        export::Resize::None
+                    } else {
+                        export::Resize::LongEdge(2048)
+                    },
+                    sharpen_for: if full {
+                        export::SharpenFor::None
+                    } else {
+                        export::SharpenFor::Screen
+                    },
                     render_scale: scale,
                     apply_orientation: true,
                     ..Default::default()
@@ -236,7 +248,7 @@ fn eng10_adobe_bench_worker() {
             )
             .unwrap();
             assert!(report.results.iter().all(Result::is_ok));
-            (2048, 0, 20)
+            (if full { w } else { 2048 }, 0, 20)
         }
         // Develop's own renderer (what the loupe draws) on the whole frame at
         // a pyramid level, on the CPU operators or the Metal backend:
