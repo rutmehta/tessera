@@ -1661,6 +1661,34 @@ impl LrcatImport {
                 if imported.is_some() {
                     clear_pending_depth_diagnostic(&mut image.recipe);
                 }
+                // LR-5b measures rasters in the renderer's active frame. Offline
+                // LinearRaw proxies use the approved header reader and consume
+                // catalog orientation before local adjustments.
+                let proxy_mask_extent =
+                    if r.outcome == Outcome::OfflineProxy && mask_resolver.is_some() {
+                        std::fs::File::open(&r.path)
+                            .ok()
+                            .and_then(|mut file| {
+                                raw_decode::lossy_dng::read_metadata(&mut file)
+                                    .ok()
+                                    .flatten()
+                            })
+                            .map(|meta| {
+                                let (w, h) = (meta.default_crop[2], meta.default_crop[3]);
+                                if image
+                                    .orientation
+                                    .as_deref()
+                                    .and_then(import_lrcat::orientation::exif)
+                                    .is_some_and(|o| o >= 5)
+                                {
+                                    (h, w)
+                                } else {
+                                    (w, h)
+                                }
+                            })
+                    } else {
+                        None
+                    };
                 let result = crate::lrcat_masks::import(
                     &mut image.recipe,
                     id,
@@ -1668,7 +1696,7 @@ impl LrcatImport {
                     // Only an injected raster is ever measured against it.
                     || {
                         if mask_resolver.is_some() {
-                            render_mask_extent(&r.path)
+                            proxy_mask_extent.unwrap_or_else(|| render_mask_extent(&r.path))
                         } else {
                             (0, 0)
                         }
