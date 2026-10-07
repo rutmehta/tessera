@@ -478,3 +478,69 @@ Attempt history on the LR-9c stack, all recorded:
   strict build. The canary was then changed to the regular-file form above,
   which leaves that opt-in test skipped. The next run was stopped when the base
   moved to `121fa5a0`.
+
+## LR-5d — independent review fixes (2026-10-07)
+
+Base: `4393cac4`. Branch: `wp/LR-5b-ai-masks`. RED commit: `45d0f0b1`.
+Implementation: `82a64ffe`. All four review findings are addressed; none are deferred.
+Commits are authored by Codex without co-author
+trailers. The full independent review and the LR-5/LR-5c background rulings were
+read before implementation.
+
+| Finding | Code | Regression evidence |
+| --- | --- | --- |
+| BLOCKER 1 / P1: collection races publication and removes resumable, unindexed owners | `crates/tessera-ffi/src/lrcat_masks.rs`: shared `Admission` covers blob writes, ownership union/rollback/trim, recipe publication, no-AI owner clearing, pruning and batch removal. `crates/tessera-ffi/src/changes.rs`: retain unknown catalog owners; only a known original proven absent establishes death. Catalog removal participates in admission and cannot classify an unindexed import as removed merely because its row is absent. Durable owner records precede recipe publication and indexing. | `lr5d_cancel_prune_resume_preserves_durable_unindexed_owners` cancels before indexing, prunes, reopens the importer, resumes and checks the original pixels. `lr5d_collection_waits_between_blob_and_owner_publication` and `lr5d_collection_waits_during_recipe_publication` use thread-local hooks, barriers and a contention observation, with no sleeps. Published pixels survive collection. Existing orphan, shared-owner, failed-publication and no-AI-removal tests remain intact. |
+| BLOCKER 2 / P1: shared content aliases distinct fallback requests | `crates/tessera-ffi/src/masks.rs`: session identity includes immutable content plus the complete serialized segmentation kind/request. Disk content addressing and u16 deduplication remain unchanged. | `lr5d_missing_shared_blob_regenerates_distinct_object_prompts` deletes a shared deduplicated blob, runs two distinct object prompts through a fake segmenter, checks both preview planes and compares export with the planes preview used. `lr5d_missing_shared_blob_second_request_failure_stays_unavailable` checks the second failure independently, zero effect for the unavailable/inverted mixed adjustment, and an export error. |
+| SHOULD-FIX 1: resolver/decode work exceeds accepted-raster limits | `crates/tessera-ffi/src/lrcat_masks.rs`: validate extent and compute fixed u16 output cost before resolving; reject further resolution when another plane cannot fit; separately cap attempted resources at 256, including absent/invalid results. | `lr5d_invalid_resources_consume_attempt_budget`: 256 calls for 300 invalid/absent resources. `lr5d_invalid_extent_never_resolves_resources`: zero calls. `lr5d_exhausted_bytes_stop_resolving_before_decode`: exactly 31 calls when a 32nd 2048×2048 plane plus header cannot fit the unchanged 256 MiB bound. |
+| SHOULD-FIX 2: mask-only imports redundantly measure originals | `crates/tessera-ffi/src/lrcat.rs`: the early depth extent measurement requires a depth resolver. Mask extent measurement stays inside the AI-mask import closure. `crates/import-lrcat/README.md` documents measurement, attempt limits, session identity and durable ownership. | `lr5d_mask_only_resolver_measures_only_ai_sources_once`: zero depth measurements with a mask-only resolver, zero measurements for no-AI images, and exactly one mask measurement per AI image. The synthetic catalog explicitly supplies develop rows for every original in this measurement fixture. |
+
+Admission is in-process, matching the existing original-write reservation scope;
+it covers separate Engine instances in that process. Resource resolution and
+source decoding happen before publication admission, and publication does not
+call host callbacks or acquire Engine state. Unknown/unindexed ownership is kept
+conservatively for resumable imports. It is not collected merely because the
+rebuildable index lacks a row.
+
+### RED/GREEN and attempt ledger
+
+- Initial test-harness compilation attempts 1 and 2: exit 101, no tests executed;
+  corrected a scoped-thread capture, the separate preview/export segmenter trait
+  implementations, and a misplaced test-hook doc comment.
+- RED attempt 3: exit 101; **0 passed, 9 failed, 0 ignored**. All nine failed at
+  their intended regression assertions before production changes; committed as
+  `45d0f0b1`.
+- GREEN attempt 1: exit 101; **6 passed, 3 failed, 0 ignored**. The remaining
+  failures exposed synthetic fixture setup after the original failures were
+  fixed: export comparison needed import history, and two originals lacked
+  develop rows. Corrected fixture setup without changing any assertion or bound.
+- GREEN attempt 2: exit 0; **9 passed, 0 failed, 0 ignored**.
+- Required plain package clean: exit 0, 0 files removed. The initial workspace
+  gate was stopped during compilation (exit 130, no test summaries) so the
+  release profile could also be explicitly cleaned.
+- `cargo clean --release -p tessera-ffi -p import-lrcat`: exit 0; **23 files,
+  87.6 MiB removed**, before the authoritative final workspace gate.
+- Authoritative workspace gate: exit 0; no wall-clock failure and no serialized
+  retry was needed. No command-level test exclusions were added.
+
+### Final gates
+
+All gates use the dedicated LR-5d target directory, `CARGO_BUILD_JOBS=5` and
+`RAYON_NUM_THREADS=5`. Test temp and app-support locations are isolated scratch
+roots. Raw logs remain outside the repository; only sanitized counts, exit codes
+and relative paths are recorded here.
+
+| Gate | Exact result |
+| --- | --- |
+| `cargo test --release --workspace --no-fail-fast` | Exit 0; **633 result summaries, 3232 passed, 0 failed, 99 ignored**. Includes all nine LR-5d regressions. Existing ignores unchanged. |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | Exit 0. |
+| `cargo fmt --all -- --check` | Exit 0. |
+| `cd apps/mac && ./build-ffi.sh` | Exit 0; **0 generated binding changes**; worktree clean immediately afterward. |
+| `tools/orchestrate/swift-gate.sh` | Exit 0; **SWIFT GATE OK**. XCTest: **934 executed, 3 skipped, 0 failures** (931 passed). Swift Testing: **5 passed in 2 suites**. |
+| `cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | Exit 0; product Tessera built successfully. No Swift warning-as-error failure. The existing native linker warning remains: bundled `blake3_neon.o` was built for macOS 26.2 while linking for 15.0 (also recorded earlier in this handoff). |
+
+No bound or assertion was relaxed or removed. No golden was re-pinned, no
+command-level exclusion was added, and `Cargo.lock` and `board.json` are unchanged.
+All new image/mask fixtures are synthetic and generated at runtime. No private
+pixels, catalog-derived identifiers, private absolute paths or raw gate logs are
+committed. No foreground GUI launch, focus change or system-settings change was
+performed by the agent.

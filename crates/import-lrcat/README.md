@@ -384,21 +384,25 @@ has no inference/cache inputs.
 XMP. It retains category, resource identity, regeneration state and a content hash.
 Imported rasters use checksummed **u16** samples under the caller-owned app support
 root. Preview, file export, print and Open Developed Image receive that explicit
-root. A preview session
-keeps loaded planes in memory by immutable content key, so ordinary frames do not
-reopen raster files. Imports without AI masks make no mask-store calls.
+root. A preview session keeps loaded planes in memory by stored content and the
+complete segmentation kind/request, so ordinary frames do not reopen raster
+files and distinct fallback prompts cannot alias. Disk keys remain content-only.
+Imports without AI masks make no mask-store calls.
 
-Each apply accepts at most 256 resources and 256 MiB of stored rasters including
-headers/checksums; decoding is separately bounded. Content keys include dimensions
+Each apply attempts at most 256 resources and accepts at most 256 MiB of stored
+rasters including headers/checksums; decoding is separately bounded. Content keys include dimensions
 and quantized samples, so reimports and interrupted publication cannot replace
 pixels referenced by an earlier recipe. A per-image ownership record lists the
 keys of the published recipe; during an apply it also holds the previous keys, and
 a failed publication restores it. Import never deletes or lists the store, so a
 raster superseded by a successful reimport becomes an orphan. Shared content
-survives removal of one owner. Explicit `Engine::prune_missing` collects missing
-owners and orphaned blobs; dry runs leave both untouched. Removing images drops
-their records and collects once per batch; images that never owned a raster cause
-no listing. Pin writes do not scan directories. A failed publication surfaces
+survives removal of one owner. Publication, ownership updates and collection
+share in-process admission across engine instances. Explicit
+`Engine::prune_missing` collects proven-dead owners and orphaned blobs; dry runs
+leave both untouched. A missing catalog row does not prove an owner is dead:
+durable ownership survives cancellation before indexing, so resuming can safely
+skip already-published recipes. Removing known catalog images drops their records
+and collects once per batch; images that never owned a raster cause no listing. Pin writes do not scan directories. A failed publication surfaces
 its original error even if ownership rollback also fails. An image reimported
 with no AI masks at all opens, creates and lists nothing in the mask store; once its
 recipe is published, its own stale ownership record (if any) is unlinked by path,
