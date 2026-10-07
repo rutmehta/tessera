@@ -18627,13 +18627,22 @@ public struct ImageSummary: Equatable, Hashable {
     public var orientation: UInt16
     public var selection: Selection
     public var recipeHash: String
+    /**
+     * Catalog file name of an imported Smart Preview (user data: show it,
+     * never put it in accessibility identifiers). None for ordinary files.
+     */
+    public var displayName: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(lightroomSmartPreview: Bool, id: String, path: String, 
         /**
          * RAW: Unix seconds; EXIF JPEG/TIFF: ISO local date-time without a timezone.
-         */captureTime: String?, orientation: UInt16, selection: Selection, recipeHash: String) {
+         */captureTime: String?, orientation: UInt16, selection: Selection, recipeHash: String, 
+        /**
+         * Catalog file name of an imported Smart Preview (user data: show it,
+         * never put it in accessibility identifiers). None for ordinary files.
+         */displayName: String? = nil) {
         self.lightroomSmartPreview = lightroomSmartPreview
         self.id = id
         self.path = path
@@ -18641,6 +18650,7 @@ public struct ImageSummary: Equatable, Hashable {
         self.orientation = orientation
         self.selection = selection
         self.recipeHash = recipeHash
+        self.displayName = displayName
     }
 
     
@@ -18665,7 +18675,8 @@ public struct FfiConverterTypeImageSummary: FfiConverterRustBuffer {
                 captureTime: FfiConverterOptionString.read(from: &buf), 
                 orientation: FfiConverterUInt16.read(from: &buf), 
                 selection: FfiConverterTypeSelection.read(from: &buf), 
-                recipeHash: FfiConverterString.read(from: &buf)
+                recipeHash: FfiConverterString.read(from: &buf), 
+                displayName: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -18677,6 +18688,7 @@ public struct FfiConverterTypeImageSummary: FfiConverterRustBuffer {
         FfiConverterUInt16.write(value.orientation, into: &buf)
         FfiConverterTypeSelection.write(value.selection, into: &buf)
         FfiConverterString.write(value.recipeHash, into: &buf)
+        FfiConverterOptionString.write(value.displayName, into: &buf)
     }
 }
 
@@ -25435,6 +25447,11 @@ public struct SessionImage: Equatable, Hashable {
      * Index into `CullSession::groups`.
      */
     public var group: UInt32
+    /**
+     * Catalog file name of an imported Smart Preview (user data: show it,
+     * never put it in accessibility identifiers). None for ordinary files.
+     */
+    public var displayName: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -25444,7 +25461,11 @@ public struct SessionImage: Equatable, Hashable {
          */captureTime: String?, orientation: UInt16, selection: Selection, inBasket: Bool, 
         /**
          * Index into `CullSession::groups`.
-         */group: UInt32) {
+         */group: UInt32, 
+        /**
+         * Catalog file name of an imported Smart Preview (user data: show it,
+         * never put it in accessibility identifiers). None for ordinary files.
+         */displayName: String? = nil) {
         self.lightroomSmartPreview = lightroomSmartPreview
         self.id = id
         self.path = path
@@ -25453,6 +25474,7 @@ public struct SessionImage: Equatable, Hashable {
         self.selection = selection
         self.inBasket = inBasket
         self.group = group
+        self.displayName = displayName
     }
 
     
@@ -25478,7 +25500,8 @@ public struct FfiConverterTypeSessionImage: FfiConverterRustBuffer {
                 orientation: FfiConverterUInt16.read(from: &buf), 
                 selection: FfiConverterTypeSelection.read(from: &buf), 
                 inBasket: FfiConverterBool.read(from: &buf), 
-                group: FfiConverterUInt32.read(from: &buf)
+                group: FfiConverterUInt32.read(from: &buf), 
+                displayName: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -25491,6 +25514,7 @@ public struct FfiConverterTypeSessionImage: FfiConverterRustBuffer {
         FfiConverterTypeSelection.write(value.selection, into: &buf)
         FfiConverterBool.write(value.inBasket, into: &buf)
         FfiConverterUInt32.write(value.group, into: &buf)
+        FfiConverterOptionString.write(value.displayName, into: &buf)
     }
 }
 
