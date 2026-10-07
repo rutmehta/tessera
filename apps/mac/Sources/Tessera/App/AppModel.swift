@@ -466,6 +466,9 @@ final class AppModel {
     private(set) var smartPreviewCancelRequested = false
     var statusMessage: String?
     @ObservationIgnored private var developRenderNotice: String?
+    /// The open photo's omitted-setting notices, shown persistently in the loupe.
+    /// Independent of `statusMessage`, so a newer status never hides them.
+    private(set) var developRenderNoticeList: [String] = []
     /// Set by the loupe view: colour space and EDR headroom of the current screen.
     var loupeInfo = ""
     /// A Loupe disclosure owns workspace keys while open; Escape dismisses the active disclosure.
@@ -2441,11 +2444,20 @@ final class AppModel {
         return sessionID
     }
 
+    /// Notices for `item` only while it is the photo open in Develop.
+    func developRenderNotices(for item: PhotoItem?) -> [String] {
+        guard let develop, let imageID = item?.engineImage?.imageID,
+              imageID == develop.imageID else { return [] }
+        return developRenderNoticeList
+    }
+
     /// A late frame cannot publish another photo's note or replace a newer error.
+    /// Reads the controller's cached notices: no FFI call or session lock per frame.
     private func updateDevelopRenderNotice(_ controller: DevelopController, initial: Bool = false) {
         guard develop === controller else { return }
         let previous = developRenderNotice
         let notices = controller.renderNotices
+        if developRenderNoticeList != notices { developRenderNoticeList = notices }
         let message = notices.isEmpty ? nil : "Develop: " + notices.joined(separator: " ")
         developRenderNotice = message
         if let message {
@@ -2463,6 +2475,7 @@ final class AppModel {
         case .saved:
             if statusMessage == developRenderNotice { statusMessage = nil }
             developRenderNotice = nil
+            developRenderNoticeList = []
             develop = nil
             developSourceRoute = nil
             developLibrary = nil
