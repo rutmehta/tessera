@@ -202,7 +202,7 @@ fn illuminant(value: f64) -> Result<f64, String> {
         2 | 14 => Ok(4150.),
         12 => Ok(6400.),
         13 => Ok(5050.),
-        15 => Ok(3575.),
+        15 => Ok(3525.),
         16 => Ok(2925.),
         255 => Ok(0.), // Other has no temperature without spectral data: single matrix.
         10 => Ok(6504.),
@@ -214,7 +214,9 @@ fn illuminant(value: f64) -> Result<f64, String> {
         22 => Ok(7504.),
         23 => Ok(5003.),
         24 => Ok(3200.),
-        _ => Err("Unsupported calibration illuminant".into()),
+        // SDK dng_camera_profile: undefined codes have no temperature, so the
+        // profile uses only the first calibration (as for unknown, 0).
+        _ => Ok(0.),
     }
 }
 #[derive(Debug, Clone)]

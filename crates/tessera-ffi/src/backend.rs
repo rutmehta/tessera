@@ -142,8 +142,11 @@ impl Backend {
 
     /// A renderer over the shared operators and memo cache.
     pub(crate) fn renderer(&self) -> Renderer {
+        // Drawn settings keep imported Adobe identities; Native lists the ones it
+        // cannot reproduce as ignored settings (see DevelopSession::ignored_settings).
         Renderer::with_ops(self.ops.clone(), self.cache.clone(), self.config.clone())
             .with_retouch_renderer(Arc::new(brush::render_retouch))
+            .with_host_ignored_native_profiles()
     }
 }
 

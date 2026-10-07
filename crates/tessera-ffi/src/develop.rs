@@ -2811,6 +2811,18 @@ impl DevelopSession {
     pub fn ignored_settings(&self) -> Result<Vec<String>> {
         let st = self.shared.lock()?;
         let mut ignored = ignored_settings(&st.live);
+        // Native draws only the default Adobe identities (with a note); the
+        // rest stay undrawn and listed, as on main.
+        if self
+            .shared
+            .renderer
+            .for_process_version(st.recipe.process_version)
+            .native_ignores_profile(&st.live)
+        {
+            ignored.push("/camera_profile/profile".to_owned());
+            ignored.sort();
+            ignored.dedup();
+        }
         ignored.retain(|path| !path.starts_with("/effects/lens_blur"));
         if pipeline_cpu::validate_denoise(&st.live.denoise).is_ok() {
             ignored.retain(|path| !path.starts_with("/denoise"));
@@ -2832,22 +2844,23 @@ impl DevelopSession {
     /// Informational per-photo omissions; no saved setting is changed.
     pub fn render_notices(&self) -> Result<Vec<String>> {
         let st = self.shared.lock()?;
-        let Some(proxy) = self
+        let mut notes: Vec<String> = Vec::new();
+        if let Some(proxy) = self
             .shared
             .image
             .camera_linear_proxy()
             .filter(|p| p.is_external_dng())
-        else {
-            return Ok(Vec::new());
-        };
-        let mut fields = proxy.render_plan(&st.live, true).1;
-        if self.shared.masks.unavailable(&st.live) {
-            fields.push("/locals/adjustments");
+        {
+            let mut fields = proxy.render_plan(&st.live, true).1;
+            if self.shared.masks.unavailable(&st.live) {
+                fields.push("/locals/adjustments");
+            }
+            notes.extend(
+                fields
+                    .into_iter()
+                    .map(|field| proxy_notice_text(field).to_owned()),
+            );
         }
-        let mut notes: Vec<String> = fields
-            .into_iter()
-            .map(|field| proxy_notice_text(field).to_owned())
-            .collect();
         if let Some(note) = self
             .shared
             .renderer

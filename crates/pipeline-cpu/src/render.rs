@@ -527,6 +527,18 @@ pub fn has_m2_settings(s: &DevelopSettings) -> bool {
 
 /// Reject changed out-of-scope controls instead of silently ignoring them.
 /// Public so tiled renderers built on these operators apply the same scope.
+/// Per-photo note when Native draws an Adobe default profile identity.
+pub const NATIVE_APPROXIMATED_PROFILE_NOTICE: &str =
+    "Adobe profile approximated with the camera matrix in Native.";
+
+/// "Adobe Standard" and "Adobe Color" (any ASCII case) are the only
+/// non-default identities Native draws, approximated by the metadata matrix.
+pub fn native_approximates_profile(name: &str) -> bool {
+    ["Adobe Standard", "Adobe Color"]
+        .iter()
+        .any(|known| name.eq_ignore_ascii_case(known))
+}
+
 pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     if !s.locals.retouch.is_empty() {
         return Err(EngineError::invalid(
@@ -553,17 +565,11 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.denoise = s.denoise.clone();
     supported.linearize = s.linearize.clone();
     supported.demosaic.method = s.demosaic.method;
-    // An imported Adobe identity is inert in Native. It must not select an
-    // Adobe pipeline or hide an otherwise renderable photo; calibration is
-    // still the native metadata matrix. Creative looks remain unsupported.
-    if s.camera_profile
-        .profile
-        .name
-        .0
-        .split_whitespace()
-        .next()
-        .is_some_and(|word| word.eq_ignore_ascii_case("Adobe"))
-    {
+    // Only the two default Adobe identities are approximated in Native, by the
+    // plain metadata matrix (the host shows NATIVE_APPROXIMATED_PROFILE_NOTICE).
+    // Every other non-default profile, including Adobe Monochrome and the
+    // creative profiles, stays unsupported exactly as on main.
+    if native_approximates_profile(&s.camera_profile.profile.name.0) {
         supported.camera_profile.profile = s.camera_profile.profile.clone();
     }
     supported.white_balance = s.white_balance.clone();

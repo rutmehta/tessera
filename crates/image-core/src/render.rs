@@ -274,6 +274,8 @@ pub struct Renderer {
     native_ops: Arc<dyn StageOp>,
     dcp: Option<(Arc<pipeline_adobe::dcp::DcpProfile>, ParamHash)>,
     dcp_resolved: bool,
+    /// Host lists non-approximable Adobe identities as ignored in Native.
+    host_ignores_native_profiles: bool,
     retouch: Option<Arc<dyn pipeline_cpu::RetouchRenderer>>,
     denoiser: Option<Arc<dyn pipeline_cpu::PostDemosaicDenoise>>,
     cfa_denoiser: Option<Arc<dyn crate::cfa::CfaDenoise>>,
@@ -338,6 +340,7 @@ impl Renderer {
             native_ops,
             dcp: None,
             dcp_resolved: false,
+            host_ignores_native_profiles: false,
             retouch: None,
             denoiser: None,
             cfa_denoiser: None,
@@ -350,6 +353,24 @@ impl Renderer {
     }
 
     /// Immutable request snapshot: shares caches, never changes in-flight jobs.
+    /// For hosts that keep imported Adobe profile identities in drawn settings
+    /// (so Adobe-process proxies can substitute their embedded profile) and
+    /// list every identity Native cannot reproduce as an ignored setting, as
+    /// main's host did. Native then draws such a recipe without the identity,
+    /// exactly as main. Without this, Native refuses those identities.
+    pub fn with_host_ignored_native_profiles(mut self) -> Self {
+        self.host_ignores_native_profiles = true;
+        self
+    }
+
+    /// True when Native draws `settings` without its (host-listed) profile.
+    pub fn native_ignores_profile(&self, settings: &DevelopSettings) -> bool {
+        !self.is_adobe()
+            && self.host_ignores_native_profiles
+            && pipeline_adobe::names_adobe_profile(settings)
+            && !pipeline_cpu::native_approximates_profile(&settings.camera_profile.profile.name.0)
+    }
+
     pub fn for_recipe(&self, recipe: &engine_api::recipe::Recipe) -> Self {
         self.for_process_version(recipe.process_version)
     }
@@ -400,6 +421,15 @@ impl Renderer {
         if !self.is_adobe() || self.dcp_resolved {
             return Ok(None);
         }
+        // Every entry point resolves profile white balance from the same planned
+        // proxy settings (Auto -> As Shot) that render_region uses.
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            &planned
+        } else {
+            settings
+        };
         let mut next = self.clone();
         // Only an imported Adobe-named LinearRaw proxy can substitute its
         // embedded profile. Originals and Native recipes keep main's dispatch.
@@ -443,7 +473,13 @@ impl Renderer {
         image: &RawImage,
         settings: &DevelopSettings,
     ) -> Option<&'static str> {
-        if !self.is_adobe() || self.dcp.is_some() {
+        if !self.is_adobe() {
+            return pipeline_cpu::native_approximates_profile(
+                &settings.camera_profile.profile.name.0,
+            )
+            .then_some(pipeline_cpu::NATIVE_APPROXIMATED_PROFILE_NOTICE);
+        }
+        if self.dcp.is_some() {
             return None;
         }
         let proxy = image.camera_linear_proxy()?;
@@ -501,6 +537,10 @@ impl Renderer {
                     .unwrap_or(&settings.tone.curves),
                 settings.tone.curves_extended.is_some(),
             )
+        } else if self.native_ignores_profile(settings) {
+            let mut checked = settings.clone();
+            checked.camera_profile.profile = Default::default();
+            pipeline_cpu::validate_settings_with_retouch(&checked, self.retouch.as_deref())
         } else {
             pipeline_cpu::validate_settings_with_retouch(settings, self.retouch.as_deref())
         }
@@ -655,6 +695,13 @@ impl Renderer {
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
         cancel.check()?;
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            &planned
+        } else {
+            settings
+        };
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
             return prepared.render_tiles(image, settings, coords, output, cancel, sink);
         }
@@ -699,6 +746,13 @@ impl Renderer {
                 format!("need finest <= coarsest <= {MAX_LEVEL}"),
             ));
         }
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            &planned
+        } else {
+            settings
+        };
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
             return prepared.render_progressive(image, settings, viewport, output, cancel, sink);
         }
@@ -793,6 +847,9 @@ impl Renderer {
         base.locals = Default::default();
         base.effects = Default::default();
         base.geometry = Default::default();
+        if self.native_ignores_profile(&base) {
+            base.camera_profile.profile = Default::default();
+        }
         let mut lens = self
             .resolve_interactive_lens(image, &base)?
             .plan(&base, image.metadata())?;

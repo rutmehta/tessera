@@ -184,6 +184,19 @@ impl Renderer {
                 self.dcp.as_ref().map(|(p, _)| p.as_ref()),
                 Some(&locals),
             )?
+        } else if self.native_ignores_profile(settings) {
+            // Host-listed identity: draw exactly as main's host did, without it.
+            let mut drawn = settings.clone();
+            drawn.camera_profile.profile = Default::default();
+            pipeline_cpu::render_linear_scaled_with_local_hook(
+                &drawn,
+                &source,
+                1 << level,
+                &Default::default(),
+                None,
+                self.denoiser.as_deref(),
+                &locals,
+            )?
         } else {
             pipeline_cpu::render_linear_scaled_with_local_hook(
                 settings,
