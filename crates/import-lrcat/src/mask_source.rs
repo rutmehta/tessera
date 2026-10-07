@@ -172,6 +172,11 @@ fn component_at_depth(n: Node<'_, '_>, depth: usize) -> Option<()> {
             ("Radius" | "Flow" | "CenterWeight", Field::Scalar(_)) if kind == "Mask/Paint" => (),
             ("MaskID" | "MaskSyncID" | "MaskName" | "MaskVersion", Field::Scalar(_)) => (),
             ("Version", Field::Scalar(_)) if kind == "Mask/CircularGradient" => (),
+            ("MaskValue", Field::Scalar(v)) if kind != "Mask/Paint" => {
+                if v.parse::<f64>().ok()? != 1.0 {
+                    return None;
+                }
+            }
             ("MaskValue" | "Midpoint" | "Roundness", Field::Scalar(v)) => {
                 if !v.parse::<f64>().ok()?.is_finite() {
                     return None;
@@ -586,12 +591,6 @@ pub(crate) fn record_approximation_diagnostics(
             }
         }
     }
-    let shape_value = root.descendants().filter_map(fields).any(|f| {
-        matches!(
-            f.get("What").and_then(Field::scalar),
-            Some("Mask/Gradient" | "Mask/CircularGradient")
-        ) && f.contains_key("MaskValue")
-    });
     let mut reasons = BTreeMap::from([(
         "MaskGroupBasedCorrections".to_string(),
         "ordered recipe composition and pre-geometry sensor coordinates; Adobe blend and coordinate conventions are unverified",
@@ -767,15 +766,6 @@ pub(crate) fn record_approximation_diagnostics(
                     &mut paths,
                 );
             }
-        }
-        if suffix == "MaskValue" && shape_value {
-            crate::diagnostics::push_approximate(
-                recipe,
-                &key,
-                "/settings/locals/adjustments",
-                "LR-4",
-                "parametric shape MaskValue is retained but not reproduced: unit selection used",
-            );
         }
         for path in paths {
             crate::diagnostics::push_approximate(recipe, &key, &path, "LR-4", reason);

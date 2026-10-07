@@ -753,7 +753,6 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
         *warning = warning.replace("retained in original XMP", "source preserved per property");
     }
     warnings.extend(notes);
-    crate::lr2::lua(&table, &mut recipe, &mut warnings)?;
     crate::geometry::apply(
         &mut recipe,
         &mut warnings,
@@ -770,6 +769,7 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
             Some((key.as_str(), value))
         }),
     )?;
+    crate::lr2::lua(&table, &mut recipe, &mut warnings)?;
     crate::retouch::translate(&mut recipe, &mut warnings)?;
     crate::geometry::finish(&mut recipe)?;
     recipe.validate()?;

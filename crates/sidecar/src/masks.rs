@@ -459,6 +459,9 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
         return Err(error("individual AI instance selection is not supported"));
     }
     let what = get(t, n, CRS, "What").unwrap_or_default();
+    if what != "Mask/Paint" && num(t, n, "MaskValue", 1.)? != 1. {
+        return Err(error("non-Paint MaskValue other than one is unsupported"));
+    }
     let native_kind = extension(t, n, "kind")?;
     let kind = native_kind
         .as_ref()

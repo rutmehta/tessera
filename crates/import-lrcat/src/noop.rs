@@ -39,6 +39,7 @@ pub const RULES: &[(&str, Rule)] = &[
     ("OverrideLookVignette", Rule::False),
     ("RedEyeInfo", Rule::Empty),
     ("RetouchInfo", Rule::Empty),
+    ("DepthBasedCorrections", Rule::Empty),
     ("UprightFourSegmentsCount", Rule::Zero),
     ("UprightCenterMode", Rule::Upright(0.)),
     ("UprightCenterNormX", Rule::Upright(0.5)),
