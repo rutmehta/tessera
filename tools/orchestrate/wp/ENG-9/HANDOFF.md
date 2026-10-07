@@ -124,7 +124,8 @@ point above).
 
 The Adobe-process HDR file holds the Adobe rendition, as Develop's EDR
 viewport does. The Adobe pipeline is display-referred, so nothing exceeds
-SDR white. This is reported, not a silent fallback.
+SDR white. Since ENG-9b the user is told so, in the export warnings and in
+Develop (see ENG-9b).
 
 ## Item table (finding → code → test)
 
@@ -187,12 +188,81 @@ start and 22.3 at the end.
   Perceptual grey point from the Rec.2020 luminance, as export and the Adobe
   stage now do. The difference is ≤ 0.1 level today, and the change moves
   Native goldens.
-- **Performance.** Adobe-process exports render on the CPU compatibility
-  pipeline. This was also true on main (the resident GPU export declined
-  them), but it now develops the base at full resolution even for
-  `render_scale` 2–8 (print), as Smart Previews already did. Not measured on
-  large RAWs.
+- **Performance:** see ENG-9b SF2 and the ENG-10 follow-up.
 - **Not exercised end-to-end.** Neural denoise for Adobe RAW exports is
   covered only at the renderer level (a fake denoiser); exports load the
   real model from the support directory. AI-mask originals on Adobe go
   through `ready_masks`, which is the same code that already serves proxies.
+
+## ENG-9b (REV-ENG-9 should-fix, on top of 91186394)
+
+Binding review: `~/tessera-evidence/rulings/REV-ENG-9.out.md` (APPROVE WITH
+SHOULD-FIX). `origin/main` had not moved (still `f77aae5d`), so no rebase.
+Tests came first: `81d56018` (RED), then `c880796e` (fix).
+
+| Item | Code | Test |
+| --- | --- | --- |
+| SF1: Adobe HDR export said nothing | `export::ADOBE_HDR_NOTICE` ("Lightroom-process edits render in standard dynamic range; this HDR file has no highlights above SDR white."). `hdr::render` takes the export's `warnings` (was `&mut Vec::new()`) and pushes it as `Info: …`, so it reaches `RenderedExport::warnings()` and the report written beside the file. Develop `render_notices` shows the same text when `live.output.hdr` is on and the recipe's process is Adobe | `eng9b_adobe_hdr_export_warns_that_it_is_sdr` (RAW/RGB/proxy × Native/Adobe: warning and report only for Adobe; RED → GREEN). `tessera-ffi/tests/develop.rs::eng9b_adobe_hdr_shows_the_sdr_notice` (Native+HDR none, Adobe+HDR shown, Adobe without HDR none; RED → GREEN) |
+| SF2: performance not recorded | Numbers below, plus follow-up ENG-10. Not optimised here, per the ruling | — |
+| SF3: no Develop-resource parity row | — (routing already correct) | `eng9b_adobe_raw_retouch_export_and_print_match_develop`: a Clone retouch spot on the Adobe RAW, Perceptual and Clip, with a test `RetouchRenderer` installed in Develop, file export and print. Asserts the spot changes both Develop and the export, then checks parity: export 0.529 / 0.177 (Perceptual) and 0.518 / 0.079 (Clip); print the same. Green on arrival. **Imported mask: not added** (see below) |
+| Nit: hdr.rs grey point | Comment: Adobe has no tone curve; `out` is only the Perceptual grey point | — |
+| Nit: HDR test scope | The test doc says it covers neutral content only (Rec.2020 container mapping vs the sRGB EDR viewport is an intended output-space difference) | — |
+| Nit: GPU gate | `render_one_cancellable` checks `!uses_develop_renderer` before calling `gpu::render_resized` | existing parity tests |
+| Nit: `adobe_display` per-tile luminance `Vec` | Left as is (negligible, per the reviewer) | — |
+
+The imported-mask parity row was skipped as not cheap. Develop draws
+imported masks through host hooks (`MaskRasterCache` hooks installed by
+FFI `masks.rs`), while export reads stored rasters from a support store
+(`mask_ai::imported_plane`). A faithful row needs a planted raster store
+plus the FFI hook wiring. The existing coverage is `lr13b_proxy_masks`
+(proxy, Adobe) and `image-core/tests/lrcat_linear.rs` (host hooks).
+
+### SF2: performance, from the reviewer's measurements
+
+Measured on `fixtures/raw/sony-arw.ARW` (4928×3276, 16 MP), through
+`render_pixels_with_notes` (print path), with the machine at load average
+about 33:
+
+| Path | scale 1 | scale 4 |
+| --- | --- | --- |
+| Native, GPU (main's path for Adobe originals, wrong look) | 0.42 s | 0.27 s |
+| Native, CPU | 15.4 s | 3.1 s |
+| Adobe after ENG-9 (always CPU; prefix at full resolution) | 16–19 s | 5.3–6.1 s |
+
+Estimate for 24 MP, scaling by pixel count:
+- about 25–30 s for a full-size export;
+- about 8–9 s for a scale-4 print or a small export;
+- both on a loaded machine; idle is probably 3–4× faster.
+
+That is roughly 20–60× main's GPU time for the same file, so a 500-photo
+Lightroom batch goes from minutes to hours. No UI-thread blocking was found
+(print runs in `Task.detached`; export and documents run off the main
+thread). Peak memory was not measured: full-resolution f32 copies are about
+290 MB each at 24 MP, several are alive at once, and `export_pipeline`
+renders two at a time.
+
+### Follow-up
+
+- **ENG-10: Adobe-process export performance.** Two parts: a scaled
+  prefix for `render_scale > 1`, and a GPU Adobe path. Also consider a
+  progress or "slow path" note in the export UI. Not attempted here.
+- Pre-existing, from the review: the MCP *preview*
+  (`tessera-mcp/src/preview.rs`) renders RGB sources with `pipeline_cpu`
+  directly, so an Adobe-process RGB photo previews in Native. MCP export is
+  fixed. Also, Native Lens Blur with missing weights downgrades to a
+  warning, while Adobe errors.
+
+### ENG-9b gates
+
+Run on the ENG-9b code tip `c880796e` after `cargo clean --release -p export
+-p image-core -p pipeline-adobe -p pipeline-cpu -p tessera-ffi`. Load average
+was 45.2 at the start and 22.6 at the end.
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release --workspace --no-fail-fast` | 3507 passed, 0 failed, 108 ignored (exit 0). That is 3 more than ENG-9: the three ENG-9b tests |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | clean |
+| `cargo fmt --all -- --check` | clean |
+| `apps/mac/build-ffi.sh` | OK, no bindings drift (only this HANDOFF was modified) |
+| `tools/orchestrate/swift-gate.sh` | SWIFT GATE OK (996 XCTest, 3 skipped, 0 failures) |
+| `swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | Build complete |
