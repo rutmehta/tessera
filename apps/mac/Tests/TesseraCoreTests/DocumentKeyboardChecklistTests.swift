@@ -648,7 +648,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
     }
 
     private static func normalizeAddresses(_ trace: String) -> String {
-        trace.replacingOccurrences(of: "0x[0-9a-fA-F]+|\\$[0-9a-f]+", with: "<address>", options: .regularExpression)
+        trace.replacingOccurrences(of: "(?<=ObjectIdentifier\\()0x[0-9a-fA-F]+(?=\\))|\\$[0-9a-f]+", with: "<address>", options: .regularExpression)
     }
 
     func testTraceAddressNormalizationIsDeterministic() {
