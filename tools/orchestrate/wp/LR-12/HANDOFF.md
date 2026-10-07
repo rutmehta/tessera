@@ -355,3 +355,125 @@ and every `lr12_*` / `lr13_*` test.
 
 Cargo.lock, dependency manifests, board.json and existing goldens are unchanged.
 No private pixel, path, file name or catalog-derived string is committed.
+
+## LR-13c — library-open performance regression
+
+Machine B; base `124c03bc`, branch `local/rut-build`. Synthetic fixtures only.
+No foreground app launch and no access to the protected user libraries.
+
+### Cause and changed contract
+
+`CullSession::open_with_policy` called `regroup` with near-duplicates enabled.
+That synchronously invoked the preview provider for every image. LR-13's
+`e4fadad9` made imported proxies render through `catalog::open_image`; selecting
+a thumbnail render level did not avoid the full proxy decode and lens/CA work
+upstream. Ordinary originals also synchronously opened their embedded previews.
+
+Open now builds the metadata queue and capture-time bursts without invoking a
+pixel provider. The existing Mac post-install `syncLibrary` call starts lazy
+work through `sync_changes`; results wake that same change-feed path. Hashes
+arrive incrementally and produce group deltas without replacing the session,
+its cursor or its undo history. Direct Rust hosts can use `poll_previews` and
+`previews_pending`. Merely reading initial rows/groups never starts a worker.
+
+One process-wide hash decode is allowed at a time; a session has at most 16
+outstanding requests/results. Drop cancels queued work without waiting. The
+currently running image may finish its codec call, after which its result is
+discarded. Callbacks keep only a weak engine reference and run outside session locks.
+Default grouping merges new hash edges in bounded batches instead of repeatedly
+rebuilding all pairs in growing components. Custom grouping policies receive a
+complete hash snapshot.
+
+Hashes are persisted beside the index in `cull-hashes-v1`, one record per image
+ID. Fingerprints include the source path digest, length, device/inode,
+nanosecond mtime/ctime and recipe revision. Fingerprints are checked again after
+cold computation. Same-size replacement invalidates the result; unreadable or
+malformed cache records are misses. The cache contains no literal source paths.
+Cache write failure does not block culling. No schema or dependency change.
+
+Proxy hashing first checks existing JPEG tiers (256, 384, 2048 and 2560px),
+cheapest first, for the source and recipe. Catalog orientation is already baked
+into Mac cache frames and is not applied twice. A miss uses `lossy_dng::read_thumbnail`, assembling at most 256px
+camera-channel samples without `RawImage`, lens resolution, CA estimation,
+profile loading, masks or recipe rendering. Existing codec/tile validation and
+allocation limits are retained. JPEG/JXL tiles still require codec decoding;
+this is a reduced assembled image, not a promise of reduced entropy decoding.
+Ordinary originals use embedded previews on the same lazy/cache path.
+
+### Measurements and regression coverage
+
+The live-library symptom (>10 minutes in “Reading folder…” at 100–150% CPU)
+is the user's profiler report, not a new measurement on private photos.
+Synthetic fixtures are deliberately small; their times must not be extrapolated
+to full-sized user proxies.
+
+| Check | Before | After |
+| --- | ---: | ---: |
+| 32-proxy open, pixel-provider calls | 32 (RED) | 0 |
+| Eight imported proxies, FFI open + rows + groups + statuses | 21.143 ms; 8 decodes, 24 lens resolutions (RED) | 5.925 ms; 0 decodes, 0 lens resolutions |
+| Hash one uncached imported proxy, lens resolutions | 3 (RED) | 0; cached grid hit also performs 0 proxy decodes |
+| Reopen 40 sources after hashing, cumulative provider calls | 80 (RED) | 40; one same-size source replacement increases it to 41 |
+| 5,000 imported proxies, release session open | Not timed on baseline | 1.562 s; fixed bound <5 s |
+| 5,000-proxy open, pixel operations / metadata lookups | Eager per-image pixel work | 0 / 15,000; asserted lookup bound 3N |
+
+Scale command: `cargo test --release -p cull --test lazy_previews
+lr13c_open_5000 -- --ignored --nocapture`. Fixture construction is outside the
+open timer. Tests include cache reuse/invalidation, cancellation, incremental
+grouping, Mac grid/loupe cache preference with catalog orientation, reduced
+sample equivalence and malformed
+LinearRaw rejection. Existing grouping assertions and decoder safety bounds
+are not relaxed; asynchronous tests wait before checking their original
+results.
+
+### M5 audit: other open/refresh work
+
+| Operation | Disposition |
+| --- | --- |
+| Core open/regroup/incremental insert/update pixel hashes | Deferred; no pixel-provider invocation on these paths |
+| Repeated FFI session row source/Smart Preview projection | Cached per session, invalidated by catalog file/recipe/metadata changes; unchanged refreshes do not re-read recipes or stat originals |
+| One source projection | Reads its recipe once and checks the candidate original once, replacing repeated helper reads |
+| Selection reconciliation recipe read | Removed the duplicate byte read before parsing; sidecar authority and validation retained |
+| Basket membership in row materialization | Hash-set lookup instead of scanning the basket vector per row |
+| `Engine::open` source/store registration | Still walks catalog paths once; metadata-only, no rendering |
+| `index_folder` explicit scan | Still walks/stats source and sidecar paths; broader M5 work requires scan/watch invalidation policy |
+| Core initial admission | Still checks existence and reconciles each sidecar before selection filtering; required by existing recovery/sidecar-authority tests |
+| Initial derived statuses | Still reads requested recipes/history and export status; incremental refresh requests only changed IDs |
+| Initial best-per-group | Still consults catalog scores/size; no pixel rendering |
+| Protected-source `Sidecar::paths` | May hash content for alias discovery; its 8,192-entry hash registry can churn on large libraries. Separate M5 follow-up; changing recipe identity/alias semantics is outside this fix |
+| Explicit `Engine::list_images` | Retains live relink/availability semantics; consolidated projection, but still per-row source checks |
+| Group-only Mac sync | Still may collect the active search and remap display IDs; broader M5 follow-up |
+| General SQL batching / album membership projection | Deferred; queue construction is bounded to 3N `image_info` lookups plus search/selection queries |
+
+The listing cache is a catalog snapshot: an unindexed external sidecar or
+availability change is reflected after a corresponding catalog change or
+session reopen. Pixel requests continue resolving their actual source at use.
+
+### LR-13c gates
+
+Implementation: `5610c642` (preceded by two RED-test commits).
+
+- Workspace Clippy: `cargo clippy --locked --workspace --all-targets -- -D warnings` passed.
+- Formatting: `cargo fmt --all -- --check` passed.
+- `apps/mac/build-ffi.sh` passed; generated Swift/header/modulemap diff is empty.
+- `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK**; 921 XCTest tests,
+  3 skipped, 0 failures, plus 5 Swift Testing tests passed.
+- Final nine-crate release suite: **1,489 passed, 0 failed, 61 ignored**:
+  `cargo test --locked --release -p cull -p previews -p image-core -p pipeline-cpu
+  -p raw-decode -p export -p tessera-ffi -p tessera-mcp -p index --no-fail-fast`.
+  Both earlier load-sensitive failures pass in this final complete run.
+- Opt-in 5,000-proxy release scale test passed separately with its fixed 5-second
+  bound, zero provider calls and at most 3N metadata lookups (numbers above).
+- Strict release: `swift build -c release --product Tessera -Xswiftc
+  -strict-concurrency=complete -Xswiftc -warnings-as-errors` passed. The linker
+  emitted a native BLAKE3 object deployment-target warning (26.2 versus 15.0);
+  there were no Swift compiler warnings/errors.
+
+The earlier nine-crate runs exposed two load-sensitive existing tests: the
+preview render exceeded its unchanged 3-second local budget while other builds
+were active, and the export helper did not create its marker inside its
+unchanged 1-second timeout. The preview passed in the next full run; all three
+export workflow tests passed unchanged on an isolated rerun. No timing bounds,
+assertions or CI-environment bypasses were changed.
+
+Cargo.lock and board.json are unchanged. Added-line checks found no absolute
+home paths or usernames, and all commits omit co-author trailers.
