@@ -464,8 +464,9 @@ private final class LibraryPressableElement: NSAccessibilityElement {
     override func accessibilityPerformPress() -> Bool { true }
 }
 
-// Identifier stems regenerated from gate/b51 (392c2156), including id:/identifier: arguments.
-// Existing pins retained; 202 newly protected stems. Dynamic payloads use anchored templates.
+// Identifier stems regenerated from gate/b51 (392c2156), including id:/identifier: arguments, and
+// re-verified against main a94b0288 after the rebase (no unprotected literal; document.layers.fx
+// and two-segment layerStyle templates added). Dynamic payloads use anchored templates.
 enum EstablishedAccessibilityIdentifiers {
     static func accepts(_ identifier: String) -> Bool {
         if identifier.range(of: #"^(library|develop)\."#, options: .regularExpression) != nil { return true }
@@ -504,11 +505,13 @@ enum EstablishedAccessibilityIdentifiers {
         #"^document\.history\.snapshot\.[^.\s]+$"#,
         #"^document\.history\.snapshot\.[^.\s]+\.restore$"#,
         #"^document\.inspector\.shortcut\.[^.\s]+$"#,
+        #"^document\.layerStyle\.[^.\s]+\.[^.\s]+$"#,
         #"^document\.layerStyle\.[^.\s]+\.metadata\.[^.\s]+$"#,
         #"^document\.layerStyle\.add\.[^.\s]+$"#,
         #"^document\.layerStyle\.editor\.[^.\s]+$"#,
         #"^document\.layerStyle\.enable\.[^.\s]+$"#,
         #"^document\.layerStyle\.row\.[^.\s]+$"#,
+        #"^document\.layers\.fx\.[^.\s]+$"#,
         #"^document\.layers\.lock\.[^.\s]+$"#,
         #"^document\.layers\.row\.[^.\s]+$"#,
         #"^document\.layers\.row\.[^.\s]+\.cell$"#,
