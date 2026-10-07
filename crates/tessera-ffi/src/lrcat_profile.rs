@@ -725,7 +725,14 @@ fn pair_checked<T, E: std::fmt::Debug>(
     })
 }
 
-fn pair_pixels(path: &Path, app: &Path) -> SafeResult<(image::RgbImage, bool)> {
+/// Private comparison facts for one pair (numbers only).
+struct PairFacts {
+    unavailable_lens: bool,
+    orientation: u16,
+    cropped: bool,
+}
+
+fn pair_pixels(path: &Path, app: &Path) -> SafeResult<(image::RgbImage, PairFacts)> {
     use image_core::{PixelRect, Renderer, RendererConfig};
     let doc = pair_checked(app, 1, Sidecar::read_recipe(Sidecar::paths(path).recipe))?;
     let id = app_image_id(path).ok_or(())?;
@@ -770,7 +777,22 @@ fn pair_pixels(path: &Path, app: &Path) -> SafeResult<(image::RgbImage, bool)> {
         renderer.render_region(&source, &settings, level, PixelRect::full(extent)),
     )?;
     let pixels = pair_checked(app, 7, crate::lrcat_fidelity::stitch(extent, &tiles))?;
-    Ok((contact_thumbnail(&pixels), unavailable_lens))
+    // Develop renders the sensor frame and the host displays it oriented
+    // (LR-8m); Lightroom's previews are displayed pixels.
+    let orientation = source.metadata().orientation;
+    let pixels = crate::assist::orient(pixels, orientation as u8);
+    let crop = settings.geometry.crop;
+    let cropped = crop.angle != 0.
+        || [crop.rect.left, crop.rect.top] != [0., 0.]
+        || [crop.rect.right, crop.rect.bottom] != [1., 1.];
+    Ok((
+        contact_thumbnail(&pixels),
+        PairFacts {
+            unavailable_lens,
+            orientation,
+            cropped,
+        },
+    ))
 }
 
 fn contact_thumbnail(pixels: &image::RgbImage) -> image::RgbImage {
@@ -930,9 +952,8 @@ fn proxy_profile() -> std::result::Result<Value, u32> {
             .ok_or(70u32 + n as u32)?;
         let reference =
             crate::lrcat_fidelity::decode_preview(&jpeg).map_err(|_| 90u32 + n as u32)?;
-        let (rendered, unavailable_lens) =
-            pair_pixels(&row.path, &app).map_err(|_| 110u32 + n as u32)?;
-        unavailable_lens_profiles += usize::from(unavailable_lens);
+        let (rendered, facts) = pair_pixels(&row.path, &app).map_err(|_| 110u32 + n as u32)?;
+        unavailable_lens_profiles += usize::from(facts.unavailable_lens);
         safe(std::fs::write(
             contact.join(format!("{:02}-lightroom.jpg", n + 1)),
             jpeg,
@@ -941,7 +962,10 @@ fn proxy_profile() -> std::result::Result<Value, u32> {
         rendered
             .save(contact.join(format!("{:02}-tessera.png", n + 1)))
             .map_err(|_| 150u32 + n as u32)?;
-        pairs.push(pair_measurement(&rendered, &reference));
+        let mut measured = pair_measurement(&rendered, &reference);
+        measured["display_orientation"] = json!(facts.orientation);
+        measured["cropped"] = json!(facts.cropped);
+        pairs.push(measured);
         safe(std::fs::write(
             app.join("pairs-aggregate.json"),
             json!({"pairs":pairs,"unavailable_lens_profiles":unavailable_lens_profiles})
