@@ -32,6 +32,9 @@ jobs:
       - run: bash fixtures/fetch.sh
       - run: cargo install cargo-deny --locked
       - run: bash ci.sh
+        env:
+          # fetch.sh just provided fixtures/raw: fixture tests must not skip.
+          TESSERA_REQUIRE_RAW_FIXTURES: "1"
       - name: Build release FFI and test Swift
         run: ./build-ffi.sh && swift build -c release && swift test -c release
         working-directory: apps/mac

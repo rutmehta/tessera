@@ -1,3 +1,6 @@
+#[path = "common/raw_fixtures.rs"]
+mod raw_fixtures;
+
 use engine_api::recipe::DevelopSettings;
 use pipeline_cpu::{RenderSource, render_scaled};
 use raw_decode::RawSource;
@@ -10,28 +13,11 @@ use std::{
 #[test]
 fn raw_fixture_goldens() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures");
-    let raw = std::env::var_os("PIPELINE_RAW_FIXTURES")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("raw"));
-    if !raw.exists() {
-        eprintln!("skipping pipeline goldens: fixtures/raw is absent");
+    let files = raw_fixtures::all("raw_fixture_goldens");
+    if files.is_empty() {
         return;
     }
-    let mut files: Vec<_> = fs::read_dir(&raw)
-        .unwrap()
-        .map(|e| e.unwrap().path())
-        .filter(|p| {
-            p.is_file()
-                && p.extension().is_some_and(|e| {
-                    matches!(
-                        e.to_string_lossy().to_ascii_lowercase().as_str(),
-                        "cr3" | "arw" | "nef" | "raf" | "dng"
-                    )
-                })
-        })
-        .collect();
-    files.sort();
-    for ext in ["cr3", "arw", "nef", "raf", "dng"] {
+    for ext in raw_fixtures::EXTENSIONS {
         assert!(
             files
                 .iter()

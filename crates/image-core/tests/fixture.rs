@@ -1,10 +1,16 @@
-//! Real RAW fixtures (skipped when fixtures/raw is absent).
+//! Real RAW fixtures: every file in fixtures/raw runs by default.
+//!
+//! `IMAGE_CORE_FIXTURES=arw,cr3` narrows a run for speed (extension or file
+//! name substring). Without fixtures each test prints an uncaptured SKIPPED
+//! line; `TESSERA_REQUIRE_RAW_FIXTURES=1` makes that a failure.
 
 mod common;
 #[path = "common/preview.rs"]
 mod preview;
+#[path = "common/raw_fixtures.rs"]
+mod raw_fixtures;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Instant;
 
 use common::*;
@@ -16,55 +22,20 @@ use image_core::{RendererConfig, TileCache};
 use pipeline_cpu::RenderSource;
 use std::sync::Arc;
 
-fn fixtures() -> Option<Vec<PathBuf>> {
-    let root = std::env::var_os("PIPELINE_RAW_FIXTURES")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw"));
-    if !root.exists() {
-        eprintln!("skipping: {} is absent", root.display());
-        return None;
-    }
-    let mut files: Vec<_> = std::fs::read_dir(root)
-        .unwrap()
-        .map(|e| e.unwrap().path())
-        .filter(|p| {
-            p.is_file()
-                && p.extension().is_some_and(|e| {
-                    matches!(
-                        e.to_string_lossy().to_ascii_lowercase().as_str(),
-                        "cr3" | "arw" | "nef" | "raf" | "dng"
-                    )
-                })
-        })
-        .collect();
-    files.sort();
-    Some(files)
+/// Narrows the fixture set for speed; correctness coverage never needs it.
+const SELECT_ENV: &str = "IMAGE_CORE_FIXTURES";
+
+fn selected(test: &str) -> Vec<PathBuf> {
+    raw_fixtures::selected(test, SELECT_ENV)
 }
 
-/// The Sony ARW by default (smallest); `IMAGE_CORE_ALL_FIXTURES=1` runs all,
-/// including the X-Trans RAF.
-fn selected() -> Vec<PathBuf> {
-    let Some(files) = fixtures() else {
-        return Vec::new();
-    };
-    if std::env::var_os("IMAGE_CORE_ALL_FIXTURES").is_some() {
-        return files;
-    }
-    let arw: Vec<_> = files
-        .iter()
-        .filter(|p| p.extension().unwrap().eq_ignore_ascii_case("arw"))
-        .cloned()
-        .collect();
-    if arw.is_empty() {
-        files.into_iter().take(1).collect()
-    } else {
-        arw
-    }
-}
-
+/// Every selected camera is compared, and every mismatch is reported, before
+/// the test fails: one camera's failure must not hide another's.
 #[test]
 fn fixture_level3_matches_pipeline_cpu() {
-    for path in selected() {
+    let mut failures = Vec::new();
+    for path in selected("fixture_level3_matches_pipeline_cpu") {
+        let name = raw_fixtures::name(&path);
         let image = RawImage::open(ImageId(42), &path).unwrap();
         let s = DevelopSettings::default();
         let source = RenderSource::Cfa {
@@ -85,11 +56,6 @@ fn fixture_level3_matches_pipeline_cpu() {
         let reference_ms = t.elapsed().as_secs_f64() * 1e3;
         assert_eq!((reference.width(), reference.height()), (e.width, e.height));
         let diff = max_f32_diff(&assemble_f32(e, &linear), reference.planes());
-        assert!(
-            diff <= 1e-5,
-            "{}: scene-linear max diff {diff}",
-            path.display()
-        );
 
         // Display output from a second cold renderer is identical as well.
         let display = Renderer::new(RendererConfig::default())
@@ -97,19 +63,64 @@ fn fixture_level3_matches_pipeline_cpu() {
             .unwrap();
         let expected = preview::display(&reference, &s);
         let d = max_u8_diff(&assemble_u8(e, &display), &expected);
-        assert_eq!(d, 0, "{}: display max diff {d}", path.display());
         eprintln!(
-            "{}: {}x{} L3, max linear diff {diff:e}, tiled {tiled_ms:.0} ms vs reference {reference_ms:.0} ms",
-            path.display(),
-            e.width,
-            e.height
+            "{name}: {}x{} L3, max linear diff {diff:e}, display diff {d}, tiled {tiled_ms:.0} ms vs reference {reference_ms:.0} ms",
+            e.width, e.height
         );
+        if diff > 1e-5 || d != 0 {
+            failures.push(format!(
+                "{name}: scene-linear max diff {diff:e}, display max diff {d}"
+            ));
+        }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// Level 0 is the full-resolution reference path itself (render.rs module
+/// docs): bit-identical to `pipeline_cpu::render_linear_scaled(.., 1)` for
+/// every camera, including the lens correction the reference resolves from
+/// the whole demosaiced frame (the L3 preview model resolves from sparse
+/// sensor patches, so this also pins those two resolutions together).
+#[test]
+fn fixture_level0_matches_pipeline_cpu_reference() {
+    let mut failures = Vec::new();
+    for path in selected("fixture_level0_matches_pipeline_cpu_reference") {
+        let name = raw_fixtures::name(&path);
+        let image = RawImage::open(ImageId(44), &path).unwrap();
+        let s = DevelopSettings::default();
+        let e = image.level_extent(0);
+        let t = Instant::now();
+        let linear = Renderer::new(RendererConfig::default())
+            .render_region_as(&image, &s, 0, PixelRect::full(e), RenderOutput::SceneLinear)
+            .unwrap();
+        let tiled_ms = t.elapsed().as_secs_f64() * 1e3;
+        let t = Instant::now();
+        let reference = pipeline_cpu::render_linear_scaled(
+            &s,
+            &RenderSource::Cfa {
+                image: image.cfa(),
+                metadata: image.metadata(),
+            },
+            1,
+        )
+        .unwrap();
+        let reference_ms = t.elapsed().as_secs_f64() * 1e3;
+        assert_eq!((reference.width(), reference.height()), (e.width, e.height));
+        let diff = max_f32_diff(&assemble_f32(e, &linear), reference.planes());
+        eprintln!(
+            "{name}: {}x{} L0, max linear diff {diff:e}, tiled {tiled_ms:.0} ms vs reference {reference_ms:.0} ms",
+            e.width, e.height
+        );
+        if diff != 0.0 {
+            failures.push(format!("{name}: L0 scene-linear max diff {diff:e}"));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]
 fn fixture_level3_m2_extremes_are_finite() {
-    for path in fixtures().unwrap_or_default() {
+    for path in raw_fixtures::all("fixture_level3_m2_extremes_are_finite") {
         let image = RawImage::open(ImageId(43), &path).unwrap();
         let r = Renderer::new(RendererConfig::default());
         for sign in [-1., 1.] {
@@ -178,7 +189,7 @@ fn fixture_level3_m2_extremes_are_finite() {
 #[test]
 #[ignore]
 fn bench_tone_only_change_at_level_2() {
-    for path in selected() {
+    for path in selected("bench_tone_only_change_at_level_2") {
         let t = Instant::now();
         let image = RawImage::open(ImageId(7), &path).unwrap();
         let decode_ms = t.elapsed().as_secs_f64() * 1e3;
