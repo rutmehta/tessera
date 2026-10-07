@@ -37,6 +37,7 @@ fn native_adobe_named_recipe_does_not_switch_pipeline() {
     let expected = pixels(&renderer, &image, &settings);
     settings.camera_profile.profile.name = "Adobe Color".into();
     assert_eq!(pixels(&renderer, &image, &settings), expected);
+    assert_eq!(renderer.profile_notice(&image, &settings), None);
 }
 
 #[test]
@@ -67,6 +68,14 @@ fn only_adobe_named_proxy_recipes_use_embedded_profile() {
         );
     }
     settings.camera_profile.profile.name = "Adobe Color".into();
+    assert_eq!(
+        renderer.profile_notice(&image, &settings),
+        Some(pipeline_adobe::SUBSTITUTED_PROFILE_NOTICE)
+    );
+    assert_eq!(
+        renderer.profile_notice(&bare, &settings),
+        Some(pipeline_adobe::UNAVAILABLE_PROFILE_NOTICE)
+    );
     assert_ne!(
         pixels(&renderer, &image, &settings),
         pixels(&renderer, &bare, &settings)
@@ -101,6 +110,10 @@ fn malformed_embedded_profile_does_not_fail_a_proxy_render() {
     assert_eq!(
         pixels(&renderer, &a, &settings),
         pixels(&renderer, &b, &settings)
+    );
+    assert_eq!(
+        renderer.profile_notice(&b, &settings),
+        Some(pipeline_adobe::UNAVAILABLE_PROFILE_NOTICE)
     );
 }
 
@@ -206,4 +219,42 @@ fn ordinary_cfa_dng_does_not_use_embedded_fallback() {
             );
         }
     }
+}
+
+#[test]
+fn installed_profile_wins_over_valid_or_malformed_embedded_data() {
+    let bytes = support::lossy_dng(false, false);
+    let image = proxy(&bytes);
+    let invalid = image
+        .camera_linear_proxy()
+        .unwrap()
+        .clone()
+        .with_embedded_profile(Some(b"invalid profile".to_vec()));
+    let invalid = RawImage::from_camera_linear_proxy(
+        ImageId(815),
+        ImageId(816),
+        std::sync::Arc::new(invalid),
+    )
+    .unwrap();
+    let installed_bytes =
+        pipeline_adobe::dcp::read_embedded_profile(&mut std::io::Cursor::new(cfa_dng()))
+            .unwrap()
+            .unwrap();
+    let renderer = Renderer::new(RendererConfig {
+        process_version: ProcessVersion::adobe(6),
+        ..Default::default()
+    })
+    .with_dcp_profile(&installed_bytes)
+    .unwrap();
+    let mut settings = DevelopSettings::default();
+    settings.camera_profile.profile.name = "Adobe Color".into();
+    settings.white_balance.mode = engine_api::recipe::settings::WhiteBalanceMode::Custom;
+    settings.white_balance.temperature = 6504.;
+    settings.white_balance.tint = 0.;
+    assert_eq!(
+        pixels(&renderer, &image, &settings),
+        pixels(&renderer, &invalid, &settings)
+    );
+    assert_eq!(renderer.profile_notice(&image, &settings), None);
+    assert_eq!(renderer.profile_notice(&invalid, &settings), None);
 }

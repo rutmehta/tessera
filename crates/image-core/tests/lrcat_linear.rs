@@ -199,8 +199,9 @@ fn lr13_adobe_linearraw_output_does_not_apply_a_second_native_tone_curve() {
     let path = dir.path().join("adobe.dng");
     std::fs::write(&path, &bytes).unwrap();
     let raw = RawImage::open(ImageId(1818), &path).unwrap();
-    let profile = image_core::pipeline_adobe::dcp::DcpProfile::parse(&bytes).unwrap();
-    let settings = DevelopSettings::default();
+    let profile = image_core::pipeline_adobe::dcp::DcpProfile::parse_embedded(&bytes).unwrap();
+    let mut settings = DevelopSettings::default();
+    settings.camera_profile.profile.name = "Adobe Color".into();
     let expected = image_core::pipeline_adobe::render_scaled_with_profile(
         &settings,
         &pipeline_cpu::RenderSource::CameraLinear(raw.camera_linear_proxy().unwrap()),
