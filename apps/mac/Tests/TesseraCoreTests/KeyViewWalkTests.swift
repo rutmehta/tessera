@@ -223,7 +223,20 @@ final class KeyViewWalkTests: XCTestCase {
         XCTAssertFalse(stop.controlled)
         XCTAssertTrue(stop.object === proxy)
         let frame = proxy.convert(proxy.bounds, to: host)
-        XCTAssertEqual(stop.name, "KeyViewProxy(\(Int(frame.minX)),\(Int(frame.minY)) \(Int(frame.width))×\(Int(frame.height)))")
+        let fallback = "KeyViewProxy(\(Int(frame.minX)),\(Int(frame.minY)) \(Int(frame.width))×\(Int(frame.height)))"
+        var supported = [fallback]
+        func addIdentity(_ element: (any NSAccessibilityProtocol)?) {
+            guard let element else { return }
+            if let id = element.accessibilityIdentifier(), !id.isEmpty { supported.append("KeyViewProxy(\(id))") }
+            if let label = element.accessibilityLabel(), !label.isEmpty { supported.append("KeyViewProxy(\(label))") }
+        }
+        addIdentity(proxy)
+        if let hosting = proxy.superview {
+            let centre = proxy.convert(NSPoint(x: proxy.bounds.midX, y: proxy.bounds.midY), to: nil)
+            let hit = hosting.accessibilityHitTest(window.convertPoint(toScreen: centre)) as AnyObject?
+            if hit !== hosting && hit !== proxy { addIdentity(hit as? any NSAccessibilityProtocol) }
+        }
+        XCTAssertTrue(supported.contains(stop.name), "proxy must have a supported semantic or frame name: \(stop.name)")
         XCTAssertTrue(frame.width > 0 && frame.height > 0 && host.bounds.contains(frame), "the proxy has its control's frame: \(frame)")
         proxy.setAccessibilityIdentifier("document.layers.add")
         XCTAssertEqual(KeyViewWalk.stop(proxy, in: host).name, "KeyViewProxy(document.layers.add)")

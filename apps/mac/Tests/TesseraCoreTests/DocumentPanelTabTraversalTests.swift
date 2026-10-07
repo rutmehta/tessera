@@ -240,6 +240,10 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         for (button, budget) in [(control.decrease, 4), (control.increase, 1), (control.reset, 1)] {
             let walk = try walk(window, router: router, budget: budget, to: button)
             XCTAssertTrue(walk.reached, "Tab from the eye button must reach − → + → ↺; \(walk)")
+            if button === control.decrease {
+                XCTAssertTrue(walk.reachesFirst(control.decrease, before: [control.increase, control.reset]),
+                              "− must be the first History stop; \(walk)")
+            }
             XCTAssertFalse(model.documents.panelsHidden)
         }
         // ⇧Tab walks back from ↺ to +.
@@ -260,6 +264,8 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         XCTAssertTrue(window.makeFirstResponder(outline))
         let walk = try walk(window, router: router, budget: 4, to: control.decrease)
         XCTAssertTrue(walk.reached, "Tab from the Layers list reaches −; \(walk)")
+        XCTAssertTrue(walk.reachesFirst(control.decrease, before: [control.increase, control.reset]),
+                      "− must be the first History stop; \(walk)")
         XCTAssertFalse(model.documents.panelsHidden)
     }
 
@@ -414,6 +420,8 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         XCTAssertTrue(window.makeFirstResponder(eye))
         var walk = try walk(window, router: router, budget: 4, to: control.decrease)
         XCTAssertTrue(walk.reached, "\(mode): Tab from the eye must reach −; \(walk)")
+        XCTAssertTrue(walk.reachesFirst(control.decrease, before: [control.increase, control.reset]),
+                      "\(mode): − must be the first History stop; \(walk)")
         XCTAssertFalse(walk.trail.dropFirst().contains { $0.object === outline },
                        "\(mode): Tab from the eye must not fall back to the list; \(walk)")
         for button in [control.increase, control.reset] {
@@ -427,13 +435,15 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         XCTAssertTrue(window.makeFirstResponder(eye))
         walk = try self.walk(window, shift: true, router: router, budget: 4, to: outline)
         XCTAssertTrue(walk.reached, "\(mode): ⇧Tab from the eye returns to the Layers list; \(walk)")
-        XCTAssertTrue(walk.trail.allSatisfy { fixture.inList($0.object as? NSResponder) } && walk.uncontrolledStops == 0,
+        XCTAssertTrue(walk.staysInSelectedRow(fixture.row, outline: outline),
                       "\(mode): ⇧Tab stays in the row until it reaches the list; \(walk)")
 
         // With Full Keyboard Access the list hands Tab to the selected row's controls and the eye
         // is one of them; without it the row is skipped. Either way Tab then leaves the list for −.
         walk = try self.walk(window, router: router, budget: 4, to: control.decrease)
         XCTAssertTrue(walk.reached, "\(mode): Tab from the list reaches −; \(walk)")
+        XCTAssertTrue(walk.reachesFirst(control.decrease, before: [control.increase, control.reset]),
+                      "\(mode): − must be the first History stop; \(walk)")
         XCTAssertEqual(walk.visited(eye), fka, "\(mode): the eye is a Tab stop only with Full Keyboard Access; \(walk)")
         if proxies == true {
             XCTAssertGreaterThan(walk.uncontrolledStops, 0, "\(mode): the walk must cross SwiftUI proxy stops; \(walk)")

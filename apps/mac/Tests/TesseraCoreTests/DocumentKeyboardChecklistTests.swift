@@ -284,21 +284,24 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             try self.require(outline.row(for: eye) == 0, "Row 0 eye identifier does not belong to row 0")
             try self.require(eye.canBecomeKeyView == self.fka, "Pinned FKA=\(self.fka) does not control the eye's key-view eligibility")
             try self.focus(outline)
-            try self.require(!self.tab(), "List Tab consumed")
-            let first = self.window.firstResponder
-            try self.require(!self.model.documents.panelsHidden, "List Tab hid panels")
             guard self.fka else {
+                try self.require(!self.tab(), "List Tab consumed")
+                let first = self.window.firstResponder
+                try self.require(!self.model.documents.panelsHidden, "List Tab hid panels")
                 try self.require(first !== eye && first !== outline, "FKA off: List Tab must skip the eye and leave the list; got \(self.label(first))")
                 throw NotApplicable(reason: "FKA off (pinned): the row eye is not a key view (canBecomeKeyView=false), so no eye ring exists in this mode. Asserted instead: List Tab is unhandled, skips the eye, lands on \(self.label(first)), panels stay. Button key safety is automated with a forced responder in 9–10.")
             }
-            // A group row has a disclosure button before its eye, so the eye is found by identity.
-            if first !== eye { _ = try self.walk(budget: 1, to: eye, "List Tab did not reach selected row eye") }
+            let row = try XCTUnwrap(outline.rowView(atRow: outline.selectedRow, makeIfNecessary: false))
+            // Include the first press: no external or uncontrolled stop is permitted within the row.
+            let forward = try self.walk(budget: 2, to: eye, "List Tab did not reach selected row eye")
+            try self.require(forward.staysInSelectedRow(row, outline: outline), "List Tab left selected row: \(forward)")
             try self.require(!self.tab(), "Eye Tab consumed")
             let second = self.window.firstResponder
             try self.require(second !== eye && second !== outline, "Eye Tab did not move")
             try self.require(!self.model.documents.panelsHidden, "Traversal hid panels")
             try self.focus(eye)
-            _ = try self.walk(shift: true, budget: 2, to: outline, "Eye Shift-Tab did not return to the Layers list")
+            let reverse = try self.walk(shift: true, budget: 2, to: outline, "Eye Shift-Tab did not return to the Layers list")
+            try self.require(reverse.staysInSelectedRow(row, outline: outline), "Eye Shift-Tab left selected row: \(reverse)")
             return "FKA on (pinned): selected first Layers row; Tab → its eye → Tab → \(self.label(second)); eye Shift-Tab → Layers list; panels stay."
         }
         run("6a") {
@@ -306,13 +309,18 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
             let start: NSView = self.fka ? try self.eye() : try self.control("document.layers.outline", LayersOutlineView.self)
             try self.focus(start)
             // − is the first History stop after the row or list; + and ↺ follow it directly.
+            let plus: NSButton = try self.control("document.history.height.increase")
+            let reset: NSButton = try self.control("document.history.height.reset")
             var count = 0
             for (id, budget) in [("decrease", 4), ("increase", 1), ("reset", 1)] {
                 let button: HistoryHeightButton = try self.control("document.history.height.\(id)")
-                count += try self.walk(budget: budget, to: button, "Wrong History order at \(id)").presses
+                let walk = try self.walk(budget: budget, to: button, "Wrong History order at \(id)")
+                if id == "decrease" {
+                    try self.require(walk.reachesFirst(button, before: [plus, reset]), "− was not the first History stop: \(walk)")
+                }
+                count += walk.presses
             }
             try self.require(!self.tab(shift: true), "History Shift-Tab consumed")
-            let plus: NSButton = try self.control("document.history.height.increase")
             try self.require(self.window.firstResponder === plus, "Reset Shift-Tab did not return to +")
             return "\(self.fka ? "FKA on (pinned): eye" : "FKA off (pinned): Layers list (the eye is not a key view)") → − → + → ↺ in \(count) Tabs, every Tab unhandled; Shift-Tab → +."
         }

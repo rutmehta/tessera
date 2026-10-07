@@ -40,14 +40,14 @@ struct KeyViewWalk: CustomStringConvertible {
     static let uncontrolledLimit = 64
 
     var reached: Bool { outcome == .reached }
-    // Existing destination-only contract, factored for scripted regression coverage.
+    // Reaching a destination does not prove it was the first member of an ordered group.
     func reachesFirst(_ target: AnyObject, before others: [AnyObject]) -> Bool {
-        reached && trail.last?.object === target
+        reached && trail.last?.object === target && !others.contains { visited($0) }
     }
 
     @MainActor func staysInSelectedRow(_ row: NSView, outline: NSView) -> Bool {
         trail.allSatisfy { stop in
-            stop.object === outline || (stop.object as? NSView)?.isDescendant(of: outline) == true
+            stop.controlled && (stop.object === outline || (stop.object as? NSView)?.isDescendant(of: row) == true)
         } && uncontrolledStops == 0
     }
 
@@ -76,7 +76,9 @@ struct KeyViewWalk: CustomStringConvertible {
             walk.trail.append(stop)
             if stop.controlled { walk.controlledStops += 1 } else { walk.uncontrolledStops += 1 }
             if isTarget(stop) {
-                walk.outcome = walk.controlledStops > budget ? .overBudget : .reached
+                if walk.controlledStops > budget { walk.outcome = .overBudget }
+                else if walk.uncontrolledStops > uncontrolledLimit { walk.outcome = .uncontrolledLimit }
+                else { walk.outcome = .reached }
                 return walk
             }
             if stop.controlled {
