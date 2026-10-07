@@ -433,6 +433,12 @@ pub fn render_pixels_with_notes(
     cancel.check()?;
     recipe.validate()?;
     let mut notes = proxy_notes(&image.source, recipe, support.is_some(), retouch.is_some());
+    // Print and documents render; they do not export a file (REV2-SP N2).
+    if let Some(first) = notes.first_mut()
+        && first.starts_with("Exported from a Smart Preview")
+    {
+        *first = first.replacen("Exported from", "Rendered from", 1);
+    }
     let planned = proxy_recipe(&image.source, recipe, support.is_some(), retouch.is_some());
     let recipe = planned.as_ref();
     if !matches!(render.scale, 1 | 2 | 4 | 8) {
