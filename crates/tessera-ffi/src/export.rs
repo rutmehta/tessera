@@ -905,8 +905,9 @@ impl Source {
             let cfa = raw.decode_cfa()?;
             let mut metadata = raw.metadata();
             if let Some(orientation) = orientation {
+                // Display orientation, applied after sensor-frame edits (LR-8m).
                 metadata.catalog_orientation = Some(orientation);
-                metadata.orientation = 1;
+                metadata.orientation = orientation;
             }
             return Ok(Self::Raw(Box::new((cfa, metadata))));
         }
@@ -929,12 +930,7 @@ impl Source {
         match self {
             Self::LinearDng(proxy) => {
                 let p = proxy.pixels();
-                if proxy
-                    .original_metadata()
-                    .catalog_orientation
-                    .unwrap_or(proxy.original_metadata().orientation)
-                    >= 5
-                {
+                if proxy.original_metadata().orientation >= 5 {
                     (p.height(), p.width())
                 } else {
                     (p.width(), p.height())
@@ -943,7 +939,7 @@ impl Source {
             Self::Rgb(image) => (image.width(), image.height()),
             Self::Raw(raw) => {
                 let [_, _, w, h] = raw.1.default_crop;
-                if raw.1.catalog_orientation.unwrap_or(raw.1.orientation) >= 5 {
+                if raw.1.orientation >= 5 {
                     (h, w)
                 } else {
                     (w, h)

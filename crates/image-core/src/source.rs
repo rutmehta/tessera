@@ -126,8 +126,10 @@ impl RawImage {
         )
     }
 
-    /// Open in the catalog's absolute frame. RAW reconstruction remains sensor-
-    /// aligned, while its common render tail orients before normalized edits.
+    /// Open with the catalog's absolute orientation. RGB sources consume it in
+    /// their decoder, as ordinary RGB imports consume EXIF. RAW sources and
+    /// LinearRaw Smart Previews stay in the sensor frame and report it as
+    /// their display orientation, as ordinary RAW imports report EXIF.
     pub fn open_with_catalog_orientation(
         id: ImageId,
         path: impl AsRef<Path>,
@@ -154,9 +156,11 @@ impl RawImage {
                 crate::RgbSource::open_with_orientation(path, Some(orientation))?,
             );
         }
+        // The catalog orientation replaces EXIF as the display orientation;
+        // edits stay in the sensor frame, as for an ordinary import (LR-8m).
         let metadata = Arc::make_mut(&mut image.metadata);
         metadata.catalog_orientation = Some(orientation);
-        metadata.orientation = 1;
+        metadata.orientation = orientation;
         if let Some(proxy) = &mut image.camera_linear_proxy {
             *proxy = Arc::new(
                 proxy
@@ -310,11 +314,7 @@ impl RawImage {
             let [_, _, w, h] = self.metadata.default_crop;
             (w, h)
         };
-        if self.metadata.catalog_orientation.is_some_and(|o| o >= 5) {
-            Extent::new(h, w)
-        } else {
-            Extent::new(w, h)
-        }
+        Extent::new(w, h)
     }
 
     /// Output-pyramid extent at `level` (`ceil(active / 2^level)`).

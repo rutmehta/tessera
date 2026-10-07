@@ -1673,17 +1673,6 @@ impl LrcatImport {
                 } else {
                     (0, 0)
                 };
-                let extent = if r.outcome == Outcome::OfflineProxy
-                    && image
-                        .orientation
-                        .as_deref()
-                        .and_then(import_lrcat::orientation::exif)
-                        .is_some_and(|o| o >= 5)
-                {
-                    (extent.1, extent.0)
-                } else {
-                    extent
-                };
                 let prior = image_core::ml_depth::DepthMap::cached(
                     &depth_store,
                     &image_core::depth::imported_depth_key(id),
@@ -1702,8 +1691,8 @@ impl LrcatImport {
                     clear_pending_depth_diagnostic(&mut image.recipe);
                 }
                 // LR-5b measures rasters in the renderer's active frame. Offline
-                // LinearRaw proxies use the approved header reader and consume
-                // catalog orientation before local adjustments.
+                // LinearRaw proxies use the approved header reader; like RAW
+                // originals they stay in the sensor frame (LR-8m).
                 let proxy_mask_extent =
                     if r.outcome == Outcome::OfflineProxy && mask_resolver.is_some() {
                         std::fs::File::open(&r.path)
@@ -1713,19 +1702,7 @@ impl LrcatImport {
                                     .ok()
                                     .flatten()
                             })
-                            .map(|meta| {
-                                let (w, h) = (meta.default_crop[2], meta.default_crop[3]);
-                                if image
-                                    .orientation
-                                    .as_deref()
-                                    .and_then(import_lrcat::orientation::exif)
-                                    .is_some_and(|o| o >= 5)
-                                {
-                                    (h, w)
-                                } else {
-                                    (w, h)
-                                }
-                            })
+                            .map(|meta| (meta.default_crop[2], meta.default_crop[3]))
                     } else {
                         None
                     };

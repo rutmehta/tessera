@@ -193,14 +193,8 @@ fn ready_masks(
             Some(*metadata),
         ),
     };
-    let (w, h) = if metadata
-        .and_then(|m| m.catalog_orientation)
-        .is_some_and(|o| o >= 5)
-    {
-        (h, w)
-    } else {
-        (w, h)
-    };
+    // Rasters live in the sensor frame for RAW and Smart Preview sources
+    // alike (LR-8m); segmentation sees the displayed orientation.
     let orientation = metadata.map_or(1, |m| m.orientation);
     // Validate all requests before loading (or downloading) any weights.
     let mut requests = Vec::new();

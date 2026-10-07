@@ -348,17 +348,9 @@ fn render_linear_impl(
             (out, metadata.default_crop, correction)
         }
     };
-    // Catalog edits are normalized in the oriented active frame. Sensor operations
-    // (CFA phase, masked margins, opcodes and calibration) have already completed.
-    let orientation = match source {
-        RenderSource::Cfa { metadata, .. } => metadata.catalog_orientation,
-        RenderSource::CameraLinear(proxy) => proxy.original_metadata().catalog_orientation,
-        RenderSource::Rgb(_) => None,
-    };
-    if let Some(orientation) = orientation {
-        rgb = crate::orient_image(&rgb.downsample_crop(crop, 1)?, orientation)?;
-        crop = [0, 0, rgb.width(), rgb.height()];
-    }
+    // Edits (crop, masks, Upright, lens) are normalized in the sensor active
+    // frame for every source, as for an ordinary RAW (LR-8m, A-LR8 M8). A
+    // catalog orientation is a display orientation: the caller applies it.
     // All channel alignment is complete before matrices/detail/tone.
     let analysis = rgb.downsample_crop(crop, 1)?;
     if let Some((plane, _)) = depth

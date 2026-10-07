@@ -160,7 +160,9 @@ impl Metadata {
             capture_time: self.capture_time,
             catalog_orientation: self.catalog_orientation,
             baseline_exposure: self.baseline_exposure,
-            orientation: self.orientation,
+            // A catalog orientation is the display orientation (LR-8m); entries
+            // written before that rule stored 1 beside it.
+            orientation: self.catalog_orientation.unwrap_or(self.orientation),
             width: self.width,
             height: self.height,
             black_levels: self.black_levels,
@@ -186,7 +188,7 @@ impl Metadata {
             || !m.baseline_exposure.is_finite()
             || !(1..=8).contains(&m.orientation)
             || m.catalog_orientation
-                .is_some_and(|o| !(1..=8).contains(&o) || m.orientation != 1)
+                .is_some_and(|o| !(1..=8).contains(&o) || m.orientation != o)
             || m.white_level == 0
             || ![m.iso, m.shutter_s, m.aperture, m.focal_mm]
                 .iter()

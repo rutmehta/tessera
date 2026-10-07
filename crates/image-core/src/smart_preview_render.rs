@@ -143,7 +143,10 @@ impl Renderer {
             .copied()
             .filter(|c| unique_seen.insert(*c))
             .collect();
-        if image.metadata().catalog_orientation.is_none_or(|o| o == 1)
+        // Only a Smart Preview has a resident proxy tail; a relinked original
+        // on this scalar route must never reach it.
+        if image.camera_linear_proxy().is_some()
+            && image.metadata().catalog_orientation.is_none_or(|o| o == 1)
             && let Some(rendered) =
                 self.try_camera_linear_resident(image, settings, &unique, output, cancel, None)?
         {
@@ -176,7 +179,7 @@ impl Renderer {
             {
                 cancel.check()?;
                 // This scalar route develops at full active resolution and only
-                // then reduces. External rasters use that same oriented L0 frame.
+                // then reduces. External rasters use that same sensor-frame L0 (LR-8m).
                 let mask =
                     self.mask_cache
                         .rasterize(input, group, 0, upstream, Default::default())?;

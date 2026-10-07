@@ -129,8 +129,10 @@ impl MetadataProvider for IndexedMetadata {
 
 impl MetadataProvider for EmbeddedMetadata {
     fn read(&self, path: &Path) -> EngineResult<Metadata> {
-        let oriented = catalog_orientation(path).is_some();
-        let presentation_orientation = |value: u16| if oriented { 1 } else { value };
+        // The catalog orientation replaces EXIF as the display orientation,
+        // exactly as EXIF is for an ordinary import (LR-8m).
+        let catalog = catalog_orientation(path);
+        let presentation_orientation = |value: u16| catalog.unwrap_or(value);
         if !image_core::RgbSource::recognizes(path) {
             // Native float LinearRaw is mosaic-free and cannot use decode_cfa.
             if path

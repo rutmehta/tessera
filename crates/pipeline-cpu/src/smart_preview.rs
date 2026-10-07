@@ -96,13 +96,15 @@ impl CameraLinearProxy {
             tier: SmartPreviewTier::Detail2560,
         })
     }
-    /// Use an absolute catalog orientation before masks/crop/Upright, overriding EXIF.
+    /// Use an absolute catalog orientation as the display orientation,
+    /// replacing (never composing with) EXIF. Edits stay in the sensor frame
+    /// and callers orient output exactly as for an ordinary RAW (LR-8m).
     pub fn with_catalog_orientation(mut self, orientation: u16) -> EngineResult<Self> {
         if !(1..=8).contains(&orientation) {
             return Err(EngineError::invalid("catalog orientation", "expected 1..8"));
         }
         self.metadata.catalog_orientation = Some(orientation);
-        self.metadata.orientation = 1;
+        self.metadata.orientation = orientation;
         Ok(self)
     }
     /// Bounded profile metadata captured with an external DNG's decoded pixels.
