@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Batch 50 and B lane reconciliation — 2026-10-07 09:54 UTC
+
+Replacement A coordinator published main `f151fe8d5b613a89446514073dddf6ee2a5cc193`, merging B5-21/25/49/49b-e keyboard Tab traversal, key safety and pinned-FKA checklist from `3e48a08b`. Merge presence is verified. B reports passing Swift gates at `b87c2811`; `/Volumes/betterSSD/tessera-validation/batch50` is absent, so this coordinator has not independently verified merged-tree gates or real-FKA GUI acceptance. Next: owning A coordinator supplies integration evidence; Codex A still awaits runtime/ownership handoff.
+
+B-owned candidates remain unmerged: LR-5d `d97fdf15` reports passing Rust/Swift gates; LR-11c restack `51a71f19` retains a workspace preview timing failure and passing serialized retry, with LR-5d rebase deferred. LR-CLEAN `df01e5ef` is blocked: preview latency fails both workspace and serialized retry; later final gates pending. LR-8R `94c55e95` is not merge-ready: Swift accessibility assertions fail for Smart Preview/copy-proxy identifiers; B requested a scope ruling. INT-1/LR-13c `199933c8` reports lazy cached cull hashing and passing synthetic/selected-crate gates; private-library improvement is unverified. Branch publication is not integration acceptance.
+
+Mailbox: zero new messages, 75 receipts, six previously reconciled in-progress entries, 16 expired, zero invalid. No receipt ACK, duplicate worker, build, merge or queue wakeup. Existing A candidates and evidence preserved.
+
 ## Batch 49 reconciliation — 2026-10-02 22:25 UTC
 
 Replacement A coordinator merged LR-9/9b/9c import-report no-op policy, cloud group and real-mask promotion at `ef376831190257e13134c2c726439506f1c60c08`. Independently inspected batch49/head.txt: exact merged main commit. Rust, Clippy, fmt, Swift gate, bindings drift and strict build exits all0, done. Swift934 tests/3skipped/0failures in209.083s, plus5 Swift Testing tests. This verifies recorded integration gates, not GUI or Adobe rendering acceptance. Codex A ownership/runtime handoff remains pending; mailbox unchanged, no duplicate workload or receipt ACK.
