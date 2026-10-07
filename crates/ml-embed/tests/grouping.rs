@@ -141,6 +141,7 @@ fn missing_vectors_use_real_jpeg_hashes_conservatively() {
     let strategy = EmbeddingGrouping::from_index(&RawVectors(vec![]), &ids).unwrap();
     session.set_grouping_strategy(Box::new(strategy));
     session.regroup(GroupingOptions::default()).unwrap();
+    settle(&mut session);
     assert_eq!(session.groups().len(), 1);
     let image = Jpeg
         .decode(&std::fs::read(&index.image_info(ids[2]).unwrap().path).unwrap())
@@ -152,6 +153,7 @@ fn missing_vectors_use_real_jpeg_hashes_conservatively() {
     )
     .unwrap();
     session.regroup(GroupingOptions::default()).unwrap();
+    settle(&mut session);
     assert_eq!(session.groups().len(), 2);
     assert_eq!(session.groups()[0].images, [ids[0], ids[1]]);
     assert_eq!(session.groups()[1].images, [ids[2]]);
@@ -188,6 +190,7 @@ fn fixtures() -> (tempfile::TempDir, Index) {
 fn real_cull_session_uses_snapshot_to_gate_jpeg_near_duplicates() {
     let (dir, index) = fixtures();
     let mut session = CullSession::open(&index, Query::default()).unwrap();
+    settle(&mut session);
     let ids = session.images().to_vec();
     assert_eq!(session.groups().len(), 1);
     let mut store = SqliteVectorIndex::open(dir.path(), "known-vectors", 2).unwrap();
@@ -200,6 +203,7 @@ fn real_cull_session_uses_snapshot_to_gate_jpeg_near_duplicates() {
     drop(store);
     session.set_grouping_strategy(Box::new(strategy));
     session.regroup(GroupingOptions::default()).unwrap();
+    settle(&mut session);
     assert_eq!(session.groups().len(), 2);
     assert_eq!(session.groups()[0].images, [ids[0], ids[1]]);
     assert_eq!(session.groups()[1].images, [ids[2]]);
@@ -209,5 +213,15 @@ fn real_cull_session_uses_snapshot_to_gate_jpeg_near_duplicates() {
             session.selection(id).unwrap().decision,
             cull::Decision::Undecided
         );
+    }
+}
+
+/// Near-duplicate hashing is deferred (LR-13c): finish it before checking groups.
+fn settle<I: std::ops::Deref<Target = Index>>(session: &mut CullSession<I>) {
+    let start = std::time::Instant::now();
+    while session.previews_pending() {
+        session.poll_previews().unwrap();
+        assert!(start.elapsed() < std::time::Duration::from_secs(10));
+        std::thread::yield_now();
     }
 }

@@ -40,6 +40,7 @@ fn computed_signals_drive_default_best_and_defect_review() {
         .unwrap()
         .sharpness;
     let mut session = CullSession::open(&index, Query::default()).unwrap();
+    settle(&mut session);
     assert_eq!(session.groups().len(), 1);
     let defects = session
         .defect_sweep(&[Threshold::below("sharpness", (low + high) / 2.)])
@@ -64,4 +65,14 @@ fn computed_signals_drive_default_best_and_defect_review() {
         ml_quality::QualityScorer::from_index(&index, &ids).unwrap(),
     ));
     assert_eq!(session.best_in_group(0).unwrap(), a);
+}
+
+/// Near-duplicate hashing is deferred (LR-13c): finish it before checking groups.
+fn settle<I: std::ops::Deref<Target = Index>>(session: &mut CullSession<I>) {
+    let start = std::time::Instant::now();
+    while session.previews_pending() {
+        session.poll_previews().unwrap();
+        assert!(start.elapsed() < std::time::Duration::from_secs(10));
+        std::thread::yield_now();
+    }
 }
