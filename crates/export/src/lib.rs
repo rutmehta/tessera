@@ -214,9 +214,7 @@ fn render_scaled_cpu(
     space: ColorSpace,
     scale: u32,
 ) -> EngineResult<image::Rgb32FImage> {
-    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
-        && matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
-    {
+    if is_adobe(recipe) {
         return encode_output_profile(adobe_float(image, recipe, scale)?, recipe, space);
     }
     if ai_masks::active(&recipe.settings) {
@@ -241,6 +239,30 @@ fn render_scaled_cpu(
     .pixels)
 }
 
+/// Recorded with every HDR export of an Adobe-process recipe and shown in
+/// Develop while its HDR toggle is on (REV-ENG-9 SF1): the compatibility
+/// pipeline is display-referred, so the HDR file holds an SDR rendition.
+pub const ADOBE_HDR_NOTICE: &str = "Lightroom-process edits render in standard dynamic range; \
+     this HDR file has no highlights above SDR white.";
+
+/// Develop draws every Adobe-process recipe (imported Lightroom edits) with
+/// the compatibility pipeline, whatever the source: RAW and RGB originals and
+/// Smart Preview proxies alike. Every output path follows it (ENG-9).
+fn is_adobe(recipe: &Recipe) -> bool {
+    recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
+}
+
+/// Outputs rendered by [`ai_masks::render_develop`], the renderer with
+/// Develop's local-mask, Lens Blur and retouch resources: every Adobe-process
+/// recipe, and external Smart Previews that need those resources.
+fn uses_develop_renderer(source: &RenderSource<'_>, recipe: &Recipe) -> bool {
+    is_adobe(recipe)
+        || (matches!(source, RenderSource::CameraLinear(p) if p.is_external_dng())
+            && (ai_masks::active(&recipe.settings)
+                || recipe.settings.effects.lens_blur.is_some()
+                || !recipe.settings.locals.retouch.is_empty()))
+}
+
 /// Enhancement input is tone-mapped linear Rec.2020, never encoded sRGB.
 fn adobe_float(
     image: &ExportImage<'_>,
@@ -260,9 +282,7 @@ fn adobe_float(
 }
 
 fn render_full_float(image: &ExportImage<'_>, recipe: &Recipe) -> EngineResult<image::Rgb32FImage> {
-    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
-        && matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
-    {
+    if is_adobe(recipe) {
         return adobe_float(image, recipe, 1);
     }
     if ai_masks::active(&recipe.settings) {
@@ -444,12 +464,8 @@ pub fn render_pixels_with_notes(
     if !matches!(render.scale, 1 | 2 | 4 | 8) {
         return Err(EngineError::invalid("scale", "must be 1, 2, 4 or 8"));
     }
-    let rgb = if matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
-        && (ai_masks::active(&recipe.settings)
-            || recipe.settings.effects.lens_blur.is_some()
-            || !recipe.settings.locals.retouch.is_empty())
-    {
-        let rgb = ai_masks::render_proxy(
+    let rgb = if uses_develop_renderer(&image.source, recipe) {
+        let rgb = ai_masks::render_develop(
             &image.source,
             recipe,
             render.scale,
@@ -810,7 +826,10 @@ pub fn render_one_cancellable(
     native.filter(settings, packet.as_ref())?;
     let needs_hooks = depth::active(&image.source, &recipe.settings);
     let mut warnings = proxy_warnings;
+    // Develop-renderer recipes (every Adobe-process recipe) never take the
+    // resident GPU path, which implements the current Native process only.
     let gpu_pixels = if settings.hdr.is_none()
+        && !uses_develop_renderer(&image.source, recipe)
         && !matches!(settings.format, Format::Dng)
         && upscale.is_none()
         && !needs_hooks
@@ -842,13 +861,9 @@ pub fn render_one_cancellable(
     let mut used_gpu = already_resized;
     let started = std::time::Instant::now();
     let rgb = if settings.hdr.is_some() {
-        hdr::render(image, recipe, settings, cancel)?
-    } else if (ai_masks::active(&recipe.settings)
-        || recipe.settings.effects.lens_blur.is_some()
-        || !recipe.settings.locals.retouch.is_empty())
-        && matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
-    {
-        let rgb = ai_masks::render_proxy(
+        hdr::render(image, recipe, settings, cancel, &mut warnings)?
+    } else if uses_develop_renderer(&image.source, recipe) {
+        let rgb = ai_masks::render_develop(
             &image.source,
             recipe,
             if upscale.is_some() {

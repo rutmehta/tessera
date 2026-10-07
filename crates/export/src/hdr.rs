@@ -50,6 +50,7 @@ pub(crate) fn render(
     recipe: &Recipe,
     settings: &ExportSettings,
     cancel: &CancellationToken,
+    warnings: &mut Vec<String>,
 ) -> EngineResult<image::Rgb32FImage> {
     let headroom = headroom(recipe, settings.hdr.expect("HDR render selected"))?;
     let mut develop = recipe.settings.clone();
@@ -57,16 +58,39 @@ pub(crate) fn render(
     develop.output.proof_profile = None;
     develop.output.hdr = false;
     develop.output.hdr_headroom_stops = 0.0;
-    let context = pipeline_cpu::LensContext {
-        retouch: settings.retouch.clone(),
-        ..Default::default()
+    // Adobe-process recipes: Develop's EDR viewport draws the compatibility
+    // pipeline's display-referred output, without the Native HDR sigmoid,
+    // gamut-mapped into [0, headroom] (ENG-9). Never the Native rendering.
+    let adobe = crate::is_adobe(recipe);
+    let scene = if adobe {
+        warnings.push(format!("Info: {}", crate::ADOBE_HDR_NOTICE));
+        let mut drawn = recipe.clone();
+        drawn.settings = develop.clone();
+        let rgb = crate::ai_masks::render_develop(
+            &image.source,
+            &drawn,
+            settings.render_scale,
+            None,
+            warnings,
+            settings.mask_support.as_deref(),
+            settings.retouch.clone(),
+        )?;
+        let planes = (0..3)
+            .map(|c| rgb.pixels().map(|p| p.0[c]).collect())
+            .collect();
+        pipeline_cpu::Image::new(rgb.width(), rgb.height(), planes)?
+    } else {
+        let context = pipeline_cpu::LensContext {
+            retouch: settings.retouch.clone(),
+            ..Default::default()
+        };
+        pipeline_cpu::render_linear_scaled_with_lens(
+            &develop,
+            &image.source,
+            settings.render_scale,
+            &context,
+        )?
     };
-    let scene = pipeline_cpu::render_linear_scaled_with_lens(
-        &develop,
-        &image.source,
-        settings.render_scale,
-        &context,
-    )?;
     let mut rgb = image::Rgb32FImage::new(scene.width(), scene.height());
     let a = pipeline_cpu::hdr_sigmoid_ln_a(headroom).exp();
     let p = pipeline_cpu::SigmoidSettings::default().contrast;
@@ -80,8 +104,14 @@ pub(crate) fn render(
         }
         let y = 0.2627 * v[0] + 0.6780 * v[1] + 0.0593 * v[2];
         let toned = if y > 0.0 {
-            let out = headroom / (1.0 + (a / y).powf(p));
-            let toned = v.map(|c| c * out / y);
+            // Adobe: no tone curve here (the pipeline is display-referred),
+            // so `out` is only the Perceptual grey point below.
+            let out = if adobe {
+                y.min(headroom)
+            } else {
+                headroom / (1.0 + (a / y).powf(p))
+            };
+            let toned = if adobe { v } else { v.map(|c| c * out / y) };
             if develop.output.gamut_mapping == engine_api::recipe::settings::GamutMapping::Clip {
                 toned.map(|c| c.clamp(0.0, headroom))
             } else {

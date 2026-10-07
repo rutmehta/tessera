@@ -2,7 +2,10 @@ use crate::{Image, RenderSource, Rgb8Image, basic_tone, dcp::DcpProfile};
 use engine_api::{
     EngineError, EngineResult,
     color::{ChromaticAdaptation, ColorMatrix3, WorkingSpace},
-    recipe::{DevelopSettings, settings::DisplayTransform},
+    recipe::{
+        DevelopSettings,
+        settings::{DisplayTransform, GamutMapping},
+    },
 };
 
 /// Full-resolution compatibility operators followed by linear-light area reduction.
@@ -53,6 +56,22 @@ pub fn render_linear_scaled_with_resources(
     profile: Option<&DcpProfile>,
     locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
     context: &pipeline_cpu::LensContext<'_>,
+) -> EngineResult<Image> {
+    render_linear_scaled_with_denoiser(settings, source, scale, profile, locals, context, None)
+}
+
+/// [`render_linear_scaled_with_resources`] with Develop's caller-owned
+/// post-demosaic denoiser, applied in the native preprocessing prefix exactly
+/// where the Develop renderer applies it (ENG-9: exports of RAW originals
+/// with neural denoise). `None` is that function unchanged.
+pub fn render_linear_scaled_with_denoiser(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    profile: Option<&DcpProfile>,
+    locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
+    context: &pipeline_cpu::LensContext<'_>,
+    denoiser: Option<&dyn pipeline_cpu::PostDemosaicDenoise>,
 ) -> EngineResult<Image> {
     let embedded;
     let profile = if profile.is_none() {
@@ -148,7 +167,8 @@ pub fn render_linear_scaled_with_resources(
     if let Some(metadata) = camera_metadata {
         crate::validate_baseline_exposure(metadata.baseline_exposure)?;
     }
-    let mut rgb = pipeline_cpu::render_linear_scaled_with_lens(&base, source, 1, context)?;
+    let mut rgb =
+        pipeline_cpu::render_linear_scaled_with_denoise(&base, source, 1, context, denoiser)?;
     if let (Some(profile), Some(metadata)) = (profile, camera_metadata) {
         let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
             metadata.cam_xyz[r].map(f64::from)
@@ -291,20 +311,21 @@ pub fn render_scaled_with_profile(
     profile: Option<&DcpProfile>,
 ) -> EngineResult<Rgb8Image> {
     let rgb = render_linear_scaled_with_profile(settings, source, scale, profile)?;
-    encode(&rgb)
+    encode(&rgb, settings.output.gamut_mapping)
 }
 
-fn encode(rgb: &Image) -> EngineResult<Rgb8Image> {
+/// The Adobe Output stage: linear sRGB under the recipe's gamut mapping
+/// (`pipeline_cpu::map_gamut`, Rec.2020 grey point), sRGB OETF, 8 bits.
+fn encode(rgb: &Image, gamut: GamutMapping) -> EngineResult<Rgb8Image> {
     let m = WorkingSpace::LinearSrgb.to_xyz().inverse()? * WorkingSpace::LinearRec2020.to_xyz();
     let mut output = Rgb8Image::new(rgb.width(), rgb.height());
     for (i, pixel) in output.pixels_mut().enumerate() {
-        let value = m.apply([
-            rgb.planes()[0][i] as f64,
-            rgb.planes()[1][i] as f64,
-            rgb.planes()[2][i] as f64,
-        ]);
+        let v: [f32; 3] = std::array::from_fn(|c| rgb.planes()[c][i]);
+        let y = 0.2627 * v[0] + 0.6780 * v[1] + 0.0593 * v[2];
+        let value = m.apply(v.map(f64::from)).map(|c| c as f32);
         *pixel = image::Rgb(
-            value.map(|v| (pipeline_cpu::srgb_oetf(v as f32).clamp(0., 1.) * 255.).round() as u8),
+            pipeline_cpu::map_gamut(value, y, gamut, 1.)
+                .map(|v| (pipeline_cpu::srgb_oetf(v).clamp(0., 1.) * 255.).round() as u8),
         );
     }
     Ok(output)

@@ -184,6 +184,46 @@ impl CpuStageOp {
             .collect();
         Tile::from_samples(input.coord(), input.layout(), samples)
     }
+
+    /// The Adobe-process Output stage (ENG-9). The compatibility tone curve is
+    /// already display-referred, so there is no native sigmoid: Rec.2020 ->
+    /// linear sRGB (the [`Self::display_linear`] matrix), then the recipe's
+    /// gamut mapping into `[0, peak]`, the same hue-preserving chroma
+    /// compression toward the pixel's luminance that the managed export
+    /// transform applies (`Clip` clamps each channel, exactly as before).
+    /// `headroom: None` is the SDR stage (8-bit sRGB, no dither, as before);
+    /// `Some(h)` is the EDR viewport's display-linear `F32` in `[0, h]`.
+    pub fn adobe_display(
+        mut input: Tile,
+        gamut: GamutMapping,
+        headroom: Option<f32>,
+    ) -> EngineResult<Tile> {
+        use engine_api::color::WorkingSpace;
+        let matrix =
+            WorkingSpace::LinearSrgb.to_xyz().inverse()? * WorkingSpace::LinearRec2020.to_xyz();
+        // The grey point is the working-space (Rec.2020) luminance, exactly
+        // as the managed export transform computes it before conversion.
+        let mut luminance = Vec::new();
+        pipeline_cpu::map_rgb(&mut input, |v| {
+            luminance.push(0.2627 * v[0] + 0.6780 * v[1] + 0.0593 * v[2]);
+            v
+        })?;
+        pipeline_cpu::apply_matrix(&mut input, matrix)?;
+        let peak = headroom.map_or(1., pipeline_cpu::sanitize_headroom);
+        let mut y = luminance.into_iter();
+        pipeline_cpu::map_rgb(&mut input, |v| {
+            pipeline_cpu::map_gamut(v, y.next().unwrap_or_default(), gamut, peak)
+        })?;
+        if headroom.is_some() {
+            return Ok(input);
+        }
+        let samples = input
+            .samples::<f32>()?
+            .iter()
+            .map(|v| (pipeline_cpu::srgb_oetf(*v).clamp(0., 1.) * 255.).round() as u8)
+            .collect();
+        Tile::from_samples(input.coord(), input.layout(), samples)
+    }
 }
 
 impl StageOp for CpuStageOp {

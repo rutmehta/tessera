@@ -247,21 +247,11 @@ impl Renderer {
             let mut tile = developed.tile(TileCoord::new(0, coord.x, coord.y), 0, 1)?;
             if let Some(op) = output.display_op(settings.output.gamut_mapping) {
                 tile = if self.is_adobe() {
-                    match output {
-                        RenderOutput::Display => CpuStageOp::display_linear(tile)?,
-                        RenderOutput::DisplayLinear(headroom) => {
-                            let matrix = engine_api::color::WorkingSpace::LinearSrgb
-                                .to_xyz()
-                                .inverse()?
-                                * engine_api::color::WorkingSpace::LinearRec2020.to_xyz();
-                            pipeline_cpu::apply_matrix(&mut tile, matrix)?;
-                            pipeline_cpu::map_rgb(&mut tile, |v| {
-                                v.map(|c| c.clamp(0., headroom.get()))
-                            })?;
-                            tile
-                        }
-                        RenderOutput::SceneLinear => unreachable!(),
-                    }
+                    // The same Adobe Output stage as originals (ENG-9).
+                    let Op::Display { gamut, headroom } = op else {
+                        unreachable!("display_op returns a Display op")
+                    };
+                    CpuStageOp::adobe_display(tile, gamut, headroom)?
                 } else {
                     CpuStageOp.run(StageId::Output, &op, tile)?
                 };

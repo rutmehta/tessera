@@ -219,3 +219,177 @@ fn lr2e_old_pv2010_requires_reimport_but_new_block_is_accepted() {
             .unwrap();
     }
 }
+
+/// ENG-9 gamut policy: the Adobe Output stage honours the recipe's gamut
+/// mapping (as export does) instead of always hard-clipping, and the EDR
+/// viewport (`DisplayLinear`) draws the same rendition unencoded.
+#[test]
+fn eng9_adobe_display_honours_gamut_mapping_and_draws_edr() {
+    use engine_api::recipe::settings::GamutMapping;
+    let image = synthetic(904, 40, 32, RGGB, [0, 0, 40, 32]);
+    let rect = PixelRect::full(image.level_extent(0));
+    let extent = image.level_extent(0);
+    let r = Renderer::new(RendererConfig {
+        process_version: ProcessVersion::adobe(6),
+        ..Default::default()
+    });
+    let m = engine_api::color::WorkingSpace::LinearSrgb
+        .to_xyz()
+        .inverse()
+        .unwrap()
+        * engine_api::color::WorkingSpace::LinearRec2020.to_xyz();
+    let mut shown = Vec::new();
+    for mapping in [GamutMapping::Perceptual, GamutMapping::Clip] {
+        let mut s = DevelopSettings::default();
+        s.color.saturation = 80.;
+        s.output.gamut_mapping = mapping;
+        let linear = assemble_f32(
+            extent,
+            &r.render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
+                .unwrap(),
+        );
+        let display = assemble_u8(extent, &r.render_region(&image, &s, 0, rect).unwrap());
+        let edr = assemble_f32(
+            extent,
+            &r.render_region_as(
+                &image,
+                &s,
+                0,
+                rect,
+                RenderOutput::DisplayLinear(image_core::Headroom::SDR),
+            )
+            .unwrap(),
+        );
+        let mut outside = 0;
+        for i in 0..linear[0].len() {
+            let v = m.apply([0, 1, 2].map(|c| f64::from(linear[c][i])));
+            let v = v.map(|c| c as f32);
+            outside += usize::from(v.iter().any(|c| !(0. ..=1.).contains(c)));
+            let expected = if mapping == GamutMapping::Clip {
+                v.map(|c| c.clamp(0., 1.))
+            } else {
+                // Grey point: working-space (Rec.2020) luminance, as export.
+                let grey = (0.2627 * linear[0][i] + 0.6780 * linear[1][i] + 0.0593 * linear[2][i])
+                    .clamp(0., 1.);
+                let mut chroma = 1f32;
+                for c in v {
+                    if c < 0. {
+                        chroma = chroma.min(-grey / (c - grey));
+                    }
+                    if c > 1. {
+                        chroma = chroma.min((1. - grey) / (c - grey));
+                    }
+                }
+                v.map(|c| (grey + chroma * (c - grey)).clamp(0., 1.))
+            };
+            for c in 0..3 {
+                let level = pipeline_cpu::srgb_oetf(expected[c]) * 255.;
+                let got = f32::from(display[i * 3 + c]);
+                assert!(
+                    (got - level).abs() <= 0.51,
+                    "{mapping:?} SDR pixel {i}: {got} vs {level}"
+                );
+                // The EDR frame is the SDR rendition unencoded: the same
+                // pre-Output tiles, so only the 8-bit rounding separates them.
+                let encoded = pipeline_cpu::srgb_oetf(edr[c][i]) * 255.;
+                assert!(
+                    (encoded - got).abs() <= 0.5 + 1e-3,
+                    "{mapping:?} EDR pixel {i}: {encoded} vs SDR {got}"
+                );
+                // The SceneLinear reference is a separate request whose
+                // memoized stage tiles are F16 (image-core cache docs): about
+                // 1e-4 relative, amplified by the chroma ratio near the boundary.
+                assert!(
+                    (edr[c][i] - expected[c]).abs() <= 2e-3,
+                    "{mapping:?} EDR pixel {i}: {} vs {}",
+                    edr[c][i],
+                    expected[c]
+                );
+            }
+        }
+        assert!(outside > 0, "fixture must leave sRGB");
+        shown.push(display);
+    }
+    assert_ne!(shown[0], shown[1], "Perceptual must differ from Clip");
+}
+
+/// ENG-9: the Adobe export path takes Develop's post-demosaic denoiser at
+/// the same point the Develop renderer applies it.
+#[test]
+fn eng9_adobe_denoise_matches_develop_renderer() {
+    struct Halve;
+    impl pipeline_cpu::PostDemosaicDenoise for Halve {
+        fn adapter_revision(&self) -> &str {
+            "eng9-halve-v1"
+        }
+        fn denoise(
+            &self,
+            input: &pipeline_cpu::Image,
+            _: f32,
+        ) -> engine_api::EngineResult<pipeline_cpu::Image> {
+            pipeline_cpu::Image::new(
+                input.width(),
+                input.height(),
+                input
+                    .planes()
+                    .iter()
+                    .map(|p| p.iter().map(|v| v * 0.5).collect())
+                    .collect(),
+            )
+        }
+    }
+    let image = synthetic(905, 40, 32, RGGB, [0, 0, 40, 32]);
+    let mut s = DevelopSettings::default();
+    s.tone.contrast = 20.;
+    s.denoise.method = engine_api::recipe::settings::DenoiseMethod::Neural {
+        model: engine_api::id::ModelRef {
+            id: pipeline_cpu::POST_DENOISE_MODEL_ID.into(),
+            version: pipeline_cpu::POST_DENOISE_VERSION.into(),
+        },
+        joint_demosaic: false,
+    };
+    let r = Renderer::new(RendererConfig {
+        process_version: ProcessVersion::adobe(6),
+        ..Default::default()
+    })
+    .with_post_demosaic_denoise(Arc::new(Halve));
+    let tiles = r
+        .render_region_as(
+            &image,
+            &s,
+            0,
+            PixelRect::full(image.level_extent(0)),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let got = assemble_f32(image.level_extent(0), &tiles);
+    let source = pipeline_cpu::RenderSource::Cfa {
+        image: image.cfa(),
+        metadata: image.metadata(),
+    };
+    let expected = pipeline_adobe::render_linear_scaled_with_denoiser(
+        &s,
+        &source,
+        1,
+        None,
+        None,
+        &Default::default(),
+        Some(&Halve),
+    )
+    .unwrap();
+    let mut off = s.clone();
+    off.denoise = Default::default();
+    let undenoised = pipeline_adobe::render_linear_scaled(&off, &source, 1).unwrap();
+    let mut changed = false;
+    for ((a, b), c) in got
+        .iter()
+        .flatten()
+        .zip(expected.planes().iter().flatten())
+        .zip(undenoised.planes().iter().flatten())
+    {
+        // Same tolerance as compat_matches_standalone_with_and_without_dcp.
+        assert!((a - b).abs() < 0.0001 * a.abs().max(1.), "{a} vs {b}");
+        changed |= (b - c).abs() > 0.01;
+    }
+    assert!(changed, "the denoiser must take effect");
+}

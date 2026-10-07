@@ -31,6 +31,29 @@ pub(crate) fn support() -> EngineResult<PathBuf> {
         })
 }
 
+/// The post-demosaic denoiser Develop injects for a RAW original whose
+/// recipe enables neural denoise; None otherwise (the shared model policy).
+pub(crate) fn denoiser(
+    source: &RenderSource<'_>,
+    settings: &DevelopSettings,
+    support: &Path,
+) -> EngineResult<Option<image_core::MlCfaDenoise>> {
+    if !(matches!(source, RenderSource::Cfa { .. })
+        && pipeline_cpu::denoise_active(&settings.denoise))
+    {
+        return Ok(None);
+    }
+    let DenoiseMethod::Neural { model, .. } = &settings.denoise.method else {
+        unreachable!("active neural denoise")
+    };
+    let registry = ml_runtime::ModelRegistry::from_support(support).map_err(crate::encode_error)?;
+    Ok(Some(image_core::MlCfaDenoise::automatic(
+        Arc::new(registry),
+        ml_runtime::SessionOptions::default(),
+        model.clone(),
+    )))
+}
+
 fn validate_provenance(settings: &DevelopSettings) -> EngineResult<()> {
     if let Some(model) = settings
         .effects
@@ -77,22 +100,7 @@ pub(crate) fn render(
     validate_provenance(settings)?;
     let mut settings = settings.clone();
     settings.output.proof_profile = None;
-    let adapter = if matches!(source, RenderSource::Cfa { .. })
-        && pipeline_cpu::denoise_active(&settings.denoise)
-    {
-        let DenoiseMethod::Neural { model, .. } = &settings.denoise.method else {
-            unreachable!("active neural denoise")
-        };
-        let registry =
-            ml_runtime::ModelRegistry::from_support(support).map_err(crate::encode_error)?;
-        Some(image_core::MlCfaDenoise::automatic(
-            Arc::new(registry),
-            ml_runtime::SessionOptions::default(),
-            model.clone(),
-        ))
-    } else {
-        None
-    };
+    let adapter = denoiser(source, &settings, support)?;
     let denoiser = adapter.as_ref().map(|a| a as &dyn PostDemosaicDenoise);
     let owned_depth;
     let provider = if settings
