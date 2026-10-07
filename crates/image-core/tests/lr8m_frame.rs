@@ -4,7 +4,6 @@
 //! ordinary RAW. The absolute catalog orientation replaces EXIF as the display
 //! orientation and is applied by the caller (host, thumbnail store, export),
 //! the same way as an ordinary import's EXIF orientation.
-#[allow(dead_code)]
 mod common;
 #[allow(dead_code)]
 #[path = "../../raw-decode/tests/support/mod.rs"]

@@ -2,7 +2,6 @@
 //! imported Smart Preview) uses the normal RAW path, including the resident
 //! GPU chain, exactly like an ordinary import with the same EXIF orientation.
 #[path = "../../image-core/tests/common/mod.rs"]
-#[allow(dead_code)]
 mod common;
 #[allow(dead_code)]
 #[path = "../../raw-decode/tests/support/mod.rs"]

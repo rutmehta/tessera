@@ -1,7 +1,6 @@
 //! LR-8m (A-LR8 M10): edits made on a 2560 px Smart Preview land in the same
 //! normalized place, with the same look, on the full-resolution original once
 //! it is relinked. Both carry the same absolute catalog orientation.
-#[allow(dead_code)]
 mod common;
 #[allow(dead_code)]
 #[path = "../../raw-decode/tests/support/mod.rs"]
