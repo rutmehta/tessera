@@ -104,7 +104,16 @@ public final class DevelopController {
     /// Settings not drawn by this pipeline version (kept in the recipe), as JSON pointers
     /// (`/geometry/upright/mode`). Refreshed on open, history moves and each recorded commit.
     public private(set) var ignoredSettings: [String] = []
-    public var renderNotices: [String] { (try? session.renderNotices()) ?? [] }
+    /// Proxy settings rendered without a dependency (user-facing sentences). Cached:
+    /// refreshed on open, history moves, commits, non-interactive settings flushes and
+    /// mask edits, never per frame, so frame delivery does not take the session lock.
+    public private(set) var renderNotices: [String] = []
+
+    /// Re-reads `renderNotices` from the session (one locked FFI call).
+    public func refreshRenderNotices() {
+        guard !closed else { return }
+        renderNotices = (try? session.renderNotices()) ?? []
+    }
 
     /// Whether the loupe skips any setting under `prefix` (e.g. `/geometry/transform`).
     public func ignores(_ prefix: String) -> Bool { ignoredSettings.contains { $0.hasPrefix(prefix) } }
@@ -506,7 +515,12 @@ public final class DevelopController {
     public func flushPending() -> Bool {
         guard !closing, !closed else { return false }
         let masks = flushMaskPendingResult(allowClosing: false)
+        let interactive = pendingInteractive
         let settings = flushSettingsPendingResult()
+        if (masks.attempted && masks.error == nil)
+            || (settings.attempted && settings.error == nil && !interactive) {
+            refreshRenderNotices()
+        }
         return masks.attempted || settings.attempted
     }
 
@@ -586,7 +600,10 @@ public final class DevelopController {
         guard admitsMutation() else { return false }
         flushPending()
         let recorded = (try? session.commit(label: label)) ?? false
-        if recorded { ignoredSettings = (try? session.ignoredSettings()) ?? ignoredSettings }
+        if recorded {
+            ignoredSettings = (try? session.ignoredSettings()) ?? ignoredSettings
+            refreshRenderNotices()
+        }
         refreshHistory()
         return recorded
     }
@@ -689,6 +706,7 @@ public final class DevelopController {
         let json = try session.getSettingsJson()
         settings = (try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]) ?? [:]
         ignoredSettings = (try? session.ignoredSettings()) ?? []
+        refreshRenderNotices()
         refreshHistory()
         syncPresentation()
         onSettingsReloaded?()

@@ -93,11 +93,8 @@ struct ContentView: View {
                             if model.focusedItem?.engineImage?.lightroomSmartPreview == true {
                                 VStack {
                                     HStack {
-                                        Text("Smart Preview").font(Theme.Fonts.caption)
-                                            .padding(Theme.Space.s)
-                                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.chip))
-                                            .accessibilityIdentifier("loupe.smart-preview-badge")
-                                            .accessibilityLabel("Smart Preview, original offline")
+                                        SmartPreviewLoupeBadge(
+                                            notices: model.developRenderNotices(for: model.focusedItem))
                                         Spacer()
                                     }
                                     Spacer()
