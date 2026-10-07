@@ -253,7 +253,16 @@ fn correction(n: Node<'_, '_>) -> Option<()> {
                 if inactive_overlay && v.parse::<f64>().ok()?.is_finite() => {}
             ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
                 if v.parse::<f64>().ok()? == 0.0 => {}
-            ("LocalDefringe", Field::Scalar(v)) if v.parse::<f64>().ok()? != 0.0 => return None,
+            ("LocalDefringe", Field::Scalar(v))
+                if (-100.0..=100.0).contains(&v.parse::<f64>().ok()?) => {}
+            ("LocalToningHue" | "LocalToningSaturation", Field::Scalar(v))
+                if v.parse::<f64>().ok()?.is_finite() => {}
+            (
+                "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve"
+                | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve"
+                | "LocalPointColors",
+                Field::Structure(_),
+            ) => (),
             ("CorrectionMasks", Field::Structure(n)) => {
                 for n in sequence(n)? {
                     component(n)?;
@@ -296,6 +305,7 @@ pub(crate) fn audited_approximation(root: Node<'_, '_>) -> bool {
     // flat shapes (the 29c baseline), even though their geometry already maps.
     let new_shape = root.descendants().any(|n| {
         n.attribute((CRS,"What")).or_else(|| n.has_tag_name((CRS,"What")).then(|| n.text()).flatten()).is_some_and(|what| matches!(what, "Mask/Image" | "Mask/Subject" | "Mask/Sky" | "Mask/Background" | "Mask/People" | "Mask/Person" | "Mask/Object")) || [
+            "MainCurve", "RedCurve", "GreenCurve", "BlueCurve", "ExtendedMainCurve", "ExtendedRedCurve", "ExtendedGreenCurve", "ExtendedBlueCurve",
             "MaskType",
             "MaskDigest",
             "Dabs",
@@ -315,6 +325,10 @@ pub(crate) fn audited_approximation(root: Node<'_, '_>) -> bool {
         ]
         .iter()
         .any(|key| n.has_tag_name((CRS, *key)) || n.attribute((CRS, *key)).is_some())
+            || n.has_tag_name((CRS,"LocalPointColors")) && sequence(n).is_some_and(|items| items.iter().any(|item| {
+                item.children().any(|n|n.is_element()) || item.attributes().len()!=0 || item.text().is_some_and(|s| !s.trim().is_empty() && !s.split(',').all(|v|v.trim().parse::<f64>()==Ok(-1.)))
+            }))
+            || n.attribute((CRS,"LocalDefringe")).or_else(|| n.has_tag_name((CRS,"LocalDefringe")).then(||n.text()).flatten()).is_some_and(|s|s.parse::<f64>().is_ok_and(|v| v!=0.))
             // Neutral MaskValue=1 was already present in legacy flat shapes.
             // Accept it in the audit, but do not change their retained envelope
             // solely because that no-op metadata is present.
@@ -397,12 +411,141 @@ pub(crate) fn renderable(groups: &[engine_api::recipe::LocalAdjustment]) -> bool
     })
 }
 
+/// Stable group ids of the source groups, in source order, by the shared
+/// codec's rule (`sidecar::assign_mask_group_ids`). `None` if a native id is
+/// malformed or repeated; no group is then paired with a source.
+fn source_group_ids(groups: &[Node<'_, '_>]) -> Option<Vec<u64>> {
+    let native = groups
+        .iter()
+        .map(|group| {
+            let resource = group
+                .children()
+                .find(|c| c.has_tag_name((RDF, "Description")))
+                .unwrap_or(*group);
+            let mut ids = resource
+                .children()
+                .filter(|c| c.has_tag_name((engine_api::recipe::crs::TS_NAMESPACE, "LocalId")));
+            match (ids.next(), ids.next()) {
+                (None, _) => Some(None),
+                (Some(id), None) => id.text()?.trim().parse::<u64>().ok().map(Some),
+                _ => None,
+            }
+        })
+        .collect::<Option<Vec<_>>>()?;
+    sidecar::assign_mask_group_ids(&native)
+}
+
 /// Machine A's approximation contract. This envelope is informational only:
 /// it is never copied into ImportedImage warnings or the unsupported UI count.
 pub(crate) fn record_approximation_diagnostics(
     recipe: &mut engine_api::recipe::Recipe,
     root: Node<'_, '_>,
 ) {
+    let mut extra_notes = Vec::new();
+    // Pair each recipe group with its source group by the codec's stable group
+    // id. Position is not an identity: a group whose id has no source group
+    // gets no source-keyed note.
+    let source_groups = sequence(root).unwrap_or_default();
+    let source_ids = source_group_ids(&source_groups);
+    for (i, g) in recipe.settings.locals.adjustments.iter().enumerate() {
+        let p = &g.params;
+        let source_fields = source_ids
+            .as_ref()
+            .and_then(|ids| ids.iter().position(|id| *id == u64::from(g.id.0)))
+            .and_then(|j| fields(source_groups[j]));
+        let has_source = |key: &str| source_fields.as_ref().is_some_and(|f| f.contains_key(key));
+        for (present, key, field, reason) in [
+            (
+                p.curves.is_some() && has_source("MainCurve"),
+                "MainCurve",
+                "curves",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves_extended.is_some() && has_source("ExtendedMainCurve"),
+                "ExtendedMainCurve",
+                "curves_extended",
+                "local extended point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves.is_some() && has_source("RedCurve"),
+                "RedCurve",
+                "curves",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves.is_some() && has_source("GreenCurve"),
+                "GreenCurve",
+                "curves",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves.is_some() && has_source("BlueCurve"),
+                "BlueCurve",
+                "curves",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves_extended.is_some() && has_source("ExtendedRedCurve"),
+                "ExtendedRedCurve",
+                "curves_extended",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves_extended.is_some() && has_source("ExtendedGreenCurve"),
+                "ExtendedGreenCurve",
+                "curves_extended",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.curves_extended.is_some() && has_source("ExtendedBlueCurve"),
+                "ExtendedBlueCurve",
+                "curves_extended",
+                "local point curves use Tessera spline interpolation",
+            ),
+            (
+                p.color_overlay.is_some() && has_source("LocalToningHue"),
+                "LocalToningHue",
+                "color_overlay",
+                "local tint blends a luminance-preserving hue at the requested saturation",
+            ),
+            (
+                p.point_colors.is_some() && has_source("LocalPointColors"),
+                "LocalPointColors",
+                "point_colors",
+                "local Point Color uses the shared HSL operator before monochrome",
+            ),
+            (
+                p.color_overlay.is_some() && has_source("LocalToningSaturation"),
+                "LocalToningSaturation",
+                "color_overlay",
+                "local tint blends a luminance-preserving hue at the requested saturation",
+            ),
+            (
+                p.defringe > 0. && has_source("LocalDefringe"),
+                "LocalDefringe",
+                "defringe",
+                "local defringe uses Tessera edge-selective purple and green suppression",
+            ),
+            (
+                p.defringe < 0. && has_source("LocalDefringe"),
+                "LocalDefringe",
+                "defringe",
+                "negative local defringe protects the area from global defringe; that protection is not rendered and no local defringe is added",
+            ),
+        ] {
+            if present {
+                extra_notes.push((
+                    format!("MaskGroupBasedCorrections/{key}"),
+                    format!("/settings/locals/adjustments/{i}/params/{field}"),
+                    reason,
+                ));
+            }
+        }
+    }
+    for (key, path, reason) in extra_notes {
+        crate::diagnostics::push_approximate(recipe, &key, &path, "LR-11", reason);
+    }
     let mut categories = Vec::new();
     let mut stack: Vec<_> = recipe
         .settings
@@ -670,19 +813,11 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
             .map(|a| a.name())
             .chain((n.tag_name().namespace() == Some(CRS)).then_some(n.tag_name().name()))
         {
-            if let Some(reason) = match name {
-                "MainCurve" | "RedCurve" | "GreenCurve" | "BlueCurve" | "ExtendedMainCurve"
-                | "ExtendedRedCurve" | "ExtendedGreenCurve" | "ExtendedBlueCurve" => {
-                    Some("local tone curve rendering is not implemented")
-                }
-                "LocalPointColors" => Some("local point-color selection is not implemented"),
-
-                "InstanceBounds" | "InstanceIDs" => {
-                    Some("individual AI instance selection is not implemented")
-                }
-                _ => None,
-            } {
-                reasons.insert(reason);
+            // Presence alone blocks the group: an instance selection is never
+            // widened to the whole object. Local operators are rendered, so
+            // they are named by `decoder_reason` only when they fail to decode.
+            if matches!(name, "InstanceBounds" | "InstanceIDs") {
+                reasons.insert(INSTANCE_REASON);
             }
         }
         if let Some(f) = fields(n) {
@@ -721,24 +856,6 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
                     reasons.insert("local color-variance adjustment is not implemented");
                 }
             }
-            for (key, label) in [
-                (
-                    "LocalDefringe",
-                    "local defringe rendering is not implemented",
-                ),
-                (
-                    "LocalToningSaturation",
-                    "local color overlay rendering is not implemented",
-                ),
-            ] {
-                if f.get(key)
-                    .and_then(Field::scalar)
-                    .and_then(|v| v.parse::<f64>().ok())
-                    .is_some_and(|v| v != 0.)
-                {
-                    reasons.insert(label);
-                }
-            }
         }
     }
     if reasons.is_empty() {
@@ -747,12 +864,43 @@ pub(crate) fn unsupported_reason(root: Node<'_, '_>) -> String {
     reasons.into_iter().collect::<Vec<_>>().join("; ")
 }
 
+const INSTANCE_REASON: &str = "individual AI instance selection is not implemented";
+
+/// Refine the static reason with what the shared decoder actually rejected.
 pub(crate) fn decoder_reason(reason: String, warning: &str) -> String {
+    // The decoder stops at the first failure, so these name the real blocker
+    // even when the group also carries other retained content.
+    for (needle, label) in [
+        (
+            "radial Flipped conflicts",
+            "radial mask inversion flags conflict",
+        ),
+        ("individual AI instance selection", INSTANCE_REASON),
+        (
+            "local curve:",
+            "local tone curve encoding cannot be decoded",
+        ),
+        (
+            "local point colours:",
+            "local point-color encoding cannot be decoded",
+        ),
+        (
+            "invalid local defringe",
+            "local defringe value is outside the supported range",
+        ),
+        (
+            "invalid local colour overlay",
+            "local color overlay encoding cannot be decoded",
+        ),
+    ] {
+        if warning.contains(needle) {
+            return label.into();
+        }
+    }
     if reason != "mask geometry, blend mode or selection encoding cannot be rendered" {
         return reason;
     }
     for (needle, label) in [
-        ("radial Flipped", "radial mask inversion flags conflict"),
         (
             "unknown Adobe AI mask subtype",
             "unrecognized AI selection subtype",
@@ -805,4 +953,164 @@ pub(crate) fn decoder_reason(reason: String, warning: &str) -> String {
         }
     }
     reason
+}
+
+#[cfg(test)]
+mod lr11b_tests {
+    use super::*;
+    use engine_api::id::MaskId;
+    use engine_api::recipe::{LocalAdjustment, Recipe};
+
+    const TS: &str = engine_api::recipe::crs::TS_NAMESPACE;
+
+    fn curve(name: &str) -> String {
+        format!(
+            "<crs:{name}><rdf:Seq><rdf:li>0,0</rdf:li><rdf:li>255,127.5</rdf:li></rdf:Seq></crs:{name}>"
+        )
+    }
+
+    fn document(groups: &[String]) -> String {
+        let items: String = groups
+            .iter()
+            .map(|g| format!("<rdf:li rdf:parseType=\"Resource\">{g}</rdf:li>"))
+            .collect();
+        format!(
+            "<crs:MaskGroupBasedCorrections xmlns:crs=\"{CRS}\" xmlns:rdf=\"{RDF}\" xmlns:ts=\"{TS}\"><rdf:Seq>{items}</rdf:Seq></crs:MaskGroupBasedCorrections>"
+        )
+    }
+
+    fn group(id: u32) -> LocalAdjustment {
+        let mut g = LocalAdjustment {
+            id: MaskId(id),
+            ..Default::default()
+        };
+        g.params.curves = Some(Default::default());
+        g
+    }
+
+    fn noted(recipe: &Recipe, key: &str) -> Vec<String> {
+        crate::diagnostics::entries(recipe)
+            .get(&format!("MaskGroupBasedCorrections/{key}"))
+            .into_iter()
+            .flatten()
+            .filter(|e| e.lane == "LR-11")
+            .filter_map(|e| e.field.clone())
+            .collect()
+    }
+
+    /// S8: a recipe group is matched to its source group by the codec's stable
+    /// group id, not by its position in the recipe.
+    #[test]
+    fn s8_groups_match_their_source_by_stable_id_not_index() {
+        // Source order: id 0 carries MainCurve, id 1 carries RedCurve.
+        let xml = document(&[curve("MainCurve"), curve("RedCurve")]);
+        let doc = roxmltree::Document::parse(&xml).unwrap();
+        let mut recipe = Recipe::default();
+        // The recipe lists the same two groups in the opposite order.
+        recipe.settings.locals.adjustments = vec![group(1), group(0)];
+        record_approximation_diagnostics(&mut recipe, doc.root_element());
+        assert_eq!(
+            noted(&recipe, "MainCurve"),
+            ["/settings/locals/adjustments/1/params/curves"]
+        );
+        assert_eq!(
+            noted(&recipe, "RedCurve"),
+            ["/settings/locals/adjustments/0/params/curves"]
+        );
+    }
+
+    /// S8: a recipe group whose id has no source group gets no source-keyed
+    /// note (fail closed), and the remaining group still finds its own source.
+    #[test]
+    fn s8_group_without_a_source_id_gets_no_source_keyed_note() {
+        let xml = document(&[curve("MainCurve"), curve("RedCurve")]);
+        let doc = roxmltree::Document::parse(&xml).unwrap();
+        let mut recipe = Recipe::default();
+        recipe.settings.locals.adjustments = vec![group(7), group(1)];
+        record_approximation_diagnostics(&mut recipe, doc.root_element());
+        assert!(noted(&recipe, "MainCurve").is_empty());
+        assert_eq!(
+            noted(&recipe, "RedCurve"),
+            ["/settings/locals/adjustments/1/params/curves"]
+        );
+    }
+
+    /// Every source-keyed operator must follow its own source id and key,
+    /// including both signs of defringe and recipes with unmatched ids.
+    #[test]
+    fn s8_non_curve_notes_require_the_matching_source_key() {
+        for (key, field) in [
+            ("LocalPointColors", "point_colors"),
+            ("LocalToningHue", "color_overlay"),
+            ("LocalToningSaturation", "color_overlay"),
+            ("LocalDefringe", "defringe"),
+        ] {
+            for defringe in [-50., 50.] {
+                let xml = document(&[format!("<crs:{key}>1</crs:{key}>"), curve("RedCurve")]);
+                let doc = roxmltree::Document::parse(&xml).unwrap();
+                for (ids, expected) in [
+                    (
+                        [1, 0],
+                        vec![format!("/settings/locals/adjustments/1/params/{field}")],
+                    ),
+                    ([7, 1], vec![]),
+                ] {
+                    let mut recipe = Recipe::default();
+                    recipe.settings.locals.adjustments = ids
+                        .into_iter()
+                        .map(|id| {
+                            let mut g = group(id);
+                            g.params.point_colors = Some(Default::default());
+                            g.params.color_overlay = Some(Default::default());
+                            g.params.defringe = defringe;
+                            g
+                        })
+                        .collect();
+                    record_approximation_diagnostics(&mut recipe, doc.root_element());
+                    assert_eq!(
+                        noted(&recipe, key),
+                        expected,
+                        "{key}, ids={ids:?}, defringe={defringe}"
+                    );
+                    for absent in [
+                        "LocalPointColors",
+                        "LocalToningHue",
+                        "LocalToningSaturation",
+                        "LocalDefringe",
+                    ] {
+                        if absent != key {
+                            assert!(
+                                noted(&recipe, absent).is_empty(),
+                                "absent key {absent}, source key {key}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// S8: the id rule is the shared codec's: foreign groups take the lowest
+    /// ids that no native `ts:LocalId` in the packet uses, in source order.
+    #[test]
+    fn s8_foreign_group_ids_skip_native_ids() {
+        let native = format!(
+            "<ts:LocalId ts:type=\"number\">0</ts:LocalId>{}",
+            curve("BlueCurve")
+        );
+        let xml = document(&[curve("MainCurve"), native, curve("RedCurve")]);
+        let doc = roxmltree::Document::parse(&xml).unwrap();
+        let mut recipe = Recipe::default();
+        // Codec ids in source order are 1, 0 (native), 2.
+        recipe.settings.locals.adjustments = vec![group(1), group(0), group(2)];
+        record_approximation_diagnostics(&mut recipe, doc.root_element());
+        assert_eq!(
+            noted(&recipe, "MainCurve"),
+            ["/settings/locals/adjustments/0/params/curves"]
+        );
+        assert_eq!(
+            noted(&recipe, "RedCurve"),
+            ["/settings/locals/adjustments/2/params/curves"]
+        );
+    }
 }

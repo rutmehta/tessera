@@ -35,6 +35,11 @@ fn supported_settings(s: &DevelopSettings) -> EngineResult<bool> {
             .locals
             .adjustments
             .iter()
+            .any(|g| g.enabled && (g.requires_cpu()))
+        && !s
+            .locals
+            .adjustments
+            .iter()
             .filter(|g| g.enabled)
             .flat_map(|g| &g.components)
             .filter(|c| c.enabled)

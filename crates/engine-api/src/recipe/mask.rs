@@ -4,6 +4,7 @@
 //! components record the model that produced them; cached rasters live in
 //! `.edits/<image>/masks/` and are regenerable, keyed by the component hash.
 
+use super::settings::{PointColor, ToneCurves};
 use serde::{Deserialize, Serialize};
 
 use super::settings::NormalizedRect;
@@ -322,6 +323,18 @@ impl MaskComponent {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LocalParams {
+    /// Per-mask point curves, in the same normalized domain as global curves.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub curves: Option<ToneCurves>,
+    /// HDR-domain curves; when present they replace the ordinary curves, like
+    /// the global `tone.curves_extended`. Adobe import fills this only for HDR
+    /// output, a non-legacy process and non-identity points.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub curves_extended: Option<ToneCurves>,
+    /// Point Color selection. One stage in every mode: after basic tone and
+    /// before monochrome conversion and the global point curves.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub point_colors: Option<Vec<PointColor>>,
     /// Exposure, EV.
     pub exposure: f32,
     /// Contrast.
@@ -354,10 +367,22 @@ pub struct LocalParams {
     pub noise: f32,
     /// Moiré reduction.
     pub moire: f32,
-    /// Defringe.
+    /// Defringe, `-100..=100` like Adobe. Positive adds local defringe; a
+    /// negative value (protection from global defringe) is kept but not rendered.
     pub defringe: f32,
     /// Colour overlay `[hue°, saturation]`, if any.
     pub color_overlay: Option<[f32; 2]>,
+}
+
+impl LocalParams {
+    /// These operators require the CPU path until resident kernels exist.
+    pub fn requires_cpu(&self) -> bool {
+        self.curves.is_some()
+            || self.curves_extended.is_some()
+            || self.point_colors.is_some()
+            || self.color_overlay.is_some()
+            || self.defringe != 0.
+    }
 }
 
 /// A mask plus the adjustment applied through it.
@@ -381,6 +406,11 @@ pub struct LocalAdjustment {
 }
 
 impl LocalAdjustment {
+    /// CPU-only local operators.
+    pub fn requires_cpu(&self) -> bool {
+        self.params.requires_cpu()
+    }
+
     /// Bound recursive render work before allocating per-level alpha planes.
     /// Includes disabled nodes so toggling cannot bypass structural limits.
     pub fn validate_mask_tree(&self) -> crate::EngineResult<()> {

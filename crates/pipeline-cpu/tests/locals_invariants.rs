@@ -100,11 +100,16 @@ fn invalid_controls_and_blend_layouts_reject() {
             ..Default::default()
         },
         LocalParams {
-            defringe: 1.,
+            // LR-11b S9: -100..=100 is valid; only values beyond it reject.
+            defringe: -100.5,
             ..Default::default()
         },
         LocalParams {
-            color_overlay: Some([0., 50.]),
+            defringe: 100.5,
+            ..Default::default()
+        },
+        LocalParams {
+            color_overlay: Some([0., 101.]),
             ..Default::default()
         },
     ] {

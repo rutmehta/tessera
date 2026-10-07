@@ -190,6 +190,11 @@ pub(super) fn export_masks(v: &Value) -> EngineResult<String> {
             b += &scalar("crs:LocalToningHue", &a[0]);
             b += &scalar("crs:LocalToningSaturation", &a[1]);
         }
+        for key in ["curves", "curves_extended", "point_colors"] {
+            if !v["params"][key].is_null() {
+                b += &native(&format!("ts:{key}"), &v["params"][key]);
+            }
+        }
         let mut components = String::new();
         for c in v["components"]
             .as_array()
@@ -325,37 +330,55 @@ fn export_component(c: &Value) -> EngineResult<String> {
     Ok(b)
 }
 
+/// The stable `LocalAdjustment::id` of every mask group in one packet, in
+/// source order. A native `ts:LocalId` is kept; every other group takes the
+/// lowest id that no native group and no earlier group uses. `None` when a
+/// native id repeats or the id space is exhausted. Callers that need to pair a
+/// recipe group with its source group use this rule, never the group's index.
+pub fn assign_local_ids(native: &[Option<u64>]) -> Option<Vec<u64>> {
+    let mut used = std::collections::BTreeSet::new();
+    for id in native.iter().flatten() {
+        if !used.insert(*id) {
+            return None;
+        }
+    }
+    let mut next = 0u64;
+    native
+        .iter()
+        .map(|id| match id {
+            Some(id) => Some(*id),
+            None => {
+                while used.contains(&next) {
+                    next = next.checked_add(1)?;
+                }
+                used.insert(next);
+                Some(next)
+            }
+        })
+        .collect()
+}
+
 pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<Value> {
     let Some(Property::Node(root)) = t.property(CRS, "MaskGroupBasedCorrections") else {
         return Err(error("masks require a sequence"));
     };
     let mut locals = Vec::new();
-    let mut used = std::collections::BTreeSet::new();
-    // Reserve native IDs before assigning IDs to foreign corrections.
+    let mut native_ids = Vec::new();
     for n in t.items(root) {
-        if let Some(id) = extension(t, n, "LocalId")? {
-            let id = id.as_u64().ok_or_else(|| error("invalid local id"))?;
-            if !used.insert(id) {
-                return Err(error("duplicate local id"));
-            }
-        }
+        native_ids.push(match extension(t, n, "LocalId")? {
+            Some(id) => Some(id.as_u64().ok_or_else(|| error("invalid local id"))?),
+            None => None,
+        });
     }
-    let mut next = 0u64;
-    for n in t.items(root) {
+    let mut seen = std::collections::BTreeSet::new();
+    if native_ids.iter().flatten().any(|id| !seen.insert(*id)) {
+        return Err(error("duplicate local id"));
+    }
+    let ids = assign_local_ids(&native_ids).ok_or_else(|| error("mask id overflow"))?;
+    for (n, (id, native_id)) in t.items(root).into_iter().zip(ids.iter().zip(&native_ids)) {
         let mut v = serde_json::to_value(LocalAdjustment::default())?;
-        let native_id = extension(t, n, "LocalId")?;
         let native_local = native_id.is_some();
-        v["id"] = if let Some(id) = native_id {
-            id
-        } else {
-            while used.contains(&next) {
-                next = next
-                    .checked_add(1)
-                    .ok_or_else(|| error("mask id overflow"))?;
-            }
-            used.insert(next);
-            json!(next)
-        };
+        v["id"] = json!(id);
         v["name"] = json!(get(t, n, CRS, "CorrectionName").unwrap_or_default());
         v["enabled"] = json!(flag(get(t, n, CRS, "CorrectionActive"), true)?);
         v["amount"] = json!(num(t, n, "CorrectionAmount", 1.0)? * 100.0);
@@ -378,6 +401,25 @@ pub(super) fn import_masks(t: &Tree, foreign_extensions: bool) -> EngineResult<V
             // Adobe's inactive zero controls still keep the prior None shape.
             if native_local || !foreign_extensions || overlay[1] != 0. {
                 v["params"]["color_overlay"] = json!(overlay);
+            }
+        }
+        // Adobe's local defringe is signed: -100..=100.
+        if !(-100.0..=100.0).contains(&v["params"]["defringe"].as_f64().unwrap_or(f64::NAN)) {
+            return Err(error("invalid local defringe"));
+        }
+        if let Some(a) = v["params"]["color_overlay"].as_array()
+            && (!(0.0..=360.0).contains(&a[0].as_f64().unwrap_or(f64::NAN))
+                || !(0.0..=100.0).contains(&a[1].as_f64().unwrap_or(f64::NAN)))
+        {
+            return Err(error("invalid local colour overlay"));
+        }
+        import_local_curves(t, n, &mut v["params"])
+            .map_err(|e| error(format!("local curve: {e}")))?;
+        import_local_point_colors(t, n, &mut v["params"])
+            .map_err(|e| error(format!("local point colours: {e}")))?;
+        for field in ["curves", "curves_extended", "point_colors"] {
+            if let Some(native) = extension(t, n, field)? {
+                v["params"][field] = native;
             }
         }
         let mut components = Vec::new();
@@ -407,6 +449,14 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
             return Err(error("mask tree exceeds 8 levels"));
         }
         parent = t.nodes[i].parent;
+    }
+    // An individual instance selection is never widened to the whole object
+    // or subject: the group stays unsupported and its source is retained.
+    if ["InstanceIDs", "InstanceBounds"]
+        .iter()
+        .any(|key| get(t, n, CRS, key).is_some())
+    {
+        return Err(error("individual AI instance selection is not supported"));
     }
     let what = get(t, n, CRS, "What").unwrap_or_default();
     let native_kind = extension(t, n, "kind")?;
@@ -561,7 +611,7 @@ fn import_component(t: &Tree, n: &Node, foreign_extensions: bool) -> EngineResul
                 if get(t, n, CRS, "MaskInverted").is_some()
                     && flag(get(t, n, CRS, "MaskInverted"), false)? != inverted
                 {
-                    return Err(error("radial Flipped semantics retained in XMP"));
+                    return Err(error("radial Flipped conflicts with MaskInverted"));
                 }
             }
         }
@@ -886,4 +936,86 @@ fn srgb_to_oklab(rgb: [f64; 3]) -> [f64; 3] {
         1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
         0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
     ]
+}
+
+// LR-11: reuse the global point-colour grammar and curve representation.
+//
+// Adobe extended (HDR-domain) local curves follow the global rule: they are
+// translated only when the packet selects HDR output, and an identity channel
+// never replaces the ordinary one. Otherwise the source is provenance only and
+// the ordinary local curve renders. They are validated either way.
+fn import_local_curves(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<()> {
+    let hdr = flag(t.value(CRS, "HDREditMode"), false).unwrap_or(false);
+    for (prefix, field) in [("", "curves"), ("Extended", "curves_extended")] {
+        let mut curves = if prefix == "Extended" && !params["curves"].is_null() {
+            params["curves"].clone()
+        } else {
+            serde_json::to_value(engine_api::recipe::settings::ToneCurves::default())?
+        };
+        let mut present = false;
+        for (name, channel) in [
+            ("MainCurve", "rgb"),
+            ("RedCurve", "red"),
+            ("GreenCurve", "green"),
+            ("BlueCurve", "blue"),
+        ] {
+            if let Some(curve) = child(t, n, CRS, &format!("{prefix}{name}")) {
+                super::structures::point_colors::validate_list(t, curve)?;
+                let mut points = Vec::new();
+                for item in t.items(curve) {
+                    if !item.children.is_empty() || !item.attrs.is_empty() {
+                        return Err(error("unsupported local curve point shape"));
+                    }
+                    let pair = item
+                        .text
+                        .split(',')
+                        .map(number)
+                        .collect::<EngineResult<Vec<_>>>()?;
+                    if pair.len() != 2
+                        || (prefix.is_empty() && pair.iter().any(|v| !(0.0..=255.0).contains(v)))
+                    {
+                        return Err(error("local curve requires coordinate pairs"));
+                    }
+                    points.push(json!({"x":pair[0]/255., "y":pair[1]/255.}));
+                }
+                if points.len() < 2
+                    || points.windows(2).any(|p| {
+                        p[0]["x"].as_f64() >= p[1]["x"].as_f64()
+                            || p[0]["y"].as_f64() > p[1]["y"].as_f64()
+                    })
+                {
+                    return Err(error("invalid local curve points"));
+                }
+                if prefix == "Extended"
+                    && (!hdr || points.iter().all(|p| p["x"].as_f64() == p["y"].as_f64()))
+                {
+                    continue;
+                }
+                curves[channel] = json!(points);
+                present = true;
+            }
+        }
+        if present {
+            params[field] = curves;
+        }
+    }
+    Ok(())
+}
+
+fn import_local_point_colors(t: &Tree, n: &Node, params: &mut Value) -> EngineResult<()> {
+    if let Some(points) = child(t, n, CRS, "LocalPointColors")
+        && !(points.children.is_empty() && points.attrs.is_empty() && points.text.trim().is_empty())
+    {
+        super::structures::point_colors::validate_list(t, points)?;
+        let decoded = t
+            .items(points)
+            .into_iter()
+            .map(|item| super::structures::point_colors::decode(t, item))
+            .collect::<EngineResult<Vec<_>>>()?;
+        let decoded: Vec<_> = decoded.into_iter().flatten().collect();
+        if !decoded.is_empty() {
+            params["point_colors"] = serde_json::to_value(decoded)?;
+        }
+    }
+    Ok(())
 }

@@ -274,7 +274,7 @@ pub const LOCAL_PARAMS: [&str; 16] = [
 
 /// Sanitize the local adjustment controls this pipeline draws.
 /// Person, landscape and depth components (no model or depth plane
-/// here) and defringe / colour overlay are kept in the recipe but not drawn;
+/// here) are kept in the recipe but not drawn;
 /// retouch operations are preserved for the registered renderer, which reports
 /// unsupported operations explicitly.
 pub(crate) fn renderable_locals(s: &LocalsSettings) -> LocalsSettings {
@@ -308,8 +308,13 @@ fn renderable_group(g: &LocalAdjustment) -> LocalAdjustment {
         *v = finite_or(*v, 0.0).clamp(-100.0, 100.0);
     }
     p.hue = finite_or(p.hue, 0.0).clamp(-180.0, 180.0);
-    p.defringe = 0.0;
-    p.color_overlay = None;
+    p.defringe = finite_or(p.defringe, 0.).clamp(-100., 100.);
+    p.color_overlay = p.color_overlay.map(|[h, s]| {
+        [
+            finite_or(h, 0.).rem_euclid(360.),
+            finite_or(s, 0.).clamp(0., 100.),
+        ]
+    });
     r.components = g
         .components
         .iter()
@@ -2452,7 +2457,16 @@ mod tests {
         let r = renderable_group(&g);
         assert_eq!(r.amount, 200.0);
         assert_eq!(r.params.exposure, 5.0);
-        assert_eq!((r.params.defringe, r.params.color_overlay), (0.0, None));
+        assert_eq!(
+            (r.params.defringe, r.params.color_overlay),
+            (20.0, Some([10.0, 20.0]))
+        );
+        // LR-11b S9: the preview keeps Adobe's signed local defringe range.
+        for (value, expected) in [(-40.0, -40.0), (-400.0, -100.0), (400.0, 100.0)] {
+            let mut signed = g.clone();
+            signed.params.defringe = value;
+            assert_eq!(renderable_group(&signed).params.defringe, expected);
+        }
         let kinds: Vec<_> = r
             .components
             .iter()

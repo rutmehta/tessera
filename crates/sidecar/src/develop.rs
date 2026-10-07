@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 
 #[path = "masks.rs"]
 mod masks;
+pub use masks::assign_local_ids as assign_mask_group_ids;
 #[path = "structures.rs"]
 mod structures;
 

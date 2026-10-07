@@ -69,13 +69,26 @@ pub fn adjust_local(input: &Image, p: &LocalParams, amount: f32) -> EngineResult
             "invalid amount, parameters or RGB image",
         ));
     }
-    if p.defringe != 0.0 || p.color_overlay.is_some() {
+    if !(-100.0..=100.0).contains(&p.defringe)
+        || p.color_overlay.is_some_and(|v| {
+            !v[0].is_finite() || !(0.0..=360.0).contains(&v[0]) || !(0.0..=100.0).contains(&v[1])
+        })
+    {
         return Err(EngineError::invalid(
             "locals",
-            "defringe and colour overlay are not implemented",
+            "invalid defringe or colour overlay",
         ));
     }
-    if amount == 0.0 || values.iter().all(|v| *v == 0.0) {
+    for point in p.point_colors.iter().flatten() {
+        point.validate()?;
+    }
+    if amount == 0.0
+        || (values.iter().all(|v| *v == 0.0)
+            && p.curves.is_none()
+            && p.curves_extended.is_none()
+            && p.point_colors.is_none()
+            && p.color_overlay.is_none())
+    {
         return Ok(input.clone());
     }
     let scale = amount / 100.0;
@@ -172,6 +185,80 @@ pub fn adjust_local(input: &Image, p: &LocalParams, amount: f32) -> EngineResult
             result = filtered;
         }
     }
+    if let Some(points) = &p.point_colors {
+        let mut points = points.clone();
+        for point in &mut points {
+            point.hue_shift = (point.hue_shift * scale).clamp(-360., 360.);
+            point.saturation_shift = slider(point.saturation_shift);
+            point.luminance_shift = slider(point.luminance_shift);
+        }
+        for coord in result.coords() {
+            let mut tile = result.tile(coord, 0, 1)?;
+            crate::color(
+                &mut tile,
+                &ColorSettings {
+                    point_colors: points.clone(),
+                    ..Default::default()
+                },
+            )?;
+            result.put(&tile)?;
+        }
+    }
+    if p.curves.is_some() || p.curves_extended.is_some() {
+        let curved = crate::tone_extra_image(
+            &result,
+            &ToneSettings {
+                curves: p.curves.clone().unwrap_or_default(),
+                curves_extended: p.curves_extended.clone(),
+                ..Default::default()
+            },
+        )?;
+        // Curve amount interpolates/extrapolates the rendered curve delta in
+        // scene-linear light, avoiding invalid/non-monotone scaled knots.
+        result = Image::new(
+            result.width(),
+            result.height(),
+            result
+                .planes()
+                .iter()
+                .zip(curved.planes())
+                .map(|(a, b)| a.iter().zip(b).map(|(a, b)| a + scale * (b - a)).collect())
+                .collect(),
+        )?;
+    }
+    if let Some([hue, saturation]) = p.color_overlay {
+        // A unit-value hue, scaled to the original luminance, then blended.
+        // This is Tessera's documented approximation of Adobe local toning.
+        let h = hue.rem_euclid(360.) / 60.;
+        let x = 1. - (h % 2. - 1.).abs();
+        let tint = match h as u32 {
+            0 => [1., x, 0.],
+            1 => [x, 1., 0.],
+            2 => [0., 1., x],
+            3 => [0., x, 1.],
+            4 => [x, 0., 1.],
+            _ => [1., 0., x],
+        };
+        let tint_luma = crate::luminance(tint);
+        let weight = (saturation * scale / 100.).clamp(0., 1.);
+        for coord in result.coords() {
+            let mut tile = result.tile(coord, 0, 1)?;
+            crate::map_rgb(&mut tile, |rgb| {
+                let y = crate::luminance(rgb);
+                std::array::from_fn(|c| rgb[c] + weight * (tint[c] * y / tint_luma - rgb[c]))
+            })?;
+            result.put(&tile)?;
+        }
+    }
+    // Adobe's range is -100..=100. A negative value protects the area from
+    // *global* defringe, which already ran before this stage and cannot be
+    // undone here: it is valid, adds no local defringe and changes no pixel.
+    if p.defringe > 0. {
+        let mut lens = engine_api::recipe::settings::LensSettings::default();
+        lens.defringe_purple.amount = (p.defringe * scale / 5.).clamp(0., 20.);
+        lens.defringe_green.amount = lens.defringe_purple.amount;
+        result = crate::optics::defringe(&result, &lens)?;
+    }
     // Moiré intentionally remains a validated no-op pending frequency analysis.
     Ok(result)
 }
@@ -215,4 +302,38 @@ pub fn blend_local(base: &Image, adjusted: &Image, mask: &[f32]) -> EngineResult
             })
             .collect(),
     )
+}
+
+/// Split local Point Color into its own pass.
+///
+/// Local Point Color is ONE stage in every render path, whether B&W is on or
+/// off: after basic Tone and before monochrome conversion and the global point
+/// curves (`tone_extra`). It selects on scene colour, so it has to precede the
+/// B&W mix, and keeping it there when B&W is off means the global curves act on
+/// its result in both modes. Every other local control keeps its position after
+/// global colour. Returns `(point-colour groups, remaining groups)`; a group
+/// with other controls appears in both, with Point Color only in the first.
+/// The Tone stage hash covers the first set (`DevelopSettings::stage_hashes`).
+pub fn split_local_point_colors(
+    groups: &[LocalAdjustment],
+) -> (
+    Vec<LocalAdjustment>,
+    std::borrow::Cow<'_, [LocalAdjustment]>,
+) {
+    if !groups.iter().any(|g| g.params.point_colors.is_some()) {
+        return (Vec::new(), std::borrow::Cow::Borrowed(groups));
+    }
+    let mut before = Vec::new();
+    let mut after = groups.to_vec();
+    for group in &mut after {
+        if let Some(points) = group.params.point_colors.take() {
+            let mut point_group = group.clone();
+            point_group.params = LocalParams {
+                point_colors: Some(points),
+                ..Default::default()
+            };
+            before.push(point_group);
+        }
+    }
+    (before, std::borrow::Cow::Owned(after))
 }

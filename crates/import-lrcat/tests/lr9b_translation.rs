@@ -65,10 +65,16 @@ fn retouch_brush_metadata_and_vertical_offset_translate() {
 }
 
 #[test]
-fn active_local_curves_name_the_missing_feature() {
-    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=1}}}}}","15.4").unwrap();
-    assert!(w.iter().any(|w| w.contains("local tone curve")), "{w:?}");
-    assert!(!w.iter().any(|w| w.contains("mask source retained")));
+fn active_local_curves_now_translate_with_named_approximation() {
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Gradient',MaskID='synthetic',FullX=0,FullY=0,ZeroX=1,ZeroY=1}}}}}","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    assert!(r.settings.locals.adjustments[0].params.curves.is_some());
+    assert!(
+        diagnostics::entries(&r)
+            .values()
+            .flatten()
+            .any(|d| d.lane == "LR-11" && d.status == "approximate")
+    );
 }
 #[test]
 fn ai_raster_metadata_does_not_block_regeneration() {
@@ -138,11 +144,24 @@ fn retouch_offsety_is_the_absolute_source_y_spelling() {
 }
 
 #[test]
-fn ai_group_rejection_reports_the_effect_that_blocks_promotion() {
-    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
+fn ai_group_with_a_decodable_local_curve_translates_and_a_person_mask_names_itself() {
+    // LR-11 renders local curves and LR-5b regenerates subject masks, so this
+    // group now translates. A person mask is still unsupported (LR-5b), and the
+    // warning names that selection, not the decodable curve.
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    let g = &r.settings.locals.adjustments[0];
+    assert!(g.params.curves.is_some());
+    assert!(g.components[0].adobe_ai.is_some());
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=3,MaskID='synthetic'}}}}}","15.4").unwrap();
     assert_eq!(w.len(), 1, "{w:?}");
-    assert!(w[0].contains("local tone curve"), "{w:?}");
+    assert!(
+        w[0].contains("AI person, part or instance selection"),
+        "{w:?}"
+    );
+    assert!(!w[0].contains("local tone curve"), "{w:?}");
     assert!(!w[0].contains("unsupported mask kind"));
+    assert!(r.settings.locals.adjustments.is_empty());
 }
 #[test]
 fn zero_local_color_variance_is_inactive() {
@@ -270,8 +289,16 @@ fn conflicting_radial_inversion_is_a_named_mask_limitation() {
 
 #[test]
 fn neutral_color_variance_is_not_named_as_a_curve_blocker() {
-    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalColorVariance={0,0,0},MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
-    assert!(w[0].contains("local tone curve"));
+    let (r,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalColorVariance={0,0,0},MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskID='synthetic'}}}}}","15.4").unwrap();
+    assert!(w.is_empty(), "{w:?}");
+    assert!(r.settings.locals.adjustments[0].params.curves.is_some());
+    let (_,w)=lua_develop::parse("s={MaskGroupBasedCorrections={{What='Correction',LocalColorVariance={0,0,0},MainCurve={0,0,128,150,255,255},CorrectionMasks={{What='Mask/Image',MaskSubType=3,MaskID='synthetic'}}}}}","15.4").unwrap();
+    assert_eq!(w.len(), 1, "{w:?}");
+    assert!(
+        w[0].contains("AI person, part or instance selection"),
+        "{w:?}"
+    );
+    assert!(!w[0].contains("local tone curve"), "{w:?}");
     assert!(!w[0].contains("color-variance"), "{w:?}");
 }
 

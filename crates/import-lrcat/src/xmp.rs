@@ -248,6 +248,14 @@ pub(crate) fn parse_inner(
     {
         recipe.process_version = catalog_version;
     }
+    // Local extended curves follow the global rule (lr2): the codec admits
+    // them only for HDR output and non-identity points; a legacy process has
+    // no HDR-domain curve at all. Decided before any approximation is recorded.
+    if crate::lr2::is_legacy(&recipe) {
+        for group in &mut recipe.settings.locals.adjustments {
+            group.params.curves_extended = None;
+        }
+    }
     let masks_approximate = crate::mask_source::renderable(&recipe.settings.locals.adjustments)
         && !warnings
             .iter()
