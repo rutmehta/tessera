@@ -604,3 +604,31 @@ fn lr9b_named_residuals_have_matrix_rows_and_keep_exact_source() {
         );
     }
 }
+
+/// Lane evidence must stay portable and must never publish a home directory.
+#[test]
+fn lr11_evidence_has_no_private_home_paths() {
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/orchestrate/wp/LR-11");
+    let forbidden = [b"/".as_slice(), b"Users", b"/"].concat();
+    let mut pending = vec![root.clone()];
+    let mut violations = Vec::new();
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(directory).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if entry.file_type().unwrap().is_dir() {
+                pending.push(path);
+            } else {
+                let bytes = std::fs::read(&path).unwrap();
+                if bytes.windows(forbidden.len()).any(|w| w == forbidden) {
+                    violations.push(path.strip_prefix(&root).unwrap().to_owned());
+                }
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "private home paths in lane evidence: {violations:?}"
+    );
+}

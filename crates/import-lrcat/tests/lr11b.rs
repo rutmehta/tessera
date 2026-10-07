@@ -243,6 +243,15 @@ fn b3_identity_legacy_and_malformed_extended_local_curves() {
 
     let (r, _) =
         lua_develop::parse(&source("HDREditMode=1,", "0,0,255,255,510,600"), "5.7").unwrap();
+    assert_eq!(r.settings.locals.adjustments.len(), 1);
+    let ordinary = r.settings.locals.adjustments[0]
+        .params
+        .curves
+        .as_ref()
+        .unwrap();
+    assert_eq!(ordinary.rgb.0.len(), 2);
+    assert_eq!(ordinary.rgb.0[1].x, 1.);
+    assert_eq!(ordinary.rgb.0[1].y, 0.5);
     assert!(
         r.settings
             .locals

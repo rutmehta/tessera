@@ -1035,6 +1035,61 @@ mod lr11b_tests {
         );
     }
 
+    /// Every source-keyed operator must follow its own source id and key,
+    /// including both signs of defringe and recipes with unmatched ids.
+    #[test]
+    fn s8_non_curve_notes_require_the_matching_source_key() {
+        for (key, field) in [
+            ("LocalPointColors", "point_colors"),
+            ("LocalToningHue", "color_overlay"),
+            ("LocalToningSaturation", "color_overlay"),
+            ("LocalDefringe", "defringe"),
+        ] {
+            for defringe in [-50., 50.] {
+                let xml = document(&[format!("<crs:{key}>1</crs:{key}>"), curve("RedCurve")]);
+                let doc = roxmltree::Document::parse(&xml).unwrap();
+                for (ids, expected) in [
+                    (
+                        [1, 0],
+                        vec![format!("/settings/locals/adjustments/1/params/{field}")],
+                    ),
+                    ([7, 1], vec![]),
+                ] {
+                    let mut recipe = Recipe::default();
+                    recipe.settings.locals.adjustments = ids
+                        .into_iter()
+                        .map(|id| {
+                            let mut g = group(id);
+                            g.params.point_colors = Some(Default::default());
+                            g.params.color_overlay = Some(Default::default());
+                            g.params.defringe = defringe;
+                            g
+                        })
+                        .collect();
+                    record_approximation_diagnostics(&mut recipe, doc.root_element());
+                    assert_eq!(
+                        noted(&recipe, key),
+                        expected,
+                        "{key}, ids={ids:?}, defringe={defringe}"
+                    );
+                    for absent in [
+                        "LocalPointColors",
+                        "LocalToningHue",
+                        "LocalToningSaturation",
+                        "LocalDefringe",
+                    ] {
+                        if absent != key {
+                            assert!(
+                                noted(&recipe, absent).is_empty(),
+                                "absent key {absent}, source key {key}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// S8: the id rule is the shared codec's: foreign groups take the lowest
     /// ids that no native `ts:LocalId` in the packet uses, in source order.
     #[test]
