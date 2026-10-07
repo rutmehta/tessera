@@ -598,7 +598,58 @@ final class LayersOutlineView: NSOutlineView, KeyOwningControl {
             doc.deleteSelection()
             return
         }
+        if event.keyCode == 48, mods.intersection([.command, .control, .option]).isEmpty,
+           tabFromRowControl(forward: !mods.contains(.shift)) { return }
         super.keyDown(with: event)
+    }
+
+    /// B5-49c: Tab / ⇧Tab from a control inside a row (an eye button under Full Keyboard Access).
+    /// AppKit keeps a row's controls in a key-view loop of their own, closed on itself, when the
+    /// outline joins a window that already exists — the app's normal case, since document mode is
+    /// entered after launch. The window then finds no key view after the row's last control and the
+    /// keyboard stays on the eye. The unhandled Tab climbs the responder chain to here: step through
+    /// the row's own key views in reading order, then leave the outline — forward to the first key
+    /// view after it, backward to the outline itself (the reverse of how Tab enters a row). Nothing
+    /// here reads the keyboard-access setting; which row controls are key views is AppKit's answer.
+    private func tabFromRowControl(forward: Bool) -> Bool {
+        guard let window, let focused = window.firstResponder as? NSView, focused !== self,
+              focused.isDescendant(of: self), !(focused is NSText) else { return false }
+        var rowView: NSView? = focused
+        while let view = rowView, !(view is NSTableRowView) { rowView = view.superview }
+        if let rowView {
+            let rightToLeft = userInterfaceLayoutDirection == .rightToLeft
+            let stops = Self.keyViews(in: rowView).sorted {
+                let a = $0.convert($0.bounds, to: rowView).minX, b = $1.convert($1.bounds, to: rowView).minX
+                return rightToLeft ? a > b : a < b
+            }
+            if let index = stops.firstIndex(where: { $0 === focused }) {
+                let next = forward ? index + 1 : index - 1
+                if stops.indices.contains(next) { return window.makeFirstResponder(stops[next]) }
+            }
+        }
+        guard forward else { return window.makeFirstResponder(self) }
+        // AppKit refreshes an automatic loop lazily, inside its own Tab handling; this lookup precedes it.
+        if window.autorecalculatesKeyViewLoop { window.recalculateKeyViewLoop() }
+        // Follow the loop from the outline until it leaves it. A view seen twice means the loop is
+        // closed inside the outline: there is nowhere to go.
+        var anchor: NSView = self
+        var seen: Set<ObjectIdentifier> = [ObjectIdentifier(self)]
+        while let next = anchor.nextValidKeyView {
+            if next !== self, !next.isDescendant(of: self) {
+                window.selectKeyView(following: anchor)
+                return true
+            }
+            guard seen.insert(ObjectIdentifier(next)).inserted else { return false }
+            anchor = next
+        }
+        return false
+    }
+
+    private static func keyViews(in view: NSView) -> [NSView] {
+        view.subviews.flatMap { child -> [NSView] in
+            guard !child.isHidden else { return [] }
+            return (child.canBecomeKeyView ? [child] : []) + keyViews(in: child)
+        }
     }
 }
 

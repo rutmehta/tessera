@@ -14,7 +14,9 @@ import TesseraCore
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 ///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
 ///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning
-///   Document mode (B5-02, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels ·
+///   Document mode (B5-02, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels (over the canvas;
+///   a focused panel / toolbar view keeps Tab for the key-view loop, B5-21; over such a view ⌫ / ⌦ do
+///   nothing and Space presses a focused button once instead of panning, B5-25) ·
 ///   F screen modes · ⌫ delete layer; no culling key fires. ⌘ shortcuts are Layer / Select / View menu items.
 ///   Document tools (B5-04, `ToolKeyMap`): V M L W B E S J G C T I H Z (⇧ cycles M / L / W), [ ] size,
 ///   ⇧[ ⇧] hardness, 0–9 opacity, X swap / D default colours, Return / Esc, ⌫ clears the selection.
@@ -228,8 +230,60 @@ final class KeyRouter {
         return true
     }
 
+    /// B5-21: a view other than the canvas has the keyboard: a native control of the inspector, a panel or
+    /// the toolbar (a Layers eye button, the sidebar toggle) or a SwiftUI control's focus proxy under Full
+    /// Keyboard Access. Only something that accepted first responder gets here, so a click on empty panel
+    /// space leaves the canvas (or nothing) focused. Hidden, invisible or detached responders do not count
+    /// (review B1: the Library grid stays attached at opacity 0 behind document mode).
+    static func panelViewHasKeyboard(in window: NSWindow?) -> Bool {
+        guard let window, let view = window.firstResponder as? NSView, view.window === window,
+              view !== window.contentView, !isStrayResponder(view) else { return false }
+        var ancestor: NSView? = view
+        while let v = ancestor {
+            if v is DocumentViewportView { return false }
+            ancestor = v.superview
+        }
+        return true
+    }
+
+    /// A first responder nobody can see in document mode: hidden, under an alpha-0 ancestor, or the
+    /// Library grid / filmstrip (kept alive, invisible, behind the document view).
+    static func isStrayResponder(_ view: NSView) -> Bool {
+        if view.isHiddenOrHasHiddenAncestor { return true }
+        var ancestor: NSView? = view
+        while let v = ancestor {
+            if v is ThumbnailCollectionView || v.alphaValue <= 0 || (v.layer?.opacity ?? 1) <= 0 { return true }
+            ancestor = v.superview
+        }
+        return false
+    }
+
+    /// B5-25: ⌫ / ⌦ and Space while a panel / toolbar view has the keyboard (`panelViewHasKeyboard`).
+    /// ⌫ / ⌦ are consumed and do nothing: left alone they would climb the responder chain from a Layers eye
+    /// button to `LayersOutlineView` and delete the selected layer. Space presses a focused `NSButton` once
+    /// (key repeat ignored, as the B5-16 Dither checkbox and History buttons do) and never starts a canvas pan;
+    /// over another focused view (a SwiftUI control's focus proxy) the first Space goes to that view and
+    /// repeats are dropped. Returns nil for every other key or when the canvas / nothing has the keyboard.
+    static func panelViewKey(_ event: NSEvent) -> Bool? {
+        guard event.type == .keyDown, [51, 117, 49].contains(event.keyCode),
+              panelViewHasKeyboard(in: event.window), let view = event.window?.firstResponder as? NSView else { return nil }
+        if event.keyCode != 49 { return true }
+        guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return nil }
+        if let button = view as? NSButton {
+            if button.isEnabled, !event.isARepeat { button.performClick(nil) }
+            return true
+        }
+        return event.isARepeat
+    }
+
     /// Document mode: only the document key map; culling, develop and mask keys never fire here.
     private func handleDocument(_ event: NSEvent) -> Bool {
+        // B5-21: Tab / ⇧Tab walk the native key-view loop while a panel view has the keyboard; Tab shows
+        // or hides the panels only over the canvas or with nothing focused.
+        if event.keyCode == 48, Self.panelViewHasKeyboard(in: event.window) { return false }
+        // B5-25: ⌫ / ⌦ and Space over a focused panel / toolbar view (the Layers list and sliders own their
+        // keys and never get here) must not act on the document.
+        if let consumed = Self.panelViewKey(event) { return consumed }
         // WP B5-04: tool letters (⇧ cycles a group), [ ] / ⇧[ ⇧] brush size and hardness, 0–9 opacity,
         // X / D colours, Return / Esc (transform, polygon lasso), ⌫ clears a pixel selection.
         if DocumentTools.shared.handleKey(event) { return true }
@@ -258,7 +312,8 @@ final class KeyRouter {
                 docs.spaceHeld = true
                 docs.current?.viewport?.cursorDidChange()
             }
-        case .togglePanels: docs.togglePanels()
+        case .togglePanels:
+            docs.togglePanels()
         case .cycleScreenMode: docs.cycleScreenMode()
         case .deleteLayer: docs.current?.deleteSelection()
         default: return false   // ⌘ actions are menu items

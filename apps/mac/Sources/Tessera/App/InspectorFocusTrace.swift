@@ -165,7 +165,7 @@ final class InspectorFocusTrace {
             ownedKeyWindow: window != nil && window === NSApp.keyWindow && window === ownedWindow,
             blockedWindow: window == nil || window is NSPanel || window?.attachedSheet != nil
                 || window?.sheetParent != nil || NSApp.modalWindow != nil,
-            fullKeyboardAccess: NSApp.isFullKeyboardAccessEnabled,
+            fullKeyboardAccess: KeyboardAccessPolicy.isEnabled,
             windowIdentity: window.map { String(describing: ObjectIdentifier($0)) } ?? "")
         return route(trace, input: input, capture: {
             guard let window else { return .unknown }

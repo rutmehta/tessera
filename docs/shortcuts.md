@@ -672,7 +672,39 @@ final class KeyRouter {
         }
         return true
     }
+    static func panelViewHasKeyboard(in window: NSWindow?) -> Bool {
+        guard let window, let view = window.firstResponder as? NSView, view.window === window,
+              view !== window.contentView, !isStrayResponder(view) else { return false }
+        var ancestor: NSView? = view
+        while let v = ancestor {
+            if v is DocumentViewportView { return false }
+            ancestor = v.superview
+        }
+        return true
+    }
+    static func isStrayResponder(_ view: NSView) -> Bool {
+        if view.isHiddenOrHasHiddenAncestor { return true }
+        var ancestor: NSView? = view
+        while let v = ancestor {
+            if v is ThumbnailCollectionView || v.alphaValue <= 0 || (v.layer?.opacity ?? 1) <= 0 { return true }
+            ancestor = v.superview
+        }
+        return false
+    }
+    static func panelViewKey(_ event: NSEvent) -> Bool? {
+        guard event.type == .keyDown, [51, 117, 49].contains(event.keyCode),
+              panelViewHasKeyboard(in: event.window), let view = event.window?.firstResponder as? NSView else { return nil }
+        if event.keyCode != 49 { return true }
+        guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return nil }
+        if let button = view as? NSButton {
+            if button.isEnabled, !event.isARepeat { button.performClick(nil) }
+            return true
+        }
+        return event.isARepeat
+    }
     private func handleDocument(_ event: NSEvent) -> Bool {
+        if event.keyCode == 48, Self.panelViewHasKeyboard(in: event.window) { return false }
+        if let consumed = Self.panelViewKey(event) { return consumed }
         if DocumentTools.shared.handleKey(event) { return true }
         if event.charactersIgnoringModifiers?.lowercased() == "q",
            event.modifierFlags.intersection([.shift, .option, .command, .control]).isEmpty,
@@ -697,7 +729,8 @@ final class KeyRouter {
                 docs.spaceHeld = true
                 docs.current?.viewport?.cursorDidChange()
             }
-        case .togglePanels: docs.togglePanels()
+        case .togglePanels:
+            docs.togglePanels()
         case .cycleScreenMode: docs.cycleScreenMode()
         case .deleteLayer: docs.current?.deleteSelection()
         default: return false
