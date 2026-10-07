@@ -551,6 +551,48 @@ fn on_disk_sibling(path: &Path, stem: &str) -> Option<String> {
 }
 
 /// Existing `.edits/<stem>.json` that the import must not replace.
+const REKEY_CONFLICT: (&str, &str) = (
+    "Edits conflict",
+    "edits conflict: kept separate. Another catalog's photo with the same Lightroom file id already has different Tessera edits; this photo keeps its own edits and nothing was merged or deleted",
+);
+const REKEY_SHARED: (&str, &str) = (
+    "Shared with another catalog",
+    "the same Lightroom photo (same file id) is in another imported catalog with identical edits; both now share one recipe, so an edit in either appears in both",
+);
+const REKEY_RESERVED: (&str, &str) = (
+    "Edit key not updated",
+    "the photo's edits were in use (open in Develop or being exported); it keeps its current recipe and is re-keyed on the next import",
+);
+const REKEY_RECOVERED: (&str, &str) = (
+    "Edits recovered",
+    "an interrupted earlier import left two versions of these edits; the newer is used and the other is kept as a backup",
+);
+
+fn note_rekey(issues: &mut Vec<LrcatIssue>, (category, reason): (&str, &str), path: &Path) {
+    if let Some(issue) = issues.iter_mut().find(|i| i.category == category) {
+        issue.count += 1;
+        if issue.examples.len() < 5 {
+            issue.examples.push(display_path(path));
+        }
+    } else {
+        issues.push(LrcatIssue {
+            category: category.into(),
+            reason: reason.into(),
+            count: 1,
+            examples: vec![display_path(path)],
+        });
+    }
+}
+
+fn note_rekey_outcome(issues: &mut Vec<LrcatIssue>, outcome: sidecar::PinOutcome, path: &Path) {
+    match outcome {
+        sidecar::PinOutcome::Conflict => note_rekey(issues, REKEY_CONFLICT, path),
+        sidecar::PinOutcome::Shared => note_rekey(issues, REKEY_SHARED, path),
+        sidecar::PinOutcome::Recovered => note_rekey(issues, REKEY_RECOVERED, path),
+        _ => {}
+    }
+}
+
 fn existing_edit_conflict(path: &Path, id: ImageId, overwrite: bool) -> Option<String> {
     let recipe = Sidecar::paths(path).recipe;
     if !recipe.exists() {
@@ -1293,7 +1335,11 @@ impl LrcatImport {
             library_exists: library_path.is_file(),
             library_path: library_path.to_string_lossy().into_owned(),
             // The preview has no cloud group: cloud-only effects stay listed here.
-            unsupported: self.summary.unsupported.clone(),
+            unsupported: {
+                let mut issues = self.summary.unsupported.clone();
+                issues.extend(self.rekey_preview(&resolved)?);
+                issues
+            },
             estimated_bytes: self.summary.estimated_bytes,
         })
     }
@@ -1476,38 +1522,38 @@ impl LrcatImport {
             );
         }
         // In place, the recipe of a Lightroom-owned Smart Preview is keyed by
-        // its Lightroom file id (AgLibraryFile.id_global, the same UUID that
-        // names the Smart Preview), not by its bytes (REV-SP-A S5): byte-
-        // identical previews stay separate photos, and the key survives a
-        // renamed or moved catalog (REV2-SP NB1). Every row is re-keyed before
+        // its Lightroom file id (`rekey_pins`). Every row is re-keyed before
         // any conflict check or write, migrating the recipe it has now, so
         // existing Tessera edits are judged and kept exactly as the plan
         // preview reported, and the key is durable even for resumed rows.
-        let pins: Vec<(PathBuf, Vec<u8>)> = resolved
-            .iter()
-            .filter(|r| r.outcome == Outcome::OfflineProxy && Sidecar::is_lightroom_owned(&r.path))
-            .filter_map(|r| {
-                // The Smart Preview is named `<id_global>.dng` (SmartPreviewIndex).
-                let uuid = self.plan.images[r.index]
-                    .smart_preview
-                    .as_deref()?
-                    .file_stem()?
-                    .to_str()?;
-                Some((
-                    r.path.clone(),
-                    format!(
-                        "lightroom smart preview file\0{}",
-                        uuid.to_ascii_uppercase()
-                    )
-                    .into_bytes(),
-                ))
-            })
-            .collect();
-        let mut batch = Sidecar::protected_pin_batch();
-        for (path, identity) in &pins {
-            batch.pin(path, identity)?;
+        // A photo whose edits are reserved (open in Develop, an export) is
+        // left on its recipe for now (REV3-SP NS3). Progress and cancel apply.
+        let pins = self.rekey_pins(&resolved);
+        let mut rekey_issues = Vec::new();
+        {
+            let mut batch = Sidecar::protected_pin_batch();
+            let total = pins.len() as u32;
+            for (n, (path, identity)) in pins.iter().enumerate() {
+                if self.cancel.load(Ordering::SeqCst) {
+                    break;
+                }
+                progress.tick(LrcatPhase::Preparing, n as u32, total, "Updating edit keys");
+                let Some(id) = app_image_id(path) else {
+                    continue;
+                };
+                let Ok(reservation) = crate::original_write::OriginalWriteReservation::acquire(
+                    self.engine.support_dir()?,
+                    &[(id, path.clone())],
+                ) else {
+                    note_rekey(&mut rekey_issues, REKEY_RESERVED, path);
+                    continue;
+                };
+                let outcome = batch.pin(path, identity)?;
+                drop(reservation);
+                note_rekey_outcome(&mut rekey_issues, outcome, path);
+            }
+            batch.finish()?;
         }
-        batch.finish()?;
         let existing = Library::read(&library_path)?;
         let ids: HashMap<ImageId, ImageId> = self.app_ids(&resolved);
         let mut merge = merge_library(
@@ -1554,6 +1600,7 @@ impl LrcatImport {
             indexed: 0,
             seconds: 0.0,
         };
+        report.unsupported.extend(rekey_issues);
         let work: Vec<&Resolved> = resolved
             .iter()
             .filter(|r| matches!(r.outcome, Outcome::Import | Outcome::OfflineProxy))
@@ -1911,6 +1958,47 @@ impl LrcatImport {
                 (folder.canonicalize(), parent.canonicalize()),
                 (Ok(a), Ok(b)) if a == b
             )
+    }
+
+    /// In-place Smart Previews and their recipe identity: the Lightroom file
+    /// id (`AgLibraryFile.id_global`), which names each Smart Preview
+    /// (`<id_global>.dng`) and which the importer uses to find it. It is
+    /// stable when the catalog is renamed or moved. It is not unique across
+    /// catalogs: a duplicated or restored catalog keeps the ids, so the same
+    /// photo in both resolves to one recipe when their edits are identical
+    /// ("Shared with another catalog") and is kept separate when they differ
+    /// ("Edits conflict"). Virtual copies are not imported as separate photos.
+    fn rekey_pins(&self, resolved: &[Resolved]) -> Vec<(PathBuf, Vec<u8>)> {
+        resolved
+            .iter()
+            .filter(|r| r.outcome == Outcome::OfflineProxy && Sidecar::is_lightroom_owned(&r.path))
+            .filter_map(|r| {
+                let uuid = self.plan.images[r.index]
+                    .smart_preview
+                    .as_deref()?
+                    .file_stem()?
+                    .to_str()?;
+                Some((
+                    r.path.clone(),
+                    format!(
+                        "lightroom smart preview file\0{}",
+                        uuid.to_ascii_uppercase()
+                    )
+                    .into_bytes(),
+                ))
+            })
+            .collect()
+    }
+
+    /// The plan preview's view of re-keying: the same outcomes, no writes.
+    fn rekey_preview(&self, resolved: &[Resolved]) -> Result<Vec<LrcatIssue>> {
+        let mut issues = Vec::new();
+        let mut batch = Sidecar::protected_pin_preview();
+        for (path, identity) in self.rekey_pins(resolved) {
+            let outcome = batch.pin(&path, &identity)?;
+            note_rekey_outcome(&mut issues, outcome, &path);
+        }
+        Ok(issues)
     }
 
     fn app_ids(&self, resolved: &[Resolved]) -> HashMap<ImageId, ImageId> {

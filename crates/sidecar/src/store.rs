@@ -407,7 +407,13 @@ impl PinBatch {
             .get(key)
             .map_or(0, |set| set.iter().filter(|n| **n != path_key).count());
         let outcome = if current == destination {
-            PinOutcome::AlreadyPinned
+            // Found through a content alias already pointing at the key: the
+            // same photo another source (catalog) is pinned to.
+            if others > 0 {
+                PinOutcome::Shared
+            } else {
+                PinOutcome::AlreadyPinned
+            }
         } else if !current.is_file() {
             PinOutcome::Fresh
         } else if !destination.is_file() {
