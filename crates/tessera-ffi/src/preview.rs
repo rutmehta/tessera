@@ -141,11 +141,12 @@ mod tests {
     }
 
     #[test]
-    fn lr13c_cull_hash_decodes_no_lens_and_prefers_cached_grid_pixels() {
+    fn lr13d_cull_hash_is_independent_of_rendered_cache() {
         let (dir, info, recipe) = cull_proxy_fixture();
         let decodes = raw_decode::lossy_dng::pixel_decode_count();
         let lenses = pipeline_cpu::lens_resolution_count();
-        assert!(cull_preview_hash(&info, dir.path()).unwrap().is_some());
+        let cold = cull_preview_hash(&info, dir.path()).unwrap();
+        assert!(cold.is_some());
         assert_eq!(raw_decode::lossy_dng::pixel_decode_count() - decodes, 1);
         assert_eq!(pipeline_cpu::lens_resolution_count() - lenses, 0);
 
@@ -161,14 +162,15 @@ mod tests {
         let expected = cull::dhash_jpeg(&store.get(&key, previews::Level::Full).unwrap()).unwrap();
         assert_eq!(
             cull_preview_hash(&info, dir.path()).unwrap(),
-            Some(expected)
+            cold
         );
-        assert_eq!(raw_decode::lossy_dng::pixel_decode_count(), decodes);
+        assert_ne!(cold, Some(expected), "fixture must distinguish rendered pixels");
+        assert_eq!(raw_decode::lossy_dng::pixel_decode_count(), decodes + 1);
         assert_eq!(pipeline_cpu::lens_resolution_count(), lenses);
     }
 
     #[test]
-    fn lr13c_cull_hash_uses_mac_cache_tiers_with_catalog_orientation() {
+    fn lr13d_cull_hash_ignores_mac_cache_tiers_with_catalog_orientation() {
         // The Mac grid is 384px; its loupe tier is 2560px. Imported catalog
         // orientation is baked into those pixels, so their cache key is 1.
         for max_px in [384, 2560] {
@@ -184,6 +186,7 @@ mod tests {
                 },
             )
             .unwrap();
+            let cold = cull_preview_hash(&info, dir.path()).unwrap();
             let store =
                 previews::PreviewStore::new(dir.path().join("previews"), 512 << 20).unwrap();
             let grid =
@@ -199,13 +202,14 @@ mod tests {
             let hash = cull_preview_hash(&info, dir.path()).unwrap();
             assert_eq!(
                 raw_decode::lossy_dng::pixel_decode_count(),
-                decodes,
-                "warm Mac preview must avoid a proxy decode"
+                decodes + 1,
+                "stable source pixels must ignore rendered previews"
             );
             assert_eq!(pipeline_cpu::lens_resolution_count(), lenses);
             let expected =
                 cull::dhash_jpeg(&store.get(&key, previews::Level::Full).unwrap()).unwrap();
-            assert_eq!(hash, Some(expected), "cache pixels are already oriented");
+            assert_eq!(hash, cold);
+            assert_ne!(hash, Some(expected));
         }
     }
 
@@ -524,16 +528,17 @@ impl Job for PreviewJob {
     }
 }
 
-/// Long edge sampled for the 9x8 perceptual hash when no preview is cached.
+/// Long edge sampled for the source-based 9x8 perceptual hash.
 const CULL_HASH_PX: u32 = 256;
 
-/// Perceptual hashes do not need a Develop render. Prefer a grid cache hit;
-/// otherwise sample the immutable proxy's camera channels at 256px, without
+/// Stable comparison policy: unedited source samples, independent of rendered
+/// grid/loupe cache warmth, crop and local edits. Sample the immutable proxy's
+/// camera channels at 256px, without
 /// building RawImage/CameraLinearProxy or resolving any lens/CA correction.
 /// Keeping the proxy as the hash source also avoids waking an offline original.
 pub(crate) fn cull_preview_hash(
     info: &index::ImageInfo,
-    support: &Path,
+    _support: &Path,
 ) -> engine_api::EngineResult<Option<u64>> {
     let recipe = catalog::document(&info.path, info.id)?.recipe;
     let proxy = recipe.unknown.contains_key("lightroom_smart_preview");
@@ -547,25 +552,6 @@ pub(crate) fn cull_preview_hash(
         return cull::preview_hash(info);
     }
     let error = |e: String| engine_api::EngineError::Unsupported { what: e };
-    let store = previews::PreviewStore::new(support.join("previews"), 512 << 20)
-        .map_err(|e| error(e.to_string()))?;
-    // Mac grid/loupe tiers, plus legacy tiers, cheapest first. Catalog
-    // orientation is already baked into rendered frames, whose key is 1.
-    // Otherwise try the bounded EXIF variants without opening a RAW header.
-    for max_px in [CULL_HASH_PX, 384, 2048, 2560] {
-        let mut key =
-            previews::PreviewKey::for_source(&info.path, max_px, 1, recipe.recipe_hash().0.0)
-                .map_err(|e| error(e.to_string()))?;
-        for value in 1..=8 {
-            if orientation.is_some() && value != 1 {
-                continue;
-            }
-            key.orientation = value;
-            if let Some(bytes) = store.get_bounded(&key, previews::Level::Full, 4 << 20) {
-                return cull::dhash_jpeg(&bytes).map(Some);
-            }
-        }
-    }
     if proxy {
         let mut file = std::fs::File::open(&info.path)?;
         if let Some(thumbnail) = raw_decode::lossy_dng::read_thumbnail(&mut file, CULL_HASH_PX)? {

@@ -137,3 +137,27 @@ impl BackgroundPreviews {
         Ok(ready)
     }
 }
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+
+    fn info() -> (tempfile::TempDir, ImageInfo) {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("synthetic.dng"), b"synthetic").unwrap();
+        let mut index = index::Index::open(dir.path().join("index.sqlite")).unwrap();
+        index.scan(dir.path(), &index::NoopSidecarReader, &index::NoopMetadataProvider).unwrap();
+        let id = index.search(&Default::default()).unwrap()[0];
+        (dir, index.image_info(id).unwrap())
+    }
+
+    #[test]
+    fn lr13d_refresh_metadata_is_coalesced_by_image() {
+        let (_dir, image) = info();
+        let mut work = BackgroundPreviews::default();
+        for _ in 0..10_000 { work.enqueue(image.clone()); }
+        assert_eq!(work.queue.len(), 1, "metadata grows with distinct images, not refresh count");
+        work.remove(image.id);
+        assert_eq!(work.queue.len(), 0, "removal releases queued metadata");
+    }
+}
