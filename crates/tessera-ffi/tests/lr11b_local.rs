@@ -327,6 +327,8 @@ fn synthetic_raw(id: u128, width: u32, height: u32) -> image_core::RawImage {
         }
     }
     let metadata = raw_decode::RawMetadata {
+        baseline_exposure: 0.,
+        catalog_orientation: None,
         make: "Synthetic".into(),
         model: "Test".into(),
         lens: None,
