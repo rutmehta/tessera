@@ -40,6 +40,17 @@ struct KeyViewWalk: CustomStringConvertible {
     static let uncontrolledLimit = 64
 
     var reached: Bool { outcome == .reached }
+    // Existing destination-only contract, factored for scripted regression coverage.
+    func reachesFirst(_ target: AnyObject, before others: [AnyObject]) -> Bool {
+        reached && trail.last?.object === target
+    }
+
+    @MainActor func staysInSelectedRow(_ row: NSView, outline: NSView) -> Bool {
+        trail.allSatisfy { stop in
+            stop.object === outline || (stop.object as? NSView)?.isDescendant(of: outline) == true
+        } && uncontrolledStops == 0
+    }
+
     var presses: Int { trail.count - 1 }
     func visited(_ object: AnyObject) -> Bool { trail.contains { $0.object === object } }
     var description: String {

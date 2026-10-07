@@ -101,6 +101,52 @@ final class KeyViewWalkTests: XCTestCase {
         XCTAssertEqual(walk(script, budget: 3, to: decrease).0.outcome, .overBudget)
     }
 
+    func testWrongInitialHistoryEntryIsRejectedEvenWithInterveningProxies() {
+        let reset = Fake()
+        for count in [0, 1, 9, 40] {
+            let proxies = (0..<count).map { _ in proxy() }
+            for wrong in [increase, reset] {
+                let (result, _) = walk([stop(wrong, "wrong History button")] + proxies
+                    + [stop(decrease, "−")], to: decrease)
+                XCTAssertTrue(result.reached, "the destination alone does not prove order")
+                XCTAssertFalse(result.reachesFirst(decrease, before: [increase, reset]), "\(result)")
+            }
+            let (ordered, _) = walk(proxies + [stop(decrease, "−")], to: decrease)
+            XCTAssertTrue(ordered.reachesFirst(decrease, before: [increase, reset]), "\(ordered)")
+        }
+    }
+
+    func testSelectedRowWalkRejectsOtherRowsAndUncontrolledStops() {
+        let list = NSView(), selected = NSView(), other = NSView()
+        let eye = NSButton(), disclosure = NSButton(), otherDisclosure = NSButton()
+        list.addSubview(selected); list.addSubview(other)
+        selected.addSubview(eye); selected.addSubview(disclosure); other.addSubview(otherDisclosure)
+        let (valid, _) = walk([stop(disclosure, "selected disclosure"), stop(list, "outline")], to: list)
+        // Start belongs to the selected row, just as the hosted reverse walk does.
+        func rowWalk(_ middle: KeyViewWalk.Stop, forward: Bool = false) -> KeyViewWalk {
+            var stops = [middle, stop(forward ? eye : list, "target")].makeIterator()
+            return KeyViewWalk.run(from: stop(forward ? list : eye, "start"), budget: 2,
+                                   isTarget: { $0.object === (forward ? eye : list) }) { stops.next() }
+        }
+        XCTAssertTrue(valid.reached)
+        XCTAssertTrue(rowWalk(stop(disclosure, "selected disclosure")).staysInSelectedRow(selected, outline: list))
+        XCTAssertFalse(rowWalk(stop(otherDisclosure, "other row disclosure")).staysInSelectedRow(selected, outline: list))
+        for forward in [true, false] {
+            XCTAssertFalse(rowWalk(proxy(NSView()), forward: forward).staysInSelectedRow(selected, outline: list))
+            XCTAssertFalse(rowWalk(proxy(disclosure), forward: forward).staysInSelectedRow(selected, outline: list))
+        }
+    }
+
+    func testUncontrolledTargetMustFitTheLimit() {
+        let target = Fake()
+        for count in [63, 64, 65] {
+            let script = (0..<(count - 1)).map { _ in proxy() } + [proxy(target)]
+            let (result, presses) = walk(script, to: target)
+            XCTAssertEqual(result.outcome, count <= 64 ? .reached : .uncontrolledLimit)
+            XCTAssertEqual(presses, count)
+        }
+    }
+
     func testAConsumedKeyEndsTheWalk() {
         let (result, presses) = walk([proxy(), nil, stop(decrease, "−")], to: decrease)
         XCTAssertEqual(result.outcome, .consumed, "\(result)")
@@ -127,6 +173,24 @@ final class KeyViewWalkTests: XCTestCase {
         XCTAssertFalse(KeyViewWalk.isControlled(NSSlider(frame: .zero)), "AppKit sliders follow the real setting")
         XCTAssertFalse(KeyViewWalk.isControlled(NSSegmentedControl(frame: .zero)))
         XCTAssertEqual(KeyViewWalk.stop(nil, in: nil).name, "nil")
+    }
+
+    func testProxyNameFallbackFormatWithoutAccessibilityOrWindow() {
+        let host = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 100))
+        let proxy = NSView(frame: NSRect(x: 12, y: 23, width: 80, height: 24))
+        host.addSubview(proxy)
+        proxy.setAccessibilityIdentifier("")
+        proxy.setAccessibilityLabel("")
+        XCTAssertNil(proxy.window, "no hosting hit test can supply semantics")
+        XCTAssertEqual(KeyViewWalk.proxyName(proxy, host: host), "KeyViewProxy(12,23 80×24)")
+    }
+
+    func testProxyNamePrefersIdentifierThenLabel() {
+        let proxy = NSView(frame: .zero)
+        proxy.setAccessibilityLabel("Synthetic action")
+        XCTAssertEqual(KeyViewWalk.proxyName(proxy, host: nil), "KeyViewProxy(Synthetic action)")
+        proxy.setAccessibilityIdentifier("synthetic.action")
+        XCTAssertEqual(KeyViewWalk.proxyName(proxy, host: nil), "KeyViewProxy(synthetic.action)")
     }
 
     private struct OneButton: View {
