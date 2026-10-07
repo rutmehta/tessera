@@ -41,14 +41,14 @@ fn recipe(version: ProcessVersion, depth: bool) -> Recipe {
     };
     let mut component = MaskComponent::new(if depth {
         MaskKind::Depth {
-            range: [0., 1.],
+            range: [0., 0.5],
             feather: 0.,
             model: None,
         }
     } else {
         MaskKind::Subject { model: None }
     });
-    component.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+    component.adobe_ai = (!depth).then_some(engine_api::recipe::mask::AdobeAiMask {
         resource_id: None,
         category: "synthetic".into(),
         mask_key: Some([91; 32]),
@@ -135,6 +135,35 @@ fn stored_proxy_ai_and_depth_masks_change_print_and_export_pixels() {
                 .unwrap()
                 .store_pinned(&store, &[91; 32])
                 .unwrap();
+                if depth {
+                    // Depth ranges reference the depth cache, not Adobe AI leaf metadata.
+                    let as_shot = pipeline_cpu::render_linear_before_geometry(
+                        &Default::default(),
+                        &RenderSource::CameraLinear(&proxy),
+                        None,
+                    )
+                    .unwrap();
+                    let model_input = image_core::depth::model_input(&as_shot).unwrap();
+                    let depth_store = image_core::ml_depth::DepthStore::new(
+                        root.path().join("previews/depth-cache"),
+                        0,
+                    )
+                    .unwrap();
+                    image_core::ml_depth::DepthMap::from_normalized_inverse(
+                        w,
+                        h,
+                        vec![alpha; (w * h) as usize],
+                    )
+                    .unwrap()
+                    .store_pinned(
+                        &depth_store,
+                        &image_core::ml_depth::cache_key(
+                            &model_input,
+                            image_core::ml_depth::MODEL_VERSION,
+                        ),
+                    )
+                    .unwrap();
+                }
                 prints.push(
                     export::render_pixels_with_mask_support(
                         &input(&proxy),
