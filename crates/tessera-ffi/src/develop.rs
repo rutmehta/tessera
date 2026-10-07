@@ -2873,6 +2873,13 @@ impl DevelopSession {
         {
             notes.push(note.to_owned());
         }
+        // The Adobe pipeline is display-referred: its HDR export and EDR
+        // view hold an SDR rendition (ENG-9b, same text as the export).
+        if st.live.output.hdr
+            && st.recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
+        {
+            notes.push(export::ADOBE_HDR_NOTICE.to_owned());
+        }
         notes.sort();
         notes.dedup();
         Ok(notes)

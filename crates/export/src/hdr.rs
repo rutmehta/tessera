@@ -50,6 +50,7 @@ pub(crate) fn render(
     recipe: &Recipe,
     settings: &ExportSettings,
     cancel: &CancellationToken,
+    warnings: &mut Vec<String>,
 ) -> EngineResult<image::Rgb32FImage> {
     let headroom = headroom(recipe, settings.hdr.expect("HDR render selected"))?;
     let mut develop = recipe.settings.clone();
@@ -62,6 +63,7 @@ pub(crate) fn render(
     // gamut-mapped into [0, headroom] (ENG-9). Never the Native rendering.
     let adobe = crate::is_adobe(recipe);
     let scene = if adobe {
+        warnings.push(format!("Info: {}", crate::ADOBE_HDR_NOTICE));
         let mut drawn = recipe.clone();
         drawn.settings = develop.clone();
         let rgb = crate::ai_masks::render_develop(
@@ -69,7 +71,7 @@ pub(crate) fn render(
             &drawn,
             settings.render_scale,
             None,
-            &mut Vec::new(),
+            warnings,
             settings.mask_support.as_deref(),
             settings.retouch.clone(),
         )?;
@@ -102,6 +104,8 @@ pub(crate) fn render(
         }
         let y = 0.2627 * v[0] + 0.6780 * v[1] + 0.0593 * v[2];
         let toned = if y > 0.0 {
+            // Adobe: no tone curve here (the pipeline is display-referred),
+            // so `out` is only the Perceptual grey point below.
             let out = if adobe {
                 y.min(headroom)
             } else {

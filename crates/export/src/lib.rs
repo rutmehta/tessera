@@ -239,6 +239,12 @@ fn render_scaled_cpu(
     .pixels)
 }
 
+/// Recorded with every HDR export of an Adobe-process recipe and shown in
+/// Develop while its HDR toggle is on (REV-ENG-9 SF1): the compatibility
+/// pipeline is display-referred, so the HDR file holds an SDR rendition.
+pub const ADOBE_HDR_NOTICE: &str = "Lightroom-process edits render in standard dynamic range; \
+     this HDR file has no highlights above SDR white.";
+
 /// Develop draws every Adobe-process recipe (imported Lightroom edits) with
 /// the compatibility pipeline, whatever the source: RAW and RGB originals and
 /// Smart Preview proxies alike. Every output path follows it (ENG-9).
@@ -819,7 +825,10 @@ pub fn render_one_cancellable(
     native.filter(settings, packet.as_ref())?;
     let needs_hooks = depth::active(&image.source, &recipe.settings);
     let mut warnings = proxy_warnings;
+    // Develop-renderer recipes (every Adobe-process recipe) never take the
+    // resident GPU path, which implements the current Native process only.
     let gpu_pixels = if settings.hdr.is_none()
+        && !uses_develop_renderer(&image.source, recipe)
         && !matches!(settings.format, Format::Dng)
         && upscale.is_none()
         && !needs_hooks
@@ -851,7 +860,7 @@ pub fn render_one_cancellable(
     let mut used_gpu = already_resized;
     let started = std::time::Instant::now();
     let rgb = if settings.hdr.is_some() {
-        hdr::render(image, recipe, settings, cancel)?
+        hdr::render(image, recipe, settings, cancel, &mut warnings)?
     } else if uses_develop_renderer(&image.source, recipe) {
         let rgb = ai_masks::render_develop(
             &image.source,

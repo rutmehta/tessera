@@ -564,6 +564,11 @@ fn hdr_export(fixture: &Fixture, recipe: &Recipe) -> Vec<f32> {
 /// space (Rec.2020 PQ) is the deliberate output transform, so the comparison
 /// is in PQ code values of Develop's EDR rendition: a neutral (in-gamut)
 /// recipe within one 16-bit code of rounding plus float order.
+///
+/// Neutral content only, deliberately: the HDR file gamut-maps into the
+/// Rec.2020 container `[0, h]`, while the EDR viewport maps into linear sRGB
+/// `[0, h]` (`adobe_display`). For colours outside sRGB that output-space
+/// difference is intended and not covered here.
 #[test]
 fn eng9_adobe_hdr_export_matches_develop_edr() {
     for kind in [Kind::Raw, Kind::Rgb, Kind::Proxy] {
