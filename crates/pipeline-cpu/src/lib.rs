@@ -43,8 +43,8 @@ pub use display::{
 };
 pub use image::Image;
 pub use lens_resolve::{
-    CorrectionSource, LensContext, ManualCaSettings, ResolvedLens, lens_resolution_count,
-    resolve_lens, resolve_lens_sensor,
+    CorrectionSource, DepthEffectHook, LensContext, ManualCaSettings, ResolvedLens,
+    lens_resolution_count, resolve_lens, resolve_lens_sensor,
 };
 pub use render::{
     LocalAdjustmentHook, NATIVE_APPROXIMATED_PROFILE_NOTICE, RenderSource, Rgb8Image,

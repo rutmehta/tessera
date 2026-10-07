@@ -657,7 +657,14 @@ impl Renderer {
     ) -> EngineResult<Vec<Tile>> {
         let planned;
         let settings = if let Some(proxy) = image.camera_linear_proxy() {
-            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            planned = proxy
+                .render_plan_with_resources(
+                    settings,
+                    self.mask_cache.has_hooks(),
+                    self.depth.is_some(),
+                    self.retouch.is_some(),
+                )
+                .0;
             &planned
         } else {
             settings

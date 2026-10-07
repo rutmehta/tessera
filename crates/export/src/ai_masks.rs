@@ -228,6 +228,9 @@ fn ready_masks(
             }
         }
     }
+    if requests.is_empty() {
+        return Ok(MaskRasterCache::new(0));
+    }
     // Stable as-shot segmentation input; it is independent of local/global edits.
     let scale = w.max(h).div_ceil(2048).max(1);
     let rgb = pipeline_cpu::render_scaled(&DevelopSettings::default(), source, scale)?;
@@ -368,6 +371,7 @@ pub(crate) fn render_proxy(
     segmenter: Option<&mut dyn MaskSegmenter>,
     warnings: &mut Vec<String>,
     support: Option<&std::path::Path>,
+    retouch: Option<Arc<dyn pipeline_cpu::RetouchRenderer>>,
 ) -> EngineResult<image::Rgb32FImage> {
     let mut settings = recipe.settings.clone();
     settings.output.proof_profile = None;
@@ -397,13 +401,38 @@ pub(crate) fn render_proxy(
         }
         Image::new(input.width(), input.height(), planes)
     };
+    let depth_renderer = if settings.effects.lens_blur.is_some() {
+        support
+            .map(|root| {
+                image_core::depth::DepthProvider::from_support(root).map(|provider| {
+                    image_core::Renderer::new(Default::default()).with_depth(Arc::new(provider))
+                })
+            })
+            .transpose()?
+    } else {
+        None
+    };
+    let depth_effects = |input: &Image| {
+        depth_renderer
+            .as_ref()
+            .expect("installed hook")
+            .apply_depth_effects(input, &settings)
+    };
+    let context = pipeline_cpu::LensContext {
+        retouch,
+        depth_effects: depth_renderer
+            .as_ref()
+            .map(|_| &depth_effects as &pipeline_cpu::DepthEffectHook<'_>),
+        ..Default::default()
+    };
     if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe {
-        let rgb = image_core::pipeline_adobe::render_linear_scaled_with_profile_and_locals(
+        let rgb = image_core::pipeline_adobe::render_linear_scaled_with_resources(
             &settings,
             source,
             scale,
             None,
             Some(&locals),
+            &context,
         )?;
         Ok(image::Rgb32FImage::from_fn(
             rgb.width(),
@@ -415,13 +444,7 @@ pub(crate) fn render_proxy(
         ))
     } else {
         let rgb = pipeline_cpu::render_linear_scaled_with_local_hook(
-            &settings,
-            source,
-            scale,
-            &Default::default(),
-            None,
-            None,
-            &locals,
+            &settings, source, scale, &context, None, None, &locals,
         )?;
         Ok(crate::depth::tone_map(rgb))
     }

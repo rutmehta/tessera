@@ -45,9 +45,15 @@ impl ManualCaSettings {
         Ok(())
     }
 }
+/// Resolve and apply a real depth map at the full-resolution, pre-geometry
+/// effects barrier. Missing/invalid resources are returned to the caller.
+pub type DepthEffectHook<'a> = dyn Fn(&Image) -> EngineResult<Image> + 'a;
+
 /// Caller-owned profiles, including profiles loaded by `lens::load_user_profile`.
 #[derive(Default)]
 pub struct LensContext<'a> {
+    /// Caller-owned depth effect; invoked after local adjustments, before geometry.
+    pub depth_effects: Option<&'a DepthEffectHook<'a>>,
     /// Caller-owned retouch implementation, shared by render requests.
     pub retouch: Option<std::sync::Arc<dyn crate::RetouchRenderer>>,
     /// Additive manual lateral CA, independent of profile/automatic CA toggles.

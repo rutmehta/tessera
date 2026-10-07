@@ -9,6 +9,21 @@ fn original_required(reason: &str) -> EngineError {
 }
 
 impl Renderer {
+    /// Render-only proxy adaptation using this renderer's registered resources.
+    /// A registered depth provider must still return a valid map at render time.
+    pub fn proxy_render_plan(
+        &self,
+        proxy: &pipeline_cpu::CameraLinearProxy,
+        settings: &DevelopSettings,
+    ) -> (DevelopSettings, Vec<&'static str>) {
+        proxy.render_plan_with_resources(
+            settings,
+            self.mask_cache.has_hooks(),
+            self.depth.is_some(),
+            self.retouch.is_some(),
+        )
+    }
+
     pub(super) fn validate_camera_linear_proxy(
         &self,
         image: &RawImage,
@@ -17,7 +32,14 @@ impl Renderer {
         use engine_api::recipe::{MaskKind, ProcessFamily};
         let planned;
         let settings = if let Some(proxy) = image.camera_linear_proxy() {
-            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            planned = proxy
+                .render_plan_with_resources(
+                    settings,
+                    self.mask_cache.has_hooks(),
+                    self.depth.is_some(),
+                    self.retouch.is_some(),
+                )
+                .0;
             &planned
         } else {
             settings
@@ -36,8 +58,8 @@ impl Renderer {
             .ok_or_else(|| EngineError::invalid("source", "camera-linear proxy required"))?;
         proxy.validate_prefix(settings)?;
         if self.depth_visualisation
-            || settings.effects.lens_blur.is_some()
-            || !settings.locals.retouch.is_empty()
+            || (settings.effects.lens_blur.is_some() && self.depth.is_none())
+            || (!settings.locals.retouch.is_empty() && self.retouch.is_none())
         {
             return Err(original_required(
                 "depth, lens blur and retouch need original dependencies",
@@ -80,7 +102,14 @@ impl Renderer {
         cancel.check()?;
         let planned;
         let settings = if let Some(proxy) = image.camera_linear_proxy() {
-            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            planned = proxy
+                .render_plan_with_resources(
+                    settings,
+                    self.mask_cache.has_hooks(),
+                    self.depth.is_some(),
+                    self.retouch.is_some(),
+                )
+                .0;
             &planned
         } else {
             settings
@@ -176,13 +205,23 @@ impl Renderer {
             }
             pipeline_cpu::Image::new(input.width(), input.height(), planes)
         };
+        let depth_effects = |input: &pipeline_cpu::Image| self.apply_depth_effects(input, settings);
+        let context = pipeline_cpu::LensContext {
+            retouch: self.retouch.clone(),
+            depth_effects: self
+                .depth
+                .as_ref()
+                .map(|_| &depth_effects as &pipeline_cpu::DepthEffectHook<'_>),
+            ..Default::default()
+        };
         let developed = if self.is_adobe() {
-            pipeline_adobe::render_linear_scaled_with_profile_and_locals(
+            pipeline_adobe::render_linear_scaled_with_resources(
                 settings,
                 &source,
                 1 << level,
                 self.dcp.as_ref().map(|(p, _)| p.as_ref()),
                 Some(&locals),
+                &context,
             )?
         } else if self.native_ignores_profile(settings) {
             // Host-listed identity: draw exactly as main's host did, without it.
@@ -202,7 +241,7 @@ impl Renderer {
                 settings,
                 &source,
                 1 << level,
-                &Default::default(),
+                &context,
                 None,
                 self.denoiser.as_deref(),
                 &locals,
@@ -298,7 +337,12 @@ impl Renderer {
         let planned = image
             .camera_linear_proxy()
             .unwrap()
-            .render_plan(settings, self.mask_cache.has_hooks())
+            .render_plan_with_resources(
+                settings,
+                self.mask_cache.has_hooks(),
+                self.depth.is_some(),
+                self.retouch.is_some(),
+            )
             .0;
         let settings = &planned;
         self.validate_camera_linear_proxy(image, settings)?;
@@ -341,7 +385,12 @@ impl Renderer {
         let planned = image
             .camera_linear_proxy()
             .unwrap()
-            .render_plan(settings, self.mask_cache.has_hooks())
+            .render_plan_with_resources(
+                settings,
+                self.mask_cache.has_hooks(),
+                self.depth.is_some(),
+                self.retouch.is_some(),
+            )
             .0;
         let settings = &planned;
         cancel.check()?;

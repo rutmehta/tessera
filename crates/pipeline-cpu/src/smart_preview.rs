@@ -213,6 +213,11 @@ impl CameraLinearProxy {
         settings: &DevelopSettings,
     ) -> EngineResult<Option<crate::LensPlan>> {
         self.validate_prefix(settings)?;
+        // These operators need caller-owned scalar resources; never admit a
+        // tail that silently plans them away before checking GPU capability.
+        if settings.effects.lens_blur.is_some() || !settings.locals.retouch.is_empty() {
+            return Ok(None);
+        }
         if self.metadata.catalog_orientation.is_some_and(|o| o != 1) {
             return Ok(None);
         }
@@ -282,6 +287,19 @@ impl CameraLinearProxy {
         settings: &DevelopSettings,
         mask_hooks: bool,
     ) -> (DevelopSettings, Vec<&'static str>) {
+        self.render_plan_with_resources(settings, mask_hooks, false, false)
+    }
+
+    /// Keep dependency-backed operators when the caller can actually execute
+    /// them. Providers must validate their depth extent and renderer results;
+    /// this planning step never infers availability from the proxy's format.
+    pub fn render_plan_with_resources(
+        &self,
+        settings: &DevelopSettings,
+        mask_hooks: bool,
+        depth: bool,
+        retouch: bool,
+    ) -> (DevelopSettings, Vec<&'static str>) {
         let mut drawn = settings.clone();
         let mut notes = Vec::new();
         if !self.external_dng {
@@ -319,11 +337,11 @@ impl CameraLinearProxy {
             notes.push("/lens/profile");
             drawn.lens.profile = LensProfileSource::None;
         }
-        if drawn.effects.lens_blur.is_some() {
+        if drawn.effects.lens_blur.is_some() && !depth {
             notes.push("/effects/lens_blur");
             drawn.effects.lens_blur = None;
         }
-        if !drawn.locals.retouch.is_empty() {
+        if !drawn.locals.retouch.is_empty() && !retouch {
             notes.push("/locals/retouch");
             drawn.locals.retouch.clear();
         }

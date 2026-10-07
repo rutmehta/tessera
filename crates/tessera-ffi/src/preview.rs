@@ -722,9 +722,15 @@ fn render_imported(
 ) -> Result<(image::RgbImage, u16)> {
     let image = catalog::open_image(id, path)?;
     let settings = crate::develop::session_renderable(&recipe.settings, true, false);
-    let renderer = image_core::Renderer::new(Default::default())
+    let mut renderer = image_core::Renderer::new(Default::default())
         .with_host_ignored_native_profiles()
-        .for_recipe(recipe);
+        .for_recipe(recipe)
+        .with_retouch_renderer(Arc::new(brush::render_retouch));
+    if settings.effects.lens_blur.is_some() {
+        renderer = renderer.with_depth(Arc::new(image_core::depth::DepthProvider::from_support(
+            support,
+        )?));
+    }
     let masks = crate::develop::masks::MaskShared::new(&image);
     masks.load_available_imported(support, &settings);
     renderer
