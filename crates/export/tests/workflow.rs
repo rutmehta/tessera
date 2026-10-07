@@ -41,9 +41,11 @@ fn gui_command_plans_keep_paths_as_literal_arguments() {
 
 #[test]
 #[cfg(unix)]
+// Release-only for parity with B5-48c: real process spawns and a 1 s script
+// timeout. No wall-clock bound is asserted; outcomes and ordering are.
 #[cfg_attr(
     debug_assertions,
-    ignore = "release-only latency bound: skipped in debug builds"
+    ignore = "release-only: real child processes with a 1 s script timeout (parity with B5-48c)"
 )]
 fn script_timeout_cancellation_empty_and_spawn_failure() {
     use std::os::unix::fs::PermissionsExt;
