@@ -606,6 +606,7 @@ impl Renderer {
             return self.run_camera_linear_proxy(image, settings, coords, output, cancel, sink);
         }
         if Self::requires_cpu_chain(settings) {
+            self.resolve(image, settings)?;
             return self.run_m2(image, settings, coords, output, cancel, sink);
         }
         let lens = self.interactive_lens_plan(image, settings, cancel)?;
@@ -655,6 +656,7 @@ impl Renderer {
             return cancel.check();
         }
         if Self::requires_cpu_chain(settings) {
+            self.resolve(image, settings)?;
             for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
                 let extent = Self::output_extent(image, settings, level)?;
                 let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));

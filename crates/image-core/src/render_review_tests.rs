@@ -219,8 +219,20 @@ fn lr3e_spot_upright_reuses_session_analysis() {
     // even though CPU selection now happens before Upright analysis.
     s.tone.exposure = f32::NAN;
     let before = full_solves.load(Ordering::Relaxed);
-    assert!(r.render_tiles(&image, &s, &[TileCoord::new(0, 0, 0)],
-        RenderOutput::SceneLinear, &cancel, &mut |_| {}).is_err());
-    assert_eq!(full_solves.load(Ordering::Relaxed), before,
-        "invalid full settings must not reach the retouch callback");
+    assert!(
+        r.render_tiles(
+            &image,
+            &s,
+            &[TileCoord::new(0, 0, 0)],
+            RenderOutput::SceneLinear,
+            &cancel,
+            &mut |_| {}
+        )
+        .is_err()
+    );
+    assert_eq!(
+        full_solves.load(Ordering::Relaxed),
+        before,
+        "invalid full settings must not reach the retouch callback"
+    );
 }
