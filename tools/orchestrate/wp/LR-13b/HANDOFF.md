@@ -12,7 +12,7 @@ No board or lockfile changes. No co-author trailers.
 | LR-13c deferred, bounded and cached near-duplicate work | Ported four commits in order; no conflicts | Initial open RED: 32 pixel calls vs required 0; 879 passed, 0 failed, 42 ignored |
 | Proxy export/print retain imported AI/depth masks; unavailable AI is an error | `export::proxy_recipe`, `ai_masks::ready_masks` and process-aware proxy hook | RED: 2 failures; GREEN: 2 passed (Native and Adobe, AI and cached depth) |
 | Proxy lens blur and retouch use actual dependencies | Resource-aware plan; CPU/Adobe retouch and pre-geometry depth hooks; Develop/export/thumbnail routes | 3 integration tests + 1 thumbnail test, RED then GREEN |
-| Proxy mask raster errors surface in thumbnails/export | Pending | Pending |
+| Proxy mask raster errors surface in thumbnails/export | Proxy scalar hook propagates errors; thumbnails reject unavailable imported planes | Core 1 test + FFI 1 test RED; core 1 and FFI 2 GREEN (including effects regression) |
 | Embedded-profile parse errors do not block Native proxy exports | Pending | Pending |
 | Persistent notice survives status changes without per-frame FFI locking | Pending | Pending |
 | Thumbnail identity includes raster availability and render-plan version | Pending | Pending |
@@ -61,3 +61,7 @@ FFI build and no generated binding drift; Swift gate; strict release app build.
 10. Thumbnail effect RED: **0 passed, 1 failed**; the thumbnail lacked the
     registered retouch/depth resources. GREEN: **1 passed, 0 failed**.
     No profile parsing, DCP, BaselineExposure, or golden changes.
+
+11. Raster errors: core RED **0 passed, 1 failed** and thumbnail RED
+    **0 passed, 1 failed**. GREEN: core **1 passed**, thumbnail/effects **2 passed**.
+    Core checks both processes at levels 0, 1 and 2 and zero emitted tiles on error.

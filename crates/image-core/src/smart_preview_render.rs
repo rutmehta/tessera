@@ -178,21 +178,8 @@ impl Renderer {
                 // This scalar route develops at full active resolution and only
                 // then reduces. External rasters use that same oriented L0 frame.
                 let mask =
-                    match self
-                        .mask_cache
-                        .rasterize(input, group, 0, upstream, Default::default())
-                    {
-                        Ok(mask) => mask,
-                        Err(EngineError::Cancelled) => return Err(EngineError::Cancelled),
-                        Err(_)
-                            if image
-                                .camera_linear_proxy()
-                                .is_some_and(|p| p.is_external_dng()) =>
-                        {
-                            continue;
-                        }
-                        Err(error) => return Err(error),
-                    };
+                    self.mask_cache
+                        .rasterize(input, group, 0, upstream, Default::default())?;
                 let adjusted = pipeline_cpu::adjust_local(input, &group.params, group.amount)?;
                 let blended = pipeline_cpu::blend_local(input, &adjusted, &mask)?;
                 for ((out, original), changed) in
