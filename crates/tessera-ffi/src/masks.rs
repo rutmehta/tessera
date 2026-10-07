@@ -2887,6 +2887,12 @@ mod lr5b_unavailable_tests {
             components: vec![c],
             ..Default::default()
         };
+        let mut settings = DevelopSettings::default();
+        settings.locals.adjustments.push(group.clone());
+        assert!(
+            !shared.unavailable(&settings),
+            "LR-8R: a regenerated mask that renders must not be reported unavailable"
+        );
         let image = pipeline_cpu::Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
         assert_eq!(
             Hooks(shared).rasterize(&image, &group, 0).unwrap(),
