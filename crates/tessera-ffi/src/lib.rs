@@ -221,6 +221,8 @@ pub struct Engine {
     faces: Mutex<Option<ml_faces::FaceModels>>,
     smart_thumbnail_states: Mutex<smart_preview_thumbnail::States>,
     preview_states: Mutex<std::collections::HashMap<preview::RequestKey, preview::State>>,
+    /// Owner-recipe facts for thumbnail requests, keyed by path and recipe hash.
+    preview_sources: Mutex<preview::PreviewSources>,
     listener: Mutex<Option<Arc<dyn EngineEventListener>>>,
     /// Keyword suggestions, captions and OCR: models and background jobs.
     understanding: understanding::UnderstandingState,
@@ -377,6 +379,7 @@ impl Engine {
             faces: Mutex::new(None),
             smart_thumbnail_states: Mutex::new(Default::default()),
             preview_states: Mutex::new(std::collections::HashMap::new()),
+            preview_sources: Mutex::new(Default::default()),
             listener: Mutex::new(None),
             understanding: Default::default(),
             gpu: std::sync::OnceLock::new(),

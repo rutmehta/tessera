@@ -919,6 +919,47 @@ pub(crate) fn render_identity(recipe: &core::Recipe, support: &Path, version: u3
     *hash.finalize().as_bytes()
 }
 
+/// An imported owner's recipe and its catalog original (if recorded).
+#[derive(Clone)]
+pub(super) struct ImportedSource {
+    original: Option<std::path::PathBuf>,
+    recipe: Arc<core::Recipe>,
+}
+
+/// Per-owner facts for thumbnail requests, valid while the caller's recipe
+/// hash is unchanged (a recipe edit changes the hash and re-reads).
+#[derive(Default)]
+pub(super) struct PreviewSources(
+    std::collections::HashMap<std::path::PathBuf, (String, Option<ImportedSource>)>,
+);
+impl PreviewSources {
+    const MAX_ENTRIES: usize = 200_000;
+    fn get(&mut self, path: &Path, recipe_hash: &str) -> Option<ImportedSource> {
+        if let Some((hash, imported)) = self.0.get(path)
+            && hash == recipe_hash
+        {
+            return imported.clone();
+        }
+        if self.0.len() >= Self::MAX_ENTRIES {
+            self.0.clear();
+        }
+        let imported = imported_recipe(path).map(|recipe| ImportedSource {
+            original: recipe
+                .unknown
+                .get("lightroom_smart_preview")
+                .and_then(|v| v.get("original_path"))
+                .and_then(|p| p.as_str())
+                .map(std::path::PathBuf::from),
+            recipe: Arc::new(recipe),
+        });
+        self.0.insert(
+            path.to_path_buf(),
+            (recipe_hash.to_owned(), imported.clone()),
+        );
+        imported
+    }
+}
+
 /// The owner's recipe when `path` is an imported (proxy or catalog-oriented)
 /// source, read once. Ordinary originals return None.
 fn imported_recipe(path: &Path) -> Option<core::Recipe> {
@@ -944,17 +985,24 @@ impl Engine {
         max_px: u32,
         recipe_hash: String,
     ) -> Result<PreviewResponse> {
-        let revision = previews::PreviewKey::for_source(
-            &catalog::source_path(Path::new(&path)),
-            max_px,
-            0,
-            [0; 32],
-        )
-        .map_err(failure)?
-        .file_hash;
+        // REV-SP-A S4: the owner recipe is read once per recipe hash; a re-poll
+        // costs no recipe I/O (one stat of the candidate original, for imports).
+        let imported = self
+            .preview_sources
+            .lock()
+            .map_err(failure)?
+            .get(Path::new(&path), &recipe_hash);
+        let source = imported
+            .as_ref()
+            .and_then(|i| i.original.clone())
+            .filter(|p| p.is_file())
+            .unwrap_or_else(|| std::path::PathBuf::from(&path));
+        let revision = previews::PreviewKey::for_source(&source, max_px, 0, [0; 32])
+            .map_err(failure)?
+            .file_hash;
         let default_hash = core::Recipe::default().recipe_hash().to_string();
-        let render = match imported_recipe(Path::new(&path)) {
-            Some(recipe) => imported_render_identity(&recipe, self.support_dir()?),
+        let render = match &imported {
+            Some(imported) => imported_render_identity(&imported.recipe, self.support_dir()?),
             None => [0; 32],
         };
         let request = RequestKey {
