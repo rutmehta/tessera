@@ -750,6 +750,12 @@ fn read_identified<R: Read + Seek>(
             pixels.copy_within(from..from + cw, y * cw);
         }
         pixels.truncate(cw * ch);
+        // Release the full-size buffer when the active area is materially
+        // smaller. After decoding no tile is resident, so the momentary peak
+        // is the decode buffer plus a copy smaller than 3/4 of it.
+        if pixels.len() < pixels.capacity() / 4 * 3 {
+            pixels.shrink_to_fit();
+        }
         pixels
     };
     Ok(Some(LossyDng {
