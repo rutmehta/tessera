@@ -663,24 +663,6 @@ fn read_identified<R: Read + Seek>(
         has_opcode_list: opcode_lists.iter().any(Option::is_some),
         opcode_lists,
     };
-    let mut tiles = Vec::new();
-    if decode_pixels {
-        // Validate every codec header against the bounded IFD geometry before
-        // allocating the full image. Metadata-only indexing never reads tiles.
-        for (i, (&offset, &count)) in offsets.iter().zip(&counts).enumerate() {
-            let bytes = t.at(offset as u64, count)?;
-            let (dw, dh, _) = if jxl {
-                decode_jxl(&bytes, tw, th, bits, format, false)?
-            } else {
-                decode_jpeg(&bytes, tw, th, false)?
-            };
-            let (ox, oy) = ((i % across) * tw, (i / across) * th);
-            if dw < tw.min(width - ox) || dh < th.min(height - oy) || dw > tw || dh > th {
-                return Err(invalid("codec dimensions disagree with TIFF"));
-            }
-            tiles.push(bytes);
-        }
-    }
     let step = thumbnail_edge.map_or(1, |edge| cw.max(ch).div_ceil(edge).max(1));
     let (out_width, out_height) = (cw.div_ceil(step), ch.div_ceil(step));
     let (buffer_width, buffer_height) = if thumbnail_edge.is_some() {
@@ -688,22 +670,28 @@ fn read_identified<R: Read + Seek>(
     } else {
         (width, height)
     };
-    let mut pixels = if decode_pixels {
-        vec![[0.; 3]; buffer_width * buffer_height]
-    } else {
-        Vec::new()
-    };
+    let mut pixels = Vec::new();
     if decode_pixels {
-        for (i, bytes) in tiles.into_iter().enumerate() {
+        // LR-8h: stream tiles. Each compressed tile is read once, decoded
+        // into the output and dropped, so resident compressed memory is one
+        // tile. The IFD geometry, ranges and budgets were validated above;
+        // the output is allocated only after the first tile decodes against
+        // that geometry. Metadata-only indexing never reads tiles.
+        for (i, (&offset, &count)) in offsets.iter().zip(&counts).enumerate() {
+            let bytes = t.at(offset as u64, count)?;
             let (dw, dh, decoded) = if jxl {
                 decode_jxl(&bytes, tw, th, bits, format, true)?
             } else {
                 decode_jpeg(&bytes, tw, th, true)?
             };
+            drop(bytes);
             let (ox, oy) = ((i % across) * tw, (i / across) * th);
             let (cw, ch) = (tw.min(width - ox), th.min(height - oy));
             if dw < cw || dh < ch || dw > tw || dh > th || decoded.len() != dw * dh * 3 {
-                return Err(invalid("JPEG dimensions disagree with TIFF"));
+                return Err(invalid("codec dimensions disagree with TIFF"));
+            }
+            if pixels.is_empty() {
+                pixels = vec![[0.; 3]; buffer_width * buffer_height];
             }
             for y in 0..ch {
                 for x in 0..cw {
@@ -752,18 +740,17 @@ fn read_identified<R: Read + Seek>(
             }
         }
     }
-    let pixels = if thumbnail_edge.is_some() {
+    let pixels = if thumbnail_edge.is_some() || !decode_pixels {
         pixels
-    } else if decode_pixels {
-        (top..top + ch)
-            .flat_map(|y| {
-                pixels[y * width + left..y * width + left + cw]
-                    .iter()
-                    .copied()
-            })
-            .collect()
     } else {
-        Vec::new()
+        // Crop in place: each row moves to a lower or equal index, so no
+        // second full-size buffer is allocated.
+        for y in 0..ch {
+            let from = (top + y) * width + left;
+            pixels.copy_within(from..from + cw, y * cw);
+        }
+        pixels.truncate(cw * ch);
+        pixels
     };
     Ok(Some(LossyDng {
         width: out_width,
