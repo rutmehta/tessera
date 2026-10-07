@@ -56,7 +56,11 @@ fn content_key(image: &Path) -> Option<String> {
     }
     let key = hash.finalize().to_hex().to_string();
     let mut registry = registry().lock().unwrap_or_else(|e| e.into_inner());
-    if registry.hashes.len() >= 8192 {
+    // Sized for whole libraries (REV4-SP N8): a plan refresh over ~20k
+    // in-place Smart Previews must not re-read every file. Each entry is a
+    // path, a file version and a 64-character key (~200 bytes; 128k entries
+    // stay well under 32 MB). Keyed by file version, so a change re-hashes.
+    if registry.hashes.len() >= 131_072 {
         registry.hashes.clear();
     }
     registry
