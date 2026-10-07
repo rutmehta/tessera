@@ -307,7 +307,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model.mainWindow?.makeKeyAndOrderFront(nil)
             return .terminateCancel
         }
-        return .terminateNow
+        Task { @MainActor in
+            do {
+                try await model.shutdownCullSessions()
+                sender.reply(toApplicationShouldTerminate: true)
+            } catch {
+                model.statusMessage = "Could not finish cull shutdown: \(error.localizedDescription)"
+                sender.reply(toApplicationShouldTerminate: false)
+            }
+        }
+        return .terminateLater
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

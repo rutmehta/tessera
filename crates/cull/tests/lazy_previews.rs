@@ -49,7 +49,7 @@ fn lr13c_open_never_calls_pixel_provider() {
     let reads = index.image_info_read_count();
     let calls = Arc::new(AtomicUsize::new(0));
     let counter = calls.clone();
-    let session = OwnedCullSession::open_owned_with_previews(index, dir.path(), move |_| {
+    let mut session = OwnedCullSession::open_owned_with_previews(index, dir.path(), move |_| {
         counter.fetch_add(1, Ordering::SeqCst);
         Ok(Some(0))
     })
@@ -62,6 +62,10 @@ fn lr13c_open_never_calls_pixel_provider() {
     );
     assert_eq!(session.groups().len(), 32);
     assert!(session.index().image_info_read_count() - reads <= 3 * 32);
+    // The injected counter is shared across threads. Join retirement before the
+    // final assertion so eager work moved to a worker cannot escape coverage.
+    session.retire_previews().wait();
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
 }
 
 #[test]
@@ -102,6 +106,14 @@ fn finish(session: &mut OwnedCullSession) {
 #[test]
 fn lr13c_background_is_incremental_and_reopen_reuses_hashes() {
     let (dir, index) = fixture(40);
+    let cache = tempfile::tempdir().unwrap();
+    let policy = cull::HashCachePolicy::application_support(
+        cache.path().join("Application Support/App"),
+        "synthetic",
+        1,
+        &[],
+    )
+    .unwrap();
     let db = dir.path().join("index.sqlite");
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = |counter: Arc<AtomicUsize>| {
@@ -110,9 +122,13 @@ fn lr13c_background_is_incremental_and_reopen_reuses_hashes() {
             Ok(Some(0))
         }
     };
-    let mut session =
-        OwnedCullSession::open_owned_with_previews(index, dir.path(), provider(calls.clone()))
-            .unwrap();
+    let mut session = OwnedCullSession::open_owned_with_cached_previews(
+        index,
+        dir.path(),
+        policy.clone(),
+        provider(calls.clone()),
+    )
+    .unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     assert_eq!(session.groups().len(), 40);
     finish(&mut session);
@@ -120,9 +136,10 @@ fn lr13c_background_is_incremental_and_reopen_reuses_hashes() {
     assert_eq!(session.groups()[0].images.len(), 40);
     assert_eq!(calls.load(Ordering::SeqCst), 40);
     drop(session);
-    let mut session = OwnedCullSession::open_owned_with_previews(
+    let mut session = OwnedCullSession::open_owned_with_cached_previews(
         Index::open(&db).unwrap(),
         dir.path(),
+        policy.clone(),
         provider(calls.clone()),
     )
     .unwrap();
@@ -140,9 +157,10 @@ fn lr13c_background_is_incremental_and_reopen_reuses_hashes() {
     let mut bytes = std::fs::read(&path).unwrap();
     bytes[0] ^= 1;
     std::fs::write(&path, bytes).unwrap();
-    let mut session = OwnedCullSession::open_owned_with_previews(
+    let mut session = OwnedCullSession::open_owned_with_cached_previews(
         Index::open(&db).unwrap(),
         dir.path(),
+        policy.clone(),
         provider(calls.clone()),
     )
     .unwrap();
@@ -189,7 +207,85 @@ fn lr13c_drop_cancels_queued_hashes_without_waiting_for_running_image() {
 #[test]
 fn lr13d_unapproved_index_parent_never_receives_hash_cache() {
     let (dir, index) = fixture(2);
-    let mut session = OwnedCullSession::open_owned_with_previews(index, dir.path(), |_| Ok(Some(0))).unwrap();
+    let mut session =
+        OwnedCullSession::open_owned_with_previews(index, dir.path(), |_| Ok(Some(0))).unwrap();
     finish(&mut session);
     assert!(!dir.path().join("cull-hashes-v1").exists());
+}
+
+#[test]
+fn lr13d_provider_identity_and_policy_version_partition_persistent_hashes() {
+    let (dir, index) = fixture(2);
+    drop(index);
+    let cache = tempfile::tempdir().unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    for (name, version, expected) in [
+        ("first", 1, 2),
+        ("first", 1, 2),
+        ("second", 1, 4),
+        ("second", 2, 6),
+    ] {
+        let policy = cull::HashCachePolicy::application_support(
+            cache.path().join("Application Support/App"),
+            name,
+            version,
+            &[],
+        )
+        .unwrap();
+        let counter = calls.clone();
+        let mut session = OwnedCullSession::open_owned_with_cached_previews(
+            Index::open(dir.path().join("index.sqlite")).unwrap(),
+            dir.path(),
+            policy,
+            move |_| {
+                counter.fetch_add(1, Ordering::SeqCst);
+                Ok(Some(0))
+            },
+        )
+        .unwrap();
+        finish(&mut session);
+        assert_eq!(session.groups().len(), 1);
+        assert_eq!(calls.load(Ordering::SeqCst), expected);
+    }
+}
+
+#[test]
+fn lr13d_approved_root_inside_photo_directory_is_not_written() {
+    let (dir, index) = fixture(2);
+    let root = dir.path().join("Application Support/App");
+    let policy =
+        cull::HashCachePolicy::application_support(root.clone(), "synthetic", 1, &[]).unwrap();
+    let mut session =
+        OwnedCullSession::open_owned_with_cached_previews(index, dir.path(), policy, |_| {
+            Ok(Some(0))
+        })
+        .unwrap();
+    finish(&mut session);
+    assert!(!root.exists());
+    assert!(!dir.path().join("cull-hashes-v1").exists());
+}
+
+#[test]
+fn lr13d_catalog_and_protected_library_never_receive_implicit_cache() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in ["catalog", "Pictures/Tessera Library"] {
+        let root = dir.path().join(name);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("synthetic.lrcat"), b"synthetic catalog marker").unwrap();
+        std::fs::write(root.join("photo.dng"), b"synthetic provider input").unwrap();
+        let mut index = Index::open(root.join("index.sqlite")).unwrap();
+        index
+            .scan(&root, &NoopSidecarReader, &NoopMetadataProvider)
+            .unwrap();
+        let mut session =
+            OwnedCullSession::open_owned_with_previews(index, root.as_path(), |_| Ok(Some(0)))
+                .unwrap();
+        finish(&mut session);
+        assert!(!root.join("cull-hashes-v1").exists());
+        assert!(!root.join("cull-hashes-v2").exists());
+        assert_eq!(
+            std::fs::read(root.join("synthetic.lrcat")).unwrap(),
+            b"synthetic catalog marker"
+        );
+    }
 }

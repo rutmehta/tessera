@@ -90,10 +90,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
                         continue;
                     }
                     if fields.intersects(
-                        ChangeFields::FILE
-                            | ChangeFields::CAPTURE_TIME
-                            | ChangeFields::RECIPE
-                            | ChangeFields::METADATA,
+                        ChangeFields::FILE | ChangeFields::CAPTURE_TIME | ChangeFields::RECIPE,
                     ) {
                         regroup.push(change.id);
                     }
@@ -255,6 +252,9 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         if seeds.is_empty() {
             return Ok(false);
         }
+        if self.grouping_strategy.is_none() {
+            return self.rebuild_default();
+        }
         let position: HashMap<ImageId, usize> = self
             .images
             .iter()
@@ -394,20 +394,177 @@ mod lr13d_tests {
         let mut session = CullSession::open(&index, index::Query::default()).unwrap();
         session.images = (0..19_700).map(ImageId).collect();
         for id in &session.images {
-            session.infos.insert(*id, ImageInfo {
-                id: *id, path: "synthetic.jpg".into(), size: 1, capture_seconds: None,
-            });
+            session.infos.insert(
+                *id,
+                ImageInfo {
+                    id: *id,
+                    path: "synthetic.jpg".into(),
+                    size: 1,
+                    capture_seconds: None,
+                },
+            );
             session.hashes.insert(*id, Some(0));
         }
-        session.groups = vec![Group { images: session.images.clone() }];
+        session.groups = vec![Group {
+            images: session.images.clone(),
+        }];
         // A pixel-changing edit invalidates one member of a large hash component.
         session.hashes.remove(&ImageId(0));
         let start = Instant::now();
         assert!(session.regroup_images(&[ImageId(0)]).unwrap());
         let elapsed = start.elapsed();
-        assert!(elapsed < Duration::from_millis(250), "edit held the session for {elapsed:?}");
+        assert!(
+            elapsed < Duration::from_millis(250),
+            "edit held the session for {elapsed:?}"
+        );
         assert_eq!(session.groups.len(), 2);
         assert_eq!(session.groups[0].images, vec![ImageId(0)]);
         assert_eq!(session.groups[1].images.len(), 19_699);
+    }
+}
+
+#[cfg(test)]
+mod bounded_rebuild_tests {
+    use super::*;
+    #[test]
+    fn lr13d_pending_rebuild_survives_singleton_removal() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = CullSession::open(&index, index::Query::default()).unwrap();
+        session.images = (0..100).map(ImageId).collect();
+        for id in &session.images {
+            session.infos.insert(
+                *id,
+                index::ImageInfo {
+                    id: *id,
+                    path: "synthetic.jpg".into(),
+                    size: 1,
+                    capture_seconds: None,
+                },
+            );
+            let n = if id.0 == 99 { 98 } else { id.0 } as u64;
+            session.hashes.insert(
+                *id,
+                Some(n.wrapping_mul(0x1234_5678_9abc_def1) ^ u64::from(id.0 == 99)),
+            );
+        }
+        session.regroup_images(&[ImageId(0)]).unwrap();
+        assert!(session.previews_pending());
+        assert_eq!(session.groups[0].images, [ImageId(0)]);
+        session.remove_images(&[ImageId(0)]).unwrap();
+        while session.previews_pending() {
+            session.poll_previews().unwrap();
+        }
+        assert!(
+            session
+                .groups
+                .iter()
+                .any(|g| g.images == [ImageId(98), ImageId(99)])
+        );
+        assert!(
+            session
+                .groups
+                .iter()
+                .all(|g| !g.images.contains(&ImageId(0)))
+        );
+        session.retire_previews().wait();
+    }
+    #[test]
+    fn lr13d_pending_rebuild_tracks_reordered_queue() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = CullSession::open(&index, index::Query::default()).unwrap();
+        session.images = (0..100).map(ImageId).collect();
+        for id in &session.images {
+            session.infos.insert(
+                *id,
+                index::ImageInfo {
+                    id: *id,
+                    path: "synthetic.jpg".into(),
+                    size: 1,
+                    capture_seconds: None,
+                },
+            );
+            let n = if id.0 == 99 { 98 } else { id.0 } as u64;
+            session.hashes.insert(
+                *id,
+                Some(n.wrapping_mul(0x1234_5678_9abc_def1) ^ u64::from(id.0 == 99)),
+            );
+        }
+        session.regroup_images(&[ImageId(0)]).unwrap();
+        assert!(session.previews_pending());
+        assert_eq!(session.groups[0].images, [ImageId(0)]);
+        // Same queue permutation performed by reorder_review, with the
+        // current groups retaining their membership and following queue order.
+        session.images.reverse();
+        session.groups.reverse();
+        for group in &mut session.groups {
+            group.images.reverse();
+        }
+        while session.previews_pending() {
+            session.poll_previews().unwrap();
+        }
+        assert!(
+            session
+                .groups
+                .iter()
+                .any(|g| g.images == [ImageId(99), ImageId(98)])
+        );
+        assert_eq!(session.images.len(), 100);
+        session.retire_previews().wait();
+    }
+    #[test]
+    fn lr13d_distinct_hash_rebuild_is_incremental_and_matches_pairwise_reference() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = CullSession::open(&index, index::Query::default()).unwrap();
+        session.images = (0..300).map(ImageId).collect();
+        for id in &session.images {
+            session.infos.insert(
+                *id,
+                index::ImageInfo {
+                    id: *id,
+                    path: "synthetic.jpg".into(),
+                    size: 1,
+                    capture_seconds: if id.0 % 3 == 0 {
+                        Some(id.0 as f64)
+                    } else {
+                        None
+                    },
+                },
+            );
+            // Unique hashes, some within six bits and some separated.
+            let n = id.0 as u64;
+            session
+                .hashes
+                .insert(*id, Some(n.wrapping_mul(0x1234_5678_9abc_def1)));
+        }
+        let mut parents: Vec<_> = (0..session.images.len()).collect();
+        for n in 0..session.images.len() {
+            for m in 0..n {
+                if session.related(session.images[m], session.images[n]) {
+                    grouping::join(&mut parents, m, n);
+                }
+            }
+        }
+        let mut expected: std::collections::BTreeMap<usize, Group> = Default::default();
+        for (n, id) in session.images.iter().enumerate() {
+            expected
+                .entry(grouping::root(&mut parents, n))
+                .or_insert_with(|| Group { images: Vec::new() })
+                .images
+                .push(*id);
+        }
+        session.regroup_images(&[ImageId(0)]).unwrap();
+        assert!(
+            session.previews_pending(),
+            "44,850 distinct pairs cannot fit in a 4096-pair poll"
+        );
+        let mut polls = 0;
+        while session.previews_pending() {
+            session.poll_previews().unwrap();
+            polls += 1;
+            assert!(polls <= 11);
+        }
+        assert_eq!(polls, 10, "each poll uses the fixed pair budget");
+        assert_eq!(session.groups, expected.into_values().collect::<Vec<_>>());
+        session.retire_previews().wait();
     }
 }

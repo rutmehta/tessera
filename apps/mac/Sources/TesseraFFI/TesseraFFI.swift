@@ -1268,6 +1268,13 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     func setPosition(position: UInt32) throws 
     
     /**
+     * Cancel preview work and wait until its worker and callbacks have retired.
+     * The host must call this off the main thread. The session lock is released
+     * before waiting, so provider completion never blocks UI access to it.
+     */
+    func shutdown() throws 
+    
+    /**
      * Applies catalog changes committed since the last sync (or open) to the
      * queue in place: new images join at their queue position and burst,
      * removed ones leave, and only the affected groups are recomputed. The
@@ -2001,6 +2008,19 @@ open func setPosition(position: UInt32)throws   {try rustCallWithError(FfiConver
     uniffi_tessera_ffi_fn_method_cullsession_set_position(
             self.uniffiCloneHandle(),
         FfiConverterUInt32.lower(position),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Cancel preview work and wait until its worker and callbacks have retired.
+     * The host must call this off the main thread. The session lock is released
+     * before waiting, so provider completion never blocks UI access to it.
+     */
+open func shutdown()throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_shutdown(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
 }
@@ -38765,6 +38785,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_set_position() != 42755) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_shutdown() != 14107) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_sync_changes() != 62763) {

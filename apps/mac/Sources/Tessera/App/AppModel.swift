@@ -512,6 +512,9 @@ final class AppModel {
     @ObservationIgnored private var selfTestFrames: [DevelopFrame]?
     @ObservationIgnored private var readoutTask: Task<Void, Never>?
     @ObservationIgnored private var loadGeneration = 0
+    @ObservationIgnored private var catalogGeneration = 0
+    @ObservationIgnored private var shuttingDownCull = false
+    @ObservationIgnored private let cullShutdowns = CullShutdownQueue()
     @ObservationIgnored private var modeBeforeCompare: ViewMode = .grid
     /// In-place library updates (M2-28): one catalog pull at a time, coalesced.
     @ObservationIgnored private var syncInFlight = false
@@ -658,6 +661,9 @@ final class AppModel {
             await MainActor.run {
                 guard generation == self.loadGeneration,
                       self.currentFolderRequestID == requestID else {
+                    if case .success(let (lib, _)) = result, let retired = lib as? EngineLibrary {
+                        self.retireCull(retired)
+                    }
                     self.finishFolderRequest(requestID, loaded: false)
                     return
                 }
@@ -713,7 +719,30 @@ final class AppModel {
         defaults.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
     }
 
+    /// Retire a library immediately at the host boundary; join its native worker off-main.
+    private func retireCull(_ lib: EngineLibrary) {
+        lib.onCatalogChange(nil)
+        let session = lib.session
+        cullShutdowns.enqueue { try session.shutdown() }
+    }
+
+    /// App termination waits here without blocking the main actor's event loop.
+    func shutdownCullSessions() async throws {
+        shuttingDownCull = true
+        loadGeneration += 1
+        catalogGeneration += 1
+        syncWaiters.removeAll()
+        syncRequested = false
+        if let lib = engineLibrary { retireCull(lib) }
+        try await cullShutdowns.drain()
+    }
+
     func install(_ lib: any PhotoLibrary, snapshot: CullController.InitialSnapshot? = nil) {
+        guard !shuttingDownCull else {
+            if let engine = lib as? EngineLibrary { retireCull(engine) }
+            return
+        }
+        catalogGeneration += 1
         if photoEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
         if let saved = libraryReturnState {
             documents.columnVisibility = saved.sidebarVisibility
@@ -731,7 +760,9 @@ final class AppModel {
             workspaceTransition = false
         }
         loader.removeAll()
-        (library as? EngineLibrary)?.onCatalogChange(nil)
+        if let retired = library as? EngineLibrary, retired !== (lib as? EngineLibrary) {
+            retireCull(retired)
+        }
         syncWaiters.removeAll()
         syncRequested = false
         smartPreviews.cancel() // any captured old native operation still drains on its owner
@@ -771,8 +802,13 @@ final class AppModel {
         liveObservers.forEach { $0.libraryDidReload() }
         notifySelection(scroll: true)
         if let engine = lib as? EngineLibrary, !engine.isReadOnly {
-            engine.onCatalogChange { [weak self] _ in
-                Task { @MainActor in self?.syncLibrary() }
+            let generation = catalogGeneration
+            engine.onCatalogChange { [weak self, weak engine] _ in
+                Task { @MainActor in
+                    guard let self, let engine, self.engineLibrary === engine,
+                          self.catalogGeneration == generation, !self.shuttingDownCull else { return }
+                    self.syncLibrary()
+                }
             }
             // Changes committed between the scan and now (a tether frame in flight).
             syncLibrary()
@@ -969,7 +1005,7 @@ final class AppModel {
     /// and other writers. One pull at a time; calls during a pull are coalesced into one more.
     /// `then` runs after a pull that started after this call.
     func syncLibrary(then: (@MainActor @Sendable () -> Void)? = nil) {
-        guard let lib = engineLibrary, !lib.isReadOnly else { then?(); return }
+        guard !shuttingDownCull, let lib = engineLibrary, !lib.isReadOnly else { then?(); return }
         if let then { syncWaiters.append(then) }
         guard !syncInFlight else { syncRequested = true; return }
         syncInFlight = true
@@ -983,7 +1019,7 @@ final class AppModel {
             let matches = try? search?.collect()
             await MainActor.run {
                 self.syncInFlight = false
-                if self.engineLibrary === lib {
+                if !self.shuttingDownCull, self.engineLibrary === lib {
                     switch result {
                     case .success(let delta): self.apply(delta, to: lib, search: search, matches: matches)
                     case .failure(let error): self.statusMessage = "Library update failed: \(error.localizedDescription)"
@@ -1019,6 +1055,9 @@ final class AppModel {
             await MainActor.run {
                 guard self.engineLibrary === lib,
                       requestID == nil || self.currentFolderRequestID == requestID else {
+                    if case .success(let (_, replacement)) = result, let replacement {
+                        self.retireCull(replacement)
+                    }
                     then?(self, false)
                     return
                 }
@@ -1167,7 +1206,11 @@ final class AppModel {
         Task.detached(priority: .userInitiated) {
             let result = Result { try EngineLibrary.open(folder: folder, basketTarget: target) }
             await MainActor.run {
-                guard generation == self.loadGeneration, case .success(let lib) = result else { return }
+                guard case .success(let lib) = result else { return }
+                guard generation == self.loadGeneration, !self.shuttingDownCull else {
+                    self.retireCull(lib)
+                    return
+                }
                 let source = self.source
                 self.rememberOpenedFolder(lib, replacing: folder)
                 self.install(lib)

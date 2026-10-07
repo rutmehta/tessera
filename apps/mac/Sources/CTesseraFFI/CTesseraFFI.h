@@ -3050,6 +3050,11 @@ void uniffi_tessera_ffi_fn_method_cullsession_set_library(uint64_t ptr, RustBuff
 void uniffi_tessera_ffi_fn_method_cullsession_set_position(uint64_t ptr, uint32_t position, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SHUTDOWN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SHUTDOWN
+void uniffi_tessera_ffi_fn_method_cullsession_shutdown(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SYNC_CHANGES
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SYNC_CHANGES
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_sync_changes(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -6312,6 +6317,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_set_library(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SET_POSITION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SET_POSITION
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_set_position(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SHUTDOWN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SHUTDOWN
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_shutdown(void
     
 );
 #endif
