@@ -209,3 +209,19 @@ fn linear_raw_accepts_as_shot_white_xy_instead_of_neutral() {
     bytes[payload + 8..payload + 12].copy_from_slice(&0u32.to_le_bytes());
     assert!(raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes)).is_err());
 }
+
+/// SP-INT2 (REV-SP-A nit): a materially smaller active area does not keep
+/// the full-size decode buffer alive in the returned image.
+#[test]
+fn sp_int2_cropped_pixels_release_the_full_size_allocation() {
+    let bytes = support::lossy_dng(false, false);
+    let decoded = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(bytes))
+        .unwrap()
+        .expect("linear DNG");
+    assert_eq!(decoded.pixels.len(), 12 * 10);
+    assert!(
+        decoded.pixels.capacity() < 16 * 16,
+        "capacity {} keeps the 16x16 decode",
+        decoded.pixels.capacity()
+    );
+}
