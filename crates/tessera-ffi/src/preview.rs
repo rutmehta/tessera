@@ -779,6 +779,11 @@ fn render_imported(
     }
     let masks = crate::develop::masks::MaskShared::new(&image);
     masks.load_available_imported(support, &settings);
+    if masks.unavailable(&settings) {
+        return Err(failure(
+            "imported mask raster is unavailable or invalid; regenerate the mask before rendering this thumbnail",
+        ));
+    }
     renderer
         .mask_cache()
         .set_hooks(Some(Arc::new(crate::develop::masks::Hooks(masks))));
