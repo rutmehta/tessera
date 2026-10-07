@@ -1609,6 +1609,56 @@ mod tests {
     }
 
     #[test]
+    fn white_fluorescent_uses_sdk_interval_midpoint() {
+        // dng_camera_profile.cpp: WhiteFluorescent is 3250..3800 K.
+        let mut entries = base();
+        entries[1].2 = vec![15.];
+        entries.extend([
+            (50722, 10, vec![2., 0., 0., 0., 2., 0., 0., 0., 2.]),
+            (50779, 3, vec![21.]),
+        ]);
+        for p in [
+            DcpProfile::parse(&fixture(false, 0x4352, &entries)).unwrap(),
+            DcpProfile::parse_embedded(&fixture(false, 0x4352, &entries)).unwrap(),
+        ] {
+            assert_eq!(p.temperature1, 3525.);
+        }
+    }
+
+    #[test]
+    fn undefined_calibration_illuminants_use_first_matrix_like_sdk() {
+        let dual = |code: f64| {
+            let mut entries = base();
+            entries[1].2 = vec![code];
+            entries.extend([
+                (50722, 10, vec![2., 0., 0., 0., 2., 0., 0., 0., 2.]),
+                (50779, 3, vec![21.]),
+            ]);
+            fixture(false, 0x4352, &entries)
+        };
+        let unknown = DcpProfile::parse(&dual(0.)).unwrap();
+        for code in [5., 6., 7., 8., 25., 254., 256., 65535.] {
+            for (p, reference) in [
+                (DcpProfile::parse(&dual(code)), &unknown),
+                (
+                    DcpProfile::parse_embedded(&dual(code)),
+                    &DcpProfile::parse_embedded(&dual(0.)).unwrap(),
+                ),
+            ] {
+                let p = p.unwrap_or_else(|e| panic!("illuminant {code}: {e}"));
+                assert!(
+                    p.second.is_none(),
+                    "illuminant {code} must be single-matrix"
+                );
+                assert_eq!(
+                    p.apply([0.2, 0.3, 0.1], 3000.),
+                    reference.apply([0.2, 0.3, 0.1], 3000.)
+                );
+            }
+        }
+    }
+
+    #[test]
     fn installed_profile_without_curve_preserves_scene_headroom() {
         let profile = DcpProfile::parse(&fixture(false, 0x4352, &base())).unwrap();
         assert_eq!(profile.apply_tone([2., 0.5, 0.1]), [2., 0.5, 0.1]);

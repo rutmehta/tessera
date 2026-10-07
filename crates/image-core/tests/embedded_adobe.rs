@@ -37,7 +37,11 @@ fn native_adobe_named_recipe_does_not_switch_pipeline() {
     let expected = pixels(&renderer, &image, &settings);
     settings.camera_profile.profile.name = "Adobe Color".into();
     assert_eq!(pixels(&renderer, &image, &settings), expected);
-    assert_eq!(renderer.profile_notice(&image, &settings), None);
+    // LR-8e3 ruling: the approximation is visible, not silent.
+    assert_eq!(
+        renderer.profile_notice(&image, &settings),
+        Some(pipeline_cpu::NATIVE_APPROXIMATED_PROFILE_NOTICE)
+    );
 }
 
 #[test]
