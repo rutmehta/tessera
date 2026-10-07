@@ -146,3 +146,43 @@ fn lr8m_proxy_catalog_orientation_is_display_only() {
         );
     }
 }
+
+/// A-LR8 M4: a relinked original takes the ordinary RAW route at every
+/// preview level (tiled, lens-planned, resident-capable), not the scalar
+/// full-resolution camera-linear route.
+#[test]
+fn lr8m_relinked_original_takes_the_ordinary_raw_route_at_every_level() {
+    let dir = tempfile::tempdir().unwrap();
+    let relinked_path = dir.path().join("relinked.dng");
+    std::fs::write(&relinked_path, support::bayer_dng(1)).unwrap();
+    let renderer = Renderer::new(Default::default());
+    let s = frame_edits();
+    for o in [1u16, 3, 6, 8] {
+        let ordinary_path = dir.path().join(format!("ordinary-{o}.dng"));
+        std::fs::write(&ordinary_path, support::bayer_dng(o)).unwrap();
+        let ordinary = RawImage::open(ImageId(7700 + u128::from(o)), &ordinary_path).unwrap();
+        let relinked = RawImage::open_with_catalog_orientation(
+            ImageId(7800 + u128::from(o)),
+            &relinked_path,
+            Some(o),
+        )
+        .unwrap();
+        assert_eq!(
+            renderer.can_render_resident(&relinked, &s).unwrap(),
+            renderer.can_render_resident(&ordinary, &s).unwrap(),
+            "orientation {o}"
+        );
+        for level in [0u8, 1, 2] {
+            assert_eq!(
+                Renderer::output_extent(&relinked, &s, level).unwrap(),
+                Renderer::output_extent(&ordinary, &s, level).unwrap(),
+                "orientation {o} level {level}"
+            );
+            assert_eq!(
+                pixels(&renderer, &relinked, &s, level),
+                pixels(&renderer, &ordinary, &s, level),
+                "orientation {o} level {level}: the relinked original renders like an ordinary import"
+            );
+        }
+    }
+}
