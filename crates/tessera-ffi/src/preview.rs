@@ -926,6 +926,200 @@ mod tests {
         );
         assert!(result.unwrap_err().to_string().contains("mask"));
     }
+
+    /// A baseline JPEG of `pixels` with an EXIF Orientation tag.
+    fn lr8n_phone_jpeg(pixels: &image::RgbImage, orientation: u16) -> Vec<u8> {
+        let mut jpeg = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 95)
+            .encode_image(pixels)
+            .unwrap();
+        let mut app1 = b"Exif\0\0II*\0".to_vec();
+        app1.extend(8u32.to_le_bytes());
+        app1.extend(1u16.to_le_bytes());
+        app1.extend(0x0112u16.to_le_bytes());
+        app1.extend(3u16.to_le_bytes());
+        app1.extend(1u32.to_le_bytes());
+        app1.extend(orientation.to_le_bytes());
+        app1.extend([0, 0, 0, 0, 0, 0]);
+        let mut out = jpeg[..2].to_vec();
+        out.extend([0xFF, 0xE1]);
+        out.extend(((app1.len() + 2) as u16).to_be_bytes());
+        out.extend(app1);
+        out.extend(&jpeg[2..]);
+        out
+    }
+
+    /// LR-8n (REV-SP-B S1): once a rotated phone JPEG imported as an offline
+    /// Smart Preview is relinked, Develop reads it in the stored frame with
+    /// the catalog orientation as its display orientation, and the thumbnail
+    /// and file export show exactly what Develop shows: crop and masks on the
+    /// same content, oriented once.
+    #[test]
+    fn lr8n_relinked_rgb_original_export_and_thumbnail_agree_with_develop() {
+        use engine_api::recipe::{LocalAdjustment, LocalParams, MaskComponent, MaskKind};
+        let (w, h) = (96u32, 64u32);
+        let stored = image::RgbImage::from_fn(w, h, |x, y| {
+            let disc = (x as i32 - 70).pow(2) + (y as i32 - 18).pow(2) < 120;
+            image::Rgb([
+                (30 + x * 2 + if disc { 60 } else { 0 }).min(255) as u8,
+                (40 + y * 2) as u8,
+                (90 + (x + y) % 30) as u8,
+            ])
+        });
+        for orientation in [3u16, 6, 8] {
+            let root = tempfile::tempdir().unwrap();
+            let proxy = root.path().join("proxy.dng");
+            let original = root.path().join("original.jpg");
+            std::fs::write(&proxy, support_dng()).unwrap();
+            let id = engine_api::id::ImageId(1400 + u128::from(orientation));
+            let mut recipe = core::Recipe::new(id);
+            recipe.unknown.insert(
+                "lightroom_orientation".into(),
+                serde_json::json!(orientation),
+            );
+            recipe.unknown.insert(
+                "lightroom_smart_preview".into(),
+                serde_json::json!({"original_path": original, "proxy_path": proxy}),
+            );
+            recipe
+                .edit(
+                    engine_api::recipe::EditMeta::user("LR-8n crop and masks", 1),
+                    |s| {
+                        s.detail.sharpening.amount = 0.;
+                        s.detail.noise_reduction.color = 0.;
+                        s.geometry.crop.rect.left = 0.125;
+                        s.geometry.crop.rect.right = 0.875;
+                        s.geometry.crop.rect.top = 0.0625;
+                        s.geometry.crop.rect.bottom = 0.75;
+                        s.locals.adjustments.push(LocalAdjustment {
+                            components: vec![MaskComponent::new(MaskKind::Radial {
+                                center: [0.7, 0.3],
+                                radii: [0.2, 0.25],
+                                angle: 0.,
+                                feather: 40.,
+                            })],
+                            params: LocalParams {
+                                exposure: 1.,
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        });
+                    },
+                )
+                .unwrap();
+            sidecar::Sidecar::write_recipe(
+                sidecar::Sidecar::paths(&proxy).recipe,
+                &sidecar::RecipeDocument {
+                    recipe: recipe.clone(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            // Relink: the phone writes stored pixels plus an EXIF tag.
+            std::fs::write(&original, lr8n_phone_jpeg(&stored, orientation)).unwrap();
+            assert_eq!(catalog::source_path(&proxy), original);
+
+            // Develop: stored frame for edits, catalog orientation for display.
+            let image = catalog::open_image(id, &proxy).unwrap();
+            assert_eq!(image.metadata().orientation, orientation);
+            let extent = image.active_extent();
+            assert_eq!(
+                (extent.width, extent.height),
+                (w, h),
+                "orientation {orientation}: edits in the stored frame"
+            );
+            let settings = crate::develop::session_renderable(&recipe.settings, true, false);
+            let develop_extent = image_core::Renderer::output_extent(&image, &settings, 0).unwrap();
+            assert_eq!(
+                (develop_extent.width, develop_extent.height),
+                (72, 44),
+                "orientation {orientation}: the stored-frame crop"
+            );
+            let tiles = image_core::Renderer::new(Default::default())
+                .with_host_ignored_native_profiles()
+                .for_recipe(&recipe)
+                .render_region(
+                    &image,
+                    &settings,
+                    0,
+                    image_core::PixelRect::full(develop_extent),
+                )
+                .unwrap();
+            let develop = crate::assist::orient(
+                crate::lrcat_fidelity::stitch(develop_extent, &tiles).unwrap(),
+                orientation as u8,
+            );
+            let shown = if orientation >= 5 { (44, 72) } else { (72, 44) };
+            assert_eq!(develop.dimensions(), shown);
+
+            // Thumbnail: the stored-frame render keyed and shown with the
+            // catalog orientation, exactly Develop's frame.
+            let (thumbnail, key_orientation) =
+                render_imported(&proxy, id, &recipe, root.path(), u32::MAX).unwrap();
+            assert_eq!(key_orientation, orientation);
+            assert!(
+                crate::assist::orient(thumbnail, key_orientation as u8) == develop,
+                "orientation {orientation}: thumbnail differs from Develop"
+            );
+
+            // File export: oriented once, after the stored-frame edits.
+            let source = crate::export::Source::open(
+                &proxy,
+                1,
+                engine_api::recipe::ProcessVersion::NATIVE_CURRENT,
+            )
+            .unwrap();
+            let out = root.path().join("out");
+            std::fs::create_dir_all(&out).unwrap();
+            let export_settings = ::export::ExportSettings {
+                output_dir: out,
+                metadata: ::export::Metadata::None,
+                format: ::export::Format::Png,
+                apply_orientation: true,
+                ..Default::default()
+            };
+            let rendered = ::export::render_one_cancellable(
+                &::export::ExportImage {
+                    source: source.render_source(),
+                    name: "relinked",
+                    sequence: 1,
+                    date: "",
+                    metadata: None,
+                },
+                &recipe,
+                &export_settings,
+                &CancellationToken::new(),
+                None,
+                None,
+            )
+            .unwrap();
+            let exported = image::open(rendered.finish(&CancellationToken::new()).unwrap())
+                .unwrap()
+                .to_rgb8();
+            assert_eq!(
+                exported.dimensions(),
+                develop.dimensions(),
+                "orientation {orientation}: export crop aspect"
+            );
+            // Export and Develop are separate renderers; they must agree on
+            // where every pixel is (the disc and the mask), within rounding
+            // of their tone paths.
+            let (mut sum, mut max) = (0f64, 0u8);
+            for (a, b) in exported.pixels().zip(develop.pixels()) {
+                for c in 0..3 {
+                    let d = a[c].abs_diff(b[c]);
+                    sum += f64::from(d);
+                    max = max.max(d);
+                }
+            }
+            let mean = sum / (exported.len() as f64);
+            eprintln!("orientation {orientation}: export vs Develop mean {mean:.3}, max {max}");
+            assert!(
+                mean < 1. && max <= 3,
+                "orientation {orientation}: export differs from Develop (mean {mean}, max {max})"
+            );
+        }
+    }
 }
 
 use engine_api::jobs::{Job, JobContext, Priority, Scheduler};

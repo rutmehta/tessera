@@ -589,6 +589,7 @@ fn source_orientation(source: &RenderSource<'_>) -> u16 {
     match source {
         RenderSource::Cfa { metadata, .. } => metadata.orientation,
         RenderSource::Rgb(_) => 1,
+        RenderSource::StoredRgb { orientation, .. } => *orientation,
         RenderSource::CameraLinear(proxy) => proxy.original_metadata().orientation,
     }
 }

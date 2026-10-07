@@ -351,3 +351,82 @@ fn ai_lens_warp_fails_explicitly_instead_of_exporting_misaligned_masks() {
     assert_eq!(backend.calls, 0);
     assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
 }
+
+/// LR-8n (REV-LR-8n S1): a catalog-oriented RGB original in its stored frame
+/// segments like a RAW. The segmenter sees the displayed orientation and its
+/// raster is mapped back to the stored frame the edits live in.
+#[test]
+fn lr8n_stored_rgb_subject_export_segments_displayed_pixels_and_masks_the_stored_frame() {
+    struct Left;
+    impl MaskSegmenter for Left {
+        fn segment(
+            &mut self,
+            image: &image::RgbImage,
+            _: &SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            assert_eq!(
+                image.dimensions(),
+                (24, 32),
+                "segmentation input is display-oriented (orientation 6)"
+            );
+            Ok((0..image.width() * image.height())
+                .map(|i| {
+                    if i % image.width() < image.width() / 2 {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                })
+                .collect())
+        }
+    }
+    // 32 x 24 stored pixels, displayed 24 x 32 (orientation 6).
+    let pixels = Image::new(32, 24, vec![vec![0.05; 768]; 3]).unwrap();
+    let input = ExportImage {
+        source: RenderSource::StoredRgb {
+            image: &pixels,
+            orientation: 6,
+        },
+        name: "stored",
+        sequence: 1,
+        date: "",
+        metadata: None,
+    };
+    let dir = tempfile::tempdir().unwrap();
+    // Sensor-oriented output (apply_orientation off) shows the stored frame.
+    let settings = ExportSettings {
+        output_dir: dir.path().into(),
+        metadata: Metadata::None,
+        ..Default::default()
+    };
+    let output =
+        export_one_with_segmenter(&input, &recipe(vec![subject()]), &settings, &mut Left).unwrap();
+    let actual = image::open(output).unwrap().to_rgb8();
+    let baseline = export_one(
+        &input,
+        &Recipe::default(),
+        &ExportSettings {
+            naming: "baseline".into(),
+            ..settings
+        },
+    )
+    .unwrap();
+    let baseline = image::open(baseline).unwrap().to_rgb8();
+    assert_eq!(actual.dimensions(), (32, 24), "stored frame");
+    let delta = |x, y| {
+        actual
+            .get_pixel(x, y)
+            .0
+            .into_iter()
+            .zip(baseline.get_pixel(x, y).0)
+            .map(|(a, b)| a as i32 - b as i32)
+            .sum::<i32>()
+    };
+    // Displayed left half = stored bottom half under orientation 6.
+    assert!(delta(16, 18) > 30, "masked: {}", delta(16, 18));
+    assert!(delta(16, 2).abs() < 6, "unmasked: {}", delta(16, 2));
+    assert!(
+        delta(4, 20) > 30 && delta(28, 20) > 30,
+        "mask spans the stored width"
+    );
+}

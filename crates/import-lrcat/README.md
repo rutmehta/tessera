@@ -414,19 +414,22 @@ is written, no Adobe helper codec is claimed, and no import golden is re-pinned.
 
 ## Smart Previews and catalog orientation (LR-8m, SP-INT2)
 
-Imported Smart Previews and relinked RAW originals use the ordinary RAW
-convention: crop, CropAngle, local masks, Upright and lens corrections are
-normalized in the stored (sensor, pre-orientation) frame, and the absolute
-catalog orientation replaces EXIF as the display orientation, applied once by
-the loupe, thumbnails, export, print and merge. In-place Smart Previews keep
-one recipe per catalog image, even when two previews are byte-identical.
+Imported Smart Previews and relinked originals (RAW and, since LR-8n, RGB:
+JPEG, TIFF, HEIC, PNG and working-space DNG) use the ordinary RAW convention:
+crop, CropAngle, local masks, Upright and lens corrections are normalized in
+the stored (sensor, pre-orientation) frame, and the absolute catalog
+orientation replaces EXIF as the display orientation, applied once by the
+loupe, thumbnails, export, print and merge. A relinked RGB original's own EXIF
+is ignored; its pixels are read as stored, like its Smart Preview. In-place
+Smart Previews keep one recipe per catalog image, even when two previews are
+byte-identical.
 
 Known limits:
-- Relinked **RGB** originals (JPEG, TIFF, HEIC, working-space DNG) still have
-  the catalog orientation consumed by their decoder, so they are read in the
-  rotated frame while their Smart Preview is sensor-frame. Imported crops and
-  masks can therefore move when such a photo is relinked. Follow-up lane LR-8n
-  (pinned by the ignored test `lr8n_relinked_rgb_original_uses_the_stored_frame_like_its_smart_preview`).
+- Online (non-proxy) RGB originals imported from a catalog, and ordinary
+  non-Lightroom RGB imports, still have EXIF orientation consumed by their
+  decoder, so their edits live in the rotated frame. Lightroom crop and mask
+  values on such a rotated JPEG are therefore applied in a different frame
+  than Lightroom's (LR-8n report; unchanged pending a coordinator decision).
 - Transform (Vertical, Horizontal, Aspect, X/Y offsets) and Upright analysis
   act along the stored axes on rotated photos, as for ordinary RAW imports.
   Adobe's convention for `PerspectiveVertical`, `UprightTransform_*` and the

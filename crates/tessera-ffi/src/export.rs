@@ -865,6 +865,9 @@ impl Engine {
 pub(crate) enum Source {
     LinearDng(Box<pipeline_cpu::CameraLinearProxy>),
     Rgb(pipeline_cpu::Image),
+    /// A catalog-oriented RGB original in its stored frame, with the catalog
+    /// orientation as its display orientation (LR-8n).
+    StoredRgb(pipeline_cpu::Image, u16),
     Raw(Box<(raw_decode::CfaImage, raw_decode::RawMetadata)>),
 }
 impl Source {
@@ -911,14 +914,24 @@ impl Source {
             }
             return Ok(Self::Raw(Box::new((cfa, metadata))));
         }
-        Ok(Self::Rgb(
-            image_core::RgbSource::open_with_orientation(path, orientation)?.into_pixels(),
-        ))
+        Ok(match orientation {
+            // Edits in the stored frame, the catalog orientation applied once
+            // at the end, as for RAW and Smart Previews (LR-8n).
+            Some(orientation) => Self::StoredRgb(
+                image_core::RgbSource::open_with_orientation(path, Some(1))?.into_pixels(),
+                orientation,
+            ),
+            None => Self::Rgb(image_core::RgbSource::open(path)?.into_pixels()),
+        })
     }
     pub(crate) fn render_source(&self) -> pipeline_cpu::RenderSource<'_> {
         match self {
             Self::LinearDng(proxy) => pipeline_cpu::RenderSource::CameraLinear(proxy),
             Self::Rgb(image) => pipeline_cpu::RenderSource::Rgb(image),
+            Self::StoredRgb(image, orientation) => pipeline_cpu::RenderSource::StoredRgb {
+                image,
+                orientation: *orientation,
+            },
             Self::Raw(raw) => pipeline_cpu::RenderSource::Cfa {
                 image: &raw.0,
                 metadata: &raw.1,
@@ -937,6 +950,13 @@ impl Source {
                 }
             }
             Self::Rgb(image) => (image.width(), image.height()),
+            Self::StoredRgb(image, orientation) => {
+                if *orientation >= 5 {
+                    (image.height(), image.width())
+                } else {
+                    (image.width(), image.height())
+                }
+            }
             Self::Raw(raw) => {
                 let [_, _, w, h] = raw.1.default_crop;
                 if raw.1.orientation >= 5 {

@@ -18,7 +18,13 @@ pub enum RenderSource<'a> {
         image: &'a CfaImage,
         metadata: &'a RawMetadata,
     },
+    /// Display-oriented RGB (an ordinary import whose decoder consumed EXIF).
     Rgb(&'a Image),
+    /// RGB in its stored (pre-orientation) frame, rendered exactly like
+    /// [`Self::Rgb`]; `orientation` (EXIF 1-8) is the display orientation the
+    /// caller applies after rendering, as for a CFA source's metadata.
+    /// Lightroom-imported RGB originals with a catalog orientation (LR-8n).
+    StoredRgb { image: &'a Image, orientation: u16 },
     /// Immutable camera-space proxy; original RAW calibration is retained.
     CameraLinear(&'a crate::CameraLinearProxy),
 }
@@ -264,7 +270,7 @@ fn render_linear_impl(
         return Err(EngineError::invalid("scale", "must be positive"));
     }
     let (mut rgb, mut crop, correction) = match source {
-        RenderSource::Rgb(image) => {
+        RenderSource::Rgb(image) | RenderSource::StoredRgb { image, .. } => {
             if image.planes().len() != 3 {
                 return Err(EngineError::invalid("RGB", "three planes required"));
             }

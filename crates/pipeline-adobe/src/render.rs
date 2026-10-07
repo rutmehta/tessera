@@ -85,7 +85,12 @@ pub fn render_linear_scaled_with_resources(
             what: "Adobe rendering: original required; camera-linear Smart Previews use Native revision 2".into(),
         });
     }
-    if profile.is_some() && matches!(source, RenderSource::Rgb(_)) {
+    if profile.is_some()
+        && matches!(
+            source,
+            RenderSource::Rgb(_) | RenderSource::StoredRgb { .. }
+        )
+    {
         return Err(EngineError::invalid(
             "DCP profile",
             "requires a CFA source; RGB is already in working space",
@@ -138,7 +143,7 @@ pub fn render_linear_scaled_with_resources(
     let camera_metadata = match source {
         RenderSource::Cfa { metadata, .. } => Some(*metadata),
         RenderSource::CameraLinear(proxy) => Some(proxy.original_metadata()),
-        RenderSource::Rgb(_) => None,
+        RenderSource::Rgb(_) | RenderSource::StoredRgb { .. } => None,
     };
     if let Some(metadata) = camera_metadata {
         crate::validate_baseline_exposure(metadata.baseline_exposure)?;
