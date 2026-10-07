@@ -362,7 +362,7 @@ impl Engine {
         // Index IDs are derived from canonical paths. Do not duplicate that algorithm.
         let indexed = c
             .index
-            .scan_file(&path, &catalog::Sidecars, &catalog::EmbeddedMetadata);
+            .scan_file(&path, &catalog::Sidecars, &catalog::IndexedMetadata);
         if let Err(e) = indexed {
             return Err(failure(format!(
                 "DNG saved at {}; catalog scan failed: {e}",

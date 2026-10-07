@@ -1255,7 +1255,7 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
                 failures.push("Develop frame failed".into());
             }
             assert!(session.get_histogram().unwrap().red.iter().any(|v| *v != 0));
-            session.set_settings(serde_json::json!({"camera_profile":{"look":{"style":"unavailable","amount":100.0}},"lens":{"profile":{"kind":"database","profile":{"name":"unavailable"}}},"output":{"hdr":true,"hdr_headroom_stops":2.0},"effects":{"lens_blur":{}}}).to_string(), false).unwrap();
+            session.set_settings(serde_json::json!({"camera_profile":{"look":{"style":"unavailable","amount":100.0}},"lens":{"profile":{"kind":"database","profile":{"name":"unavailable"}}},"output":{"hdr":true,"hdr_headroom_stops":2.0}}).to_string(), false).unwrap();
             if receive
                 .recv_timeout(std::time::Duration::from_secs(30))
                 .ok()
@@ -1266,12 +1266,7 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
             // The minimum visible notice: the existing Develop status line is
             // driven by ignored_settings; render_notices names what was omitted.
             let ignored = session.ignored_settings().unwrap();
-            for field in [
-                "/camera_profile/look",
-                "/lens/profile",
-                "/output/hdr",
-                "/effects/lens_blur",
-            ] {
+            for field in ["/camera_profile/look", "/lens/profile", "/output/hdr"] {
                 assert!(ignored.iter().any(|f| f == field), "{field}: {ignored:?}");
             }
             let notices = session.render_notices().unwrap();
@@ -1279,13 +1274,33 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
                 "Creative look unavailable; shown without it.",
                 "Lens profile unavailable; shown without it.",
                 "Rendered using the available Smart Preview dynamic range.",
-                "Lens Blur is not rendered on Smart Preview yet.",
             ] {
                 assert!(
                     notices.iter().any(|n| n == sentence),
                     "{sentence}: {notices:?}"
                 );
             }
+            // A-LR13 item 2: Lens Blur is no longer a blanket "not rendered"
+            // shortcut on proxies. Develop keeps it and renders it through its
+            // depth provider exactly as for originals (pixel coverage with a
+            // real depth map: tests/lr13b_proxy_effects.rs), so it is neither
+            // ignored nor announced as omitted.
+            session
+                .set_settings(
+                    serde_json::json!({"effects":{"lens_blur":{}}}).to_string(),
+                    false,
+                )
+                .unwrap();
+            let ignored = session.ignored_settings().unwrap();
+            assert!(
+                !ignored.iter().any(|f| f == "/effects/lens_blur"),
+                "{ignored:?}"
+            );
+            let notices = session.render_notices().unwrap();
+            assert!(
+                !notices.iter().any(|n| n.contains("Lens Blur")),
+                "{notices:?}"
+            );
             session.set_listener(None);
             session.close().unwrap();
         }

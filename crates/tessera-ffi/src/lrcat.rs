@@ -798,7 +798,13 @@ fn stream_catalog(
     if let Some(w) = &mut writer {
         w.write_all(b"{\"images\":[")?;
     }
-    let smart_previews = std::env::var_os("TESSERA_LRCAT_SMART_PREVIEWS")
+    // Test-only override (A-LR8 minor): production always uses the catalog's
+    // own "<name> Smart Previews.lrdata" bundle.
+    #[cfg(test)]
+    let bundle = std::env::var_os("TESSERA_LRCAT_SMART_PREVIEWS");
+    #[cfg(not(test))]
+    let bundle: Option<std::ffi::OsString> = None;
+    let smart_previews = bundle
         .map(|root| {
             import_lrcat::smart_previews::SmartPreviewIndex::from_bundle(PathBuf::from(root))
         })
@@ -1055,12 +1061,14 @@ impl LrcatImport {
     /// and the photos' common folder as the library folder.
     pub fn default_options(&self) -> Result<LrcatOptions> {
         let roots = root_paths(&self.plan);
+        // Never beside the catalog (A-LR8 minor): when the photos' folder is
+        // unusable (for example an absent drive) the library goes to app support.
         let library = match common_ancestor(&roots)
             .filter(|p| {
                 p.components().count() > 1
                     && (p.is_dir() || !self.plan.images.iter().any(|i| i.smart_preview.is_some()))
             })
-            .or_else(|| self.catalog.parent().map(Path::to_path_buf))
+            .filter(|p| !self.is_catalog_folder(p))
             .filter(|p| !Sidecar::is_lightroom_owned(p))
         {
             Some(library) => library,
@@ -1339,6 +1347,11 @@ impl LrcatImport {
                 "the library folder must not be inside the Lightroom catalog files",
             ));
         }
+        if self.is_catalog_folder(&library_folder) {
+            return Err(failure(
+                "the library folder must not be the Lightroom catalog's folder; choose another folder",
+            ));
+        }
         Sidecar::ensure_destination(&library_folder, "library folder")?;
         let library_path = library_folder.join("library.json");
         let bundle = bundle_dir(&library_folder, &self.catalog);
@@ -1419,15 +1432,27 @@ impl LrcatImport {
                     return Err(failure("smart preview exceeds copy budget"));
                 }
                 let bytes = std::fs::read(&row.path)?;
-                let digest = blake3::hash(&bytes);
+                // Keyed by image, not content (A-LR8 M7): photos whose Smart
+                // Previews happen to be byte-identical stay separate images.
+                let image = &self.plan.images[row.index];
+                let key = image.image_id.unwrap_or_else(|| {
+                    ImageId(u128::from_le_bytes(
+                        blake3::hash(
+                            format!("{}:{}", self.catalog.display(), image.catalog_id).as_bytes(),
+                        )
+                        .as_bytes()[..16]
+                            .try_into()
+                            .expect("16 bytes"),
+                    ))
+                });
                 let destination = self
                     .engine
                     .support_dir()?
                     .join("Lightroom Proxies")
-                    .join(format!("{digest}.dng"));
+                    .join(format!("{key}.dng"));
                 Sidecar::ensure_writable_destination(&destination)?;
                 std::fs::create_dir_all(destination.parent().unwrap())?;
-                if !destination.is_file() {
+                if std::fs::read(&destination).ok().as_deref() != Some(bytes.as_slice()) {
                     write_atomic(&destination, &bytes)?;
                 }
                 row.path = destination;
@@ -1825,7 +1850,7 @@ impl LrcatImport {
             let mut c = self.engine.lock()?;
             report.indexed +=
                 c.index
-                    .scan_file(path, &catalog::Sidecars, &catalog::EmbeddedMetadata)?
+                    .scan_file(path, &catalog::Sidecars, &catalog::IndexedMetadata)?
                     as u32;
         }
         self.engine
@@ -1851,6 +1876,18 @@ impl LrcatImport {
 
     /// Import identity (catalog-derived) → app identity (path-derived). Virtual
     /// copies map to their master's photo.
+    /// Whether `folder` is the folder holding the .lrcat (compared canonically).
+    fn is_catalog_folder(&self, folder: &Path) -> bool {
+        let Some(parent) = self.catalog.parent() else {
+            return false;
+        };
+        folder == parent
+            || matches!(
+                (folder.canonicalize(), parent.canonicalize()),
+                (Ok(a), Ok(b)) if a == b
+            )
+    }
+
     fn app_ids(&self, resolved: &[Resolved]) -> HashMap<ImageId, ImageId> {
         let mut by_catalog: HashMap<i64, ImageId> = HashMap::new();
         for r in resolved
