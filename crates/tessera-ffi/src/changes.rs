@@ -176,6 +176,26 @@ impl Engine {
     pub fn changes_since(&self, sequence: u64) -> Result<LibraryChanges> {
         Ok(self.lock()?.index.changes_since(sequence)?.into())
     }
+    /// Explicit catalog maintenance also collects imported-mask owners and
+    /// crash-orphaned content. Dry runs never modify the index or mask store.
+    pub fn prune_missing(&self, dry_run: bool) -> Result<u32> {
+        let mut state = self.lock()?;
+        let removed = state.index.prune_missing(dry_run)?;
+        if !dry_run {
+            crate::lrcat_masks::prune_missing(self.support_dir()?, |id| {
+                !matches!(
+                    state.index.image_info(id),
+                    Err(engine_api::EngineError::NotFound { .. })
+                )
+            })?;
+        }
+        drop(state);
+        if !dry_run {
+            self.notify_changes();
+        }
+        Ok(removed.images as u32)
+    }
+
     /// Drops the catalog rows of images whose files are gone (after "Delete
     /// from Disk"); images whose files still exist are kept. Open sessions see
     /// them leave through `sync_changes`. Returns the number removed.
@@ -190,15 +210,18 @@ impl Engine {
         sidecar::Sidecar::ensure_destination(&depth_root, "remove imported depth")?;
         sidecar::Sidecar::ensure_destination(depth_root.join("pinned"), "remove imported depth")?;
         let store = image_core::ml_depth::DepthStore::new(depth_root, 256 << 20)?;
+        let mut gone = Vec::new();
         for id in &ids {
             // Removal is idempotent. Never delete depth for a retained image.
             if matches!(
                 state.index.image_info(*id),
                 Err(engine_api::EngineError::NotFound { .. })
             ) {
+                gone.push(*id);
                 store.remove_pinned(&image_core::depth::imported_depth_key(*id))?;
             }
         }
+        crate::lrcat_masks::remove_images(self.support_dir()?, gone)?;
         drop(state);
         self.notify_changes();
         Ok(removed as u32)

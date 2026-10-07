@@ -41,6 +41,9 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] =
         ("point_colors", |r| {
             !r.settings.color.point_colors.is_empty()
         }),
+        ("adobe_ai_mask", |r| {
+            mask_feature(r, |c| c.adobe_ai.is_some())
+        }),
         ("mask_luminance_display", |r| {
             mask_feature(r, |c| {
                 matches!(
@@ -202,6 +205,27 @@ mod v4_feature_predicates {
     use super::*;
     use crate::id::ImageId;
     use crate::recipe::EditMeta;
+
+    #[test]
+    fn adobe_ai_mask() {
+        assert_bumped_only_when_present("adobe_ai_mask", |r| {
+            let mut component =
+                super::super::MaskComponent::new(super::super::MaskKind::Subject { model: None });
+            component.adobe_ai = Some(super::super::mask::AdobeAiMask {
+                resource_id: Some("opaque".into()),
+                category: "Subject".into(),
+                mask_key: Some([3; 32]),
+                regenerate: false,
+            });
+            r.edit(EditMeta::user("AI mask", 2), |s| {
+                s.locals.adjustments.push(super::super::LocalAdjustment {
+                    components: vec![component],
+                    ..Default::default()
+                })
+            })
+            .unwrap();
+        });
+    }
 
     /// Harness every schema 4 lane copies: `mutate` must make a schema 3
     /// recipe require schema 4 by way of the predicate called `name`, every

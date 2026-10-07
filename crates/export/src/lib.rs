@@ -101,6 +101,8 @@ pub enum Metadata {
 
 #[derive(Clone, Debug)]
 pub struct ExportSettings {
+    /// Caller-owned Tessera support root for imported mask resources.
+    pub mask_support: Option<PathBuf>,
     /// Caller-owned CPU retouch implementation; never serialized into a recipe.
     pub retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
     pub format: Format,
@@ -146,6 +148,7 @@ pub struct ExportSettings {
 impl Default for ExportSettings {
     fn default() -> Self {
         Self {
+            mask_support: None,
             retouch: None,
             format: Format::Jpeg { quality: 90 },
             hdr: None,
@@ -294,7 +297,15 @@ pub fn export_one_cancellable(
 
 /// Whether rendering `recipe` needs a segmentation backend (enabled AI masks).
 pub fn needs_segmenter(recipe: &Recipe) -> bool {
-    ai_masks::active(&recipe.settings)
+    recipe
+        .settings
+        .locals
+        .adjustments
+        .iter()
+        .filter(|g| g.enabled && g.amount != 0.)
+        .flat_map(|g| &g.components)
+        .flat_map(|c| c.active_leaves())
+        .any(|c| c.kind.is_ai() && c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_none())
 }
 
 /// Rendered pixels without writing a file (print, contact sheets): the same
@@ -313,6 +324,17 @@ pub fn render_pixels(
     render_pixels_with_retouch(image, recipe, render, cancel, segmenter, None)
 }
 
+pub fn render_pixels_with_mask_support(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    render: &RenderRequest,
+    cancel: &CancellationToken,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+    support: Option<&std::path::Path>,
+) -> EngineResult<image::Rgb32FImage> {
+    render_pixels_with_resources(image, recipe, render, cancel, segmenter, support, None)
+}
+
 pub fn render_pixels_with_retouch(
     image: &ExportImage<'_>,
     recipe: &Recipe,
@@ -321,7 +343,7 @@ pub fn render_pixels_with_retouch(
     segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
     retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
 ) -> EngineResult<image::Rgb32FImage> {
-    render_pixels_with_resources(image, recipe, render, cancel, segmenter, retouch)
+    render_pixels_with_resources(image, recipe, render, cancel, segmenter, None, retouch)
 }
 
 fn retouch_float(
@@ -358,6 +380,7 @@ pub fn render_pixels_with_resources(
     render: &RenderRequest,
     cancel: &CancellationToken,
     segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+    support: Option<&std::path::Path>,
     retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
 ) -> EngineResult<image::Rgb32FImage> {
     require_full_quality_source(&image.source)?;
@@ -370,7 +393,8 @@ pub fn render_pixels_with_resources(
         let rgb = retouch_float(image, recipe, render.scale, retouch)?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else if ai_masks::active(&recipe.settings) {
-        let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
+        let rgb =
+            ai_masks::render_with_support(&image.source, &recipe.settings, segmenter, support)?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else {
         render_scaled_cancellable(image, recipe, render.color_space, render.scale, cancel)?
@@ -677,7 +701,15 @@ pub fn render_one_cancellable(
         }
     } else if matches!(settings.format, Format::Dng) {
         let rgb = if ai_masks::active(&recipe.settings) {
-            ai_masks::render(&image.source, &recipe.settings, segmenter)?
+            ai_masks::render_with_hooks(
+                &image.source,
+                &recipe.settings,
+                segmenter,
+                None,
+                None,
+                &mut warnings,
+                settings.mask_support.as_deref(),
+            )?
         } else {
             render_full_float(image, recipe)?
         };
@@ -711,7 +743,10 @@ pub fn render_one_cancellable(
                 &image.source,
                 &recipe.settings,
                 scale,
-                &depth::support()?,
+                &settings
+                    .mask_support
+                    .clone()
+                    .map_or_else(depth::support, Ok)?,
                 segmenter,
                 None,
             )?,
@@ -724,7 +759,15 @@ pub fn render_one_cancellable(
         };
         encode_output_profile(rgb, recipe, settings.color_space)?
     } else if ai_masks::active(&recipe.settings) {
-        let rgb = ai_masks::render(&image.source, &recipe.settings, segmenter)?;
+        let rgb = ai_masks::render_with_hooks(
+            &image.source,
+            &recipe.settings,
+            segmenter,
+            None,
+            None,
+            &mut warnings,
+            settings.mask_support.as_deref(),
+        )?;
         cancel.check()?;
         let rgb = match upscale {
             Some(model) => upscale_rgb(rgb, model)?,

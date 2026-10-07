@@ -41,6 +41,19 @@ impl MaskRaster {
     pub fn data(&self) -> &[f32] {
         &self.data
     }
+    /// Identity of the quantized u16 payload, including dimensions.
+    pub fn content_key(&self) -> [u8; 32] {
+        *blake3::hash(&self.compact_payload()).as_bytes()
+    }
+    fn compact_payload(&self) -> Vec<u8> {
+        let mut bytes = b"TSMASK02".to_vec();
+        bytes.extend(self.width.to_le_bytes());
+        bytes.extend(self.height.to_le_bytes());
+        for value in &self.data {
+            bytes.extend(((*value * 65535.).round() as u16).to_le_bytes());
+        }
+        bytes
+    }
     pub fn inverted(&self) -> Self {
         Self {
             width: self.width,
@@ -104,6 +117,33 @@ impl MaskStore {
             io: Mutex::new(()),
         })
     }
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    /// Immutable compact AI import raster. Unlike the shared depth pin API,
+    /// this path derives its key from the stored content and never evicts.
+    pub fn put_content_pinned(&self, raster: &MaskRaster) -> io::Result<[u8; 32]> {
+        let mut bytes = raster.compact_payload();
+        if bytes.len() as u64 + 32 > Self::MAX_PINNED_BYTES {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "imported raster exceeds 256 MiB bound",
+            ));
+        }
+        let key = *blake3::hash(&bytes).as_bytes();
+        bytes.extend(key);
+        let _lock = self.io.lock().unwrap_or_else(|e| e.into_inner());
+        let root = self.root.join("pinned");
+        fs::create_dir_all(&root)?;
+        let mut temp = tempfile::NamedTempFile::new_in(&root)?;
+        temp.write_all(&bytes)?;
+        temp.as_file().sync_all()?;
+        temp.persist(root.join(format!("{}.mask", blake3::Hash::from_bytes(key).to_hex())))
+            .map_err(|e| e.error)?;
+        Ok(key)
+    }
+
     fn path(&self, key: &[u8; 32]) -> PathBuf {
         self.root
             .join(format!("{}.mask", blake3::Hash::from_bytes(*key).to_hex()))
@@ -123,7 +163,7 @@ impl MaskStore {
             return None;
         }
         let bytes = fs::read(path).ok()?;
-        if bytes.len() < 48 || &bytes[..8] != b"TSMASK01" {
+        if bytes.len() < 48 || !matches!(&bytes[..8], b"TSMASK01" | b"TSMASK02") {
             return None;
         }
         let (payload, checksum) = bytes.split_at(bytes.len() - 32);
@@ -132,15 +172,27 @@ impl MaskStore {
         }
         let width = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
         let height = u32::from_le_bytes(bytes[12..16].try_into().ok()?);
-        if (payload.len() - 16) % 4 != 0 {
-            return None;
-        }
-        let data = payload[16..]
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|v| f32::from_le_bytes(*v))
-            .collect();
+        let data = if &bytes[..8] == b"TSMASK02" {
+            if (payload.len() - 16) % 2 != 0 {
+                return None;
+            }
+            payload[16..]
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|v| f32::from(u16::from_le_bytes(*v)) / 65535.)
+                .collect()
+        } else {
+            if (payload.len() - 16) % 4 != 0 {
+                return None;
+            }
+            payload[16..]
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|v| f32::from_le_bytes(*v))
+                .collect()
+        };
         MaskRaster::new(width, height, data).ok()
     }
     /// Durable imported resources live outside the evictable cache budget.
@@ -174,6 +226,9 @@ impl MaskStore {
         temp.write_all(&bytes)?;
         temp.as_file().sync_all()?;
         temp.persist(self.path(key)).map_err(|e| e.error)?;
+        if self.cap == u64::MAX {
+            return Ok(());
+        }
         let mut entries = Vec::new();
         let mut total = 0;
         for entry in fs::read_dir(&self.root)? {
