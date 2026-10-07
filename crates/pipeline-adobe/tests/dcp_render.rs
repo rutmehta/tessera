@@ -190,3 +190,25 @@ fn tiff_profile_changes_final_cfa_render() {
         assert!((linear.planes()[c][136] - value).abs() < 0.0001);
     }
 }
+
+#[test]
+fn adobe_rejects_invalid_baseline_gain_with_and_without_installed_profile() {
+    let raw = CfaImage::from_linear(16, 16, vec![0.2; 256]).unwrap();
+    let profile = profile(1, false);
+    for baseline in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 128., -150.] {
+        let mut m = metadata();
+        m.baseline_exposure = baseline;
+        let source = RenderSource::Cfa {
+            image: &raw,
+            metadata: &m,
+        };
+        for profile in [None, Some(&profile)] {
+            assert!(
+                render_linear_scaled_with_profile(&DevelopSettings::default(), &source, 1, profile)
+                    .is_err(),
+                "invalid baseline gain must be rejected: {baseline}, installed={}",
+                profile.is_some()
+            );
+        }
+    }
+}
