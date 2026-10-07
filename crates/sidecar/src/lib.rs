@@ -185,17 +185,26 @@ impl Sidecar {
         store::register_read_only(source, support);
     }
 
-    /// Key a protected (Lightroom-owned or read-only) source's recipe by an
-    /// owner identity instead of its content, e.g. an in-place Smart Preview
-    /// by its catalog image, so byte-identical files stay separate photos.
-    /// Published durably by the next write to that recipe. Ordinary sources
-    /// keep their adjacent sidecars and are unaffected.
-    pub fn pin_protected_identity(image_path: impl AsRef<Path>, identity: &[u8]) {
-        let image = image_path.as_ref();
-        if Self::is_lightroom_owned(image) || store::is_read_only(image) {
-            let key = blake3::derive_key("tessera protected recipe identity v1", identity);
-            store::pin(image, &blake3::Hash::from_bytes(key).to_hex());
-        }
+    /// Key protected (Lightroom-owned or read-only) sources' recipes by owner
+    /// identities instead of content, e.g. in-place Smart Previews by their
+    /// Lightroom file id, so byte-identical files stay separate photos. The
+    /// recipe each path has now is migrated to its new key (copied to every
+    /// owner when several shared it; the old object is removed once no path
+    /// references it) and the new key is published durably at once. Ordinary
+    /// sources keep their adjacent sidecars and are skipped.
+    pub fn pin_protected_identities(pins: &[(PathBuf, Vec<u8>)]) -> EngineResult<()> {
+        let pins: Vec<(PathBuf, String)> = pins
+            .iter()
+            .filter(|(image, _)| Self::is_lightroom_owned(image) || store::is_read_only(image))
+            .map(|(image, identity)| {
+                let key = blake3::derive_key("tessera protected recipe identity v1", identity);
+                (
+                    image.clone(),
+                    blake3::Hash::from_bytes(key).to_hex().to_string(),
+                )
+            })
+            .collect();
+        store::migrate_pins(&pins)
     }
 
     /// Lightroom bundle components are immutable source locations.

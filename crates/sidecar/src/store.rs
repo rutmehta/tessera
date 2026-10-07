@@ -255,25 +255,63 @@ fn register_aliases(recipe: &Path, aliases: Vec<(PathBuf, Alias)>) {
     }
 }
 
-/// Fix a protected source's recipe identity to `key` (64 hex characters).
-/// Lookup-only until the next write to that recipe publishes the alias.
-pub(super) fn pin(image: &Path, key: &str) {
-    let image = resolved_path(image);
-    let store = support(&image).join(".edits/lightroom");
-    let path_key = blake3::hash(image.as_os_str().as_encoded_bytes())
-        .to_hex()
-        .to_string();
-    let alias = store.join("paths").join(format!("{path_key}.json"));
-    let recipe = recipe_path(&store, key);
-    register_aliases(
-        &recipe,
-        vec![(
-            alias,
-            Alias::Pinned {
-                pinned: key.to_owned(),
-            },
-        )],
-    );
+/// Re-key protected sources to owner identities (`key`: 64 hex characters),
+/// migrating instead of orphaning: the recipe a path resolves to now (its
+/// alias or content key) is copied to the new key when that key has none,
+/// the pinned alias is published durably at once (no later write needed),
+/// and a legacy object no remaining path alias references is then removed.
+/// Byte-identical sources that shared one legacy recipe each get a copy.
+pub(super) fn migrate_pins(pins: &[(PathBuf, String)]) -> EngineResult<()> {
+    let mut migrated: BTreeMap<PathBuf, (PathBuf, String)> = BTreeMap::new();
+    for (image, key) in pins {
+        let image = resolved_path(image);
+        let store = support(&image).join(".edits/lightroom");
+        let path_key = blake3::hash(image.as_os_str().as_encoded_bytes())
+            .to_hex()
+            .to_string();
+        let alias = store.join("paths").join(format!("{path_key}.json"));
+        let current = paths(&image).recipe;
+        let recipe = recipe_path(&store, key);
+        if current != recipe && current.is_file() {
+            if !recipe.is_file() {
+                atomic_write(
+                    &recipe,
+                    &fs::read(&current)
+                        .map_err(|e| engine_api::EngineError::io_at(&current, &e))?,
+                )?;
+                let xmp = current.with_extension("xmp");
+                if xmp.is_file() {
+                    atomic_write(
+                        &recipe.with_extension("xmp"),
+                        &fs::read(&xmp).map_err(|e| engine_api::EngineError::io_at(&xmp, &e))?,
+                    )?;
+                }
+            }
+            if let Some(old) = current.file_stem().and_then(|s| s.to_str()) {
+                migrated.insert(current.clone(), (store.clone(), old.to_owned()));
+            }
+        }
+        let pinned = Alias::Pinned {
+            pinned: key.clone(),
+        };
+        atomic_write(&alias, &serde_json::to_vec(&pinned)?)?;
+        register_aliases(&recipe, vec![(alias, pinned)]);
+    }
+    for (object, (store, key)) in migrated {
+        // One listing per store and apply; only when something migrated.
+        let referenced = fs::read_dir(store.join("paths"))
+            .into_iter()
+            .flatten()
+            .filter_map(|e| e.ok())
+            .filter_map(|e| fs::read(e.path()).ok())
+            .filter_map(|bytes| serde_json::from_slice::<Alias>(&bytes).ok())
+            .any(|alias| !matches!(alias, Alias::Pinned { .. }) && alias.recipe_key() == key);
+        if !referenced {
+            let _ = fs::remove_file(object.with_extension("xmp"));
+            let _ = fs::remove_file(&object);
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn persist_aliases(destination: &Path) -> EngineResult<()> {

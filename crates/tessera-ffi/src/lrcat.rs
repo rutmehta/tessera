@@ -1475,6 +1475,35 @@ impl LrcatImport {
                 self.engine.support_dir()?,
             );
         }
+        // In place, the recipe of a Lightroom-owned Smart Preview is keyed by
+        // its Lightroom file id (AgLibraryFile.id_global, the same UUID that
+        // names the Smart Preview), not by its bytes (REV-SP-A S5): byte-
+        // identical previews stay separate photos, and the key survives a
+        // renamed or moved catalog (REV2-SP NB1). Every row is re-keyed before
+        // any conflict check or write, migrating the recipe it has now, so
+        // existing Tessera edits are judged and kept exactly as the plan
+        // preview reported, and the key is durable even for resumed rows.
+        let pins: Vec<(PathBuf, Vec<u8>)> = resolved
+            .iter()
+            .filter(|r| r.outcome == Outcome::OfflineProxy && Sidecar::is_lightroom_owned(&r.path))
+            .filter_map(|r| {
+                // The Smart Preview is named `<id_global>.dng` (SmartPreviewIndex).
+                let uuid = self.plan.images[r.index]
+                    .smart_preview
+                    .as_deref()?
+                    .file_stem()?
+                    .to_str()?;
+                Some((
+                    r.path.clone(),
+                    format!(
+                        "lightroom smart preview file\0{}",
+                        uuid.to_ascii_uppercase()
+                    )
+                    .into_bytes(),
+                ))
+            })
+            .collect();
+        Sidecar::pin_protected_identities(&pins)?;
         let existing = Library::read(&library_path)?;
         let ids: HashMap<ImageId, ImageId> = self.app_ids(&resolved);
         let mut merge = merge_library(
@@ -1578,19 +1607,6 @@ impl LrcatImport {
                         "origin": "Lightroom smart preview", "proxy_path": r.path,
                         "original_path": r.original_path
                     }),
-                );
-                // In place, the recipe of a Lightroom-owned Smart Preview is
-                // keyed by its catalog image, not its bytes (REV-SP-A S5), so
-                // byte-identical Smart Previews stay separate photos. Copies
-                // are already per image (M7) and keep adjacent sidecars.
-                Sidecar::pin_protected_identity(
-                    &r.path,
-                    format!(
-                        "lightroom smart preview\0{}\0{}",
-                        self.catalog.display(),
-                        image.catalog_id
-                    )
-                    .as_bytes(),
                 );
             }
             progress.tick(

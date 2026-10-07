@@ -353,9 +353,12 @@ fn pinned_protected_identities_keep_identical_sources_separate() {
     let photos = [bundle.join("A1B2-one.dng"), bundle.join("A1B2-two.dng")];
     let register = || {
         Sidecar::register_store(&bundle.canonicalize().unwrap(), &support);
-        for (i, photo) in photos.iter().enumerate() {
-            Sidecar::pin_protected_identity(photo, format!("catalog image {i}").as_bytes());
-        }
+        let pins: Vec<_> = photos
+            .iter()
+            .enumerate()
+            .map(|(i, photo)| (photo.clone(), format!("catalog image {i}").into_bytes()))
+            .collect();
+        Sidecar::pin_protected_identities(&pins).unwrap();
     };
     if std::env::var_os("TESSERA_TEST_PINNED_CHILD").is_some() {
         Sidecar::register_store(&bundle.canonicalize().unwrap(), &support);
