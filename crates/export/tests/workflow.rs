@@ -87,10 +87,12 @@ fn script_timeout_cancellation_empty_and_spawn_failure() {
         .unwrap();
     });
     let guard = std::time::Instant::now();
-    while !marker.exists() && guard.elapsed() < std::time::Duration::from_secs(30) {
+    while std::fs::read_to_string(&marker).ok().as_deref() != Some("started")
+        && guard.elapsed() < std::time::Duration::from_secs(30)
+    {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    let ready = marker.exists();
+    let ready = std::fs::read_to_string(&marker).ok().as_deref() == Some("started");
     running.cancel();
     let cancellation = rx
         .recv_timeout(std::time::Duration::from_secs(30))
