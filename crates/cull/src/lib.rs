@@ -112,6 +112,8 @@ pub struct CullSession<I> {
     /// Hash snapshot has changes not yet applied to a custom policy.
     custom_hashes_dirty: bool,
     rebuild: Option<grouping::DefaultRebuild>,
+    /// Grouping pair checks performed (a work counter for regression tests).
+    pair_checks: u64,
     library: Option<PathBuf>,
     basket_target: Option<String>,
     /// The source, kept so incremental inserts apply the same membership rules.
@@ -262,6 +264,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             preview_notify: None,
             custom_hashes_dirty: false,
             rebuild: None,
+            pair_checks: 0,
             library: if declared.is_none() {
                 folder.as_ref().map(|p| p.join("library.json"))
             } else {

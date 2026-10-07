@@ -281,4 +281,51 @@ mod tests {
                 .is_err()
         );
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn lr13e_removes_v1_cache_inside_approved_root_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("Application Support/App");
+        std::fs::create_dir_all(root.join("cull-hashes-v1")).unwrap();
+        std::fs::write(root.join("cull-hashes-v1/1.json"), b"{}").unwrap();
+        let elsewhere = dir.path().join("elsewhere/cull-hashes-v1");
+        std::fs::create_dir_all(&elsewhere).unwrap();
+        std::fs::write(elsewhere.join("1.json"), b"{}").unwrap();
+        let source = dir.path().join("sources/source.dng");
+        std::fs::create_dir(source.parent().unwrap()).unwrap();
+        std::fs::write(&source, b"synthetic source pixels").unwrap();
+        let info = ImageInfo {
+            id: engine_api::id::ImageId(1),
+            path: source,
+            size: 23,
+            capture_seconds: None,
+        };
+        let policy =
+            HashCachePolicy::application_support(root.clone(), "synthetic", 1, &[]).unwrap();
+        let provider = persistent(Some(policy), Arc::new(|_| Ok(Some(3))));
+        assert_eq!(provider(&info).unwrap(), Some(3));
+        assert!(
+            !root.join("cull-hashes-v1").exists(),
+            "stale v1 cache remains"
+        );
+        assert!(
+            elsewhere.join("1.json").exists(),
+            "only the approved root is cleaned"
+        );
+        assert!(root.join("cull-hashes-v2").exists());
+
+        // A v1 symlink is never followed: its target survives.
+        let other = dir.path().join("Application Support/Other");
+        std::fs::create_dir_all(&other).unwrap();
+        std::os::unix::fs::symlink(&elsewhere, other.join("cull-hashes-v1")).unwrap();
+        let policy =
+            HashCachePolicy::application_support(other.clone(), "synthetic", 1, &[]).unwrap();
+        let provider = persistent(Some(policy), Arc::new(|_| Ok(Some(3))));
+        assert_eq!(provider(&info).unwrap(), Some(3));
+        assert!(
+            elsewhere.join("1.json").exists(),
+            "symlink target was deleted"
+        );
+    }
 }

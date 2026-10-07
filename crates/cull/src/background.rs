@@ -504,4 +504,43 @@ mod lifecycle_tests {
         work.reset();
         assert!(work.previous.is_empty(), "joined generations are released");
     }
+
+    #[test]
+    fn lr13e_retirements_join_independently() {
+        let (_dir, image) = info();
+        let (entered, started) = mpsc::channel();
+        let (release, blocked) = mpsc::channel::<()>();
+        let blocked = Mutex::new(blocked);
+        let provider: PreviewProvider = Arc::new(move |_| {
+            entered.send(()).unwrap();
+            blocked.lock().unwrap().recv().unwrap();
+            Ok(Some(0))
+        });
+        let mut stuck = BackgroundPreviews::default();
+        stuck.enqueue(image);
+        stuck.poll(&provider, &None).unwrap();
+        started.recv_timeout(Duration::from_secs(5)).unwrap();
+        let stuck_done = stuck.retire();
+        // An unrelated session with a live worker retires after the stuck one.
+        let mut other = BackgroundPreviews::default();
+        other.wake(&None).unwrap();
+        let other_done = other.retire();
+        let (done, finished) = mpsc::channel();
+        let waiter = thread::spawn(move || {
+            other_done.wait();
+            done.send(()).unwrap();
+        });
+        let independent = finished.recv_timeout(Duration::from_secs(5));
+        release.send(()).unwrap();
+        stuck_done.wait();
+        if independent.is_err() {
+            finished.recv_timeout(Duration::from_secs(5)).unwrap();
+        }
+        waiter.join().unwrap();
+        assert_eq!(
+            independent,
+            Ok(()),
+            "a stuck session must not delay another session's shutdown"
+        );
+    }
 }

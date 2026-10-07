@@ -212,6 +212,10 @@ final class IncrementalLibraryTests: XCTestCase {
         XCTAssertEqual(app.collections.filter, filter)
         XCTAssertEqual(counter.reloads, reloads, "no reload")
         XCTAssertEqual(counter.updates, 1)
+        // Near-duplicate hashing is deferred: check grouping only once it has finished.
+        let hashed = Date().addingTimeInterval(30)
+        while try lib.session.previewsPending(), Date() < hashed { sync(app) }
+        XCTAssertFalse(try lib.session.previewsPending(), "deferred hashing finished")
         XCTAssertEqual(lib.groups.map(\.count), Array(repeating: 1, count: 7),
                        "dissimilar insertion fixtures must remain singleton groups")
         XCTAssertEqual(grid.collectionView.numberOfItems(inSection: 0), app.visibleCount)

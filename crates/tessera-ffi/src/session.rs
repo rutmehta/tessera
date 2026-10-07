@@ -490,6 +490,12 @@ impl Inner {
 
 #[uniffi::export]
 impl CullSession {
+    /// True while deferred near-duplicate hashing or regrouping remains; each
+    /// `sync_changes` advances it.
+    pub fn previews_pending(&self) -> Result<bool> {
+        Ok(self.lock()?.core.previews_pending())
+    }
+
     /// Cancel preview work and wait until its worker and callbacks have retired.
     /// The host must call this off the main thread. The session lock is released
     /// before waiting, so provider completion never blocks UI access to it.
@@ -884,6 +890,68 @@ mod offline_library_tests {
                 .unwrap();
         }
         (dir, engine, photos)
+    }
+
+    #[test]
+    fn lr13e_shutdown_releases_session_lock_before_waiting() {
+        use std::sync::mpsc;
+        let (_dir, engine, photos) = proxy_library(1);
+        let (entered, started) = mpsc::channel();
+        let (release, blocked) = mpsc::channel::<()>();
+        let blocked = Mutex::new(blocked);
+        let mut core = Core::open_owned_with_previews(
+            index::Index::open(&engine.db).unwrap(),
+            cull::Source::from(photos.clone()),
+            move |_| {
+                entered.send(()).unwrap();
+                blocked.lock().unwrap().recv().unwrap();
+                Ok(Some(0))
+            },
+        )
+        .unwrap();
+        core.poll_previews().unwrap();
+        started
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let support = engine.support_dir().unwrap().to_path_buf();
+        let session = Arc::new(CullSession {
+            support_dir: support.clone(),
+            inner: Mutex::new(Inner {
+                core,
+                reader: Connection::open_with_flags(&engine.db, OpenFlags::SQLITE_OPEN_READ_ONLY)
+                    .unwrap(),
+                listing: Default::default(),
+                assist: crate::assist::AssistState::new(
+                    support,
+                    crate::assist::library_key(Some(&photos)),
+                ),
+                bests: HashMap::new(),
+            }),
+        });
+        let (done, finished) = mpsc::channel();
+        let closing = session.clone();
+        let shutdown = std::thread::spawn(move || {
+            closing.shutdown().unwrap();
+            done.send(()).unwrap();
+        });
+        // Retirement clears pending work before the blocking wait begins.
+        let start = std::time::Instant::now();
+        while session.lock().unwrap().core.previews_pending() {
+            assert!(start.elapsed() < std::time::Duration::from_secs(5));
+            std::thread::yield_now();
+        }
+        // The provider is still blocked, yet UI calls take the session lock.
+        assert_eq!(session.images().unwrap().len(), 1);
+        assert_eq!(
+            finished.recv_timeout(std::time::Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout),
+            "shutdown must wait for the blocked provider"
+        );
+        release.send(()).unwrap();
+        finished
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        shutdown.join().unwrap();
     }
 
     #[test]

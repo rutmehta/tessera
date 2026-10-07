@@ -112,11 +112,12 @@ pub(crate) struct DefaultRebuild {
 }
 impl DefaultRebuild {
     const PAIRS_PER_POLL: usize = 4096;
-    fn advance(&mut self) -> bool {
+    fn advance(&mut self, checks: &mut u64) -> bool {
         for _ in 0..Self::PAIRS_PER_POLL {
             if self.n >= self.hashes.len() {
                 return true;
             }
+            *checks += 1;
             let (a, ha) = self.hashes[self.m];
             let (b, hb) = self.hashes[self.n];
             if root(&mut self.parents, a) != root(&mut self.parents, b) && near_duplicate(ha, hb) {
@@ -286,6 +287,13 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         let results = self
             .previews
             .poll(&self.preview_hash, &self.preview_notify)?;
+        self.apply_hash_results(results)
+    }
+    /// Applies completed hash replies (already version-checked) to grouping.
+    pub(crate) fn apply_hash_results(
+        &mut self,
+        results: Vec<(ImageId, EngineResult<Option<u64>>)>,
+    ) -> EngineResult<bool> {
         let mut changed = Vec::new();
         for (id, result) in results {
             if !self.infos.contains_key(&id) {
@@ -342,6 +350,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             for (m, other) in self.images.iter().enumerate() {
                 if m != n && root(&mut parents, m) != root(&mut parents, n) {
                     let (a, b) = if m < n { (*other, id) } else { (id, *other) };
+                    self.pair_checks += 1;
                     if self.related(a, b) {
                         join(&mut parents, m, n);
                     }
@@ -413,7 +422,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         let Some(rebuild) = &mut self.rebuild else {
             return Ok(false);
         };
-        let done = rebuild.advance();
+        let done = rebuild.advance(&mut self.pair_checks);
         let groups = rebuild.groups(&self.images);
         let changed = self.groups != groups;
         self.groups = groups;
