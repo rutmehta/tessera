@@ -210,6 +210,18 @@ fn lr8n_rotated_jpeg_proxy_edits_stay_on_the_same_content_after_relink() {
             content > 0.97,
             "orientation {orientation}: the crop frames different content after relink ({content})"
         );
+        // Control: the pre-LR-8n relink read the original in the rotated
+        // (EXIF-consumed) frame. That frame transposes the crop aspect for
+        // 6 and 8, and frames other content for 3, so this test detects it.
+        let rotated = RawImage::open(ImageId(id + 3), &path).unwrap();
+        let ((rw, rh), on_rotated) = cells(&rotated, &s);
+        if orientation >= 5 {
+            assert!((aspect(pw, ph) - aspect(rw, rh)).abs() > 0.2);
+        } else {
+            let wrong = correlation(&on_proxy, &on_rotated);
+            eprintln!("orientation {orientation}: rotated-frame control {wrong:.4}");
+            assert!(wrong < 0.9, "control: {wrong}");
+        }
 
         // Masks: the local adjustments change the same cells on both sides.
         let (_, proxy_effect) = effect(&proxy, [0.3, 0.6]);

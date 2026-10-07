@@ -1071,15 +1071,15 @@ mod tests {
             .unwrap();
             let out = root.path().join("out");
             std::fs::create_dir_all(&out).unwrap();
-            let export_settings = export::ExportSettings {
+            let export_settings = ::export::ExportSettings {
                 output_dir: out,
-                metadata: export::Metadata::None,
-                format: export::Format::Png,
+                metadata: ::export::Metadata::None,
+                format: ::export::Format::Png,
                 apply_orientation: true,
                 ..Default::default()
             };
-            let rendered = export::render_one_cancellable(
-                &export::ExportImage {
+            let rendered = ::export::render_one_cancellable(
+                &::export::ExportImage {
                     source: source.render_source(),
                     name: "relinked",
                     sequence: 1,
@@ -1115,7 +1115,7 @@ mod tests {
             let mean = sum / (exported.len() as f64);
             eprintln!("orientation {orientation}: export vs Develop mean {mean:.3}, max {max}");
             assert!(
-                mean < 2. && max < 16,
+                mean < 1. && max <= 3,
                 "orientation {orientation}: export differs from Develop (mean {mean}, max {max})"
             );
         }
