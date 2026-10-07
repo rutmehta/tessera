@@ -770,6 +770,46 @@ impl MaskShared {
             })
     }
 
+    /// After [`Self::load_available_imported`]: an enabled imported raster that
+    /// is stored but could not be used (corrupt, wrong extent) or whose entry
+    /// failed. A raster that is merely absent (pending regeneration) is not
+    /// invalid: previews skip its adjustment, as Develop does (A-ROUND2).
+    pub(crate) fn invalid_imported(
+        &self,
+        support: &std::path::Path,
+        settings: &DevelopSettings,
+    ) -> Option<String> {
+        let root = support.join("imported-masks");
+        // Not MaskStore::new: a preview must not create directories.
+        let store = root
+            .is_dir()
+            .then(|| ml_segment::MaskStore::new(&root, 0).ok())
+            .flatten();
+        let entries = self.ai.lock().unwrap_or_else(|e| e.into_inner());
+        settings
+            .locals
+            .adjustments
+            .iter()
+            .filter(|g| g.enabled && g.amount != 0.)
+            .flat_map(|g| &g.components)
+            .flat_map(MaskComponent::active_leaves)
+            .find_map(|c| {
+                let imported = c.adobe_ai.as_ref().and_then(|a| a.mask_key)?;
+                let key = component_raster_key(c)?;
+                match entries.get(&key) {
+                    Some(AiEntry::Ready(_)) => None,
+                    Some(AiEntry::Failed(reason)) => Some(reason.clone()),
+                    _ => match store.as_ref().map(|s| s.pinned_revision(&imported)) {
+                        None => None,
+                        Some(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => None,
+                        Some(_) => Some(
+                            "stored imported mask raster is corrupt or has the wrong extent".into(),
+                        ),
+                    },
+                }
+            })
+    }
+
     /// Keep every available imported raster; missing optional rasters are skipped
     /// by the external-proxy renderer without preventing the other local edits.
     pub(crate) fn load_available_imported(

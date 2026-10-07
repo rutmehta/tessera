@@ -1125,10 +1125,12 @@ fn render_imported(
     }
     let masks = crate::develop::masks::MaskShared::new(&image);
     masks.load_available_imported(support, &settings);
-    if masks.unavailable(&settings) {
-        return Err(failure(
-            "imported mask raster is unavailable or invalid; regenerate the mask before rendering this thumbnail",
-        ));
+    // A missing (pending) raster zeroes its group, as in Develop; the render
+    // identity re-renders when it arrives. Only an invalid raster fails.
+    if let Some(reason) = masks.invalid_imported(support, &settings) {
+        return Err(failure(format!(
+            "imported mask raster is invalid ({reason}); regenerate the mask before rendering this thumbnail"
+        )));
     }
     renderer
         .mask_cache()
