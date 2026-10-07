@@ -110,3 +110,27 @@ fn absent_profile_keys_keep_the_default_without_note() {
     assert_eq!(r.settings.lens.profile, LensProfileSource::Auto);
     assert!(lens_notes(&r).is_empty());
 }
+
+/// ENG-7b: Lightroom's `AutoLateralCA` is honoured exactly; a row without it
+/// takes Tessera's default, which is off (Lightroom's Adobe Default).
+#[test]
+fn auto_lateral_ca_is_honoured_and_absence_is_off() {
+    for (row, on) in [
+        ("s={AutoLateralCA=1}", true),
+        ("s={AutoLateralCA=0}", false),
+        ("s={Exposure2012=0.5}", false),
+    ] {
+        assert_eq!(
+            lua(row).0.settings.lens.remove_chromatic_aberration,
+            on,
+            "{row}"
+        );
+    }
+    assert!(
+        packet(r#"crs:AutoLateralCA="1""#)
+            .0
+            .settings
+            .lens
+            .remove_chromatic_aberration
+    );
+}
