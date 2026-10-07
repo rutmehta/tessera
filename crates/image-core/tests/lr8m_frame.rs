@@ -121,10 +121,18 @@ fn lr8m_proxy_catalog_orientation_is_display_only() {
                 .unwrap();
         assert_eq!(proxy.metadata().orientation, o, "orientation {o}");
         assert_eq!(
-            proxy.camera_linear_proxy().unwrap().original_metadata().orientation,
+            proxy
+                .camera_linear_proxy()
+                .unwrap()
+                .original_metadata()
+                .orientation,
             o
         );
-        assert_eq!(proxy.active_extent(), plain.active_extent(), "orientation {o}");
+        assert_eq!(
+            proxy.active_extent(),
+            plain.active_extent(),
+            "orientation {o}"
+        );
         assert_eq!(
             Renderer::output_extent(&proxy, &s, 0).unwrap(),
             Renderer::output_extent(&plain, &s, 0).unwrap()

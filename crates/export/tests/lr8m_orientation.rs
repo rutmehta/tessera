@@ -89,7 +89,11 @@ fn lr8m_proxy_export_orients_once_after_sensor_frame_edits_and_lens() {
     for o in 1..=8u16 {
         let actual = render(&proxy.clone().with_catalog_orientation(o).unwrap());
         let expected = orient(sensor.clone(), o);
-        assert_eq!(actual.dimensions(), expected.dimensions(), "orientation {o}");
+        assert_eq!(
+            actual.dimensions(),
+            expected.dimensions(),
+            "orientation {o}"
+        );
         let error = actual
             .pixels()
             .zip(expected.pixels())

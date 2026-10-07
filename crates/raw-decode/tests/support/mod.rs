@@ -110,7 +110,9 @@ pub fn lossy_dng_with_opcodes(be: bool, strips: bool, jpeg: &[u8], opcodes: &[u8
 /// reflection changes pixels) and the given EXIF orientation.
 #[allow(dead_code)]
 pub fn bayer_dng(orientation: u16) -> Vec<u8> {
-    bayer_dng_sized(orientation, 64, 48, |x, y| 3000 + x as u16 * 260 + y as u16 * 90)
+    bayer_dng_sized(orientation, 64, 48, |x, y| {
+        3000 + x as u16 * 260 + y as u16 * 90
+    })
 }
 
 /// A `width`x`height` RGGB DNG (16-bit, white level 65535) with the given
