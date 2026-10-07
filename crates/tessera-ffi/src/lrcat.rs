@@ -222,12 +222,22 @@ pub trait LrcatProgressListener: Send + Sync {
     fn on_progress(&self, progress: LrcatProgress);
 }
 
+#[cfg(test)]
+thread_local! {
+    static LR5D_MEASUREMENTS: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
+}
+
 /// Extent an injected mask raster must have: the space the renderer masks in.
 /// The same recognizer and decoder as rendering decide it, so RGB sources are
 /// measured after EXIF orientation and RAW sources by their active sensor
 /// area, never by a container preview or unrotated file dimensions. Only
 /// called for an AI-masked image when the caller injects rasters.
 fn render_mask_extent(path: &Path) -> (u32, u32) {
+    #[cfg(test)]
+    LR5D_MEASUREMENTS.with(|counts| {
+        let (depth, mask) = counts.get();
+        counts.set((depth, mask + 1));
+    });
     if image_core::RgbSource::recognizes(path) {
         return image_core::RgbSource::open(path)
             .map(|source| (source.pixels().width(), source.pixels().height()))
@@ -1513,6 +1523,11 @@ impl LrcatImport {
                 image.recipe.image_id = Some(id);
                 // Resolution is read-only and is never inferred from resource ID text.
                 let extent = if mask_resolver.is_some() || depth_resolver.is_some() {
+                    #[cfg(test)]
+                    LR5D_MEASUREMENTS.with(|counts| {
+                        let (depth, mask) = counts.get();
+                        counts.set((depth + 1, mask));
+                    });
                     image::image_dimensions(&r.path)
                         .ok()
                         .or_else(|| {

@@ -661,3 +661,115 @@ fn lr5c_import_without_ai_masks_touches_no_store_and_clears_stale_records() {
     apply(2, None);
     assert_eq!(records(), 0, "stale ownership records are cleared");
 }
+
+#[test]
+fn lr5d_cancel_prune_resume_preserves_durable_unindexed_owners() {
+    struct Cancel(std::sync::Weak<LrcatImport>);
+    impl LrcatProgressListener for Cancel {
+        fn on_progress(&self, progress: LrcatProgress) {
+            if progress.phase == LrcatPhase::WritingEdits {
+                self.0.upgrade().unwrap().cancel();
+            }
+        }
+    }
+    struct Pixels;
+    impl LrcatMaskResolver for Pixels {
+        fn resolve(&self, _: i64, _: String) -> Option<Vec<u8>> {
+            let mut png = Cursor::new(Vec::new());
+            image::GrayImage::from_pixel(900, 600, image::Luma([128]))
+                .write_to(&mut png, image::ImageFormat::Png)
+                .unwrap();
+            Some(png.into_inner())
+        }
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, support, fixture) = catalog_with(temp.path(), &format!("s={{{AI_MASK}}}"));
+    let import = engine
+        .clone()
+        .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let options = fixture_options(&import, &fixture);
+    let first = import
+        .apply_with_mask_resolver(
+            options.clone(),
+            Some(Arc::new(Cancel(Arc::downgrade(&import)))),
+            Some(Arc::new(Pixels)),
+        )
+        .unwrap();
+    assert!(first.cancelled);
+    assert_eq!(first.imported, 1);
+    assert_eq!(first.indexed, 0);
+    let rows = resolve(&import.plan, &options).unwrap();
+    let row = rows
+        .iter()
+        .find(|r| Sidecar::paths(&r.path).recipe.exists())
+        .unwrap();
+    let read_key = || {
+        Sidecar::read_recipe(Sidecar::paths(&row.path).recipe)
+            .unwrap()
+            .recipe
+            .settings
+            .locals
+            .adjustments[0]
+            .components[0]
+            .adobe_ai
+            .as_ref()
+            .unwrap()
+            .mask_key
+            .unwrap()
+    };
+    let key = read_key();
+    let store = ml_segment::MaskStore::new(support.join("imported-masks"), 0).unwrap();
+    assert!(store.get(&key).is_some());
+    assert_eq!(engine.prune_missing(false).unwrap(), 0);
+    assert!(
+        store.get(&key).is_some(),
+        "prune must retain the durable unindexed import owner"
+    );
+    // Reopening the importer proves the checkpoint and owner survive a session.
+    drop(import);
+    let import = engine
+        .clone()
+        .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let resumed = import.apply(options, None).unwrap();
+    assert!(!resumed.cancelled);
+    assert_eq!(resumed.resumed, 1);
+    assert_eq!(read_key(), key);
+    assert!((store.get(&key).unwrap().data()[0] - 128. / 255.).abs() < 1e-6);
+}
+
+#[test]
+fn lr5d_mask_only_resolver_measures_only_ai_sources_once() {
+    struct Unavailable;
+    impl LrcatMaskResolver for Unavailable {
+        fn resolve(&self, _: i64, _: String) -> Option<Vec<u8>> {
+            None
+        }
+    }
+    for ai in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let source = if ai {
+            format!("s={{{AI_MASK}}}")
+        } else {
+            "s={Exposure2012=1}".into()
+        };
+        let (engine, _, fixture) = catalog_with(temp.path(), &source);
+        let import = engine
+            .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+            .unwrap();
+        LR5D_MEASUREMENTS.with(|counts| counts.set((0, 0)));
+        let report = import
+            .apply_with_mask_resolver(
+                fixture_options(&import, &fixture),
+                None,
+                Some(Arc::new(Unavailable)),
+            )
+            .unwrap();
+        assert!(report.imported > 0);
+        assert_eq!(
+            LR5D_MEASUREMENTS.with(|counts| counts.get()),
+            (0, if ai { report.imported as usize } else { 0 })
+        );
+    }
+}

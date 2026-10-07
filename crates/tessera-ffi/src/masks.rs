@@ -2892,3 +2892,212 @@ mod lr5b_unavailable_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod lr5d_fallback_tests {
+    use super::*;
+    struct PromptPlanes(bool);
+    impl MaskSegmenter for PromptPlanes {
+        fn segment(
+            &mut self,
+            image: &RgbImage,
+            request: &SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            let SegmentRequest::Prompts { clicks, .. } = request else {
+                anyhow::bail!("expected object prompts")
+            };
+            let second = clicks[0][0] > 0.5;
+            anyhow::ensure!(!(second && self.0), "second object unavailable");
+            Ok(vec![
+                if second { 0.75 } else { 0.25 };
+                (image.width() * image.height()) as usize
+            ])
+        }
+    }
+    impl export::mask_ai::MaskSegmenter for PromptPlanes {
+        fn segment(
+            &mut self,
+            image: &RgbImage,
+            request: &export::mask_ai::SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            let export::mask_ai::SegmentRequest::Prompts { clicks, .. } = request else {
+                anyhow::bail!("expected object prompts")
+            };
+            let second = clicks[0][0] > 0.5;
+            anyhow::ensure!(!(second && self.0), "second object unavailable");
+            Ok(vec![
+                if second { 0.75 } else { 0.25 };
+                (image.width() * image.height()) as usize
+            ])
+        }
+    }
+    struct Listener(std::sync::mpsc::Sender<MaskJobUpdate>);
+    impl MaskListener for Listener {
+        fn overlay_ready(&self, _: MaskOverlayFrame) {}
+        fn ai_progress(&self, update: MaskJobUpdate) {
+            if update.done {
+                let _ = self.0.send(update);
+            }
+        }
+    }
+    fn check(second_fails: bool) {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([100, 100, 100]))
+            .save(photos.join("synthetic.jpg"))
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        engine.install_mask_segmenter(Box::new(PromptPlanes(second_fails)));
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        let session = engine.clone().open_develop_session(id).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        session.set_mask_listener(Some(Arc::new(Listener(tx))));
+        let store =
+            ml_segment::MaskStore::new(engine.support_dir().unwrap().join("imported-masks"), 0)
+                .unwrap();
+        let raster = ml_segment::MaskRaster::new(2, 2, vec![0.5; 4]).unwrap();
+        let shared_key = store.put_content_pinned(&raster).unwrap();
+        assert_eq!(store.put_content_pinned(&raster).unwrap(), shared_key);
+        std::fs::remove_file(store.root().join("pinned").join(format!(
+            "{}.mask",
+            blake3::Hash::from_bytes(shared_key).to_hex()
+        )))
+        .unwrap();
+        let groups: Vec<_> = [0.25, 0.75]
+            .into_iter()
+            .map(|x| {
+                let mut c = MaskComponent::new(MaskKind::Object {
+                    prompt: None,
+                    region: None,
+                    points: vec![[x, 0.5]],
+                    model: None,
+                });
+                c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+                    resource_id: None,
+                    category: "Object".into(),
+                    mask_key: Some(shared_key),
+                    regenerate: false,
+                });
+                LocalAdjustment {
+                    id: engine_api::id::MaskId(if x < 0.5 { 1 } else { 2 }),
+                    params: engine_api::recipe::mask::LocalParams {
+                        exposure: 1.,
+                        ..Default::default()
+                    },
+                    components: vec![c],
+                    ..Default::default()
+                }
+            })
+            .collect();
+        let mut settings = DevelopSettings::default();
+        settings.locals.adjustments = groups.clone();
+        ensure_ai_jobs(&session.shared, &settings);
+        assert_eq!(
+            session.shared.masks.ai.lock().unwrap().len(),
+            2,
+            "shared disk content must not merge distinct fallback requests"
+        );
+        let updates: Vec<_> = (0..2)
+            .map(|_| rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap())
+            .collect();
+        assert_eq!(
+            updates.iter().filter(|u| u.error.is_some()).count(),
+            usize::from(second_fails)
+        );
+        let input = pipeline_cpu::Image::new(2, 2, vec![vec![0.18; 4]; 3]).unwrap();
+        let hooks = Hooks(session.shared.masks.clone());
+        assert_eq!(
+            hooks.rasterize(&input, &groups[0], 0).unwrap(),
+            vec![0.25; 4]
+        );
+        assert_eq!(
+            hooks.rasterize(&input, &groups[1], 0).unwrap(),
+            vec![if second_fails { 0. } else { 0.75 }; 4]
+        );
+        if second_fails {
+            let mut mixed = groups[0].clone();
+            mixed.components.push(groups[1].components[0].clone());
+            mixed.invert = true;
+            assert_eq!(hooks.rasterize(&input, &mixed, 0).unwrap(), vec![0.; 4]);
+            assert!(!session.shared.masks.group_available(&mixed));
+        }
+        let mut recipe = engine_api::recipe::Recipe::new(engine_api::id::ImageId(1));
+        recipe.set_imported_masks(groups.clone()).unwrap();
+        let input_export = export::ExportImage {
+            source: pipeline_cpu::RenderSource::Rgb(&input),
+            name: "synthetic",
+            sequence: 1,
+            date: "",
+            metadata: None,
+        };
+        let request = export::RenderRequest {
+            color_space: export::ColorSpace::Srgb,
+            resize: export::Resize::None,
+            sharpen_for: export::SharpenFor::None,
+            scale: 1,
+        };
+        let cancel = engine_api::jobs::CancellationToken::new();
+        let rendered = export::render_pixels_with_mask_support(
+            &input_export,
+            &recipe,
+            &request,
+            &cancel,
+            Some(&mut PromptPlanes(second_fails)),
+            Some(engine.support_dir().unwrap()),
+        );
+        if second_fails {
+            assert!(
+                rendered
+                    .unwrap_err()
+                    .to_string()
+                    .contains("second object unavailable")
+            );
+        } else {
+            // Export of the planes actually used by preview must match regeneration.
+            let mut preview_groups = groups;
+            for group in &mut preview_groups {
+                let plane = hooks.rasterize(&input, group, 0).unwrap();
+                let key = store
+                    .put_content_pinned(&ml_segment::MaskRaster::new(2, 2, plane).unwrap())
+                    .unwrap();
+                group.components[0].adobe_ai.as_mut().unwrap().mask_key = Some(key);
+            }
+            recipe.set_imported_masks(preview_groups).unwrap();
+            let preview_pixels = export::render_pixels_with_mask_support(
+                &input_export,
+                &recipe,
+                &request,
+                &cancel,
+                None,
+                Some(engine.support_dir().unwrap()),
+            )
+            .unwrap();
+            assert!(
+                rendered
+                    .unwrap()
+                    .as_raw()
+                    .iter()
+                    .zip(preview_pixels.as_raw())
+                    .all(|(a, b)| (a - b).abs() < 1e-4)
+            );
+        }
+        session.close().unwrap();
+    }
+    #[test]
+    fn lr5d_missing_shared_blob_regenerates_distinct_object_prompts() {
+        check(false);
+    }
+    #[test]
+    fn lr5d_missing_shared_blob_second_request_failure_stays_unavailable() {
+        check(true);
+    }
+}

@@ -200,6 +200,8 @@ pub(crate) fn apply(
             current.push(key);
         }
     }
+    #[cfg(test)]
+    lr5d_race_tests::after_blobs();
     // Until publication decides, the image owns both generations.
     let mut keys = prior.clone();
     keys.extend(current.iter().filter(|key| !prior.contains(key)));
@@ -253,6 +255,8 @@ pub(crate) fn prune_missing(
     support: &std::path::Path,
     mut alive: impl FnMut(ImageId) -> bool,
 ) -> Result<()> {
+    #[cfg(test)]
+    lr5d_race_tests::before_collection();
     let root = support.join("imported-masks");
     if !root.exists() {
         return Ok(());
@@ -688,5 +692,194 @@ mod lr5b_removal_tests {
         remove_images(dir.path(), [ImageId(1), ImageId(2)]).unwrap();
         assert!(store.get(&key).is_none());
         assert!(!owner_path(&store, ImageId(1)).exists());
+    }
+}
+
+#[cfg(test)]
+mod lr5d_bounds_tests {
+    use super::*;
+
+    fn resources(count: usize) -> Recipe {
+        let source = format!(
+            "s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{}}}}}}}}}",
+            vec!["{What='Mask/Image',MaskSubType=1,MaskDigest='synthetic'}"; count].join(",")
+        );
+        import_lrcat::develop(1, &source, "15.4").unwrap().0
+    }
+
+    #[test]
+    fn lr5d_invalid_resources_consume_attempt_budget() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path(), 0).unwrap();
+        for resource in [None, Some(b"invalid".to_vec())] {
+            let mut recipe = resources(300);
+            let mut calls = 0;
+            apply(
+                &mut recipe,
+                ImageId(1),
+                (1, 1),
+                &store,
+                |_| {
+                    calls += 1;
+                    resource.clone()
+                },
+                |_| Ok(()),
+            )
+            .unwrap();
+            assert_eq!(calls, 256);
+            assert!(
+                recipe.settings.locals.adjustments[0]
+                    .components
+                    .iter()
+                    .all(|c| c.adobe_ai.as_ref().unwrap().regenerate)
+            );
+        }
+    }
+
+    #[test]
+    fn lr5d_invalid_extent_never_resolves_resources() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path(), 0).unwrap();
+        for extent in [(0, 1), (u32::MAX, u32::MAX)] {
+            let mut recipe = resources(3);
+            let mut calls = 0;
+            apply(
+                &mut recipe,
+                ImageId(1),
+                extent,
+                &store,
+                |_| {
+                    calls += 1;
+                    None
+                },
+                |_| Ok(()),
+            )
+            .unwrap();
+            assert_eq!(calls, 0);
+        }
+    }
+
+    #[test]
+    fn lr5d_exhausted_bytes_stop_resolving_before_decode() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MaskStore::new(dir.path(), 0).unwrap();
+        // 8 MiB + header per plane: 31 fit; the 32nd must not resolve.
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::GrayImage::from_pixel(2048, 2048, image::Luma([128]))
+            .write_to(&mut png, image::ImageFormat::Png)
+            .unwrap();
+        let mut recipe = resources(33);
+        let mut calls = 0;
+        apply(
+            &mut recipe,
+            ImageId(1),
+            (2048, 2048),
+            &store,
+            |_| {
+                calls += 1;
+                Some(png.get_ref().clone())
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(calls, 31);
+        assert!(
+            recipe.settings.locals.adjustments[0].components[31]
+                .adobe_ai
+                .as_ref()
+                .unwrap()
+                .regenerate
+        );
+    }
+}
+
+#[cfg(test)]
+static PUBLICATION: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+mod lr5d_race_tests {
+    use super::*;
+    use std::sync::{Arc, Barrier, mpsc};
+    thread_local! {
+        static BLOBS: std::cell::RefCell<Option<Arc<Barrier>>> = const { std::cell::RefCell::new(None) };
+        static COLLECT: std::cell::RefCell<Option<mpsc::Sender<bool>>> = const { std::cell::RefCell::new(None) };
+    }
+    pub(super) fn after_blobs() {
+        BLOBS.with(|hook| {
+            if let Some(barrier) = hook.borrow_mut().take() {
+                barrier.wait();
+                barrier.wait();
+            }
+        });
+    }
+    pub(super) fn before_collection() {
+        COLLECT.with(|hook| {
+            if let Some(tx) = hook.borrow_mut().take() {
+                tx.send(matches!(
+                    PUBLICATION.try_lock(),
+                    Err(std::sync::TryLockError::WouldBlock)
+                ))
+                .unwrap();
+            }
+        });
+    }
+    #[test]
+    fn lr5d_collection_waits_between_blob_and_owner_publication() {
+        check_collection(true);
+    }
+    #[test]
+    fn lr5d_collection_waits_during_recipe_publication() {
+        check_collection(false);
+    }
+    fn check_collection(pause_after_blobs: bool) {
+        {
+            let dir = tempfile::tempdir().unwrap();
+            let store = MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
+            let barrier = Arc::new(Barrier::new(2));
+            std::thread::scope(|scope| {
+                let barrier_ref = barrier.clone();
+                let store = &store;
+                let publisher = scope.spawn(move || {
+                    if pause_after_blobs {
+                        BLOBS.with(|hook| *hook.borrow_mut() = Some(barrier_ref.clone()));
+                    }
+                    let mut recipe = import_lrcat::develop(1, "s={MaskGroupBasedCorrections={{CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskDigest='synthetic'}}}}}", "15.4").unwrap().0;
+                    let mut png = std::io::Cursor::new(Vec::new());
+                    image::GrayImage::from_pixel(2, 1, image::Luma([128])).write_to(&mut png, image::ImageFormat::Png).unwrap();
+                    apply(&mut recipe, ImageId(1), (2, 1), &store, |_| Some(png.get_ref().clone()), |_| {
+                        if !pause_after_blobs {
+                            barrier_ref.wait();
+                            barrier_ref.wait();
+                        }
+                        Ok(())
+                    }).unwrap();
+                    recipe.settings.locals.adjustments[0].components[0].adobe_ai.as_ref().unwrap().mask_key.unwrap()
+                });
+                barrier.wait();
+                let (tx, rx) = mpsc::channel();
+                let collector = scope.spawn(|| {
+                    COLLECT.with(|hook| *hook.borrow_mut() = Some(tx));
+                    prune_missing(dir.path(), |_| true).unwrap();
+                });
+                let contended = rx.recv().unwrap();
+                // RED: let the unprotected collector finish before publication.
+                let collector = if !contended {
+                    collector.join().unwrap();
+                    None
+                } else {
+                    Some(collector)
+                };
+                barrier.wait();
+                let key = publisher.join().unwrap();
+                if let Some(collector) = collector {
+                    collector.join().unwrap();
+                }
+                assert!(contended, "collection must share publication admission");
+                assert!(
+                    store.get(&key).is_some(),
+                    "published pixels must survive collection"
+                );
+            });
+        }
     }
 }
