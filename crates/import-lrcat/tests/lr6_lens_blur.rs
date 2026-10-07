@@ -239,7 +239,8 @@ fn focal_range_preserves_outer_endpoints_and_shapes_have_renderable_interpretati
 fn untranslated_inputs_preserve_recipe_bytes_and_main_depth_warnings() {
     // Captured by compiling dcf07355 in a temporary detached checkout. Synthetic
     // source, complete recipe bytes and warning order; no normalization applied.
-    // LR-9b names DepthBasedCorrections explicitly; all recipe_bytes remain unchanged.
+    // LR-CLEAN ruling: empty DepthBasedCorrections is a no-op. Only that
+    // warning was removed from the baseline; every recipe byte remains pinned.
     let cases: serde_json::Value =
         serde_json::from_str(include_str!("data/lr6b-untranslated-baseline.json")).unwrap();
     for case in cases.as_array().unwrap() {
@@ -336,10 +337,9 @@ fn lr6d_exact_active_boolean_has_no_approximation() {
     assert!(warnings.is_empty());
     let entries = diagnostics::entries(&r);
     assert_eq!(entries["LensBlur"].len(), 1);
-    assert!(
-        entries["LensBlur"][0]
-            .reason
-            .starts_with("regenerated depth:")
+    assert_eq!(
+        entries["LensBlur"][0].reason,
+        "regenerated depth: no Adobe depth resource; Tessera estimates depth at render"
     );
 }
 
@@ -373,6 +373,10 @@ fn lr6e_missing_depth_has_one_explicit_regeneration_reason() {
             .filter(|d| d.reason.starts_with("regenerated depth:"))
             .collect();
         assert_eq!(reasons.len(), 1);
+        assert_eq!(
+            reasons[0].reason,
+            "regenerated depth: no Adobe depth resource; Tessera estimates depth at render"
+        );
         assert_eq!(
             reasons[0].field.as_deref(),
             Some("/settings/effects/lens_blur/depth")

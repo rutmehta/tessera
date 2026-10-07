@@ -117,6 +117,27 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
         ) {
             return Err(format!("invalid lane: {line}"));
         }
+        if cells[4].split(';').next().unwrap().trim() == "cloud" {
+            if cells[5] == "—" {
+                return Err(format!("{key}: cloud row needs a synthetic active value"));
+            }
+            let (recipe, warnings) = import(key, cells[5].trim_matches('`'))?;
+            if !retained_in(&recipe, "lrcat_develop_source", key)
+                || !warnings
+                    .iter()
+                    .any(|w| w.contains(key) && w.contains("requires Adobe cloud"))
+                || !diagnostics::entries(&recipe).get(key).is_some_and(|notes| {
+                    notes
+                        .iter()
+                        .any(|n| n.status == "cloud" && n.level == "warning")
+                })
+            {
+                return Err(format!(
+                    "{key}: missing retained source or warning-level cloud diagnostic"
+                ));
+            }
+            continue;
+        }
         let approximate = match cells[4].split(';').next().unwrap().trim() {
             "retained" | "unsupported-diagnostic" => continue,
             "translated" => false,

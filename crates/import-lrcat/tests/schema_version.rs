@@ -14,7 +14,10 @@ fn imported_recipes_bump_only_for_retouch() {
         for image in import_lrcat::import(&catalog).unwrap().images {
             let recipe = &image.recipe;
             let retouch = !recipe.settings.locals.retouch.is_empty();
-            assert_eq!(v4_features_used(recipe).contains(&"retouch"), retouch);
+            assert_eq!(
+                v4_features_used(recipe),
+                if retouch { vec!["retouch"] } else { vec![] }
+            );
             let expected = if retouch { 4 } else { 3 };
             assert_eq!(required_schema_version(recipe), expected);
             let written: serde_json::Value =
@@ -78,5 +81,26 @@ fn lr6d_active_lens_blur_writes_four_inactive_and_depth_only_stay_three() {
         assert_eq!(required_schema_version(&r), version);
         let saved: serde_json::Value = serde_json::from_slice(&r.to_json().unwrap()).unwrap();
         assert_eq!(saved["schema_version"], version);
+    }
+}
+
+#[test]
+fn lr4c_imported_mask_features_write_schema_four() {
+    for shape in [
+        "What='Mask/Group',Masks={{What='Mask/Gradient',FullX=0,FullY=0,ZeroX=1,ZeroY=0}}",
+        "What='Mask/Gradient',FullX=0,FullY=0,ZeroX=1,ZeroY=0,MaskActive=false",
+        "What='Mask/RangeMask',CorrectionRangeMask={Type=2,LumMin=0.4,LumMax=0.5}",
+    ] {
+        let (r, w) = import_lrcat::lua_develop::parse(
+            &format!("s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{{{shape}}}}}}}}}}}"),
+            "15.4",
+        )
+        .unwrap();
+        assert!(w.is_empty(), "{w:?}");
+        assert_eq!(required_schema_version(&r), 4);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&r.to_json().unwrap()).unwrap()["schema_version"],
+            4
+        );
     }
 }

@@ -70,8 +70,16 @@ fn lr4e_shape_mask_value_is_explicitly_diagnosed() {
         let (r, warnings) = lua_develop::parse(&row, "15.4").unwrap();
         assert!(!warnings.is_empty());
         assert!(r.settings.locals.adjustments.is_empty());
-        assert!(!import_lrcat::diagnostics::entries(&r).values().flatten().any(|e| e.status == "approximate"));
-        assert!(r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"].is_string());
+        assert!(
+            !import_lrcat::diagnostics::entries(&r)
+                .values()
+                .flatten()
+                .any(|e| e.status == "approximate")
+        );
+        assert!(
+            r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"]
+                .is_string()
+        );
     }
 }
 

@@ -73,6 +73,10 @@ fn lr2e_legacy_rows_ignore_stale_modern_controls_even_without_legacy_sliders() {
                 "Dehaze",
                 "ParametricShadows",
             ] {
+                let source = r.unknown["lrcat_develop_source"]["properties"][key]
+                    .as_str()
+                    .expect("stale source retained");
+                assert!(!source.is_empty());
                 assert!(
                     diagnostics::entries(&r)[key]
                         .iter()

@@ -385,6 +385,10 @@ mod tests {
         fs::remove_dir_all(p).unwrap();
     }
     #[test]
+    #[cfg_attr(
+        debug_assertions,
+        ignore = "release-only latency bound: skipped in debug builds"
+    )]
     fn raw_without_jpeg_is_rendered() {
         let (p, s) = store(u64::MAX);
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw/sample.dng");
