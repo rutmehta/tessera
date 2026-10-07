@@ -126,8 +126,11 @@ fn sp_int2_proxy_print_reports_what_the_proxy_omitted() {
     f.write(plain());
     let printed = f.print();
     assert!(
-        printed.notes.iter().any(|n| n.contains("Smart Preview")),
-        "print must say it used the Smart Preview: {:?}",
+        printed
+            .notes
+            .iter()
+            .any(|n| n.starts_with("Rendered from a Smart Preview")),
+        "print must say it was rendered from the Smart Preview: {:?}",
         printed.notes
     );
     let mut s = plain();
@@ -142,6 +145,11 @@ fn sp_int2_proxy_print_reports_what_the_proxy_omitted() {
             .iter()
             .any(|n| n.contains("Lens profile unavailable")),
         "print must surface the proxy's omissions as sentences: {:?}",
+        printed.notes
+    );
+    assert!(
+        printed.notes.iter().all(|n| !n.contains("Exported")),
+        "print notes do not say exported: {:?}",
         printed.notes
     );
     assert!(
