@@ -725,7 +725,7 @@ impl Renderer {
         r.cache_lens = true;
         let level = coords.first().map(|c| c.level);
 
-        if (lens.is_none() && !crate::resident_export_lens_supported(&settings.lens))
+        if (lens.is_none() && !crate::resident_lens_supported(&settings.lens, image.metadata()))
             || ((self.is_adobe() || has_m2_settings(settings) || self.depth_visualisation)
                 && !self.supports_resident(&r, level))
         {
@@ -790,7 +790,7 @@ impl Renderer {
         for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
             let extent = Self::output_extent(image, settings, level)?;
             let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
-            if (lens.is_none() && !crate::resident_export_lens_supported(&settings.lens))
+            if (lens.is_none() && !crate::resident_lens_supported(&settings.lens, image.metadata()))
                 || ((self.is_adobe() || has_m2_settings(settings) || self.depth_visualisation)
                     && !self.supports_resident(&r, Some(level)))
             {

@@ -494,9 +494,11 @@ impl CameraLinearProxy {
         // ENG-7: before Auto stopped estimating from image content, an Auto
         // snapshot could capture an image-estimated distortion/vignette.
         // Reopen it with the current meaning of Auto, exactly what generating
-        // it today resolves: the estimate is dropped; an image-estimated CA
-        // (baked into the pixels, governed by remove_chromatic_aberration) is
-        // kept. AutoCalibrated keeps its estimate.
+        // it today resolves: the estimate is dropped. An image-estimated
+        // lateral CA is kept: generation applied it to the stored camera-linear
+        // pixels (`render::camera_linear_prefix` runs `optics::lateral_ca`
+        // before the proxy is downsampled) and the tail never replays it, so it
+        // cannot be removed here. AutoCalibrated keeps its estimate.
         if matches!(s.lens.profile, LensProfileSource::Auto)
             && matches!(s.correction.source, Source::Image)
             && let Some(sample) = s.correction.sample.as_mut()
@@ -518,10 +520,14 @@ impl CameraLinearProxy {
             .map_err(invalid)?;
         }
         let parsed = crate::embedded_lens::Embedded::parse(&metadata)?;
-        let use_embedded = matches!(
-            s.lens.profile,
-            LensProfileSource::Auto | LensProfileSource::Embedded
-        );
+        // Built-in (embedded opcode) corrections apply in every mode except an
+        // available named profile and AutoCalibrated (ENG-7b); a snapshot of a
+        // named profile records which of the two it resolved.
+        let use_embedded = match &s.lens.profile {
+            LensProfileSource::Auto | LensProfileSource::Embedded | LensProfileSource::None => true,
+            LensProfileSource::Database { .. } => !matches!(s.correction.source, Source::Database),
+            LensProfileSource::AutoCalibrated => false,
+        };
         if use_embedded && !parsed.stages[2].is_empty() {
             return Err(invalid("late sensor opcodes require original"));
         }
@@ -532,17 +538,18 @@ impl CameraLinearProxy {
             Source::Manual => CorrectionSource::Manual,
         };
         let mode_matches_source = match &s.lens.profile {
-            // An unavailable named profile resolves to no profile correction.
-            LensProfileSource::Database { .. } => {
-                matches!(
-                    source,
-                    CorrectionSource::Database | CorrectionSource::Manual
-                )
-            }
+            // An unavailable named profile resolves to the raw's built-in
+            // correction or to no profile correction.
+            LensProfileSource::Database { .. } => matches!(
+                source,
+                CorrectionSource::Database | CorrectionSource::Manual | CorrectionSource::Embedded
+            ),
             LensProfileSource::Embedded => source == CorrectionSource::Embedded,
             LensProfileSource::None => {
-                source == CorrectionSource::Manual
-                    || (source == CorrectionSource::Image && s.lens.remove_chromatic_aberration)
+                matches!(
+                    source,
+                    CorrectionSource::Manual | CorrectionSource::Embedded
+                ) || (source == CorrectionSource::Image && s.lens.remove_chromatic_aberration)
             }
             LensProfileSource::AutoCalibrated => {
                 matches!(source, CorrectionSource::Image | CorrectionSource::Manual)

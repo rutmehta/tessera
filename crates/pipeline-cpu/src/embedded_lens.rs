@@ -131,11 +131,10 @@ impl Embedded {
                                 let green = self.warp(p, w, 1);
                                 let chroma = self.warp(p, w, channel);
                                 let amount = s.distortion_scale.clamp(0., 200.) as f64 / 100.;
-                                let ca = if s.remove_chromatic_aberration {
-                                    s.chromatic_aberration_scale.clamp(0., 200.) as f64 / 100.
-                                } else {
-                                    0.
-                                };
+                                // Built-in corrections apply in full, like
+                                // Lightroom; the Remove CA switch governs only
+                                // estimated and profile CA (ENG-7b).
+                                let ca = s.chromatic_aberration_scale.clamp(0., 200.) as f64 / 100.;
                                 let q: [f64; 2] = std::array::from_fn(|j| {
                                     p[j] + amount * (green[j] - p[j]) + ca * (chroma[j] - green[j])
                                 });
@@ -272,11 +271,9 @@ impl Embedded {
             let green = self.warp(p, w, 1);
             let chroma = self.warp(p, w, channel);
             let distortion = s.distortion_scale.clamp(0., 200.) as f64 / 100.;
-            let ca = if s.remove_chromatic_aberration {
-                s.chromatic_aberration_scale.clamp(0., 200.) as f64 / 100.
-            } else {
-                0.
-            };
+            // Built-in per-plane warps apply with the CA scale whatever the
+            // Remove CA switch (ENG-7b); common geometry passes a zero scale.
+            let ca = s.chromatic_aberration_scale.clamp(0., 200.) as f64 / 100.;
             p = std::array::from_fn(|i| {
                 p[i] + distortion * (green[i] - p[i]) + ca * (chroma[i] - green[i])
             });

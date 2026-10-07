@@ -319,7 +319,9 @@ fn three_plane_embedded_warp_does_not_average_ca() {
         &LensContext::default(),
     )
     .unwrap();
-    s.lens.remove_chromatic_aberration = false;
+    // ENG-7b: built-in per-plane warps apply whatever the Remove CA switch,
+    // like Lightroom; only a zero CA scale removes their channel component.
+    s.lens.chromatic_aberration_scale = 0.;
     let b = render_linear_scaled_with_lens(
         &s,
         &RenderSource::Cfa {

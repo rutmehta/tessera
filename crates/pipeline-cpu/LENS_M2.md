@@ -32,7 +32,12 @@ There is no implicit filesystem lookup, network access or bundled database.
 * Embedded explicitly requested but unavailable is an error.
 * Database explicitly requested but not supplied/found applies no profile
   correction (ENG-7; it was an error, which made every imported recipe naming
-  an Adobe LCP fail to render). It is never replaced by an estimate. A direct
+  an Adobe LCP fail to render). It is never replaced by an estimate.
+* Built-in corrections (ENG-7b): the raw's embedded DNG opcode lists apply in
+  Auto, Embedded, None and for an unavailable named profile, as Lightroom
+  always applies a camera's built-in correction. An available named profile
+  and AutoCalibrated keep their own source. Maker-note built-in corrections
+  (Fujifilm, Panasonic, Olympus, Sony) are not parsed yet. A direct
   context profile is an explicitly resolved selection; otherwise the named
   profile matches `Profile.model`. Filename/digest are not resolved or verified.
 * Auto database matching uses camera make/model as camera restrictions and the
@@ -40,8 +45,10 @@ There is no implicit filesystem lookup, network access or bundled database.
   RawMetadata and is not inferred from camera make (third-party lenses work).
   Equally ranked matches require explicit selection rather than an arbitrary
   calibration. No vendor correction coefficients are inferred from identity.
-* AutoCalibrated bypasses embedded/database. None disables profile correction,
-  but the independent `remove_chromatic_aberration` switch can still estimate CA.
+* AutoCalibrated bypasses embedded/database. None disables profile correction
+  (built-in opcodes still apply), and the independent
+  `remove_chromatic_aberration` switch (off by default since ENG-7b) can still
+  estimate CA.
 * Manual distortion/vignette/defringe remain additive user controls for all sources.
 * `LensContext.capture = Some([focal_mm, aperture, distance_m])` supplies capture
   coordinates. Otherwise focal/aperture come from metadata when positive and
