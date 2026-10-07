@@ -261,6 +261,98 @@ mod tests {
             "gradient kept"
         );
     }
+
+    #[test]
+    fn lr13b_thumbnail_uses_proxy_effect_resources() {
+        use engine_api::recipe::{
+            EditMeta, MaskComponent, MaskKind,
+            mask::{BrushStroke, RetouchKind, RetouchOperation, RetouchTarget},
+            settings::{LensBlur, LensBlurDepth},
+        };
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("synthetic.dng");
+        std::fs::write(
+            &path,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
+        let id = engine_api::id::ImageId(1310);
+        let image = catalog::open_image(id, &path).unwrap();
+        let extent = image.active_extent();
+        let depth = image_core::ml_depth::DepthMap::from_normalized_inverse(
+            extent.width,
+            extent.height,
+            vec![0.; extent.area() as usize],
+        )
+        .unwrap();
+        let store =
+            image_core::ml_depth::DepthStore::new(root.path().join("previews/depth-cache"), 0)
+                .unwrap();
+        depth.store_pinned(&store, &[93; 32]).unwrap();
+        for blur in [false, true] {
+            let mut recipe = core::Recipe::default();
+            recipe
+                .edit(EditMeta::user("Proxy effect", 1), |s| {
+                    if blur {
+                        s.effects.lens_blur = Some(LensBlur {
+                            amount: 100.,
+                            depth: Some(LensBlurDepth {
+                                mask_key: Some([93; 32]),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        });
+                    } else {
+                        s.locals.retouch.push(RetouchOperation {
+                            id: engine_api::id::RetouchId(1),
+                            kind: RetouchKind::Clone {
+                                source_offset: [0.5, 0.],
+                            },
+                            target: RetouchTarget::Area {
+                                components: vec![MaskComponent::new(MaskKind::Brush {
+                                    strokes: vec![BrushStroke {
+                                        points: vec![[0.25, 0.5, 1.]],
+                                        radius: 0.2,
+                                        feather: 0.,
+                                        ..Default::default()
+                                    }],
+                                })],
+                            },
+                            opacity: 100.,
+                            feather: 0.,
+                            enabled: true,
+                        });
+                    }
+                })
+                .unwrap();
+            let renderer = image_core::Renderer::new(Default::default())
+                .for_recipe(&recipe)
+                .with_depth(Arc::new(image_core::depth::DepthProvider::from_map(
+                    depth.clone(),
+                )))
+                .with_retouch_renderer(Arc::new(brush::render_retouch));
+            let tiles = renderer
+                .render_region(
+                    &image,
+                    &recipe.settings,
+                    0,
+                    image_core::PixelRect::full(extent),
+                )
+                .unwrap();
+            let expected = crate::lrcat_fidelity::stitch(extent, &tiles).unwrap();
+            let base = render_imported(&path, id, &core::Recipe::default(), root.path(), u32::MAX)
+                .unwrap()
+                .0;
+            assert_ne!(expected, base, "synthetic effect must change pixels");
+            let actual = render_imported(&path, id, &recipe, root.path(), u32::MAX)
+                .unwrap()
+                .0;
+            assert_eq!(
+                actual, expected,
+                "thumbnail dropped an available proxy effect"
+            );
+        }
+    }
 }
 
 use engine_api::jobs::{Job, JobContext, Priority, Scheduler};
