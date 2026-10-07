@@ -320,10 +320,12 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
     }
 
     func testIdentifierFormatAllowsOnlyNamespacesOrPinnedStems() {
-        for id in ["library.new.action", "develop.new.action", "ruleTextField", "facetCamera", "agent-step-toggle-42", "detail-ai-denoise-model-retry", "document.layers.row.3.visibility"] {
+        for id in ["library.new.action", "develop.new.action", "ruleTextField", "facetCamera", "agent-step-toggle-42", "detail-ai-denoise-model-retry", "document.layers.row.3.visibility",
+                   "transform-vertical", "transform-horizontal", "transform-rotate", "transform-aspect",
+                   "transform-scale", "transform-offset-x", "transform-offset-y"] {
             XCTAssertTrue(EstablishedAccessibilityIdentifiers.accepts(id), id)
         }
-        for id in ["", "arbitrary", "gridUnexpected", "ruleTextField.new", "libraryWrong.action", "document.layers.row.3.unpinned", "document.channels.4.unpinned", "document.history.snapshot.2.unpinned"] {
+        for id in ["", "arbitrary", "gridUnexpected", "ruleTextField.new", "libraryWrong.action", "document.layers.row.3.unpinned", "document.channels.4.unpinned", "document.history.snapshot.2.unpinned", "transform-unpinned"] {
             XCTAssertFalse(EstablishedAccessibilityIdentifiers.accepts(id), id)
         }
     }
