@@ -44,19 +44,13 @@ fn files(dir: &Path) -> Vec<String> {
 fn proxies_are_keyed_by_image_and_named_from_the_catalog() {
     for copy in [false, true] {
         let s = setup();
-        // With copies, a second offline photo. The fixture's proxies are
-        // byte-identical, so a content-keyed copy would merge the two photos
-        // into one file and image. (In place, identical Smart Previews inside
-        // the Lightroom bundle share a content-keyed protected recipe; that is
-        // the sidecar store's design and outside this test, so the in-place
-        // run keeps one offline photo.)
-        let expected: &[&str] = if copy {
-            let wedding = s.fixture.photos.join("2026/wedding");
-            std::fs::remove_file(wedding.join("ceremony-02.jpg")).unwrap();
-            &["ceremony-02.jpg", "lost-01.jpg"]
-        } else {
-            &["lost-01.jpg"]
-        };
+        // A second offline photo. The fixture's Smart Previews are
+        // byte-identical, so a content-keyed copy (M7) or a content-keyed
+        // protected recipe for in-place proxies (REV-SP-A S5, coordinator
+        // ruling) would merge the two photos into one image, recipe and name.
+        let wedding = s.fixture.photos.join("2026/wedding");
+        std::fs::remove_file(wedding.join("ceremony-02.jpg")).unwrap();
+        let expected: &[&str] = &["ceremony-02.jpg", "lost-01.jpg"];
         let mut options = s.import.default_options().unwrap();
         let photos = s.fixture.photos.canonicalize().unwrap();
         options.relocations[0].to = photos.to_string_lossy().into_owned();
@@ -80,10 +74,14 @@ fn proxies_are_keyed_by_image_and_named_from_the_catalog() {
             expected.len(),
             "copy={copy}: one image per photo"
         );
-        if copy {
-            assert_ne!(proxies[0].id, proxies[1].id);
-            assert_ne!(proxies[0].path, proxies[1].path);
-        }
+        assert_ne!(proxies[0].id, proxies[1].id);
+        assert_ne!(proxies[0].path, proxies[1].path);
+        // Separate photos keep separate recipes (their Lightroom edits).
+        let recipes: Vec<String> = proxies
+            .iter()
+            .map(|r| s.engine.get_recipe(r.id.clone()).unwrap())
+            .collect();
+        assert_ne!(recipes[0], recipes[1], "copy={copy}: recipes merged");
         let mut names: Vec<_> = proxies
             .iter()
             .map(|r| r.display_name.clone().expect("catalog file name"))
