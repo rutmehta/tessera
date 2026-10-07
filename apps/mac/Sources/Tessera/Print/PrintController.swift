@@ -232,9 +232,10 @@ final class PrintController {
             error = nil
             progress = Progress(done: 0, total: requests.count, current: "", output: output)
             starting = false
-            let (rendered, failed, wasCancelled) = await Task.detached(priority: .userInitiated) {
+            let (rendered, failed, notes, wasCancelled) = await Task.detached(priority: .userInitiated) {
                 var pictures: [Int: CGImage] = [:]
                 var failures: [String] = []
+                var notes: [String] = []
                 for (i, (name, id)) in requests.enumerated() {
                     if cancel.isCancelled() { break }
                     await MainActor.run { self.progress?.current = name; self.progress?.done = i }
@@ -245,12 +246,14 @@ final class PrintController {
                             cancel: cancel)
                         if let cg = Self.cgImage(image) { pictures[i] = cg }
                         else { failures.append("\(name): unusable pixels") }
+                        // Smart Preview omissions, as file export records them.
+                        notes.append(contentsOf: image.notes.map { "\(name): \($0)" })
                     } catch {
                         if cancel.isCancelled() { break }
                         failures.append("\(name): \(error.localizedDescription)")
                     }
                 }
-                return (pictures, failures, cancel.isCancelled())
+                return (pictures, failures, notes, cancel.isCancelled())
             }.value
             progress?.done = requests.count
             cancelFlag = nil
@@ -262,7 +265,8 @@ final class PrintController {
             }
             let composer = PrintComposer(layout: settings.layout, pageSize: page, picture: { rendered[$0] },
                                          caption: { names[$0] }, fallbackAspect: { _ in 1.5 }, count: names.count)
-            let ok = produce(output, composer: composer, settings: settings, window: window, failures: failed)
+            let ok = produce(output, composer: composer, settings: settings, window: window, failures: failed,
+                             notes: notes)
             progress = nil
             completion?(ok)
         }
@@ -275,7 +279,8 @@ final class PrintController {
 
     /// Printer / PDF / JPEG from finished renders.
     private func produce(_ output: Output, composer: PrintComposer, settings: PrintSettings, window: NSWindow?,
-                         failures: [String]) -> Bool {
+                         failures: [String], notes: [String] = []) -> Bool {
+        let details = failures + notes
         let pages = composer.pages.count
         switch output {
         case .printer, .pdf:
@@ -299,7 +304,7 @@ final class PrintController {
                 let ok = op.run()
                 let written = ok && FileManager.default.fileExists(atPath: url.path)
                 onMessage(written ? "Saved \(pages) page\(pages == 1 ? "" : "s") to \(url.lastPathComponent)"
-                                  : "Could not save the PDF", failures)
+                                  : "Could not save the PDF", details)
                 return written
             }
             if let window {
@@ -307,16 +312,20 @@ final class PrintController {
             } else {
                 op.run()
             }
-            if !failures.isEmpty { onMessage("Some photos could not be rendered", failures) }
+            if !failures.isEmpty {
+                onMessage("Some photos could not be rendered", details)
+            } else if !notes.isEmpty {
+                onMessage("Printed from Smart Previews; some settings were unavailable", notes)
+            }
             return true
         case .jpeg(let url):
             do {
                 let written = try Self.writeJPEGPages(composer: composer, dpi: settings.fileDPI, to: url,
                                                       settings: settings, profile: settings.colorHandling == .application ? settings.profilePath : nil)
-                onMessage("Saved \(written.count) JPEG page\(written.count == 1 ? "" : "s") at \(Int(settings.fileDPI)) dpi", failures)
+                onMessage("Saved \(written.count) JPEG page\(written.count == 1 ? "" : "s") at \(Int(settings.fileDPI)) dpi", details)
                 return true
             } catch {
-                onMessage("Could not save JPEG pages: \(error.localizedDescription)", failures)
+                onMessage("Could not save JPEG pages: \(error.localizedDescription)", details)
                 return false
             }
         }

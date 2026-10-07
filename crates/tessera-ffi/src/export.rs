@@ -1448,6 +1448,10 @@ pub struct PrintImage {
     pub channels: u32,
     pub data: Vec<u8>,
     pub icc: Vec<u8>,
+    /// What a Smart Preview could not reproduce, as sentences (empty for
+    /// originals), the same notes a file export records beside its output.
+    #[uniffi(default = [])]
+    pub notes: Vec<String>,
 }
 
 /// Largest power-of-two binning (≤ 8) that still leaves ≥ the requested box.
@@ -1524,7 +1528,7 @@ impl Engine {
         } else {
             export::ColorSpace::DisplayP3
         };
-        let rgb = export::render_pixels_with_resources(
+        let (rgb, notes) = export::render_pixels_with_notes(
             &export::ExportImage {
                 source: source.render_source(),
                 name: "print",
@@ -1585,6 +1589,7 @@ impl Engine {
                     channels: device.channels as u32,
                     data: device.data,
                     icc: printer.icc_bytes().to_vec(),
+                    notes,
                 })
             }
             None => Ok(PrintImage {
@@ -1596,6 +1601,7 @@ impl Engine {
                     .flat_map(|p| p.map(|v| (v * 255.0).round() as u8))
                     .collect(),
                 icc: export::color_space_icc(export::ColorSpace::DisplayP3)?,
+                notes,
             }),
         }
     }

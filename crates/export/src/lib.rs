@@ -414,9 +414,25 @@ pub fn render_pixels_with_resources(
     support: Option<&std::path::Path>,
     retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
 ) -> EngineResult<image::Rgb32FImage> {
+    render_pixels_with_notes(image, recipe, render, cancel, segmenter, support, retouch)
+        .map(|(rgb, _)| rgb)
+}
+
+/// [`render_pixels_with_resources`] plus the user-facing notes a file export
+/// would record ([`proxy_notes`] and render warnings), for print and documents.
+pub fn render_pixels_with_notes(
+    image: &ExportImage<'_>,
+    recipe: &Recipe,
+    render: &RenderRequest,
+    cancel: &CancellationToken,
+    segmenter: Option<&mut dyn mask_ai::MaskSegmenter>,
+    support: Option<&std::path::Path>,
+    retouch: Option<std::sync::Arc<dyn pipeline_cpu::RetouchRenderer>>,
+) -> EngineResult<(image::Rgb32FImage, Vec<String>)> {
     require_full_quality_source(&image.source)?;
     cancel.check()?;
     recipe.validate()?;
+    let mut notes = proxy_notes(&image.source, recipe, support.is_some(), retouch.is_some());
     let planned = proxy_recipe(&image.source, recipe, support.is_some(), retouch.is_some());
     let recipe = planned.as_ref();
     if !matches!(render.scale, 1 | 2 | 4 | 8) {
@@ -432,7 +448,7 @@ pub fn render_pixels_with_resources(
             recipe,
             render.scale,
             segmenter,
-            &mut Vec::new(),
+            &mut notes,
             support,
             retouch,
         )?;
@@ -450,7 +466,68 @@ pub fn render_pixels_with_resources(
     cancel.check()?;
     let rgb = orient(rgb, source_orientation(&image.source));
     let rgb = filter::resize(rgb, render.resize, cancel)?;
-    filter::sharpen(rgb, render.sharpen_for, cancel)
+    Ok((filter::sharpen(rgb, render.sharpen_for, cancel)?, notes))
+}
+
+/// Plain-sentence text for a Smart Preview render-plan field (shared with
+/// Develop's loupe notices so every surface says the same thing).
+pub fn proxy_notice_text(field: &str) -> &'static str {
+    match field {
+        "/decode" | "/linearize" | "/demosaic" | "/denoise" => {
+            "Mosaic corrections are already baked into this Smart Preview."
+        }
+        "/white_balance/mode" => "Auto white balance unavailable; shown using As Shot.",
+        "/camera_profile/look" => "Creative look unavailable; shown without it.",
+        "/lens/profile" => "Lens profile unavailable; shown without it.",
+        "/effects/lens_blur" => "Lens Blur is not rendered on Smart Preview yet.",
+        "/locals/retouch" => "Retouch is not rendered on Smart Preview yet.",
+        "/locals/adjustments" => "Some local masks are unavailable; shown without them.",
+        "/output/hdr" => "Rendered using the available Smart Preview dynamic range.",
+        _ => "An optional setting is unavailable for this Smart Preview.",
+    }
+}
+
+/// What an output rendered from an external Smart Preview could not
+/// reproduce, as sentences: the source note, every planned-away setting and
+/// the embedded-profile substitution note (Adobe process). Empty otherwise.
+pub fn proxy_notes(
+    source: &RenderSource<'_>,
+    recipe: &Recipe,
+    mask_support: bool,
+    retouch: bool,
+) -> Vec<String> {
+    let RenderSource::CameraLinear(proxy) = source else {
+        return Vec::new();
+    };
+    if !proxy.is_external_dng() {
+        return Vec::new();
+    }
+    let mut notes = vec![
+        "Exported from a Smart Preview proxy at its available resolution; the original was not used."
+            .to_owned(),
+    ];
+    let mut fields = proxy
+        .render_plan_with_resources(&recipe.settings, true, mask_support, retouch)
+        .1
+        .into_iter()
+        .map(proxy_notice_text)
+        .collect::<Vec<_>>();
+    fields.dedup();
+    notes.extend(
+        fields
+            .into_iter()
+            .map(|text| format!("Info: {text} Saved settings are unchanged.")),
+    );
+    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe
+        && let (_, Some(note)) = image_core::pipeline_adobe::embedded_profile_fallback(
+            proxy,
+            &recipe.settings,
+            proxy.embedded_profile(),
+        )
+    {
+        notes.push(format!("Info: {note}"));
+    }
+    notes
 }
 
 /// See [`render_pixels`].
@@ -651,14 +728,12 @@ pub fn render_one_cancellable(
     cancel.check()?;
     Sidecar::ensure_destination(&settings.output_dir, "export")?;
     recipe.validate()?;
-    let proxy_warnings = match &image.source {
-        RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
-            let mut notes = vec!["Exported from a Smart Preview proxy at its available resolution; the original was not used.".to_owned()];
-            notes.extend(proxy.render_plan_with_resources(&recipe.settings, true, settings.mask_support.is_some(), settings.retouch.is_some()).1.into_iter().map(|field| format!("Info: {field} is unavailable for this proxy; exported without it. Saved settings are unchanged.")));
-            notes
-        }
-        _ => Vec::new(),
-    };
+    let proxy_warnings = proxy_notes(
+        &image.source,
+        recipe,
+        settings.mask_support.is_some(),
+        settings.retouch.is_some(),
+    );
     let metadata_recipe = recipe;
     let planned = proxy_recipe(
         &image.source,

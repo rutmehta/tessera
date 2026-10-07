@@ -732,19 +732,7 @@ enum ClosePhase {
 
 /// One plain sentence per omitted proxy setting class. Never names a value.
 pub(crate) fn proxy_notice_text(field: &str) -> &'static str {
-    match field {
-        "/decode" | "/linearize" | "/demosaic" | "/denoise" => {
-            "Mosaic corrections are already baked into this Smart Preview."
-        }
-        "/white_balance/mode" => "Auto white balance unavailable; shown using As Shot.",
-        "/camera_profile/look" => "Creative look unavailable; shown without it.",
-        "/lens/profile" => "Lens profile unavailable; shown without it.",
-        "/effects/lens_blur" => "Lens Blur is not rendered on Smart Preview yet.",
-        "/locals/retouch" => "Retouch is not rendered on Smart Preview yet.",
-        "/locals/adjustments" => "Some local masks are unavailable; shown without them.",
-        "/output/hdr" => "Rendered using the available Smart Preview dynamic range.",
-        _ => "An optional setting is unavailable for this Smart Preview.",
-    }
+    export::proxy_notice_text(field)
 }
 
 pub(crate) fn session_renderable(
