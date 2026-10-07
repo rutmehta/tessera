@@ -219,3 +219,84 @@ fn lr2e_old_pv2010_requires_reimport_but_new_block_is_accepted() {
             .unwrap();
     }
 }
+
+/// ENG-9 gamut policy: the Adobe Output stage honours the recipe's gamut
+/// mapping (as export does) instead of always hard-clipping, and the EDR
+/// viewport (`DisplayLinear`) draws the same rendition unencoded.
+#[test]
+fn eng9_adobe_display_honours_gamut_mapping_and_draws_edr() {
+    use engine_api::recipe::settings::GamutMapping;
+    let image = synthetic(904, 40, 32, RGGB, [0, 0, 40, 32]);
+    let rect = PixelRect::full(image.level_extent(0));
+    let extent = image.level_extent(0);
+    let r = Renderer::new(RendererConfig {
+        process_version: ProcessVersion::adobe(6),
+        ..Default::default()
+    });
+    let m = engine_api::color::WorkingSpace::LinearSrgb
+        .to_xyz()
+        .inverse()
+        .unwrap()
+        * engine_api::color::WorkingSpace::LinearRec2020.to_xyz();
+    let mut shown = Vec::new();
+    for mapping in [GamutMapping::Perceptual, GamutMapping::Clip] {
+        let mut s = DevelopSettings::default();
+        s.color.saturation = 80.;
+        s.output.gamut_mapping = mapping;
+        let linear = assemble_f32(
+            extent,
+            &r.render_region_as(&image, &s, 0, rect, RenderOutput::SceneLinear)
+                .unwrap(),
+        );
+        let display = assemble_u8(extent, &r.render_region(&image, &s, 0, rect).unwrap());
+        let edr = assemble_f32(
+            extent,
+            &r.render_region_as(
+                &image,
+                &s,
+                0,
+                rect,
+                RenderOutput::DisplayLinear(image_core::Headroom::SDR),
+            )
+            .unwrap(),
+        );
+        let mut outside = 0;
+        for i in 0..linear[0].len() {
+            let v = m.apply([0, 1, 2].map(|c| f64::from(linear[c][i])));
+            let v = v.map(|c| c as f32);
+            outside += usize::from(v.iter().any(|c| !(0. ..=1.).contains(c)));
+            let expected = if mapping == GamutMapping::Clip {
+                v.map(|c| c.clamp(0., 1.))
+            } else {
+                let grey = (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]).clamp(0., 1.);
+                let mut chroma = 1f32;
+                for c in v {
+                    if c < 0. {
+                        chroma = chroma.min(-grey / (c - grey));
+                    }
+                    if c > 1. {
+                        chroma = chroma.min((1. - grey) / (c - grey));
+                    }
+                }
+                v.map(|c| (grey + chroma * (c - grey)).clamp(0., 1.))
+            };
+            for c in 0..3 {
+                let level = pipeline_cpu::srgb_oetf(expected[c]) * 255.;
+                let got = f32::from(display[i * 3 + c]);
+                assert!(
+                    (got - level).abs() <= 0.51,
+                    "{mapping:?} SDR pixel {i}: {got} vs {level}"
+                );
+                assert!(
+                    (edr[c][i] - expected[c]).abs() <= 1e-5,
+                    "{mapping:?} EDR pixel {i}: {} vs {}",
+                    edr[c][i],
+                    expected[c]
+                );
+            }
+        }
+        assert!(outside > 0, "fixture must leave sRGB");
+        shown.push(display);
+    }
+    assert_ne!(shown[0], shown[1], "Perceptual must differ from Clip");
+}

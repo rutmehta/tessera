@@ -1,0 +1,592 @@
+//! ENG-9: file export and print render exactly what Develop shows, for every
+//! process (Adobe and Native) and every source (raw originals, RGB originals,
+//! external Smart Preview proxies), apart from deliberate output transforms
+//! (output colour space, output sharpening, resizing), all disabled here.
+//!
+//! "Develop" is the image-core `Renderer` the Develop session draws with:
+//! the SDR Output stage (`RenderOutput::Display`, 8-bit sRGB). Exports are
+//! 16-bit sRGB TIFF files and print is `render_pixels_with_notes` floats.
+//! Both are compared with Develop in sRGB-encoded 8-bit levels.
+//!
+//! Tolerances are quantisation only:
+//! - Develop's 8-bit rounding: at most 0.5 level from the exact value.
+//! - Native's Output stage adds a 4x4 ordered dither of at most 15.5/16 - 0.5
+//!   = 0.47 level (`pipeline_cpu::display`); the Adobe Output stage has none.
+//! - A 16-bit TIFF adds at most 0.5/65535 of full scale (0.002 level).
+//! - Float arithmetic order (ICC transform against the Output-stage matrix;
+//!   binary-searched against analytic Perceptual chroma, 2^-18 of chroma)
+//!   is allowed 0.03 level.
+//!
+//! So max <= 0.53 level (Adobe) and max <= 1.0 level (Native); the mean
+//! of uniformly distributed rounding error is 0.25 level, bounded at 0.35.
+use engine_api::{
+    id::ImageId,
+    jobs::CancellationToken,
+    recipe::{EditMeta, ProcessVersion, Recipe, settings::GamutMapping},
+};
+use export::{ColorSpace, ExportImage, ExportSettings, Format, RenderRequest, Resize, SharpenFor};
+use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RendererConfig};
+use pipeline_cpu::{CameraLinearProxy, RenderSource};
+use std::sync::Arc;
+
+const ADOBE_MAX: f32 = 0.53;
+const NATIVE_MAX: f32 = 1.0;
+const MEAN: f32 = 0.35;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Kind {
+    Raw,
+    Rgb,
+    Proxy,
+}
+
+struct Fixture {
+    image: RawImage,
+    rgb: Option<pipeline_cpu::Image>,
+    proxy: Option<CameraLinearProxy>,
+}
+
+impl Fixture {
+    fn source(&self) -> RenderSource<'_> {
+        if let Some(rgb) = &self.rgb {
+            RenderSource::Rgb(rgb)
+        } else if let Some(proxy) = &self.proxy {
+            RenderSource::CameraLinear(proxy)
+        } else {
+            RenderSource::Cfa {
+                image: self.image.cfa(),
+                metadata: self.image.metadata(),
+            }
+        }
+    }
+}
+
+fn raw_metadata(w: u32, h: u32) -> raw_decode::RawMetadata {
+    raw_decode::RawMetadata {
+        make: "synthetic".into(),
+        model: "camera".into(),
+        lens: None,
+        iso: 100.,
+        shutter_s: 0.01,
+        aperture: 4.,
+        focal_mm: 50.,
+        capture_time: 0,
+        catalog_orientation: None,
+        baseline_exposure: 0.,
+        orientation: 1,
+        width: w,
+        height: h,
+        cfa_layout: raw_decode::CfaLayout::Bayer([[0, 1], [1, 2]]),
+        black_levels: [0.; 4],
+        white_level: 65535,
+        as_shot_wb: [2., 1., 1.5, 1.],
+        camera_to_xyz: engine_api::color::ColorMatrix3::IDENTITY,
+        cam_xyz: [[0.9, 0.2, -0.1], [-0.3, 1.2, 0.1], [0.0, 0.1, 0.8], [0.; 3]],
+        rgb_cam: [[0.; 4]; 3],
+        default_crop: [0, 0, w, h],
+        has_gain_map: false,
+        has_opcode_list: false,
+        opcode_lists: [None, None, None],
+    }
+}
+
+/// A saturated synthetic Bayer original (strong red, varying blue).
+fn raw() -> Fixture {
+    let (w, h) = (48u32, 32u32);
+    let cfa = raw_decode::CfaImage::from_linear(
+        w,
+        h,
+        (0..w * h)
+            .map(|i| {
+                let (x, y) = (i % w, i / w);
+                match (x % 2, y % 2) {
+                    (0, 0) => 0.08 + 0.6 * (x as f32 / w as f32),
+                    (1, 1) => 0.02 + 0.5 * (y as f32 / h as f32),
+                    _ => 0.05 + 0.1 * ((x / 8 + y / 8) % 3) as f32,
+                }
+            })
+            .collect(),
+    )
+    .unwrap();
+    Fixture {
+        image: RawImage::new(ImageId(9900), Arc::new(cfa), Arc::new(raw_metadata(w, h))).unwrap(),
+        rgb: None,
+        proxy: None,
+    }
+}
+
+/// Linear Rec.2020 with colours well outside sRGB (Rec.2020 green/red).
+fn rgb() -> Fixture {
+    let (w, h) = (40u32, 28u32);
+    let mut planes = vec![Vec::new(), Vec::new(), Vec::new()];
+    for y in 0..h {
+        for x in 0..w {
+            let (fx, fy) = (x as f32 / w as f32, y as f32 / h as f32);
+            let v = match (x / 10 + y / 7) % 4 {
+                0 => [0.04 + 0.7 * fx, 0.02, 0.03 + 0.2 * fy],
+                1 => [0.03, 0.05 + 0.6 * fy, 0.02 + 0.1 * fx],
+                2 => [0.02 + 0.1 * fy, 0.03, 0.05 + 0.5 * fx],
+                _ => [0.1 + 0.4 * fx, 0.1 + 0.4 * fx, 0.1 + 0.4 * fy],
+            };
+            for (plane, v) in planes.iter_mut().zip(v) {
+                plane.push(v);
+            }
+        }
+    }
+    let pixels = pipeline_cpu::Image::new(w, h, planes).unwrap();
+    Fixture {
+        image: RawImage::from_rgb(
+            ImageId(9901),
+            image_core::RgbSource::from_linear_rec2020(pixels.clone()).unwrap(),
+        )
+        .unwrap(),
+        rgb: Some(pixels),
+        proxy: None,
+    }
+}
+
+/// The synthetic external Smart Preview fixture (orientation 1).
+fn proxy() -> Fixture {
+    let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(include_bytes!(
+        "../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"
+    )))
+    .unwrap()
+    .unwrap();
+    let proxy = CameraLinearProxy::from_dng(dng)
+        .unwrap()
+        .with_catalog_orientation(1)
+        .unwrap();
+    Fixture {
+        image: RawImage::from_camera_linear_proxy(
+            ImageId(9902),
+            ImageId(9903),
+            Arc::new(proxy.clone()),
+        )
+        .unwrap(),
+        rgb: None,
+        proxy: Some(proxy),
+    }
+}
+
+fn fixture(kind: Kind) -> Fixture {
+    match kind {
+        Kind::Raw => raw(),
+        Kind::Rgb => rgb(),
+        Kind::Proxy => proxy(),
+    }
+}
+
+fn recipe(process: ProcessVersion, mapping: GamutMapping, saturation: f32) -> Recipe {
+    let mut recipe = Recipe {
+        process_version: process,
+        ..Default::default()
+    };
+    recipe
+        .edit(EditMeta::user("eng9", 1), |s| {
+            s.output.gamut_mapping = mapping;
+            s.color.saturation = saturation;
+            s.tone.contrast = 15.;
+            s.detail.sharpening.amount = 0.;
+        })
+        .unwrap();
+    recipe
+}
+
+/// Develop's SDR Output stage, assembled, in 8-bit levels.
+fn develop(image: &RawImage, recipe: &Recipe) -> Vec<[f32; 3]> {
+    let renderer = Renderer::new(RendererConfig {
+        process_version: recipe.process_version,
+        ..Default::default()
+    });
+    let extent = Renderer::output_extent(image, &recipe.settings, 0).unwrap();
+    let tiles = renderer
+        .render_region_as(
+            image,
+            &recipe.settings,
+            0,
+            PixelRect::full(extent),
+            RenderOutput::Display,
+        )
+        .unwrap();
+    let mut out = vec![[0f32; 3]; extent.area() as usize];
+    for t in &tiles {
+        let l = t.layout();
+        let n = l.plane_len();
+        let (ox, oy) = t.coord().pixel_origin(engine_api::tile::TILE_SIZE);
+        let values = t.samples::<u8>().unwrap();
+        for y in 0..l.extent.height {
+            for x in 0..l.extent.width {
+                let i = (y * l.extent.width + x) as usize;
+                let o = ((oy + y) * extent.width + ox + x) as usize;
+                for c in 0..3 {
+                    out[o][c] = f32::from(values[c * n + i]);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn image(source: RenderSource<'_>) -> ExportImage<'_> {
+    ExportImage {
+        source,
+        name: "eng9",
+        sequence: 1,
+        date: "",
+        metadata: None,
+    }
+}
+
+/// Print pixels converted to sRGB-encoded 8-bit levels.
+fn print(fixture: &Fixture, recipe: &Recipe, space: ColorSpace) -> Vec<[f32; 3]> {
+    let (rgb, _) = export::render_pixels_with_notes(
+        &image(fixture.source()),
+        recipe,
+        &RenderRequest {
+            color_space: space,
+            resize: Resize::None,
+            sharpen_for: SharpenFor::None,
+            scale: 1,
+        },
+        &CancellationToken::new(),
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    rgb.pixels().map(|p| to_srgb_levels(p.0, space)).collect()
+}
+
+/// `space`-encoded floats -> sRGB-encoded 8-bit levels (unclipped in linear).
+fn to_srgb_levels(v: [f32; 3], space: ColorSpace) -> [f32; 3] {
+    use engine_api::color::{ChromaticAdaptation, WorkingSpace};
+    match space {
+        ColorSpace::Srgb => v.map(|v| v.clamp(0., 1.) * 255.),
+        ColorSpace::DisplayP3 => {
+            // Display P3 shares the sRGB transfer curve.
+            let linear = v.map(|v| f64::from(srgb_eotf(v)));
+            let m = WorkingSpace::LinearDisplayP3
+                .conversion_to(WorkingSpace::LinearSrgb, ChromaticAdaptation::Bradford)
+                .unwrap();
+            m.apply(linear)
+                .map(|v| pipeline_cpu::srgb_oetf(v as f32).clamp(0., 1.) * 255.)
+        }
+        other => panic!("unsupported comparison space {other:?}"),
+    }
+}
+
+fn srgb_eotf(v: f32) -> f32 {
+    if v <= 0.04045 {
+        v / 12.92
+    } else {
+        ((v + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// A 16-bit sRGB TIFF file export, decoded to 8-bit levels.
+fn export_file(fixture: &Fixture, recipe: &Recipe) -> Vec<[f32; 3]> {
+    let dir = tempfile::tempdir().unwrap();
+    let path = export::export_one(
+        &image(fixture.source()),
+        recipe,
+        &ExportSettings {
+            format: Format::Tiff { bits: 16 },
+            color_space: ColorSpace::Srgb,
+            output_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut decoder = tiff::decoder::Decoder::new(std::fs::File::open(path).unwrap()).unwrap();
+    let samples = match decoder.read_image().unwrap() {
+        tiff::decoder::DecodingResult::U16(v) => v,
+        other => panic!("expected 16-bit samples, got {other:?}"),
+    };
+    samples
+        .chunks_exact(3)
+        .map(|p| std::array::from_fn(|c| f32::from(p[c]) / 65535. * 255.))
+        .collect()
+}
+
+/// (max, mean) |Develop - output| in 8-bit levels.
+fn parity(develop: &[[f32; 3]], output: &[[f32; 3]]) -> (f32, f32) {
+    assert_eq!(develop.len(), output.len(), "frame sizes differ");
+    let (mut max, mut sum) = (0f32, 0f64);
+    for (a, b) in develop.iter().zip(output) {
+        for c in 0..3 {
+            let d = (a[c] - b[c]).abs();
+            max = max.max(d);
+            sum += f64::from(d);
+        }
+    }
+    (max, (sum / (3 * develop.len()) as f64) as f32)
+}
+
+/// How many pixels a recipe's linear Develop render puts outside sRGB.
+fn out_of_srgb(image: &RawImage, recipe: &Recipe) -> usize {
+    let renderer = Renderer::new(RendererConfig {
+        process_version: recipe.process_version,
+        ..Default::default()
+    });
+    let extent = Renderer::output_extent(image, &recipe.settings, 0).unwrap();
+    let tiles = renderer
+        .render_region_as(
+            image,
+            &recipe.settings,
+            0,
+            PixelRect::full(extent),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let m = engine_api::color::WorkingSpace::LinearRec2020
+        .conversion_to(
+            engine_api::color::WorkingSpace::LinearSrgb,
+            engine_api::color::ChromaticAdaptation::Bradford,
+        )
+        .unwrap();
+    let mut count = 0;
+    for t in &tiles {
+        let l = t.layout();
+        let n = l.plane_len();
+        let s = t.samples::<f32>().unwrap();
+        for i in 0..l.extent.area() as usize {
+            let v = m.apply([s[i], s[n + i], s[2 * n + i]].map(f64::from));
+            count += usize::from(v.iter().any(|v| *v < -1e-3));
+        }
+    }
+    count
+}
+
+fn processes() -> [ProcessVersion; 2] {
+    [ProcessVersion::NATIVE_CURRENT, ProcessVersion::adobe(6)]
+}
+
+fn bound(process: ProcessVersion) -> f32 {
+    if process.family == engine_api::recipe::ProcessFamily::Adobe {
+        ADOBE_MAX
+    } else {
+        NATIVE_MAX
+    }
+}
+
+/// One row of the parity table; returns failures instead of panicking so
+/// the whole table is reported.
+fn check(
+    label: &str,
+    process: ProcessVersion,
+    develop: &[[f32; 3]],
+    output: &[[f32; 3]],
+    failures: &mut Vec<String>,
+) {
+    let (max, mean) = parity(develop, output);
+    let limit = bound(process);
+    let ok = max <= limit && mean <= MEAN;
+    eprintln!(
+        "ENG9 {label:<58} max {max:>7.3} mean {mean:>6.3} {}",
+        if ok { "ok" } else { "FAIL" }
+    );
+    if !ok {
+        failures.push(format!(
+            "{label}: max {max} (limit {limit}) mean {mean} (limit {MEAN})"
+        ));
+    }
+}
+
+fn run(kind: Kind) {
+    let fixture = fixture(kind);
+    let mut failures = Vec::new();
+    for process in processes() {
+        let family = format!("{:?}{}", process.family, process.revision);
+        // In gamut: saturation -100 makes every pixel neutral.
+        for mapping in [GamutMapping::Perceptual, GamutMapping::Clip] {
+            let r = recipe(process, mapping, -100.);
+            let shown = develop(&fixture.image, &r);
+            check(
+                &format!("{kind:?} {family} in-gamut {mapping:?} export"),
+                process,
+                &shown,
+                &export_file(&fixture, &r),
+                &mut failures,
+            );
+            check(
+                &format!("{kind:?} {family} in-gamut {mapping:?} print sRGB"),
+                process,
+                &shown,
+                &print(&fixture, &r, ColorSpace::Srgb),
+                &mut failures,
+            );
+            // Print's default document space (P3) is a deliberate output
+            // transform; in gamut it converts back to the same sRGB values.
+            check(
+                &format!("{kind:?} {family} in-gamut {mapping:?} print P3"),
+                process,
+                &shown,
+                &print(&fixture, &r, ColorSpace::DisplayP3),
+                &mut failures,
+            );
+        }
+        // Saturated: the fixtures leave sRGB, so the gamut policy matters.
+        for mapping in [GamutMapping::Perceptual, GamutMapping::Clip] {
+            let r = recipe(process, mapping, 40.);
+            assert!(
+                out_of_srgb(&fixture.image, &r) > 0,
+                "{kind:?} {family}: the saturated fixture must leave sRGB"
+            );
+            let shown = develop(&fixture.image, &r);
+            check(
+                &format!("{kind:?} {family} saturated {mapping:?} export"),
+                process,
+                &shown,
+                &export_file(&fixture, &r),
+                &mut failures,
+            );
+            check(
+                &format!("{kind:?} {family} saturated {mapping:?} print sRGB"),
+                process,
+                &shown,
+                &print(&fixture, &r, ColorSpace::Srgb),
+                &mut failures,
+            );
+        }
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+#[test]
+fn eng9_raw_original_export_and_print_match_develop() {
+    run(Kind::Raw);
+}
+
+#[test]
+fn eng9_rgb_original_export_and_print_match_develop() {
+    run(Kind::Rgb);
+}
+
+#[test]
+fn eng9_smart_preview_export_and_print_match_develop() {
+    run(Kind::Proxy);
+}
+
+/// Adobe-process export is not the Native rendering of the same photo.
+#[test]
+fn eng9_adobe_export_is_not_the_native_rendering() {
+    for kind in [Kind::Raw, Kind::Rgb] {
+        let fixture = fixture(kind);
+        let adobe = export_file(
+            &fixture,
+            &recipe(ProcessVersion::adobe(6), GamutMapping::Clip, 0.),
+        );
+        let native = export_file(
+            &fixture,
+            &recipe(ProcessVersion::NATIVE_CURRENT, GamutMapping::Clip, 0.),
+        );
+        let (max, _) = parity(&adobe, &native);
+        assert!(max > 2., "{kind:?}: Adobe export equals Native ({max})");
+    }
+}
+
+fn pq(v: f32) -> f32 {
+    let l = (f64::from(v) * 203.0 / 10000.0)
+        .clamp(0.0, 1.0)
+        .powf(2610.0 / 16384.0);
+    ((3424.0 / 4096.0 + 2413.0 / 128.0 * l) / (1.0 + 2392.0 / 128.0 * l)).powf(2523.0 / 32.0) as f32
+}
+
+/// HDR export of an Adobe-process recipe renders the Adobe pipeline (what
+/// Develop's EDR viewport draws), not the Native one. The output colour
+/// space (Rec.2020 PQ) is the deliberate output transform, so the comparison
+/// is in PQ code values of Develop's EDR rendition: a neutral (in-gamut)
+/// recipe within one 16-bit code of rounding plus float order.
+#[test]
+fn eng9_adobe_hdr_export_matches_develop_edr() {
+    for kind in [Kind::Raw, Kind::Rgb, Kind::Proxy] {
+        let fixture = fixture(kind);
+        let mut r = recipe(ProcessVersion::adobe(6), GamutMapping::Perceptual, -100.);
+        r.edit(EditMeta::user("eng9", 2), |s| {
+            s.output.hdr = true;
+            s.output.hdr_headroom_stops = 1.;
+            s.tone.exposure = 0.7;
+        })
+        .unwrap();
+        let headroom = 2f32;
+        let renderer = Renderer::new(RendererConfig {
+            process_version: r.process_version,
+            ..Default::default()
+        });
+        let extent = Renderer::output_extent(&fixture.image, &r.settings, 0).unwrap();
+        let tiles = renderer
+            .render_region_as(
+                &fixture.image,
+                &r.settings,
+                0,
+                PixelRect::full(extent),
+                RenderOutput::DisplayLinear(image_core::Headroom::new(headroom)),
+            )
+            .unwrap();
+        let mut edr = vec![[0f32; 3]; extent.area() as usize];
+        let mut above_sdr = false;
+        for t in &tiles {
+            let l = t.layout();
+            let n = l.plane_len();
+            let (ox, oy) = t.coord().pixel_origin(engine_api::tile::TILE_SIZE);
+            let s = t.samples::<f32>().unwrap();
+            for y in 0..l.extent.height {
+                for x in 0..l.extent.width {
+                    let i = (y * l.extent.width + x) as usize;
+                    let o = ((oy + y) * extent.width + ox + x) as usize;
+                    edr[o] = std::array::from_fn(|c| s[c * n + i]);
+                    above_sdr |= edr[o].iter().any(|v| *v > 1.0);
+                }
+            }
+        }
+        let m = engine_api::color::WorkingSpace::LinearSrgb
+            .conversion_to(
+                engine_api::color::WorkingSpace::LinearRec2020,
+                engine_api::color::ChromaticAdaptation::Bradford,
+            )
+            .unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let path = export::export_one(
+            &image(fixture.source()),
+            &r,
+            &ExportSettings {
+                format: Format::Png,
+                hdr: Some(export::HdrTransfer::Pq),
+                color_space: ColorSpace::Rec2020,
+                output_dir: dir.path().to_path_buf(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let decoder =
+            png::Decoder::new(std::io::BufReader::new(std::fs::File::open(path).unwrap()));
+        let mut reader = decoder.read_info().unwrap();
+        let mut buf = vec![0; reader.output_buffer_size()];
+        let info = reader.next_frame(&mut buf).unwrap();
+        assert_eq!(info.bit_depth, png::BitDepth::Sixteen);
+        let codes: Vec<f32> = buf[..info.buffer_size()]
+            .chunks_exact(2)
+            .map(|b| f32::from(u16::from_be_bytes([b[0], b[1]])))
+            .collect();
+        assert_eq!(codes.len(), edr.len() * 3);
+        let mut max = 0f32;
+        for (i, v) in edr.iter().enumerate() {
+            let rec2020 = m.apply(v.map(f64::from)).map(|c| c as f32);
+            for c in 0..3 {
+                let expected = pq(rec2020[c]) * 65535.;
+                max = max.max((codes[i * 3 + c] - expected).abs());
+            }
+        }
+        eprintln!(
+            "ENG9 {kind:?} Adobe6 HDR PQ export vs Develop EDR: max {max:.3} codes (above SDR white: {above_sdr})"
+        );
+        assert!(
+            above_sdr || kind == Kind::Proxy,
+            "{kind:?}: fixture must use the headroom"
+        );
+        assert!(
+            max <= 1.0,
+            "{kind:?}: HDR export differs from Develop EDR by {max} codes"
+        );
+    }
+}
