@@ -109,6 +109,38 @@ mod tests {
         assert_eq!(events.0.lock().unwrap().len(), 1);
     }
 
+    fn cull_proxy_fixture() -> (tempfile::TempDir, index::ImageInfo, core::Recipe) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("proxy.dng");
+        std::fs::write(&path, include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng")).unwrap();
+        let id = engine_api::id::ImageId(13);
+        let mut recipe = core::Recipe::new(id);
+        recipe.unknown.insert("lightroom_smart_preview".into(), serde_json::json!({"original_path": dir.path().join("offline.raw")}));
+        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&path).recipe, &sidecar::RecipeDocument { recipe: recipe.clone(), ..Default::default() }).unwrap();
+        let info = index::ImageInfo { id, path, size: 0, capture_seconds: None };
+        (dir, info, recipe)
+    }
+
+    #[test]
+    fn lr13c_cull_hash_decodes_no_lens_and_prefers_cached_grid_pixels() {
+        let (dir, info, recipe) = cull_proxy_fixture();
+        let decodes = raw_decode::lossy_dng::pixel_decode_count();
+        let lenses = pipeline_cpu::lens_resolution_count();
+        assert!(cull_preview_hash(&info, dir.path()).unwrap().is_some());
+        assert_eq!(raw_decode::lossy_dng::pixel_decode_count() - decodes, 1);
+        assert_eq!(pipeline_cpu::lens_resolution_count() - lenses, 0);
+
+        let store = previews::PreviewStore::new(dir.path().join("previews"), 512 << 20).unwrap();
+        let grid = image::RgbImage::from_fn(90, 80, |x, y| image::Rgb([(200 - x - y / 4) as u8; 3]));
+        let key = previews::PreviewKey::for_source(&info.path, 256, 1, recipe.recipe_hash().0.0).unwrap();
+        store.put_image_cancellable(&key, &grid, 256, &|| Ok(())).unwrap();
+        let decodes = raw_decode::lossy_dng::pixel_decode_count();
+        let expected = cull::dhash_jpeg(&store.get(&key, previews::Level::Full).unwrap()).unwrap();
+        assert_eq!(cull_preview_hash(&info, dir.path()).unwrap(), Some(expected));
+        assert_eq!(raw_decode::lossy_dng::pixel_decode_count(), decodes);
+        assert_eq!(pipeline_cpu::lens_resolution_count(), lenses);
+    }
+
     #[test]
     fn lr13_imported_proxy_thumbnail_renders_at_thumbnail_level() {
         let dir = tempfile::tempdir().unwrap();

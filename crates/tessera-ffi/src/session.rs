@@ -819,14 +819,14 @@ mod offline_library_tests {
     use crate::smart_preview_store::SmartPreviewJournal;
     use std::fs;
 
-    #[test]
-    fn lr13c_library_open_has_zero_proxy_decodes_and_lens_resolutions() {
+    fn proxy_library(count: usize) -> (tempfile::TempDir, Arc<Engine>, std::path::PathBuf) {
         let dir = tempfile::tempdir().unwrap();
         let photos = dir.path().join("photos");
         fs::create_dir(&photos).unwrap();
+        let photos = photos.canonicalize().unwrap();
         let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
         let mut index = index::Index::open(&engine.db).unwrap();
-        for n in 0..8 {
+        for n in 0..count {
             let path = photos.join(format!("proxy-{n}.dng"));
             fs::write(
                 &path,
@@ -852,6 +852,37 @@ mod offline_library_tests {
             sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&path).recipe, &document)
                 .unwrap();
         }
+        (dir, engine, photos)
+    }
+
+    #[test]
+    fn lr13c_rows_reuse_source_projection_until_catalog_change() {
+        let (_dir, engine, photos) = proxy_library(1);
+        let session = engine.open_cull_session(photos.to_string_lossy().into()).unwrap();
+        let before = session.images().unwrap();
+        assert!(before[0].lightroom_smart_preview);
+        let path = photos.join("proxy-0.dng");
+        let recipe_path = sidecar::Sidecar::paths(&path).recipe;
+        let mut doc = sidecar::Sidecar::read_recipe(&recipe_path).unwrap();
+        fs::write(&recipe_path, b"unindexed sidecar change").unwrap();
+        let cached = session.images().unwrap();
+        assert!(cached[0].lightroom_smart_preview, "unchanged catalog rows must not re-read recipes");
+        assert_eq!(cached[0].path, before[0].path);
+        sidecar::Sidecar::write_recipe(&recipe_path, &doc).unwrap();
+        // A real catalog edit invalidates only the changed row, including its
+        // availability snapshot. Reconnecting the synthetic original is seen.
+        image::RgbImage::new(8, 8).save_with_format(photos.join("offline.raw"), image::ImageFormat::Png).unwrap();
+        doc.recipe.settings.tone.exposure = 1.0;
+        engine.set_recipe_json(before[0].id.clone(), serde_json::to_string(&doc.recipe).unwrap()).unwrap();
+        session.sync_changes().unwrap();
+        let updated = session.images().unwrap();
+        assert!(!updated[0].lightroom_smart_preview);
+        assert_eq!(updated[0].path, photos.join("offline.raw").to_string_lossy());
+    }
+
+    #[test]
+    fn lr13c_library_open_has_zero_proxy_decodes_and_lens_resolutions() {
+        let (_dir, engine, photos) = proxy_library(8);
         let decodes = raw_decode::lossy_dng::pixel_decode_count();
         let lenses = pipeline_cpu::lens_resolution_count();
         let start = std::time::Instant::now();
