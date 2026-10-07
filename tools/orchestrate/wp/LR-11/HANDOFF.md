@@ -2,8 +2,9 @@
 
 Branch `wp/LR-11-local-adjustments`, based on `46b1bf540dd1061438725d3cbdad652ee79f2938`
 (the LR-9/9b predecessor). Local only. No dependency, lockfile or board changes.
-All fixtures are invented Lua/XMP and generated catalogs; no real catalog rows,
-identifiers, paths or value strings are committed.
+All fixtures are invented Lua/XMP and generated catalogs. The original raw gate
+logs exposed private build paths; LR-11c replaces them with sanitized summaries.
+The current lane files contain no private paths or account identifiers.
 
 ## Implementation
 
