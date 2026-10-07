@@ -315,7 +315,9 @@ fn export_file(fixture: &Fixture, recipe: &Recipe) -> Vec<[f32; 3]> {
         other => panic!("expected 16-bit samples, got {other:?}"),
     };
     samples
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .map(|p| std::array::from_fn(|c| f32::from(p[c]) / 65535. * 255.))
         .collect()
 }
@@ -526,8 +528,10 @@ fn hdr_export(fixture: &Fixture, recipe: &Recipe) -> Vec<f32> {
     let info = reader.next_frame(&mut buf).unwrap();
     assert_eq!(info.bit_depth, png::BitDepth::Sixteen);
     buf[..info.buffer_size()]
-        .chunks_exact(2)
-        .map(|b| f32::from(u16::from_be_bytes([b[0], b[1]])))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|b| f32::from(u16::from_be_bytes(*b)))
         .collect()
 }
 
