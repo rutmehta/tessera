@@ -4,7 +4,7 @@ Lane: LR-CLEAN2 on `wp/LR-CLEAN`. Synthetic inputs only.
 Base: `origin/main` at `a94b0288`. All 20 lane commits from the old base
 `392c2156` were rebased with `git rebase --onto origin/main 392c2156`.
 Rebase conflicts: none. Main's keyboard, AI-mask and local-adjustment work is retained.
-Status: GATE-CLEAN on the final source tip; results appear in the LR-CLEAN2 section below.
+Status: GATE-CLEAN after LR-CLEAN3 review fixes; see the LR-CLEAN2 and LR-CLEAN3 sections below.
 The original LR-CLEAN attempts are retained as historical evidence.
 
 ## Finding → code → test
@@ -182,6 +182,32 @@ sidecars, search, import conflict handling or API behavior.
 The transform commits change only a Swift test file, so the Rust gates on
 `b441ec8c` apply unchanged to the final source tip.
 
+## LR-CLEAN3 (independent review REV-LR-CLEAN: APPROVE-WITH-NITS)
+
+| Review item | Code | Test / evidence |
+| --- | --- | --- |
+| S1 anchored templates reject `document.layers.fx.<id>` | `LibraryDevelopAccessibilityTests.swift`: `^document\.layers\.fx\.[^.\s]+$` and two-segment `^document\.layerStyle\.[^.\s]+\.[^.\s]+$` (`eee3cff2`) | New `testDocumentPanelIdentifiersAreAccepted` (`f08c749d`): explicit document-panel samples, negatives, and a scan of every `document.*` identifier expression in Sources. RED: fx sample, layerStyle editor sample and the LayersOutline fx expression rejected; GREEN: class 12 tests, 0 failures. Independent re-comparison of main's prefix rule vs the branch over all 848 expressions: only fx regressed (arbitrary `transform-` suffixes are intentionally rejected; the seven sliders are exact pins) |
+| S2 sidecar MaskValue rejection untested | none (test only) | `lr_clean_xmp_non_paint_mask_value_is_unsupported_and_retained` (`d07d2ba8`): Gradient and CircularGradient at MaskValue 0.3 are not rendered, warn naming MaskValue, and retain source on export; MaskValue 1 translates. Mutation (rejection disabled) RED |
+| S3 presence shader host constant unproven | none (test only) | `lr_clean_presence_axis_uses_host_denominator` (`fd44d6ec`): zpass with p[24]=2 halves the guide. Mutation (in-shader `log_one_plus(1/0.18)`) RED: 1.0 vs 0.940 |
+| N1 decode(NaN) became f32::MAX | `tone_extra.rs`: saturate only `high == INFINITY` (`e64777ad`) | `lr_clean_decode_keeps_nan_and_saturates_infinity` (`fcab232f`) RED then GREEN. Note: the CPU overflow branch is FMA-compensated, while WGSL uses `finite(exp(x + log(0.18)))`; outputs differ only above about 1e34 |
+| N3 pin comment base | Comment now records re-verification against `a94b0288` (`eee3cff2`) | n/a |
+| N4 export ignore reason | `workflow.rs`: reason says real child processes with a 1 s script timeout, parity with B5-48c (`5f3d6f72`) | No wall-clock bound asserted |
+| N6 lr4e warning not specific | `mask_source.rs`: static reason "partial MaskValue on a non-Paint mask is not supported" in `unsupported_reason`, mapped in `decoder_reason` (`440c62af`) | lr4e asserts a warning names MaskValue (`7439b126`) RED then GREEN |
+| N2, N5, N7 | Not changed (not requested for this lane) | N2 non-AX literals in pins and N5 long doc line are cosmetic; N7 is pre-existing |
+
+LR-CLEAN3 gates (final source tip `5f3d6f72`):
+
+| Gate | Result | 1/5/15-min load |
+| --- | --- | --- |
+| `cargo clean -p` + `cargo test --release --no-fail-fast` for sidecar, import-lrcat, pipeline-gpu, pipeline-cpu, export | PASS: 867 passed, 0 failed, 24 ignored (174 result lines) | start 18.6/19.1/23.5; end 30.5/33.7/32.3 |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | PASS | 38.1/35.2/33.0 |
+| `cargo fmt --all -- --check` | PASS | n/a |
+| `apps/mac/build-ffi.sh` | PASS, no drift | n/a |
+| `tools/orchestrate/swift-gate.sh` (includes the accessibility classes) | SWIFT GATE OK: 987 executed, 3 skipped, 0 failures; Swift Testing 5 passed | end 43.7/47.8/39.6 |
+| strict release `swift build --product Tessera` | PASS | end 20.0/34.9/35.7 |
+
+The full workspace suite was not rerun for LR-CLEAN3; the brief scoped Rust reruns to the affected crates.
+
 ## Commits / publication
 
 The list below records original pre-rebase commit IDs for historical traceability.
@@ -215,6 +241,19 @@ LR-CLEAN2 commits after the rebase:
 - `b441ec8c` fix(LR-CLEAN2): preserve grid focus and anchor object address normalization
 - `2c0dca28` test(LR-CLEAN2): require pinned Transform slider identifiers
 - `2259f0fe` fix(LR-CLEAN2): pin Transform slider identifiers exactly
+- `22d02207` docs(LR-CLEAN2): record rebase, B5-49 follow-ups, transform pins and final gates
+
+LR-CLEAN3 commits:
+
+- `f08c749d` test(LR-CLEAN3): accept dynamic document-panel identifiers
+- `eee3cff2` fix(LR-CLEAN3): anchor layer fx and layerStyle editor identifier templates
+- `d07d2ba8` test(LR-CLEAN3): cover XMP non-Paint MaskValue rejection
+- `fd44d6ec` test(LR-CLEAN3): prove presence.wgsl reads the host log-axis denominator
+- `fcab232f` test(LR-CLEAN3): decode keeps NaN as on main and saturates infinity
+- `e64777ad` fix(LR-CLEAN3): saturate only true overflow in CPU log-axis decode
+- `7439b126` test(LR-CLEAN3): lr4e warning must name MaskValue
+- `440c62af` fix(LR-CLEAN3): name partial non-Paint MaskValue in import diagnostics
+- `5f3d6f72` test(LR-CLEAN3): correct the export workflow ignore reason
 
 ## Rebase mapping
 
