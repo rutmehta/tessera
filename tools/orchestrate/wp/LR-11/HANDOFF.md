@@ -406,3 +406,72 @@ generic reason.
 | Goldens | none modified or re-pinned in `4393cac4..HEAD`; the only data files added are the synthetic `lr11`/`lr11b` fixtures |
 
 Nothing was rerun or serialized, and no command-level exclusions were used.
+
+
+## LR-11c — independent review corrections
+
+Branch: `wp/LR-11-restack`; starting revision: `6a578467`.
+The independent `REV-LR-11b` review was read completely. This follow-up changes
+only the four LR-11 diagnostic conditions, regression coverage, and lane evidence.
+LR-5 implementation and the future base rebase are outside this follow-up.
+
+| Finding | Code / evidence correction | Regression test / result |
+|---|---|---|
+| BLOCKER: private build paths in committed evidence; false privacy claim | Replace `gate-tests.log`, `gate-clippy.log`, and `red.log` with sanitized counts and exit summaries; correct this document's opening claim | `crates/import-lrcat/tests/translation_matrix.rs::lr11_evidence_has_no_private_home_paths` recursively checks every file in the lane evidence directory for the macOS absolute home-directory prefix; RED found all three logs, GREEN passed |
+| SHOULD-FIX 1: source-keyed notes emitted without a matched source key | `crates/import-lrcat/src/mask_source.rs`: Point Color requires `LocalPointColors`, overlay saturation requires `LocalToningSaturation`, and each defringe sign requires `LocalDefringe` on the source group matched by stable ID | `s8_non_curve_notes_require_the_matching_source_key`: reordered IDs, unmatched IDs, absent keys, overlay hue/saturation, Point Color, and both defringe signs; RED reproduced wrong-group attribution, GREEN passed |
+| SHOULD-FIX 2: vacuous legacy-process B3 assertion | Strengthen `crates/import-lrcat/tests/lr11b.rs`; no production change needed | `b3_identity_legacy_and_malformed_extended_local_curves` now requires exactly one surviving group and the ordinary two-point curve with endpoint `(1, 0.5)` before checking extended curves are absent; passed |
+
+### Test-first sequence and all attempts
+
+- `f1ea317f` — `test(LR-11c): guard private evidence and source-key diagnostics`.
+  Focused RED: **64 passed, 2 failed, 0 ignored**, 3 suites, exit **101**.
+  Expected failures: non-curve source-key attribution and lane evidence privacy.
+  The strengthened legacy B3 test passed against the existing implementation.
+- `f0b93db5` — `fix(LR-11c): require matched source keys and sanitize lane evidence`.
+  Same focused command GREEN: **66 passed, 0 failed, 0 ignored**, 3 suites, exit **0**.
+- Focused command: `cargo test --release -p import-lrcat --lib --test lr11b --test translation_matrix --no-fail-fast`.
+- Initial `cargo clean -p import-lrcat` removed **0 files** (default profile).
+  The first workspace gate was interrupted during compilation, before test
+  execution, exit **130**, to clean the actual release artifacts.
+- `cargo clean --release -p import-lrcat` then removed **25 files, 20.8 MiB**.
+  All final gates below followed that release clean. `import-lrcat` is the only
+  Rust crate changed by LR-11c.
+
+### Final gates
+
+Environment: lane-specific `CARGO_TARGET_DIR`, `CARGO_BUILD_JOBS=5`,
+`RAYON_NUM_THREADS=5`, Cargo binaries on PATH. Raw logs stay outside the repository.
+
+| Gate | Exact result |
+|---|---|
+| `cargo test --release --workspace --no-fail-fast` | **3,266 passed, 1 failed, 99 ignored**, **640 suites**, exit **101**; sole failure: `previews::tests::raw_without_jpeg_is_rendered`, **7.40263125 s** against unchanged **3.0 s** wall-clock bound |
+| Required serialized retry: `cargo test --release -p previews --lib -- --test-threads=1 --nocapture` | **23 passed, 0 failed, 3 ignored**, **1 suite**, exit **0**; same timing test **2.679313958 s**, same bound and pixel assertions |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | exit **0** |
+| `cargo fmt --all -- --check` | exit **0** |
+| `cd apps/mac && ./build-ffi.sh` | exit **0**; no generated Swift/C bindings drift; worktree clean afterward |
+| `tools/orchestrate/swift-gate.sh` | exit **0**, **SWIFT GATE OK**; **934 XCTest tests executed, 3 skipped, 0 failures** (931 passed), plus **5 Swift Testing tests passed** |
+| `cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | exit **0**; product built with complete strict concurrency and Swift warnings as errors |
+
+The strict build emitted a linker deployment-target warning for the BLAKE3
+archive object (built for macOS 26.2, linked for macOS 15.0); Swift compilation
+with warnings as errors passed. No bindings drift or worktree changes followed
+the Swift gates.
+
+The full workspace invocation retains its recorded timing failure; the complete
+failing suite passed on the prescribed serialized retry. No bound, tolerance,
+assertion, golden, or command-level exclusion was relaxed. No environment switch
+was used to bypass timing assertions. There were no other test retries.
+
+### Privacy and scope verification
+
+- Scan every current file in `git diff --name-only origin/wp/LR-5b-ai-masks...HEAD`:
+  **62 files**, **0 private home-path, account-identifier, or absolute cache-path matches**.
+- Lane evidence contains only sanitized summaries; the privacy guard is part of
+  the workspace test suite. Historical raw logs were replaced, not re-committed.
+  After adding this HANDOFF, `cargo test --release -p import-lrcat --test translation_matrix`
+  passed again: **19 passed, 0 failed, 0 ignored**, exit **0**.
+- LR-11c changes no `Cargo.lock`, `board.json`, golden, dependency manifest, Swift
+  source, or LR-5 implementation. All added test inputs are synthetic.
+- No GUI launch, focus operation, system-setting change, or real-catalog work was
+  performed by this follow-up.
+- The later LR-5d base rebase remains deliberately deferred as requested.
