@@ -164,12 +164,22 @@ impl ResolvedLens {
         self.sample.as_ref()
     }
 }
+thread_local! {
+    static LENS_RESOLUTIONS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Lens resolution boundary entries on this thread, for performance diagnostics.
+pub fn lens_resolution_count() -> u64 {
+    LENS_RESOLUTIONS.get()
+}
+
 pub fn resolve_lens(
     image: &Image,
     s: &LensSettings,
     metadata: Option<&RawMetadata>,
     context: &LensContext<'_>,
 ) -> EngineResult<ResolvedLens> {
+    LENS_RESOLUTIONS.set(LENS_RESOLUTIONS.get() + 1);
     if image.planes().len() != 3 {
         return Err(EngineError::invalid("lens", "RGB analysis required"));
     }

@@ -227,11 +227,21 @@ pub struct LossyDng {
     pub baseline_exposure: f32,
 }
 
+thread_local! {
+    static PIXEL_DECODES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Pixel decode boundary entries on this thread, for performance diagnostics.
+pub fn pixel_decode_count() -> u64 {
+    PIXEL_DECODES.get()
+}
+
 /// Returns None (including on parse errors) until the selected full-resolution
 /// IFD identifies three-channel LinearRaw with classic lossy JPEG or JXL.
 /// All other DNGs, including other LinearRaw layouts, stay on the LibRaw path.
 /// Malformed identified LinearRaw containers fail closed.
 pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
+    PIXEL_DECODES.set(PIXEL_DECODES.get() + 1);
     read_impl(input, true)
 }
 

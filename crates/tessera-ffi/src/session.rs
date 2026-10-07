@@ -820,6 +820,61 @@ mod offline_library_tests {
     use std::fs;
 
     #[test]
+    fn lr13c_library_open_has_zero_proxy_decodes_and_lens_resolutions() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        fs::create_dir(&photos).unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let mut index = index::Index::open(&engine.db).unwrap();
+        for n in 0..8 {
+            let path = photos.join(format!("proxy-{n}.dng"));
+            fs::write(
+                &path,
+                include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+            )
+            .unwrap();
+            index
+                .scan_file(
+                    &path,
+                    &index::NoopSidecarReader,
+                    &index::NoopMetadataProvider,
+                )
+                .unwrap();
+            let id = index.image_at(&path).unwrap().unwrap();
+            let mut document = sidecar::RecipeDocument {
+                recipe: engine_api::recipe::Recipe::new(id),
+                ..Default::default()
+            };
+            document.recipe.unknown.insert(
+                "lightroom_smart_preview".into(),
+                serde_json::json!({"original_path": photos.join("offline.raw")}),
+            );
+            sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&path).recipe, &document)
+                .unwrap();
+        }
+        let decodes = raw_decode::lossy_dng::pixel_decode_count();
+        let lenses = pipeline_cpu::lens_resolution_count();
+        let start = std::time::Instant::now();
+        let session = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap();
+        let rows = session.images().unwrap();
+        assert_eq!(rows.len(), 8);
+        let groups = session.groups().unwrap();
+        session
+            .derived_statuses(rows.iter().map(|r| r.id.clone()).collect())
+            .unwrap();
+        let decoded = raw_decode::lossy_dng::pixel_decode_count() - decodes;
+        let resolved = pipeline_cpu::lens_resolution_count() - lenses;
+        eprintln!(
+            "LR-13c: 8 proxies open={:?}, proxy_decodes={decoded}, lens_resolutions={resolved}",
+            start.elapsed()
+        );
+        assert_eq!((decoded, resolved), (0, 0));
+        assert_eq!(groups.len(), 8);
+    }
+
+    #[test]
     fn offline_library_uses_declarations_and_catalog_without_recreating_folder() {
         let dir = tempfile::tempdir().unwrap();
         let photos = dir.path().join("photos");
