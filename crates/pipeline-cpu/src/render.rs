@@ -235,7 +235,14 @@ fn render_linear_impl(
 ) -> EngineResult<Image> {
     let planned;
     let settings = if let RenderSource::CameraLinear(proxy) = source {
-        let mut plan = proxy.render_plan(settings, locals.is_some()).0;
+        let mut plan = proxy
+            .render_plan_with_resources(
+                settings,
+                locals.is_some(),
+                depth.is_some() || context.depth_effects.is_some(),
+                context.retouch.is_some(),
+            )
+            .0;
         if proxy.is_external_dng()
             && (context.profile.is_some() || context.database.is_some() || resolved.is_some())
         {
@@ -246,7 +253,7 @@ fn render_linear_impl(
     } else {
         settings
     };
-    if depth.is_some() {
+    if depth.is_some() || context.depth_effects.is_some() {
         let mut without_blur = settings.clone();
         without_blur.effects.lens_blur = None;
         crate::validate_settings_with_retouch(&without_blur, context.retouch.as_deref())?;
@@ -440,9 +447,13 @@ fn render_linear_impl(
             )?
         };
         if let Some(blur) = &settings.effects.lens_blur {
-            let (plane, options) =
-                depth.ok_or_else(|| EngineError::invalid("depth", "lens blur requires depth"))?;
-            rgb = crate::lens_blur(&rgb, plane, blur, options)?;
+            rgb = if let Some(apply) = context.depth_effects {
+                apply(&rgb)?
+            } else {
+                let (plane, options) = depth
+                    .ok_or_else(|| EngineError::invalid("depth", "lens blur requires depth"))?;
+                crate::lens_blur(&rgb, plane, blur, options)?
+            };
         }
         let mut point_effects = settings.effects.clone();
         point_effects.lens_blur = None;

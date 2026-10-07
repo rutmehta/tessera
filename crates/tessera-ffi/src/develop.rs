@@ -2817,8 +2817,9 @@ impl DevelopSession {
         }
         if let Some(proxy) = self.shared.image.camera_linear_proxy() {
             ignored.extend(
-                proxy
-                    .render_plan(&st.live, self.shared.renderer.mask_cache().has_hooks())
+                self.shared
+                    .renderer
+                    .proxy_render_plan(proxy, &st.live)
                     .1
                     .into_iter()
                     .map(str::to_owned),
@@ -2840,7 +2841,7 @@ impl DevelopSession {
         else {
             return Ok(Vec::new());
         };
-        let mut fields = proxy.render_plan(&st.live, true).1;
+        let mut fields = self.shared.renderer.proxy_render_plan(proxy, &st.live).1;
         if self.shared.masks.unavailable(&st.live) {
             fields.push("/locals/adjustments");
         }

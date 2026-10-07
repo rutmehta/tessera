@@ -413,27 +413,32 @@ pub fn render_pixels_with_resources(
     require_full_quality_source(&image.source)?;
     cancel.check()?;
     recipe.validate()?;
-    let planned = proxy_recipe(&image.source, recipe);
+    let planned = proxy_recipe(&image.source, recipe, support.is_some(), retouch.is_some());
     let recipe = planned.as_ref();
     if !matches!(render.scale, 1 | 2 | 4 | 8) {
         return Err(EngineError::invalid("scale", "must be 1, 2, 4 or 8"));
     }
-    let rgb = if !recipe.settings.locals.retouch.is_empty() {
+    let rgb = if matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
+        && (ai_masks::active(&recipe.settings)
+            || recipe.settings.effects.lens_blur.is_some()
+            || !recipe.settings.locals.retouch.is_empty())
+    {
+        let rgb = ai_masks::render_proxy(
+            &image.source,
+            recipe,
+            render.scale,
+            segmenter,
+            &mut Vec::new(),
+            support,
+            retouch,
+        )?;
+        encode_output_profile(rgb, recipe, render.color_space)?
+    } else if !recipe.settings.locals.retouch.is_empty() {
         let rgb = retouch_float(image, recipe, render.scale, retouch)?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else if ai_masks::active(&recipe.settings) {
-        let rgb = if matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng()) {
-            ai_masks::render_proxy(
-                &image.source,
-                recipe,
-                render.scale,
-                segmenter,
-                &mut Vec::new(),
-                support,
-            )?
-        } else {
-            ai_masks::render_with_support(&image.source, &recipe.settings, segmenter, support)?
-        };
+        let rgb =
+            ai_masks::render_with_support(&image.source, &recipe.settings, segmenter, support)?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else {
         render_scaled_cancellable(image, recipe, render.color_space, render.scale, cancel)?
@@ -460,11 +465,18 @@ pub fn color_space_icc(space: ColorSpace) -> EngineResult<Vec<u8>> {
 }
 
 /// Adapt only external proxy pixels; keep the authoritative recipe for metadata.
-fn proxy_recipe<'a>(source: &RenderSource<'_>, recipe: &'a Recipe) -> std::borrow::Cow<'a, Recipe> {
+fn proxy_recipe<'a>(
+    source: &RenderSource<'_>,
+    recipe: &'a Recipe,
+    depth: bool,
+    retouch: bool,
+) -> std::borrow::Cow<'a, Recipe> {
     match source {
         RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
             let mut drawn = recipe.clone();
-            drawn.settings = proxy.render_plan(&recipe.settings, true).0;
+            drawn.settings = proxy
+                .render_plan_with_resources(&recipe.settings, true, depth, retouch)
+                .0;
             std::borrow::Cow::Owned(drawn)
         }
         _ => std::borrow::Cow::Borrowed(recipe),
@@ -638,13 +650,18 @@ pub fn render_one_cancellable(
     let proxy_warnings = match &image.source {
         RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
             let mut notes = vec!["Exported from a Smart Preview proxy at its available resolution; the original was not used.".to_owned()];
-            notes.extend(proxy.render_plan(&recipe.settings, true).1.into_iter().map(|field| format!("Info: {field} is unavailable for this proxy; exported without it. Saved settings are unchanged.")));
+            notes.extend(proxy.render_plan_with_resources(&recipe.settings, true, settings.mask_support.is_some(), settings.retouch.is_some()).1.into_iter().map(|field| format!("Info: {field} is unavailable for this proxy; exported without it. Saved settings are unchanged.")));
             notes
         }
         _ => Vec::new(),
     };
     let metadata_recipe = recipe;
-    let planned = proxy_recipe(&image.source, recipe);
+    let planned = proxy_recipe(
+        &image.source,
+        recipe,
+        settings.mask_support.is_some(),
+        settings.retouch.is_some(),
+    );
     let recipe = planned.as_ref();
     settings.format.validate()?;
     dng::validate(settings)?;
@@ -740,7 +757,9 @@ pub fn render_one_cancellable(
     let started = std::time::Instant::now();
     let rgb = if settings.hdr.is_some() {
         hdr::render(image, recipe, settings, cancel)?
-    } else if ai_masks::active(&recipe.settings)
+    } else if (ai_masks::active(&recipe.settings)
+        || recipe.settings.effects.lens_blur.is_some()
+        || !recipe.settings.locals.retouch.is_empty())
         && matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
     {
         let rgb = ai_masks::render_proxy(
@@ -754,6 +773,7 @@ pub fn render_one_cancellable(
             segmenter,
             &mut warnings,
             settings.mask_support.as_deref(),
+            settings.retouch.clone(),
         )?;
         let rgb = match upscale {
             Some(model) => upscale_rgb(rgb, model)?,

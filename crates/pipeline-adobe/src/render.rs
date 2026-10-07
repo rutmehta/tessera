@@ -33,6 +33,27 @@ pub fn render_linear_scaled_with_profile_and_locals(
     profile: Option<&DcpProfile>,
     locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
 ) -> EngineResult<Image> {
+    render_linear_scaled_with_resources(
+        settings,
+        source,
+        scale,
+        profile,
+        locals,
+        &Default::default(),
+    )
+}
+
+/// Compatibility rendering with caller-owned retouch and pre-geometry depth.
+/// Profile/exposure behavior is unchanged; resources participate only at their
+/// existing operator barriers.
+pub fn render_linear_scaled_with_resources(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    profile: Option<&DcpProfile>,
+    locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
+    context: &pipeline_cpu::LensContext<'_>,
+) -> EngineResult<Image> {
     let embedded;
     let profile = if profile.is_none() {
         embedded = match source {
@@ -49,7 +70,14 @@ pub fn render_linear_scaled_with_profile_and_locals(
     };
     let planned;
     let settings = if let RenderSource::CameraLinear(proxy) = source {
-        planned = proxy.render_plan(settings, locals.is_some()).0;
+        planned = proxy
+            .render_plan_with_resources(
+                settings,
+                locals.is_some(),
+                context.depth_effects.is_some(),
+                context.retouch.is_some(),
+            )
+            .0;
         &planned
     } else {
         settings
@@ -72,7 +100,11 @@ pub fn render_linear_scaled_with_profile_and_locals(
     checked.tone.display_transform = DisplayTransform::Native;
     // Profile names are identities, not paths. See ADOBE_COMPAT.md for resolution.
     checked.camera_profile.profile = Default::default();
-    pipeline_cpu::validate_settings(&checked)?;
+    let mut validation = checked.clone();
+    if context.depth_effects.is_some() {
+        validation.effects.lens_blur = None;
+    }
+    pipeline_cpu::validate_settings_with_retouch(&validation, context.retouch.as_deref())?;
     let curves = settings
         .tone
         .curves_extended
@@ -97,6 +129,7 @@ pub fn render_linear_scaled_with_profile_and_locals(
     base.tone = Default::default();
     base.color = Default::default();
     base.locals = Default::default();
+    base.locals.retouch = settings.locals.retouch.clone();
     base.effects = Default::default();
     base.geometry = Default::default();
     if profile.is_some() {
@@ -104,7 +137,7 @@ pub fn render_linear_scaled_with_profile_and_locals(
         base.detail.noise_reduction.luminance = 0.;
         base.detail.noise_reduction.color = 0.;
     }
-    let mut rgb = pipeline_cpu::render_linear_scaled(&base, source, 1)?;
+    let mut rgb = pipeline_cpu::render_linear_scaled_with_lens(&base, source, 1, context)?;
     let camera_metadata = match source {
         RenderSource::Cfa { metadata, .. } => Some(*metadata),
         RenderSource::CameraLinear(proxy) => Some(proxy.original_metadata()),
@@ -212,18 +245,23 @@ pub fn render_linear_scaled_with_profile_and_locals(
     rest.detail.noise_reduction.color = 0.;
     rest.tone = Default::default();
     rest.color = settings.color_after_curves();
+    rest.locals.retouch.clear();
+    let tail = pipeline_cpu::LensContext {
+        depth_effects: context.depth_effects,
+        ..Default::default()
+    };
     if let Some(locals) = locals {
         pipeline_cpu::render_linear_scaled_with_local_hook(
             &rest,
             &RenderSource::Rgb(&rgb),
             scale,
-            &Default::default(),
+            &tail,
             None,
             None,
             locals,
         )
     } else {
-        pipeline_cpu::render_linear_scaled(&rest, &RenderSource::Rgb(&rgb), scale)
+        pipeline_cpu::render_linear_scaled_with_lens(&rest, &RenderSource::Rgb(&rgb), scale, &tail)
     }
 }
 
