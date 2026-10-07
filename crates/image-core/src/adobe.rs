@@ -8,8 +8,8 @@ use engine_api::{
     tile::Tile,
 };
 use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
+    Arc, Mutex, MutexGuard,
+    atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 
 /// Adobe PV1–6 approximations. No resident transaction crosses this wrapper:
@@ -154,13 +154,16 @@ impl StageOp for AdobeStageOp {
                 extra.curves_extended = None;
                 extra.curves = Default::default();
                 extra.curves.parametric = s.curves.parametric.clone();
-                let mut output = pipeline_cpu::tone_extra_image(&input, &extra)?;
+                let output = pipeline_cpu::tone_extra_image(&input, &extra)?;
                 let to_pro = WorkingSpace::LinearRec2020
                     .conversion_to(WorkingSpace::LinearProPhoto, ChromaticAdaptation::Bradford)?;
                 let from_pro = to_pro.inverse()?;
-                for coord in output.coords() {
-                    cancel.check()?;
-                    let mut tile = output.tile(coord, 0, 1)?;
+                let coords: Vec<_> = output.coords().collect();
+                // Point operators, in place: each worker reads and writes only
+                // its own tiles (no halo), so the result is the serial one.
+                let output = Mutex::new(output);
+                for_each_tile(&coords, cancel, |coord| {
+                    let mut tile = lock(&output).tile(coord, 0, 1)?;
                     pipeline_cpu::apply_matrix(&mut tile, to_pro)?;
                     pipeline_cpu::map_rgb(&mut tile, |p| {
                         pipeline_adobe::curves::apply_domain(
@@ -180,9 +183,9 @@ impl StageOp for AdobeStageOp {
                         )
                     })?;
                     pipeline_cpu::apply_matrix(&mut tile, from_pro)?;
-                    output.put(&tile)?;
-                }
-                Ok(output)
+                    lock(&output).put(&tile)
+                })?;
+                Ok(output.into_inner().unwrap_or_else(|e| e.into_inner()))
             }
             Op::Tone(_)
             | Op::Detail(_)
@@ -194,9 +197,19 @@ impl StageOp for AdobeStageOp {
                 } else {
                     0
                 };
-                let mut output = input.clone();
-                for coord in input.coords() {
-                    cancel.check()?;
+                // Every tile reads its halo from the immutable input and is
+                // written once, so tiles run in parallel with serial results
+                // (ENG-10: this loop was most of an Adobe export's time).
+                let coords: Vec<_> = input.coords().collect();
+                let output = Mutex::new(pipeline_cpu::Image::new(
+                    input.width(),
+                    input.height(),
+                    vec![
+                        vec![0.; input.width() as usize * input.height() as usize];
+                        input.planes().len()
+                    ],
+                )?);
+                for_each_tile(&coords, cancel, |coord| {
                     let mut tile = self.run(stage, op, input.tile(coord, halo, 1)?)?;
                     // Profile tone runs once, not in upstream WB assembly.
                     if matches!(op, Op::Tone(_))
@@ -206,11 +219,175 @@ impl StageOp for AdobeStageOp {
                             profile.apply_tone(profile.apply_look(p))
                         })?;
                     }
-                    output.put(&tile)?;
-                }
-                Ok(output)
+                    lock(&output).put(&tile)
+                })?;
+                Ok(output.into_inner().unwrap_or_else(|e| e.into_inner()))
             }
             _ => self.native.run_image(stage, op, input, cancel),
         }
+    }
+}
+
+fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Runs `f` once per tile on scoped worker threads (one per core), taking
+/// tiles in order from a shared cursor. The cancellation token is polled
+/// before every tile; the first error stops further tiles and is returned.
+fn for_each_tile(
+    coords: &[engine_api::tile::TileCoord],
+    cancel: &CancellationToken,
+    f: impl Fn(engine_api::tile::TileCoord) -> EngineResult<()> + Sync,
+) -> EngineResult<()> {
+    let workers = std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(coords.len());
+    if workers <= 1 {
+        for &coord in coords {
+            cancel.check()?;
+            f(coord)?;
+        }
+        return Ok(());
+    }
+    let next = AtomicUsize::new(0);
+    let failed = AtomicBool::new(false);
+    let first: Mutex<Option<(usize, engine_api::EngineError)>> = Mutex::new(None);
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| {
+                loop {
+                    let i = next.fetch_add(1, Ordering::Relaxed);
+                    if i >= coords.len() || failed.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    if let Err(e) = cancel.check().and_then(|()| f(coords[i])) {
+                        failed.store(true, Ordering::Relaxed);
+                        let mut first = lock(&first);
+                        // The earliest failing tile among those that ran.
+                        if first.as_ref().is_none_or(|(j, _)| i < *j) {
+                            *first = Some((i, e));
+                        }
+                    }
+                }
+            });
+        }
+    });
+    match first.into_inner().unwrap_or_else(|e| e.into_inner()) {
+        Some((_, e)) => Err(e),
+        None => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use engine_api::recipe::settings::{ColorSettings, DetailSettings, ToneSettings};
+
+    fn bits(image: &pipeline_cpu::Image) -> Vec<u32> {
+        image
+            .planes()
+            .iter()
+            .flatten()
+            .map(|v| v.to_bits())
+            .collect()
+    }
+
+    /// ENG-10: the image-level compatibility barriers run their tiles in
+    /// parallel; the result is the serial tile loop's, bit for bit (Detail
+    /// with a halo across tile seams, Tone, Colour, ToneExtra curves).
+    #[test]
+    fn eng10_parallel_barriers_equal_the_serial_tile_loop() {
+        let (w, h) = (
+            3 * engine_api::tile::TILE_SIZE - 37,
+            2 * engine_api::tile::TILE_SIZE + 9,
+        );
+        let n = (w * h) as usize;
+        let input = pipeline_cpu::Image::new(
+            w,
+            h,
+            (0..3)
+                .map(|c| {
+                    (0..n)
+                        .map(|i| {
+                            let (x, y) = (i as u32 % w, i as u32 / w);
+                            0.02 + 0.3 * (((x / 7 + y / 5 + c) % 5) as f32 / 4.)
+                                + 0.1 * (x as f32 / w as f32)
+                        })
+                        .collect()
+                })
+                .collect(),
+        )
+        .unwrap();
+        let op = AdobeStageOp::new(Arc::new(CpuStageOp));
+        let cancel = CancellationToken::new();
+        let mut detail = DetailSettings::default();
+        detail.sharpening.amount = 70.;
+        let tone = ToneSettings {
+            contrast: 30.,
+            highlights: -40.,
+            shadows: 20.,
+            ..Default::default()
+        };
+        let color = ColorSettings {
+            vibrance: 25.,
+            saturation: 10.,
+            ..Default::default()
+        };
+        for (stage, op_value) in [
+            (StageId::Detail, Op::Detail(&detail)),
+            (StageId::Tone, Op::Tone(&tone)),
+            (StageId::Color, Op::Color(&color)),
+        ] {
+            let halo = if let Op::Detail(s) = op_value {
+                pipeline_cpu::detail_halo(s)
+            } else {
+                0
+            };
+            let mut serial = input.clone();
+            for coord in input.coords() {
+                serial
+                    .put(
+                        &op.run(stage, &op_value, input.tile(coord, halo, 1).unwrap())
+                            .unwrap(),
+                    )
+                    .unwrap();
+            }
+            let parallel = op
+                .run_image(stage, &op_value, input.clone(), &cancel)
+                .unwrap();
+            assert_eq!(bits(&parallel), bits(&serial), "{stage:?}");
+        }
+        // ToneExtra: the global operator, then the serial curve loop.
+        let mut serial = pipeline_cpu::tone_extra_image(&input, &tone).unwrap();
+        let to_pro = WorkingSpace::LinearRec2020
+            .conversion_to(WorkingSpace::LinearProPhoto, ChromaticAdaptation::Bradford)
+            .unwrap();
+        let from_pro = to_pro.inverse().unwrap();
+        for coord in serial.coords().collect::<Vec<_>>() {
+            let mut tile = serial.tile(coord, 0, 1).unwrap();
+            pipeline_cpu::apply_matrix(&mut tile, to_pro).unwrap();
+            pipeline_cpu::map_rgb(&mut tile, |p| {
+                pipeline_adobe::curves::apply_domain(
+                    p.map(pipeline_adobe::curves::default_tone),
+                    &tone.curves,
+                    false,
+                )
+            })
+            .unwrap();
+            pipeline_cpu::apply_matrix(&mut tile, from_pro).unwrap();
+            serial.put(&tile).unwrap();
+        }
+        let parallel = op
+            .run_image(StageId::Tone, &Op::ToneExtra(&tone), input.clone(), &cancel)
+            .unwrap();
+        assert_eq!(bits(&parallel), bits(&serial), "ToneExtra");
+        // A cancelled token stops the barrier.
+        let cancelled = CancellationToken::new();
+        cancelled.cancel();
+        assert!(
+            op.run_image(StageId::Detail, &Op::Detail(&detail), input, &cancelled)
+                .is_err()
+        );
     }
 }
