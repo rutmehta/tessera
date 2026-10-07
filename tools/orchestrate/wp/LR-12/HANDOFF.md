@@ -477,3 +477,110 @@ assertions or CI-environment bypasses were changed.
 
 Cargo.lock and board.json are unchanged. Added-line checks found no absolute
 home paths or usernames, and all commits omit co-author trailers.
+
+## LR-13d
+
+Follow-up to the LR-13c independent review. All fixtures added here are synthetic;
+no GUI or private library was opened. The comparison policy is source-based:
+proxy camera-channel samples (with catalog orientation), or embedded JPEGs for
+ordinary originals. Develop crop/exposure and rendered preview warmth do not
+change the comparison pixels. This deliberately replaces LR-13c's rendered-cache
+preference, which could persist different hashes depending on preview warmth.
+
+### Review items
+
+- **Blocker: deferred custom completion.** Track unapplied hash changes across
+  polls. When pixel work empties, apply the complete custom-strategy snapshot
+  even if the final reply was stale/discarded. Channel-controlled removal and
+  replacement tests assert the group delta and exact surviving membership.
+- **Blocker: joined shutdown.** A lifecycle owner retains worker handles; retire
+  cancels/disconnects work, and a background join owner completes explicit
+  barriers only after providers, cache writes, and admitted callbacks retire.
+  Barriers include still-retiring workers from earlier explicit regroups, even
+  when the current generation has not started a worker. Completed generation
+  flags are pruned rather than retained across repeated regroups.
+  Session generations reject new notifications after retirement. An admitted
+  callback may finish during shutdown; none runs after its barrier completes.
+  The FFI releases the session lock before waiting. Swift retains shutdown tasks,
+  ignores callbacks from retired installations, and asynchronously drains session
+  shutdown before termination. Waiting from the worker's own callback/provider
+  is unsupported because that would wait for itself.
+- **Regroup cost / irrelevant metadata.** Metadata-only, selection, keyword and
+  score changes leave hashes and grouping alone. File, capture-time and recipe
+  changes still refresh inputs (arbitrary Rust providers may depend on recipes).
+  Default reconstruction collapses equal hashes and sorts adjacent burst times;
+  it visits at most 4,096 distinct-hash pairs per poll with O(N) retained state.
+  A lifecycle-owned wake command requests remaining polls. Worst-case total
+  comparisons can still be quadratic across polls, but there is no unbounded
+  pair loop under the FFI session lock. Queue snapshots are checked before
+  applying reconstruction after removal/reordering. Custom Rust strategies
+  retain their documented pairwise contract; FFI uses the default strategy.
+- **Persistent policy identity.** `cull-hashes-v2/<provider>-v<version>` isolates
+  provider/pixel policies. Reopen tests exercise persisted sessions, edited and
+  cropped proxies, warm rendered previews, fresh-policy recomputation, and
+  provider/version separation. Source/sidecar revision invalidation remains.
+- **Explicit approved placement.** Generic constructors do not persist hashes.
+  Hosts opt in with `HashCachePolicy::application_support`; approval rejects
+  protected catalog/library roots and unapproved paths. Worker-time checks also
+  reject source-parent placement and symlink redirection, including redirection
+  during a provider invocation (checked again immediately before writing). FFI explicitly supplies
+  its support root and disables persistence when it cannot be approved.
+- **Coalesced metadata.** Pending metadata retains one latest version per image
+  ID: O(distinct images), at most 16 hash tickets/results, one coalesced wake
+  command, and one process-wide provider invocation. Decoder tiles and codec
+  allocations remain additional to the reduced assembled thumbnail.
+- **Nits.** Module bounds now distinguish metadata from tickets/results. The
+  zero-open-decode test uses a shared injected-provider counter and joins
+  retirement before its final zero assertion, covering calls on other threads.
+
+### Regression evidence
+
+Before fixes, the custom final-discard test failed its required group delta,
+metadata-only refresh split the component, unapproved placement created a cache
+beside the index, and the warm hash differed from the cold hash. Ten thousand
+refreshes retained ten thousand queue entries instead of one. A synthetic
+19,700-image component edit took **8.580 seconds** in release before the fix;
+the regression requires **less than 250 ms** and exact resulting membership.
+A separate 300-distinct-hash test checks the 4,096-pair poll budget and compares
+final components with an all-pairs reference. Integration review added a
+singleton-removal-during-rebuild regression after reproducing stale queue indices.
+Blocked-provider and blocked-callback tests prove that shutdown cannot complete
+early, and Swift queue tests verify detached execution and draining retirements.
+
+### Gates
+
+### Finding to code to test
+
+| Finding | Code | Test |
+| --- | --- | --- |
+| B1 custom final regroup lost | `grouping.rs` `custom_hashes_dirty` | `deferred_regroup.rs` `lr13d_custom_final_discard_*`, `lr13d_custom_replacement_*` |
+| B2 detached workers / retired notify | `background.rs` lifecycle owner, generation, `PreviewShutdown`; FFI `CullSession.shutdown`; Swift `CullShutdownQueue` | `background.rs` `lr13d_shutdown_*` (3); `CullShutdownQueueTests` (3) |
+| S1 quadratic regroup under lock | `incremental.rs` (no METADATA invalidation), `grouping.rs` `DefaultRebuild` | `lr13d_irrelevant_metadata_*`, 19,700-image edit (< 250 ms), `bounded_rebuild_tests` (3) |
+| S2 cache namespace identity | `hash_cache.rs` `cull-hashes-v2/<provider>-v<version>` | `lr13d_provider_identity_*`, FFI `lr13d_persisted_grouping_is_stable_*` |
+| S3 explicit approved root | `HashCachePolicy::application_support`, FFI support root | `hash_cache.rs` tests (3), `lr13d_unapproved_index_parent_*`, `lr13d_approved_root_inside_photo_*`, `lr13d_catalog_and_protected_library_*` |
+| S4 metadata coalescing | `background.rs` `queued` map | `lr13d_refresh_metadata_is_coalesced_by_image` |
+| Nits | module doc; shared provider counter + joined retirement | `lr13c_open_never_calls_pixel_provider` |
+
+The Codex worker wrote the RED commit and most of the fix; Claude Opus 5.5
+verified it, committed it and ran the gates.
+
+### Gate results
+
+- `cargo test --release` for cull, previews, image-core, pipeline-cpu,
+  raw-decode, export, tessera-ffi, tessera-mcp and index, after
+  `cargo clean -p cull -p tessera-ffi`: **1506 passed, 2 failed, 61 ignored**
+  with load average 53. Both failures were wall-clock checks in code this lane
+  did not touch: `previews` `raw_without_jpeg_is_rendered` (3.14 s against its
+  3.0 s budget) and `tessera-ffi` `develop` `export_batch_does_not_starve_slider_drag`.
+  Serialized reruns: `develop` **9 passed** (load 30); `previews` failed once
+  more at 4.08 s (load 19), then passed alone three times (2.21 to 2.32 s, load
+  about 30) and as a full serialized suite, **28 passed** (load 27). No bound
+  was changed.
+- Earlier cull + tessera-ffi release run: **730 passed, 0 failed, 38 ignored**.
+- `cargo clippy --release --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --all -- --check`: clean.
+- `apps/mac/build-ffi.sh`: succeeded with no bindings drift.
+- `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK** (924 XCTest executed,
+  3 skipped, 0 failures; 5 Swift Testing tests passed).
+- Strict release build (`-strict-concurrency=complete -warnings-as-errors`):
+  complete.
