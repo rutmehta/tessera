@@ -241,3 +241,146 @@ fn sp_int3_new_keys_survive_a_restart_without_a_recipe_write() {
         "a restarted process fell back to another key"
     );
 }
+
+/// A catalog in `name` with a legacy (content-keyed) recipe on its one offline
+/// Smart Preview; `rebuilt` changes the preview's bytes (a rebuilt preview).
+fn catalog(
+    root: &Path,
+    name: &str,
+    support: &Path,
+    engine: &Arc<Engine>,
+    rebuilt: bool,
+    exposure: Option<f32>,
+) -> (PathBuf, LrcatOptions, PathBuf) {
+    let fixture = import_lrcat::fixture::write(&root.join(name)).unwrap();
+    import_lrcat::fixture::write_smart_previews(&fixture).unwrap();
+    let import = engine
+        .clone()
+        .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let mut options = import.default_options().unwrap();
+    let photos = fixture.photos.canonicalize().unwrap();
+    options.relocations[0].to = photos.to_string_lossy().into_owned();
+    options.library_folder = photos.to_string_lossy().into_owned();
+    options.import_smart_previews = true;
+    options.copy_proxies = false;
+    let row = resolve(&import.plan, &options)
+        .unwrap()
+        .into_iter()
+        .find(|r| r.outcome == Outcome::OfflineProxy)
+        .unwrap();
+    Sidecar::register_store(&Sidecar::resolved_destination(&row.folder), support);
+    if rebuilt {
+        let mut bytes = std::fs::read(&row.path).unwrap();
+        bytes.extend_from_slice(b"rebuilt");
+        std::fs::write(&row.path, bytes).unwrap();
+    }
+    if let Some(exposure) = exposure {
+        let mut doc = RecipeDocument::default();
+        doc.recipe.image_id = app_image_id(&row.path);
+        doc.recipe
+            .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+                s.tone.exposure = exposure
+            })
+            .unwrap();
+        doc.record_write(FOREIGN, 1).unwrap();
+        Sidecar::write_recipe(Sidecar::paths(&row.path).recipe, &doc).unwrap();
+    }
+    (fixture.catalog, options, row.path)
+}
+
+fn issue<'a>(issues: &'a [LrcatIssue], category: &str) -> Option<&'a LrcatIssue> {
+    issues.iter().find(|i| i.category == category)
+}
+
+/// REV3-SP NB2 (coordinator ruling): two catalogs share a Lightroom file id
+/// but carry different edits; the second keeps its own, visibly, in plan and
+/// report, and nothing is deleted or merged.
+#[test]
+fn sp_int4_second_catalog_with_different_edits_keeps_them_and_reports_a_conflict() {
+    let temp = tempfile::tempdir().unwrap();
+    let support = temp.path().join("support");
+    let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+    let (a, a_options, a_proxy) = catalog(temp.path(), "a", &support, &engine, false, Some(1.25));
+    let (b, b_options, b_proxy) = catalog(temp.path(), "b", &support, &engine, true, Some(2.5));
+    assert_ne!(
+        Sidecar::paths(&a_proxy).recipe,
+        Sidecar::paths(&b_proxy).recipe
+    );
+    let open = |c: &Path| {
+        engine
+            .clone()
+            .open_lrcat(c.to_string_lossy().into_owned())
+            .unwrap()
+    };
+    open(&a).apply(a_options, None).unwrap();
+    let plan = open(&b).plan(b_options.clone()).unwrap();
+    assert!(
+        issue(&plan.unsupported, "Edits conflict").is_some(),
+        "plan: {:?}",
+        plan.unsupported
+    );
+    let report = open(&b).apply(b_options, None).unwrap();
+    let conflict = issue(&report.unsupported, "Edits conflict").expect("reported");
+    assert!(conflict.reason.contains("kept separate"), "{conflict:?}");
+    assert_eq!(exposure(&a_proxy), 1.25);
+    assert_eq!(exposure(&b_proxy), 2.5, "B keeps its own edits");
+}
+
+/// NS4: the same photo in two catalogs (identical Smart Preview and edits)
+/// shares one recipe, and the import report says so.
+#[test]
+fn sp_int4_second_catalog_with_identical_edits_shares_and_reports_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let support = temp.path().join("support");
+    let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+    let (a, a_options, a_proxy) = catalog(temp.path(), "a", &support, &engine, false, Some(1.25));
+    let (b, b_options, b_proxy) = catalog(temp.path(), "b", &support, &engine, false, None);
+    assert_eq!(exposure(&b_proxy), 1.25, "legacy content key shared");
+    let open = |c: &Path| {
+        engine
+            .clone()
+            .open_lrcat(c.to_string_lossy().into_owned())
+            .unwrap()
+    };
+    open(&a).apply(a_options, None).unwrap();
+    let report = open(&b).apply(b_options, None).unwrap();
+    assert!(
+        issue(&report.unsupported, "Shared with another catalog").is_some(),
+        "{:?}",
+        report.unsupported
+    );
+    assert_eq!(
+        Sidecar::paths(&a_proxy).recipe,
+        Sidecar::paths(&b_proxy).recipe
+    );
+    assert_eq!(exposure(&b_proxy), 1.25);
+}
+
+/// REV3-SP NS3: a photo whose edits are reserved (open in Develop) is not
+/// re-keyed under it; it keeps its recipe and the report says why.
+#[test]
+fn sp_int4_photo_open_in_develop_is_not_rekeyed_under_it() {
+    let s = legacy(false);
+    let legacy_recipe = Sidecar::paths(&s.proxies[0]).recipe;
+    let id = app_image_id(&s.proxies[0]).unwrap();
+    let held = crate::original_write::OriginalWriteReservation::acquire(
+        &s.support,
+        &[(id, s.proxies[0].clone())],
+    )
+    .unwrap();
+    let import = s
+        .engine
+        .clone()
+        .open_lrcat(s.fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let report = import.apply(s.options.clone(), None).unwrap();
+    drop(held);
+    assert!(
+        issue(&report.unsupported, "Edit key not updated").is_some(),
+        "{:?}",
+        report.unsupported
+    );
+    assert_eq!(Sidecar::paths(&s.proxies[0]).recipe, legacy_recipe);
+    assert_eq!(exposure(&s.proxies[0]), EDITED);
+}
