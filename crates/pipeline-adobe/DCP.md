@@ -14,8 +14,21 @@ Smart Preview whose recipe names an Adobe profile can substitute that metadata
 when no installed DCP was supplied. The scalar Adobe renderer applies the same
 scope. An explicitly supplied installed DCP always wins. Ordinary CFA originals,
 working-space RGB, Native recipes, and proxy recipes without an Adobe profile
-name do not use this fallback. An Adobe profile name alone never changes the
-process family; it is inert metadata in Native rendering.
+name do not use this fallback. A proxy recipe with no CameraProfile at all gets
+no substitution and no note, per the ruling, even though Lightroom treats an
+absent key as its default Adobe profile; such proxies render with the native
+matrix plus Adobe tone and BaselineExposure. An Adobe profile name alone never
+changes the process family.
+
+Native draws only `Adobe Standard` and `Adobe Color` (any ASCII case), with the
+plain metadata matrix and the per-photo note `Adobe profile approximated with
+the camera matrix in Native.`; pixels equal the default-profile render. Every
+other non-default profile, including Adobe Monochrome and the creative Adobe
+profiles, is refused by the Native validator exactly as on main. The Develop
+host keeps imported Adobe identities in its drawn settings (so Adobe-process
+proxies can substitute) and lists those Native cannot reproduce under ignored
+settings, drawing without them as main's host did
+(`Renderer::with_host_ignored_native_profiles`).
 
 Successful substitution reports `profile substituted (embedded DNG profile)`
 through the existing Develop per-photo notice display. Missing, malformed or
@@ -49,9 +62,10 @@ values and a profile to 6,000,000; explicit curves have at most 65,536 points.
 
 Absent CalibrationIlluminant tags default to 0. Unknown (0) and Other (255),
 without spectral data, use the first matrix. Every EXIF illuminant is accepted;
-fluorescent codes 2/14, 12, 13, 15 and 16 map to 4150, 6400, 5050, 3575 and
-2925 K respectively, using the SDK's interval midpoints. Reserved values remain
-errors. Unused second matrices/tables are still validated. Triple illuminants
+fluorescent codes 2/14, 12, 13, 15 and 16 map to 4150, 6400, 5050, 3525 and
+2925 K respectively, using the interval midpoints of the SDK's
+`dng_camera_profile.cpp`. Undefined codes (5–8, and above 24 except 255) map to
+0 and use the first matrix only, as the SDK does. Unused second matrices/tables are still validated. Triple illuminants
 remain unsupported. ForwardMatrix's D50 unit-neutral tolerance remains 0.002,
 unchanged from main: a rejection is handled by the non-fatal fallback, not a
 looser bound. Output-referred HDR (`ColorimetricReference=2`) is not silently
@@ -106,7 +120,20 @@ Installed DCPs retain main's unit-Y temperature calibration, native tint residua
 pre-tone LookTable placement, per-channel explicit curve, and exact identity
 when no curve exists (including headroom). They do not inherit embedded ACR3,
 automatic black subtraction, or DNG-only profile defaults. Source baseline plus
-user exposure still belongs to the Adobe Tone stage. The restored fixtures keep
+user exposure still belongs to the Adobe Tone stage, so installed-DCP Adobe
+renders match main within f32 rounding (reviewed maximum 7.2e-7 absolute):
+exposure is now applied by `apply_exposure` in f64 before basic tone, where main
+applied an f32 gain inside basic tone. Installed profiles with a LookTable keep
+main's pre-tone placement, so that table's SDR clamp still clips values at 1.0
+before exposure; M2 removes the clamp only from HueSatMap.
+
+The combined `2^(BaselineExposure + user exposure)` gain now runs before
+`basic_tone`, and therefore before the legacy PV2010 operator for PV1/PV2
+recipes. Previously user `tone.exposure` was applied after the nonlinear
+legacy step. The importer stores PV2010 exposure in `legacy.exposure`, so this
+only differs when a legacy recipe also carries a nonzero `tone.exposure`.
+
+The restored fixtures keep
 their original matrix scaling and absent-curve cases; the CFA expectation is
 `0.2`, not the SDK-normalized `0.21781155` used by the rejected broad fallback.
 
