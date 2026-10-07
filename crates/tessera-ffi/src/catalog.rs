@@ -255,8 +255,6 @@ pub(crate) fn photo_stack(db: &Path, id: &str) -> crate::Result<Vec<String>> {
         .collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
-/// Stable recipe owner stays at the proxy path; only the pixel source switches.
-/// No index migration, sidecar move, or copy into Lightroom is involved.
 #[cfg(test)]
 thread_local! {
     static PROXY_RECIPE_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
@@ -267,6 +265,8 @@ pub(crate) fn proxy_recipe_reads() -> usize {
     PROXY_RECIPE_READS.with(std::cell::Cell::get)
 }
 
+/// Stable recipe owner stays at the proxy path; only the pixel source switches.
+/// No index migration, sidecar move, or copy into Lightroom is involved.
 pub(crate) fn lightroom_proxy(path: &Path) -> Option<serde_json::Value> {
     #[cfg(test)]
     PROXY_RECIPE_READS.with(|reads| reads.set(reads.get() + 1));
