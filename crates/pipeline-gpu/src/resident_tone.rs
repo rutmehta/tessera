@@ -850,3 +850,14 @@ fn write_outputs(
     }
     Ok(out)
 }
+
+#[cfg(test)]
+mod lr_clean_tests {
+    use super::*;
+    #[test]
+    fn resident_parameter_block_carries_host_log_denominator() {
+        let p = Params::new(Extent::new(3, 7), 0, [INACTIVE; 4]);
+        assert_eq!(p.0.len(), 25, "presence.wgsl parameter ABI includes denominator at 24");
+        assert_eq!(*p.0.last().unwrap(), (1_f32 + 1_f32 / 0.18).ln().to_bits());
+    }
+}

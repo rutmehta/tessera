@@ -362,3 +362,23 @@ fn regression() {
     }
     assert!(worst <= 1e-5, "zero-delta bypass discontinuity: {worst}");
 }
+
+#[test]
+fn lr_clean_local_axis_uses_host_denominator() {
+    let ctx = crate::GpuContext::new().unwrap();
+    let (pipeline, mean_pipeline) = pipelines(&ctx).unwrap();
+    let mut job = Job {
+        ctx: &ctx, pipeline, mean_pipeline,
+        encoder: ctx.device.create_command_encoder(&Default::default()),
+        p: [1., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 2.],
+        bytes: 16, pending: Vec::new(),
+    };
+    let src = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: None, contents: bytemuck::cast_slice(&[1_f32; 4]),
+        usage: wgpu::BufferUsages::STORAGE,
+    });
+    let encoded = job.pass(0, 0, &[&src]);
+    let value = job.read(&encoded).unwrap()[0][0];
+    let expected = (1_f64 / 0.18).ln_1p() / 2.;
+    assert!((f64::from(value) - expected).abs() < 1e-6, "{value} vs {expected}");
+}

@@ -508,3 +508,71 @@ fn bench_level_barrier() {
         }
     }
 }
+
+#[test]
+fn lr_clean_resident_presence_near_black_matches_cpu() {
+    let gpu = gpu();
+    let (w, h) = (65, 17);
+    let pixels: Vec<_> = (0..w * h)
+        .map(|i| {
+            let y = 2.0_f32.powf(-24.0 + 14.0 * (i % 101) as f32 / 100.0);
+            [
+                -0.007,
+                -0.006,
+                (y + 0.2627 * 0.007 + 0.678 * 0.006) / 0.0593,
+            ]
+        })
+        .collect();
+    let input = Image::new(
+        w,
+        h,
+        (0..3)
+            .map(|c| pixels.iter().map(|p| p[c]).collect())
+            .collect(),
+    )
+    .unwrap();
+    for (texture, clarity) in [(100., 0.), (0., -100.), (80., 60.)] {
+        let s = ToneSettings {
+            texture,
+            clarity,
+            ..Default::default()
+        };
+        let actual = resident(&gpu, &input, &s, &LocalToneOptions { preview: false, statistics_key: key(9071) });
+        let expected = pipeline_cpu::tone_extra_image(&input, &s).unwrap();
+        let max = actual
+            .planes()
+            .iter()
+            .flatten()
+            .zip(expected.planes().iter().flatten())
+            .map(|(a, b)| {
+                assert!(a.is_finite() && b.is_finite());
+                (a - b).abs()
+            })
+            .fold(0_f32, f32::max);
+        assert!(
+            max <= 1e-6,
+            "resident presence {texture}/{clarity}: {max:e}"
+        );
+    }
+}
+
+#[test]
+fn lr_clean_wgsl_axis_helpers_are_identical() {
+    let shaders = [
+        include_str!("../src/operators.wgsl"),
+        include_str!("../src/presence.wgsl"),
+        include_str!("../src/tone_local.wgsl"),
+    ];
+    for name in ["log_one_plus", "exp_minus_one"] {
+        let bodies: Vec<_> = shaders
+            .iter()
+            .map(|shader| {
+                let start = shader.find(&format!("fn {name}(")).unwrap();
+                let end = shader[start..].find("\n}").unwrap() + start + 2;
+                &shader[start..end]
+            })
+            .collect();
+        assert_eq!(bodies[0], bodies[1], "{name}: resident");
+        assert_eq!(bodies[0], bodies[2], "{name}: local");
+    }
+}
