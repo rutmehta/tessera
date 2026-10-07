@@ -185,3 +185,29 @@ fn lr8m_relinked_original_takes_the_ordinary_raw_route_at_every_level() {
         }
     }
 }
+
+/// REV-SP-B S1, open: a relinked RGB original (JPEG/TIFF/HEIC) still has its
+/// catalog orientation consumed by the decoder (oriented frame), while its
+/// LinearRaw Smart Preview is sensor-frame, so imported crops and masks move
+/// on relink. Follow-up lane LR-8n: open Lightroom-imported RGB sources in
+/// the stored frame and report the catalog orientation as the display
+/// orientation, as for RAW.
+#[test]
+#[ignore = "LR-8n follow-up: relinked RGB originals are read in the rotated frame"]
+fn lr8n_relinked_rgb_original_uses_the_stored_frame_like_its_smart_preview() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("original.tif");
+    image::RgbImage::from_fn(64, 48, |x, y| {
+        image::Rgb([(x * 3) as u8, (y * 5) as u8, 90])
+    })
+    .save(&path)
+    .unwrap();
+    let relinked = RawImage::open_with_catalog_orientation(ImageId(7900), &path, Some(6)).unwrap();
+    assert_eq!(relinked.metadata().orientation, 6, "display orientation");
+    let extent = relinked.active_extent();
+    assert_eq!(
+        (extent.width, extent.height),
+        (64, 48),
+        "edits in the stored (sensor) frame, like the Smart Preview"
+    );
+}
