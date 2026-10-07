@@ -177,7 +177,9 @@ fn imported_camera_masks_use_host_hooks_in_each_catalog_frame() {
             });
             let edited = run(&s);
             let width = edited.layout().extent.width as usize;
-            assert_eq!(width, if orientation >= 5 { 10 } else { 12 });
+            // LR-8m (A-LR8 M8): masks rasterize in the sensor frame for every
+            // catalog orientation, as for an ordinary RAW.
+            assert_eq!(width, 12, "orientation {orientation}");
             for (i, (a, b)) in base
                 .plane::<f32>(0)
                 .unwrap()

@@ -44,13 +44,13 @@ fn all_catalog_orientations_survive_relink_and_export_without_double_rotation() 
         Sidecar::write_recipe(Sidecar::paths(&proxy).recipe, &doc).unwrap();
         let render = || {
             let source = open_image(id, &proxy).unwrap();
-            assert_eq!(source.metadata().orientation, 1);
+            // LR-8m (A-LR8 M8): the catalog orientation is the display
+            // orientation, applied once by the host/export; edits and the
+            // active extent stay in the sensor frame, before and after relink.
+            assert_eq!(source.metadata().orientation, orientation);
             assert_eq!(source.recipe_owner(), id);
             let extent = source.active_extent();
-            assert_eq!(
-                (extent.width, extent.height),
-                if orientation >= 5 { (10, 12) } else { (12, 10) }
-            );
+            assert_eq!((extent.width, extent.height), (12, 10));
             let mut settings = DevelopSettings::default();
             settings.detail.sharpening.amount = 0.;
             settings.geometry.crop.rect.left = 0.25;
