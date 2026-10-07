@@ -283,3 +283,35 @@ fn migration_reads_each_alias_a_bounded_number_of_times() {
         "no backups for clean migrations"
     );
 }
+
+/// REV4-SP N8: a plan refresh before the first apply resolves every in-place
+/// proxy again; a library larger than the old 8,192-entry hash cache must not
+/// re-read every proxy file each time.
+#[test]
+fn repeated_lookups_over_a_large_library_hash_each_proxy_once() {
+    let s = Scratch::new("hash-cache");
+    let n = 9_000;
+    let proxies: Vec<PathBuf> = (0..n)
+        .map(|i| {
+            let uuid = format!("{:08X}-0000-4000-8000-{i:012X}", i);
+            s.proxy("Big", &uuid, format!("preview {i}").as_bytes())
+        })
+        .collect();
+    let first = Sidecar::content_hashes();
+    for p in &proxies {
+        Sidecar::paths(p);
+    }
+    let after_first = Sidecar::content_hashes();
+    assert!(
+        after_first - first >= n as u64,
+        "first pass hashes each proxy"
+    );
+    for p in &proxies {
+        Sidecar::paths(p);
+    }
+    let again = Sidecar::content_hashes() - after_first;
+    assert!(
+        again < 100,
+        "a second pass re-hashed {again} unchanged proxies"
+    );
+}

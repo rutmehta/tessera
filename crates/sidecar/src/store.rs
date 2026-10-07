@@ -32,6 +32,10 @@ impl FileVersion {
     }
 }
 
+/// Content hashes computed (file reads), for cache tests.
+pub(super) static CONTENT_HASHES: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
 fn content_key(image: &Path) -> Option<String> {
     let version = FileVersion::read(image)?;
     {
@@ -42,6 +46,7 @@ fn content_key(image: &Path) -> Option<String> {
             return Some(key.clone());
         }
     }
+    CONTENT_HASHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let mut file = fs::File::open(image).ok()?;
     let mut hash = blake3::Hasher::new();
     std::io::copy(&mut file, &mut hash).ok()?;

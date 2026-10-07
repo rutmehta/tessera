@@ -193,6 +193,12 @@ impl Sidecar {
         ProtectedPinBatch(store::PinBatch::default())
     }
 
+    /// Protected-source content hashes computed so far (cache tests).
+    #[doc(hidden)]
+    pub fn content_hashes() -> u64 {
+        store::CONTENT_HASHES.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Alias files read from disk so far in this process (linearity tests).
     #[doc(hidden)]
     pub fn alias_reads() -> u64 {
