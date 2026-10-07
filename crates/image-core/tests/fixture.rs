@@ -76,6 +76,48 @@ fn fixture_level3_matches_pipeline_cpu() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
+/// Level 0 is the full-resolution reference path itself (render.rs module
+/// docs): bit-identical to `pipeline_cpu::render_linear_scaled(.., 1)` for
+/// every camera, including the lens correction the reference resolves from
+/// the whole demosaiced frame (the L3 preview model resolves from sparse
+/// sensor patches, so this also pins those two resolutions together).
+#[test]
+fn fixture_level0_matches_pipeline_cpu_reference() {
+    let mut failures = Vec::new();
+    for path in selected("fixture_level0_matches_pipeline_cpu_reference") {
+        let name = raw_fixtures::name(&path);
+        let image = RawImage::open(ImageId(44), &path).unwrap();
+        let s = DevelopSettings::default();
+        let e = image.level_extent(0);
+        let t = Instant::now();
+        let linear = Renderer::new(RendererConfig::default())
+            .render_region_as(&image, &s, 0, PixelRect::full(e), RenderOutput::SceneLinear)
+            .unwrap();
+        let tiled_ms = t.elapsed().as_secs_f64() * 1e3;
+        let t = Instant::now();
+        let reference = pipeline_cpu::render_linear_scaled(
+            &s,
+            &RenderSource::Cfa {
+                image: image.cfa(),
+                metadata: image.metadata(),
+            },
+            1,
+        )
+        .unwrap();
+        let reference_ms = t.elapsed().as_secs_f64() * 1e3;
+        assert_eq!((reference.width(), reference.height()), (e.width, e.height));
+        let diff = max_f32_diff(&assemble_f32(e, &linear), reference.planes());
+        eprintln!(
+            "{name}: {}x{} L0, max linear diff {diff:e}, tiled {tiled_ms:.0} ms vs reference {reference_ms:.0} ms",
+            e.width, e.height
+        );
+        if diff != 0.0 {
+            failures.push(format!("{name}: L0 scene-linear max diff {diff:e}"));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
 #[test]
 fn fixture_level3_m2_extremes_are_finite() {
     for path in raw_fixtures::all("fixture_level3_m2_extremes_are_finite") {
