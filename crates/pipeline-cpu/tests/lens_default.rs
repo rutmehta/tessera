@@ -68,10 +68,23 @@ fn render(s: &DevelopSettings, image: &Image, context: &LensContext<'_>) -> Imag
     render_linear_scaled_with_lens(s, &RenderSource::Rgb(image), 1, context).unwrap()
 }
 
+/// The resolution profile `None` gives: no profile correction. With the
+/// default `remove_chromatic_aberration` switch an image-estimated lateral CA
+/// may still be present; that switch is independent of the profile mode.
+fn lens_off(image: &Image, metadata: Option<&RawMetadata>) -> String {
+    let none = settings(LensProfileSource::None);
+    let r = resolve_lens(image, &none.lens, metadata, &LensContext::default()).unwrap();
+    applied(&r)
+}
+
+/// What a resolution applies: its source and calibration sample.
+fn applied(r: &ResolvedLens) -> String {
+    format!("{:?} {:?}", r.source(), r.sample())
+}
+
 fn estimated_geometry(r: &ResolvedLens) -> bool {
-    r.sample().is_some_and(|s| {
-        s.distortion != BrownConrady::default() || s.vignette != [0.; 3]
-    })
+    r.sample()
+        .is_some_and(|s| s.distortion != BrownConrady::default() || s.vignette != [0.; 3])
 }
 
 #[test]
@@ -93,7 +106,7 @@ fn default_auto_never_applies_an_estimate_from_image_content() {
             r.source(),
             r.sample()
         );
-        assert_eq!(r.source(), CorrectionSource::Manual, "{name}");
+        assert_eq!(applied(&r), lens_off(&image, None), "{name}");
         // Pixel level: with no embedded data and no profile, Auto is lens-off.
         let none = settings(LensProfileSource::None);
         assert_eq!(
@@ -213,8 +226,8 @@ fn database_profile_is_unchanged_in_default_mode() {
     // A database without a matching lens applies nothing, never an estimate.
     let m = metadata(None, Some("Unknown Zoom"));
     let r = resolve_lens(&falloff(), &s.lens, Some(&m), &context).unwrap();
-    assert_eq!(r.source(), CorrectionSource::Manual);
-    assert!(r.sample().is_none());
+    assert!(!estimated_geometry(&r), "{r:?}");
+    assert_eq!(applied(&r), lens_off(&falloff(), Some(&m)));
 }
 
 /// Lightroom `LensProfileEnable=1` with a named profile Tessera does not have:
@@ -228,8 +241,8 @@ fn unavailable_named_profile_applies_nothing() {
     let s = settings(named.clone());
     for image in [falloff(), barrel()] {
         let r = resolve_lens(&image, &s.lens, None, &LensContext::default()).unwrap();
-        assert_eq!(r.source(), CorrectionSource::Manual);
-        assert!(r.sample().is_none());
+        assert!(!estimated_geometry(&r), "{r:?}");
+        assert_eq!(applied(&r), lens_off(&image, None));
         let none = settings(LensProfileSource::None);
         assert_eq!(
             render(&s, &image, &LensContext::default()).planes(),

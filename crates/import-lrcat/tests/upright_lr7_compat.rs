@@ -10,7 +10,8 @@ fn unrelated_recipe_bytes_remain_identical() {
     for (row, expected) in rows.into_iter().zip([
         (11420, 0x35b9bf7bfe270b28),
         (11199, 0x01729e71086f5d4d),
-        (15228, 0x14af73e31df40bc7),
+        // ENG-7: LensProfileEnable=1 adds one info note (lens profile unavailable).
+        (15716, 0x76a536a0a0d32c5b),
         // LR-3f: structures.lua now translates its explicit-source heal.
         (20442, 0x0c5aebc9285d9719),
     ]) {

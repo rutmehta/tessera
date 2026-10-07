@@ -296,18 +296,25 @@ pub struct DemosaicSettings {
 pub enum LensProfileSource {
     /// No profile correction.
     None,
-    /// Best available: embedded opcodes, then database, then auto-calibration.
+    /// The default, matching Lightroom: the camera's embedded correction
+    /// (opcodes) when the raw carries one, else a supplied or database profile
+    /// matching the lens, else no profile correction. Never an estimate from
+    /// image content (that is [`Self::AutoCalibrated`]). Saved recipes store
+    /// `auto`; this meaning applies to them since ENG-7 (before, Auto fell
+    /// back to auto-calibration).
     #[default]
     Auto,
     /// Manufacturer opcodes embedded in the raw.
     Embedded,
     /// A named lens profile (lens database, or an Adobe LCP named by an
-    /// imported recipe).
+    /// imported recipe). When the profile is not available, no profile
+    /// correction is applied.
     Database {
         /// Profile identity; round-trips the four `crs:LensProfile*` fields.
         profile: LensProfileRef,
     },
-    /// Estimated from image content.
+    /// Explicit opt-in: distortion and vignetting estimated from image
+    /// content. Never chosen implicitly.
     AutoCalibrated,
 }
 

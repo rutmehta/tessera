@@ -298,8 +298,16 @@ fn authenticated_lens_mode_source_mismatches_are_rejected() {
         ..Default::default()
     })
     .unwrap();
+    // ENG-7: an unavailable named profile legitimately resolves to no
+    // profile correction (it used to fail to resolve at all).
+    let unavailable = change_json(&bytes, |v| {
+        v["lens"]["profile"] = named.clone();
+        v["correction"]["source"] = serde_json::json!("Manual");
+        v["correction"]["sample"] = serde_json::Value::Null;
+    });
+    assert!(CameraLinearProxy::decode_persistent(&unavailable).is_ok());
     for (mode, source, with_sample) in [
-        (named.clone(), "Manual", false),
+        (named.clone(), "Manual", true),
         (named, "Image", true),
         (serde_json::json!({"kind":"none"}), "Database", true),
         (

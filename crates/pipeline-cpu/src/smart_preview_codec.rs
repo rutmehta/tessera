@@ -455,7 +455,7 @@ impl CameraLinearProxy {
         if bytes[64..96] != container_digest {
             return Err(invalid("container digest"));
         }
-        let s: Snapshot =
+        let mut s: Snapshot =
             serde_json::from_slice(&bytes[HEADER..HEADER + metadata_len]).map_err(invalid)?;
         validate_nested_schema(&bytes[HEADER..HEADER + metadata_len], version)?;
         let tier = match (version, s.generator, s.tier) {
@@ -491,6 +491,23 @@ impl CameraLinearProxy {
             blue_yellow: s.correction.manual_ca[1],
         };
         manual_ca.validate()?;
+        // ENG-7: before Auto stopped estimating from image content, an Auto
+        // snapshot could capture an image-estimated distortion/vignette.
+        // Reopen it with the current meaning of Auto, exactly what generating
+        // it today resolves: the estimate is dropped; an image-estimated CA
+        // (baked into the pixels, governed by remove_chromatic_aberration) is
+        // kept. AutoCalibrated keeps its estimate.
+        if matches!(s.lens.profile, LensProfileSource::Auto)
+            && matches!(s.correction.source, Source::Image)
+            && let Some(sample) = s.correction.sample.as_mut()
+        {
+            sample.distortion = Default::default();
+            sample.vignette = [0.; 3];
+            if *sample == lens::CalibrationSample::default() {
+                s.correction.sample = None;
+                s.correction.source = Source::Manual;
+            }
+        }
         if let Some(sample) = &s.correction.sample {
             lens::Profile {
                 model: "snapshot".into(),
@@ -515,7 +532,13 @@ impl CameraLinearProxy {
             Source::Manual => CorrectionSource::Manual,
         };
         let mode_matches_source = match &s.lens.profile {
-            LensProfileSource::Database { .. } => source == CorrectionSource::Database,
+            // An unavailable named profile resolves to no profile correction.
+            LensProfileSource::Database { .. } => {
+                matches!(
+                    source,
+                    CorrectionSource::Database | CorrectionSource::Manual
+                )
+            }
             LensProfileSource::Embedded => source == CorrectionSource::Embedded,
             LensProfileSource::None => {
                 source == CorrectionSource::Manual
@@ -524,7 +547,10 @@ impl CameraLinearProxy {
             LensProfileSource::AutoCalibrated => {
                 matches!(source, CorrectionSource::Image | CorrectionSource::Manual)
             }
-            LensProfileSource::Auto => true,
+            // Auto never estimates geometry (see above); image CA needs its switch.
+            LensProfileSource::Auto => {
+                source != CorrectionSource::Image || s.lens.remove_chromatic_aberration
+            }
         };
         if !mode_matches_source
             || (source == CorrectionSource::Image && (cw < 8 || ch < 8))
@@ -698,6 +724,8 @@ mod tests {
         p.metadata.height = 8;
         p.metadata.default_crop = [0, 0, 8, 8];
         p.pixels = Image::new(8, 8, vec![vec![0.2; 64]; 3]).unwrap();
+        // Image-estimated geometry is the explicit opt-in only (ENG-7).
+        p.lens.profile = LensProfileSource::AutoCalibrated;
         p.correction.source = CorrectionSource::Image;
         let sample = lens::CalibrationSample {
             vignette: [-0.12345678901234567, 0., 0.],

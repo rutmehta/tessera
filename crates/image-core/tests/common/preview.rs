@@ -6,10 +6,11 @@
 //! of `image_core::render` ("M2 operates on requested-level WB"); level 0 is
 //! the full-resolution reference itself.
 //!
-//! Geometry must not be folded into the downsampled prefix: with
-//! `LensProfileSource::Auto`, image auto-calibration can resolve a distortion
-//! (the CR3 and RAF fixtures do), and warping at full resolution before
-//! level-pixel Detail is neither the engine preview nor contract order.
+//! Geometry must not be folded into the downsampled prefix: a resolved
+//! distortion (a profile, embedded data, or the explicit
+//! `LensProfileSource::AutoCalibrated` estimate, which finds one on the CR3
+//! and RAF fixtures) warped at full resolution before level-pixel Detail is
+//! neither the engine preview nor contract order.
 use engine_api::recipe::DevelopSettings;
 use pipeline_cpu::{Image, RenderSource, SigmoidSettings, render_linear_scaled};
 

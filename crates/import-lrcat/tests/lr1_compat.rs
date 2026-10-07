@@ -4,6 +4,7 @@ use import_lrcat::{lua_develop, xmp};
 fn untranslated_recipe_bytes_match_pre_lr1() {
     let lua = [
         ("empty", "s = {}"),
+        // ENG-7: LensProfileEnable=1 adds one info note (lens profile unavailable).
         ("global", include_str!("data/lrc155/global.lua")),
         // LR-3f: this row now translates its explicit-source heal; its pin includes retouch.
         ("structures", include_str!("data/lrc155/structures.lua")),

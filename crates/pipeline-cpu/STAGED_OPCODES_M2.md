@@ -15,7 +15,7 @@
 - List3 executes after camera profile and white balance, before active-area extraction/detail/tone. Its channels are post-colour channels, not camera channels.
 - Within each list, every warp/gain is executed in file order against the previous result. Warp-then-vignette is supported without commuting or reversing the operations.
 - Warps and radial vignettes retain existing distortion/CA/vignette amount controls. GainMap is raw calibration and applies its complete gain independently of vignette amount.
-- Embedded wins over database/image estimation in Auto/Embedded mode. Explicit None/Database/AutoCalibrated selections retain their prior override semantics. Embedded bytes are parsed even when not selected; malformed/unknown required operations fail closed. Required bad-pixel IDs 4/5 remain deliberately ignored as before.
+- Embedded wins over database in Auto/Embedded mode (Auto never estimates from image content since ENG-7; that is AutoCalibrated). Explicit None/Database/AutoCalibrated selections retain their prior override semantics. Embedded bytes are parsed even when not selected; malformed/unknown required operations fail closed. Required bad-pixel IDs 4/5 remain deliberately ignored as before.
 - Staged operations are not inserted into the old deferred geometry/profile-gain collections, so they cannot apply twice. Caller-injected database resolution does not override active embedded metadata in the CFA renderer.
 
 ## Supported opcode payloads

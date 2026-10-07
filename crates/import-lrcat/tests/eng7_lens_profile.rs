@@ -49,7 +49,9 @@ fn packet(attrs: &str) -> (Recipe, Vec<String>) {
 fn profile_disabled_maps_to_no_profile_correction_without_note() {
     for (r, _) in [
         lua("s={LensProfileEnable=0}"),
-        lua("s={LensProfileEnable=0,LensProfileSetup='Custom',LensProfileName='Adobe (Synthetic Lens)'}"),
+        lua(
+            "s={LensProfileEnable=0,LensProfileSetup='Custom',LensProfileName='Adobe (Synthetic Lens)'}",
+        ),
         packet(r#"crs:LensProfileEnable="0""#),
         packet(
             r#"crs:LensProfileEnable="0" crs:LensProfileSetup="Custom" crs:LensProfileName="Adobe (Synthetic Lens)""#,
@@ -63,7 +65,10 @@ fn profile_disabled_maps_to_no_profile_correction_without_note() {
 #[test]
 fn profile_enabled_without_identity_is_auto_and_notes_unavailable_database() {
     for (what, (r, w)) in [
-        ("lua", lua("s={LensProfileEnable=1,LensProfileSetup='LensDefaults'}")),
+        (
+            "lua",
+            lua("s={LensProfileEnable=1,LensProfileSetup='LensDefaults'}"),
+        ),
         (
             "xmp",
             packet(r#"crs:LensProfileEnable="1" crs:LensProfileSetup="Auto""#),
@@ -80,7 +85,9 @@ fn named_profile_is_kept_and_noted_unavailable() {
     for (what, (r, w)) in [
         (
             "lua",
-            lua("s={LensProfileEnable=1,LensProfileSetup='Custom',LensProfileName='Adobe (Synthetic Lens)',LensProfileFilename='synthetic.lcp',LensProfileDigest='0123'}"),
+            lua(
+                "s={LensProfileEnable=1,LensProfileSetup='Custom',LensProfileName='Adobe (Synthetic Lens)',LensProfileFilename='synthetic.lcp',LensProfileDigest='0123'}",
+            ),
         ),
         (
             "xmp",

@@ -9,7 +9,9 @@ const N: i64 = 2_000;
 /// LR-6f recomputed on the integrated tree; identical to LR-3e because this
 /// original fixture has no active Lens Blur. LR-3e retains exact RetouchInfo source plus shared approximate diagnostics,
 /// uses decoder Import XMP/xmp provenance, and writes these 200 rows as schema 4.
-const GOLDEN: &str = "87d28d71460e64ad1034fd0a5dc408a20a0452b7d37ccfd6f2a00ada8db3c0d5";
+/// ENG-7 (was 87d28d71…c0d5): the 1200 Lua rows with LensProfileEnable=1 gain
+/// one info note (lens profile unavailable; never estimated). Nothing else changes.
+const GOLDEN: &str = "2f065f67b60d22b8e2f8014c6fd420577c8d8770f3d8a57bd52931614604fec4";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();
@@ -116,9 +118,10 @@ fn lr6f_active_blur_and_inactive_depth_catalog_golden() {
     }
     let got = digest(images);
     eprintln!("LR-6f active golden digest: {got}");
+    // ENG-7 (was 141018bf…f6e0): the lens-profile-unavailable info note.
     assert_eq!(
         got,
-        "141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0"
+        "c375c986d2318b016a72bbbc09b3fb51ff19c904b0c3613050e854e5d120942b"
     );
 }
 

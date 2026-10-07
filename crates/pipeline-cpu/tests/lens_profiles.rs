@@ -13,13 +13,10 @@ fn auto_calibration_recovers_synthetic_radial_falloff() {
         })
         .collect();
     let image = Image::new(w, h, vec![p; 3]).unwrap();
-    let resolved = resolve_lens(
-        &image,
-        &DevelopSettings::default().lens,
-        None,
-        &LensContext::default(),
-    )
-    .unwrap();
+    // Estimation is the explicit opt-in; the default Auto never estimates (ENG-7).
+    let mut s = DevelopSettings::default();
+    s.lens.profile = LensProfileSource::AutoCalibrated;
+    let resolved = resolve_lens(&image, &s.lens, None, &LensContext::default()).unwrap();
     assert_eq!(resolved.source(), CorrectionSource::Image);
     assert!((resolved.sample().unwrap().vignette[0] + 0.2).abs() < 0.02);
 }

@@ -55,8 +55,10 @@ pub fn parse(text: &str, process_version: &str) -> EngineResult<(Recipe, Vec<Str
     } else {
         doc
     };
-    crate::noop::silence(&crate::noop::xmp_table(&doc), &mut recipe, &mut warnings);
+    let table = crate::noop::xmp_table(&doc);
+    crate::noop::silence(&table, &mut recipe, &mut warnings);
     crate::residual::explain(&mut recipe, &mut warnings);
+    crate::lens_profile::note_unavailable(&table, &mut recipe);
     Ok((recipe, warnings))
 }
 

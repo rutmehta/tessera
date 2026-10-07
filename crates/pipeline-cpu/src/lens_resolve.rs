@@ -482,18 +482,15 @@ fn resolve_with(
                     })?,
             );
             out.source = CorrectionSource::Database;
-        } else if named.is_some() {
-            return Err(EngineError::invalid(
-                "lens profile",
-                "named profile not supplied",
-            ));
         }
+        // A named profile that is not supplied (e.g. an imported Lightroom
+        // LCP Tessera does not have) applies no profile correction, like
+        // Lightroom with a missing profile. It is never replaced by an estimate.
     }
-    let calibrate = out.sample.is_none()
-        && matches!(
-            s.profile,
-            LensProfileSource::Auto | LensProfileSource::AutoCalibrated
-        );
+    // Content-based distortion/vignette estimation is the explicit
+    // AutoCalibrated opt-in only. Auto (the recipe default) matches Lightroom:
+    // embedded correction, else a supplied/database profile, else nothing.
+    let calibrate = out.sample.is_none() && matches!(s.profile, LensProfileSource::AutoCalibrated);
     let ca_only = out.sample.is_none() && s.remove_chromatic_aberration;
     if (calibrate || ca_only) && width >= 8 && height >= 8 {
         let (gray, rgb) = analysis()?;

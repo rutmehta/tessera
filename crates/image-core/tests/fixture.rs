@@ -29,6 +29,16 @@ fn selected(test: &str) -> Vec<PathBuf> {
     raw_fixtures::selected(test, SELECT_ENV)
 }
 
+/// Default settings with the explicit lens auto-calibration opt-in. Since
+/// ENG-7 the default `Auto` applies no image-estimated distortion, so with
+/// plain defaults no fixture would exercise the Geometry stage; the opt-in
+/// keeps the estimated CR3/RAF distortion in these engine/reference checks.
+fn geometry_settings() -> DevelopSettings {
+    let mut s = DevelopSettings::default();
+    s.lens.profile = engine_api::recipe::settings::LensProfileSource::AutoCalibrated;
+    s
+}
+
 /// Every selected camera is compared, and every mismatch is reported, before
 /// the test fails: one camera's failure must not hide another's.
 #[test]
@@ -37,7 +47,7 @@ fn fixture_level3_matches_pipeline_cpu() {
     for path in selected("fixture_level3_matches_pipeline_cpu") {
         let name = raw_fixtures::name(&path);
         let image = RawImage::open(ImageId(42), &path).unwrap();
-        let s = DevelopSettings::default();
+        let s = geometry_settings();
         let source = RenderSource::Cfa {
             image: image.cfa(),
             metadata: image.metadata(),
@@ -87,7 +97,7 @@ fn fixture_level0_matches_pipeline_cpu_reference() {
     for path in selected("fixture_level0_matches_pipeline_cpu_reference") {
         let name = raw_fixtures::name(&path);
         let image = RawImage::open(ImageId(44), &path).unwrap();
-        let s = DevelopSettings::default();
+        let s = geometry_settings();
         let e = image.level_extent(0);
         let t = Instant::now();
         let linear = Renderer::new(RendererConfig::default())

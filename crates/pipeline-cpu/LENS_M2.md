@@ -23,11 +23,16 @@ entry points use an empty context. `resolve_lens` exposes the selected
 caller can inspect or save image estimates with the lens crate's profile API.
 There is no implicit filesystem lookup, network access or bundled database.
 
-* Auto: supported embedded data > supplied profile/database match > image
-  calibration > manual-only fallback. This is **whole-source priority**, not
-  per-coefficient merging. An identity supplied calibration is authoritative.
+* Auto (the recipe default): supported embedded data > supplied
+  profile/database match > manual-only fallback. This is **whole-source
+  priority**, not per-coefficient merging. An identity supplied calibration is
+  authoritative. Since ENG-7 Auto never falls back to image calibration
+  (Lightroom never applies a content-estimated distortion by default); image
+  calibration is the explicit `AutoCalibrated` opt-in.
 * Embedded explicitly requested but unavailable is an error.
-* Database explicitly requested but not supplied/found is an error. A direct
+* Database explicitly requested but not supplied/found applies no profile
+  correction (ENG-7; it was an error, which made every imported recipe naming
+  an Adobe LCP fail to render). It is never replaced by an estimate. A direct
   context profile is an explicitly resolved selection; otherwise the named
   profile matches `Profile.model`. Filename/digest are not resolved or verified.
 * Auto database matching uses camera make/model as camera restrictions and the
