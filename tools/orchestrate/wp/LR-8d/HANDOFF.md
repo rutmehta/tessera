@@ -51,10 +51,10 @@ BaselineExposure in Native), so regeneration reproduces the committed PNGs.
 | B3 fallback only for external LinearRaw smart-preview proxies, Adobe process, recipe naming an Adobe profile, no installed DCP | `pipeline-adobe/src/embedded_profile.rs` (`embedded_profile_fallback`); `image-core/src/render.rs::prepare_dcp`; `pipeline-adobe/src/render.rs` | `embedded_adobe.rs::only_adobe_named_proxy_recipes_use_embedded_profile`, `ordinary_cfa_dng_does_not_use_embedded_fallback` |
 | B3 "Adobe*"-named Native recipes do not flip pipeline | `prepare_dcp` requires Adobe family; `names_adobe_profile` no longer selects a family; Native `validate_settings` treats an Adobe name as inert metadata | `native_adobe_named_recipe_does_not_switch_pipeline` (pixels identical to default-name Native) |
 | B3 parse problem never fails a render | `embedded_profile_fallback` returns no profile + info note; `RawImage` snapshot and export `.ok().flatten()` | `malformed_embedded_profile_does_not_fail_a_proxy_render`, `installed_profile_wins_over_valid_or_malformed_embedded_data` |
-| B3 CalibrationIlluminant default 0; all EXIF illuminants | `dcp.rs` `illuminant()` (fluorescent 2/14,12,13,15,16 -> SDK interval midpoints; 255 Other -> single matrix); absent tag -> 0 | `absent_calibration_illuminant_defaults_to_unknown`, absent-second-illuminant test |
+| B3 CalibrationIlluminant default 0; all EXIF illuminants | `dcp.rs` `illuminant()` (fluorescent 2/14,12,13,15,16 -> SDK interval midpoints, 15 = 3525 K since LR-8e3; 255 Other and, since LR-8e3, undefined codes -> single matrix); absent tag -> 0 | `absent_calibration_illuminant_defaults_to_unknown`, absent-second-illuminant test |
 | B3 ForwardMatrix tolerance | Unchanged (0.002, as on main); a rejection now takes the non-fatal fallback | existing DCP tests |
 | B3 visible note | `SUBSTITUTED_PROFILE_NOTICE` = "profile substituted (embedded DNG profile)"; `UNAVAILABLE_PROFILE_NOTICE` for fallback; `Renderer::profile_notice`; surfaced in Develop per-photo notes (`tessera-ffi/src/develop.rs`) | notice assertions in `embedded_adobe.rs` |
-| M11 restore edited DCP fixtures and 0.2 expectation; installed profiles keep main's behaviour | `DcpProfile::parse` = installed (main's unit-Y calibration, legacy D65, tint residual, pre-tone Look, identity without curve); `parse_embedded` opts into SDK defaults | `dcp_render.rs` and `dcp.rs` tests restored to origin/main text (only additions remain, apart from M2 below) |
+| M11 restore edited DCP fixtures and 0.2 expectation; installed profiles keep main's behaviour within f32 rounding (max 7.2e-7, reviewed): exposure is applied in f64 by `apply_exposure` before basic tone instead of as an f32 gain inside it | `DcpProfile::parse` = installed (main's unit-Y calibration, legacy D65, tint residual, pre-tone Look, identity without curve); `parse_embedded` opts into SDK defaults | `dcp_render.rs` and `dcp.rs` tests restored to origin/main text (only additions remain, apart from M2 below) |
 | M2 no clamp at 1.0 in HueSatMap before exposure | `Table::apply_domain`: V output `max(0)` only; post-exposure LookTable keeps SDR clamp | `huesat_preserves_scaled_value_until_exposure` |
 | M12 Adobe DNG SDK licence attribution | root `NOTICE` (agreement text verified byte-identical to `LICENSE.source_code` at revision `de700ad4`), `docs/13-licensing.md`, `dcp_acr3.rs` header | — |
 
@@ -101,5 +101,48 @@ Logs stay outside the repository.
 | `cd apps/mac && ./build-ffi.sh` | Exit 0; `git status --porcelain` empty afterwards (no bindings drift) |
 | `tools/orchestrate/swift-gate.sh` | Exit 0; XCTest 935 executed, 3 skipped, 0 failures; Swift Testing 5 tests in 2 suites passed; printed **SWIFT GATE OK** |
 | Strict release `swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | Exit 0 (198.37 s build). Retains the known BLAKE3 neon macOS 26.2/15.0 linker warning. |
+
+Final worktree status after all gates: clean.
+
+## LR-8e3 (review REV-LR-8d: APPROVE-WITH-NITS; coordinator ruling)
+
+Commits on top of `7f5b9637`: `d7c6ec49` test(LR-8e3) RED, `8d257d90` fix(LR-8e3),
+`5732bdcc` docs(LR-8e3), then this handoff update.
+
+| Item | Code | Test |
+|---|---|---|
+| SF1 Native draws only "Adobe Standard" / "Adobe Color" (plain matrix) with a visible note; every other non-default profile (Adobe Monochrome, Vivid, Landscape, Portrait, Neutral, creative profiles, Camera Standard) refused as on main | `pipeline_cpu::native_approximates_profile`, `NATIVE_APPROXIMATED_PROFILE_NOTICE`, Native `validate_settings`; `Renderer::profile_notice` (Native branch); Develop `render_notices` now also covers originals | `image-core/tests/native_adobe_profiles.rs`: `native_refuses_profiles_it_cannot_reproduce_as_on_main` (original + proxy), `native_approximates_adobe_standard_and_color_with_a_note` (pixels byte-identical to the default profile) |
+| SF1 host compatibility: the Develop host keeps imported Adobe identities in drawn settings (needed for Adobe-process proxy substitution). In Native, the unreproducible ones are drawn without the identity and listed under ignored settings, exactly as main's host did (main stripped every profile and listed it) | `Renderer::with_host_ignored_native_profiles` / `native_ignores_profile` (validation and the two Native pipeline-cpu call sites); set on the FFI backend, preview and lrcat_profile renderers; `DevelopSession::ignored_settings` adds `/camera_profile/profile` | `host_listed_ignored_profiles_render_like_main`; FFI `tests/develop.rs::native_adobe_profile_identities_render_like_main_and_are_visible` (real NEF: Monochrome/Vivid frames byte-identical and listed ignored; Standard/Color byte-identical with the note) |
+| SF1 ruling-required expectation change | `embedded_adobe.rs::native_adobe_named_recipe_does_not_switch_pipeline`: Native "Adobe Color" notice `None` -> `Some(NATIVE_APPROXIMATED_PROFILE_NOTICE)`; pixel assertion unchanged | — |
+| SF2 Auto WB on Adobe-named proxies through `render_tiles` / `render_progressive` | `prepare_dcp`, `render_tiles`, `render_progressive` plan proxy settings like `render_region_as` | `adobe_named_proxy_with_auto_white_balance_renders_through_every_entry_point` (region, tiles and progressive level 0 identical). Verified RED: without the planning `render_progressive` returned "Auto is not implemented". |
+| Nit: WhiteFluorescent 15 -> 3525 K | `dcp.rs::illuminant`, `DCP.md` | `white_fluorescent_uses_sdk_interval_midpoint` |
+| Nit: undefined illuminant codes -> 0 (single matrix) | `dcp.rs::illuminant` | `undefined_calibration_illuminants_use_first_matrix_like_sdk` (5–8, 25, 254, 256, 65535; installed and embedded) |
+| Nit: installed-DCP Adobe renders within f32 rounding (max 7.2e-7) | wording above and `DCP.md` | reviewer probe |
+| Nit: exposure now precedes the legacy PV2010 step; installed-profile LookTables still clip at 1.0 before exposure | documented in `DCP.md` (no code change) | — |
+| Nit: proxies with no CameraProfile get no substitution and no note (per ruling) | documented in `DCP.md` (no code change) | `only_adobe_named_proxy_recipes_use_embedded_profile` |
+
+Investigation, `image-core` `fixture_level3_matches_pipeline_cpu` on canon-cr3:
+`PIPELINE_RAW_FIXTURES` only overrides the fixture directory (default
+`fixtures/raw`, a git-ignored directory filled by `fixtures/fetch.sh`). The test
+runs only the Sony ARW unless `IMAGE_CORE_ALL_FIXTURES` is set. Reproduced on
+this branch: default run passes the ARW (max linear diff 0); with
+`IMAGE_CORE_ALL_FIXTURES=1` it fails on canon-cr3 (scene-linear max diff
+0.04327532). So the main gate does not run that case at all: a silent narrowing
+by default selection, and a silent skip of the whole test when `fixtures/raw` is
+absent (clean clone). The reviewer saw the same failure on origin/main; this lane
+does not touch it and leaves it unchanged.
+
+### LR-8e3 gates (code tip `5732bdcc`)
+
+Preceded by `cargo clean --release -p pipeline-cpu -p pipeline-adobe -p image-core -p export -p tessera-ffi`.
+
+| Gate | Result |
+|---|---|
+| `cargo test --release -p pipeline-cpu -p pipeline-adobe -p image-core -p export -p tessera-ffi --no-fail-fast` | Exit 0: 1224 passed, 0 failed, 51 ignored (785 s; load average 27.7 at start) |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | Exit 0 |
+| `cargo fmt --all -- --check` | Exit 0 |
+| `cd apps/mac && ./build-ffi.sh` | Exit 0; worktree clean afterwards (no bindings drift) |
+| `tools/orchestrate/swift-gate.sh` | Exit 0; XCTest 935 executed, 3 skipped, 0 failures; Swift Testing 5 tests in 2 suites passed; **SWIFT GATE OK** |
+| Strict release build | Exit 0 (189.86 s); known BLAKE3 neon linker warning only |
 
 Final worktree status after all gates: clean.
