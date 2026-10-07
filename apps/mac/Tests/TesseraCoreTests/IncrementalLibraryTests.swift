@@ -39,6 +39,37 @@ final class IncrementalLibraryTests: XCTestCase {
         }
     }
 
+    /// This insertion-only fixture must stay distinct after asynchronous dHash arrives.
+    /// Each image uses a different Walsh code across eight horizontal bands.
+    /// Two codes disagree in four bands (32 of the 64 horizontal dHash bits), safely
+    /// beyond the near-duplicate threshold even after JPEG encoding and downsampling.
+    private func dissimilarPhotos(_ names: [String], in folder: URL) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for name in names {
+            let first = try XCTUnwrap(name.utf8.first)
+            XCTAssertTrue((97...104).contains(first), "fixture names must start with a...h")
+            let code = Int(first) & 7
+            let w = 72, h = 64
+            var pixels = [UInt8](repeating: 255, count: w * h * 4)
+            for y in 0..<h { for x in 0..<w {
+                let ascending = (code & (y / 8)).nonzeroBitCount.isMultiple(of: 2)
+                let ramp = 24 + x * 207 / (w - 1)
+                let value = UInt8(ascending ? ramp : 255 - ramp)
+                let i = (y * w + x) * 4
+                pixels[i] = value; pixels[i + 1] = value; pixels[i + 2] = value
+            } }
+            let ctx = try XCTUnwrap(CGContext(data: &pixels, width: w, height: h,
+                bitsPerComponent: 8, bytesPerRow: w * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            let image = try XCTUnwrap(ctx.makeImage())
+            let dest = try XCTUnwrap(CGImageDestinationCreateWithURL(
+                folder.appendingPathComponent(name) as CFURL, UTType.jpeg.identifier as CFString, 1, nil))
+            CGImageDestinationAddImage(dest, image, nil)
+            XCTAssertTrue(CGImageDestinationFinalize(dest))
+        }
+    }
+
     private func jpeg(_ url: URL, shade: UInt8) throws {
         let w = 64, h = 48
         var pixels = [UInt8](repeating: 0, count: w * h * 4)
@@ -144,7 +175,7 @@ final class IncrementalLibraryTests: XCTestCase {
         _ = NSApplication.shared
         let temp = try scratch()
         let folder = temp.appendingPathComponent("shoot")
-        try photos(["b.jpg", "d.jpg", "f.jpg", "h.jpg"], in: folder)
+        try dissimilarPhotos(["b.jpg", "d.jpg", "f.jpg", "h.jpg"], in: folder)
         let lib = try EngineLibrary.scan(folder: folder, appSupport: temp.appendingPathComponent("support"))
         let app = AppModel()
         app.install(lib)
@@ -171,7 +202,7 @@ final class IncrementalLibraryTests: XCTestCase {
         let reloads = counter.reloads
 
         // New files arrive (an import or a rescan): inserted in place, nothing else moves.
-        try photos(["a.jpg", "c.jpg", "e.jpg"], in: folder)
+        try dissimilarPhotos(["a.jpg", "c.jpg", "e.jpg"], in: folder)
         _ = try lib.engine.indexFolder(path: folder.path)
         sync(app)
         XCTAssertEqual(lib.items.count, 7)
@@ -181,6 +212,8 @@ final class IncrementalLibraryTests: XCTestCase {
         XCTAssertEqual(app.collections.filter, filter)
         XCTAssertEqual(counter.reloads, reloads, "no reload")
         XCTAssertEqual(counter.updates, 1)
+        XCTAssertEqual(lib.groups.map(\.count), Array(repeating: 1, count: 7),
+                       "dissimilar insertion fixtures must remain singleton groups")
         XCTAssertEqual(grid.collectionView.numberOfItems(inSection: 0), app.visibleCount)
         XCTAssertTrue(app.canUndo)
 

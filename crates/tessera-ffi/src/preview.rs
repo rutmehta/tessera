@@ -161,11 +161,12 @@ mod tests {
             .unwrap();
         let decodes = raw_decode::lossy_dng::pixel_decode_count();
         let expected = cull::dhash_jpeg(&store.get(&key, previews::Level::Full).unwrap()).unwrap();
-        assert_eq!(
-            cull_preview_hash(&info, dir.path()).unwrap(),
-            cold
+        assert_eq!(cull_preview_hash(&info, dir.path()).unwrap(), cold);
+        assert_ne!(
+            cold,
+            Some(expected),
+            "fixture must distinguish rendered pixels"
         );
-        assert_ne!(cold, Some(expected), "fixture must distinguish rendered pixels");
         assert_eq!(raw_decode::lossy_dng::pixel_decode_count(), decodes + 1);
         assert_eq!(pipeline_cpu::lens_resolution_count(), lenses);
     }
@@ -212,6 +213,113 @@ mod tests {
             assert_eq!(hash, cold);
             assert_ne!(hash, Some(expected));
         }
+    }
+
+    #[test]
+    fn lr13d_persisted_grouping_is_stable_for_edited_cropped_proxies_when_previews_warm() {
+        let (dir, info, mut recipe) = cull_proxy_fixture();
+        recipe
+            .edit(
+                engine_api::recipe::EditMeta::user("Crop and exposure", 1),
+                |settings| {
+                    settings.geometry.crop.rect.left = 0.25;
+                    settings.geometry.crop.rect.bottom = 0.75;
+                    settings.tone.exposure = 1.0;
+                },
+            )
+            .unwrap();
+        let second = dir.path().join("second.dng");
+        std::fs::copy(&info.path, &second).unwrap();
+        let support = tempfile::tempdir().unwrap();
+        let root = support.path().join("Application Support/App");
+        let mut index = index::Index::open(dir.path().join("index.sqlite")).unwrap();
+        index
+            .scan(
+                dir.path(),
+                &index::NoopSidecarReader,
+                &index::NoopMetadataProvider,
+            )
+            .unwrap();
+        let ids = index.search(&index::Query::default()).unwrap();
+        assert_eq!(ids.len(), 2);
+        let infos: Vec<_> = ids
+            .iter()
+            .map(|id| index.image_info(*id).unwrap())
+            .collect();
+        for info in &infos {
+            let mut recipe = recipe.clone();
+            recipe.image_id = Some(info.id);
+            sidecar::Sidecar::write_recipe(
+                sidecar::Sidecar::paths(&info.path).recipe,
+                &sidecar::RecipeDocument {
+                    recipe,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        }
+        drop(index);
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let run = |version| {
+            let count = calls.clone();
+            let support = root.clone();
+            let policy = cull::HashCachePolicy::application_support(
+                root.clone(),
+                "tessera-source-samples",
+                version,
+                &[],
+            )
+            .unwrap();
+            let mut session = cull::OwnedCullSession::open_owned_with_cached_previews(
+                index::Index::open(dir.path().join("index.sqlite")).unwrap(),
+                dir.path(),
+                policy,
+                move |info| {
+                    count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    cull_preview_hash(info, &support)
+                },
+            )
+            .unwrap();
+            let start = std::time::Instant::now();
+            while session.previews_pending() {
+                session.poll_previews().unwrap();
+                assert!(start.elapsed() < std::time::Duration::from_secs(5));
+                std::thread::yield_now();
+            }
+            assert!(session.preview_errors().is_empty());
+            session
+                .groups()
+                .iter()
+                .map(|g| g.images.clone())
+                .collect::<Vec<_>>()
+        };
+        let cold = run(1);
+        assert_eq!(cold.len(), 1);
+        let store = previews::PreviewStore::new(root.join("previews"), 512 << 20).unwrap();
+        for (n, info) in infos.iter().enumerate() {
+            let recipe = catalog::document(&info.path, info.id).unwrap().recipe;
+            let grid = image::RgbImage::from_fn(90, 80, |x, _| {
+                image::Rgb([if n == 0 { x as u8 } else { (200 - x) as u8 }; 3])
+            });
+            let key =
+                previews::PreviewKey::for_source(&info.path, 384, 1, recipe.recipe_hash().0.0)
+                    .unwrap();
+            store
+                .put_image_cancellable(&key, &grid, 384, &|| Ok(()))
+                .unwrap();
+        }
+        assert_eq!(
+            run(1),
+            cold,
+            "persisted source hashes remain valid after preview warming"
+        );
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(
+            run(2),
+            cold,
+            "fresh hashes must agree with persisted cold hashes"
+        );
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 4);
     }
 
     #[test]

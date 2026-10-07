@@ -250,9 +250,20 @@ impl Engine {
         let index = index::Index::open(&self.db)?;
         let reader = Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         let support = self.support_dir()?.to_path_buf();
-        let mut core = Core::open_owned_with_previews(index, source, move |info| {
-            crate::preview::cull_preview_hash(info, &support)
-        })?;
+        let policy = cull::HashCachePolicy::application_support(
+            support.clone(),
+            "tessera-source-samples",
+            1,
+            &folder.iter().cloned().collect::<Vec<_>>(),
+        )
+        .ok();
+        let preview =
+            move |info: &index::ImageInfo| crate::preview::cull_preview_hash(info, &support);
+        let mut core = if let Some(policy) = policy {
+            Core::open_owned_with_cached_previews(index, source, policy, preview)?
+        } else {
+            Core::open_owned_with_previews(index, source, preview)?
+        };
         let engine = self.this.clone();
         core.set_preview_notifier(move || {
             if let Some(engine) = engine.upgrade() {
@@ -496,6 +507,15 @@ impl Inner {
 
 #[uniffi::export]
 impl CullSession {
+    /// Cancel preview work and wait until its worker and callbacks have retired.
+    /// The host must call this off the main thread. The session lock is released
+    /// before waiting, so provider completion never blocks UI access to it.
+    pub fn shutdown(&self) -> Result<()> {
+        let completion = self.lock()?.core.retire_previews();
+        completion.wait();
+        Ok(())
+    }
+
     pub fn images(&self) -> Result<Vec<SessionImage>> {
         let mut s = self.lock()?;
         let ids = s.core.images().to_vec();

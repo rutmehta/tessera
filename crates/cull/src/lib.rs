@@ -8,6 +8,7 @@ pub mod learning;
 mod library;
 pub mod people;
 mod persistence;
+pub use background::PreviewShutdown;
 pub use defects::{DefectReason, Direction, Threshold};
 use engine_api::{EngineError, EngineResult};
 pub use engine_api::{
@@ -17,6 +18,7 @@ pub use engine_api::{
 pub use grouping::{
     Group, GroupingOptions, GroupingStrategy, LargestFile, Scorer, dhash, dhash_jpeg, preview_hash,
 };
+pub use hash_cache::HashCachePolicy;
 pub use incremental::QueueChange;
 use index::{ImageInfo, Index, Query};
 pub use library::{Album, DerivedStatus, Library, Status};
@@ -107,6 +109,9 @@ pub struct CullSession<I> {
     preview_hash: PreviewProvider,
     previews: background::BackgroundPreviews,
     preview_notify: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
+    /// Hash snapshot has changes not yet applied to a custom policy.
+    custom_hashes_dirty: bool,
+    rebuild: Option<grouping::DefaultRebuild>,
     library: Option<PathBuf>,
     basket_target: Option<String>,
     /// The source, kept so incremental inserts apply the same membership rules.
@@ -173,6 +178,21 @@ impl OwnedCullSession {
             std::sync::Arc::new(preview),
         )
     }
+    /// Opt in to persistent hashes using an approved host cache root and stable
+    /// provider/pixel-policy identity. Other constructors never persist hashes.
+    pub fn open_owned_with_cached_previews(
+        index: Index,
+        source: impl Into<Source>,
+        policy: HashCachePolicy,
+        preview: impl Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync + 'static,
+    ) -> EngineResult<Self> {
+        Self::open_with_policy(
+            Box::new(index),
+            source.into(),
+            None,
+            hash_cache::persistent(Some(policy), std::sync::Arc::new(preview)),
+        )
+    }
     pub fn open_owned(index: Index, source: impl Into<Source>) -> EngineResult<Self> {
         Self::open_with(Box::new(index), source.into())
     }
@@ -187,13 +207,6 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         declared: Option<HashSet<ImageId>>,
         preview_hash: PreviewProvider,
     ) -> EngineResult<Self> {
-        let preview_hash = hash_cache::persistent(
-            index
-                .database_path()
-                .and_then(Path::parent)
-                .map(Path::to_path_buf),
-            preview_hash,
-        );
         // Read first: changes committed while the queue is built are re-applied (idempotently).
         let change_seq = index.change_head()?;
         let (query, folder) = match source {
@@ -247,6 +260,8 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             preview_hash,
             previews: Default::default(),
             preview_notify: None,
+            custom_hashes_dirty: false,
+            rebuild: None,
             library: if declared.is_none() {
                 folder.as_ref().map(|p| p.join("library.json"))
             } else {
