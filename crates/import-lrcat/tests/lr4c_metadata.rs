@@ -68,7 +68,10 @@ fn lr4e_shape_mask_value_is_explicitly_diagnosed() {
             "s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{{{shape},MaskValue=0.3}}}}}}}}}}"
         );
         let (r, warnings) = lua_develop::parse(&row, "15.4").unwrap();
-        assert!(!warnings.is_empty());
+        assert!(
+            warnings.iter().any(|w| w.contains("MaskValue")),
+            "{warnings:?}"
+        );
         assert!(r.settings.locals.adjustments.is_empty());
         assert!(
             !import_lrcat::diagnostics::entries(&r)
