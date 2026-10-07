@@ -92,10 +92,37 @@ Print/documents (`document/io.rs`) use the same `Source::open`, so they also ori
   ("display orientation" in `lr8m_frame`; "the catalog orientation is the
   display orientation on both sides" in `lr8n_relinked_rgb`). In that commit
   the tessera-ffi test referred to `export::` (which resolves to
-  `crate::export`) and did not compile; fixed in `89d1c82c`.
+  `crate::export`) and did not compile; fixed in `89d1c82c`. The tessera-ffi
+  RED is instead established by the independent reviewer's mutation runs on
+  8a30f032 (REV-LR-8n, answer 3), all against
+  `lr8n_relinked_rgb_original_export_and_thumbnail_agree_with_develop`:
+  M1 (revert `source.rs` + ffi `export.rs` to main) fails at the display
+  orientation assertion; M2 (revert only ffi `export.rs`) fails export vs
+  Develop for orientation 3 (mean 31.9, max 116; tip 0.245 / 1); M3 (export
+  `source_orientation(StoredRgb)` -> 1) fails the same assertion.
 - `035f9533` fix(LR-8n)
 - `89d1c82c` test(LR-8n): rotated-frame control; tighten export bound
 - (this HANDOFF commit)
+
+## LR-8n2 follow-up (REV-LR-8n, merge-ready verdict)
+| Review item | Change | Evidence |
+|---|---|---|
+| S1 export AI-mask segmentation orientation for `StoredRgb` untested | `export/tests/ai_masks.rs::lr8n_stored_rgb_subject_export_segments_displayed_pixels_and_masks_the_stored_frame`: fake segmenter on `StoredRgb` 32x24, orientation 6. It asserts that the segmenter receives the display-oriented 24x32 input (the same contract as the RAW test `raw_subject_export_maps_display_mask_back_to_active_sensor_area`) and that the raster lands in the stored frame (displayed left half = stored bottom half; mask spans the stored width) | Passes on the fix. Under the reviewer's mutation M4 (`ai_masks.rs` `StoredRgb` orientation -> 1) it FAILS: `segmentation input is display-oriented (orientation 6)`, left (32, 24), right (24, 32). The mutation was reverted. |
+| N1 ordinary-import pin checked only the extent | `lr8m_frame.rs`: for each of EXIF 3/6/8, the ordinary JPEG import renders pixel-equal to a lossless upright PNG holding the decoder's rotated content (crop, mask, Upright and lens) | Passes |
+| N5 tessera-ffi RED | Cited the reviewer's M1-M3 above | none |
+| S2 relink guard (stored aspect transposed against the Smart Preview `default_crop`) | **Not done; recorded as a follow-up.** Relink is decided by `catalog::source_path`, which runs on every thumbnail, export, Develop open and cull. A guard there needs a header read of the original on each call (LibRaw for RAW), a cached verdict keyed by file identity, a tie rule for near-square images, and a user-visible warning channel. That is not cheap, and refusing a relink silently would be unsafe. The old code had the same exposure, so this is not a regression. | none |
+| S3 disclosures | MCP (`tessera-mcp` `pixels.rs`/`preview.rs`) is not catalog-aware and out of scope. It renders the proxy through `RgbSource::open` in the rotated frame, as it has since LR-8m, and never reaches a relinked original. `lrcat_fidelity.rs` (~250) renders JPEG originals in the rotated frame. If the S5 Adobe-pixel harness adds a rotated phone JPEG, that path must use the stored frame or it will report a false mismatch. | none |
+| N2-N4 | Not changed (pre-existing scale-axis choice for orientations 5-8; double decode of working-space DNG; rotated HEIC unverified, with none in the user's catalog) | none |
+
+### LR-8n2 gates (on 8205a888; origin/main still f77aae5d, no rebase needed)
+| Gate | Result |
+|---|---|
+| `cargo test --release --no-fail-fast -p export -p image-core -p tessera-ffi` | PASS: 1008 passed, 0 failed, 47 ignored |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | PASS |
+| `cargo fmt --all -- --check` | PASS |
+
+These are test-only commits, and no production code changed since 8a30f032,
+so the workspace, FFI and Swift gates below still apply.
 
 ## Gates (on 89d1c82c, after `cargo clean --release -p image-core -p pipeline-cpu -p pipeline-adobe -p export -p tessera-ffi`)
 | Gate | Result |
@@ -112,6 +139,7 @@ present), `lr8n_relinked_rgb` 1/1; tessera-ffi `lr8n_`, `all_catalog_orientation
 `sp_int*` and `lr13d*` filters all pass.
 
 ## Open items for the coordinator
+- S2 relink guard (see the LR-8n2 table).
 - Decide whether ordinary and online-catalog RGB imports should move to the
   stored frame (finding 3). That change would need a one-time recipe geometry migration.
 - No Adobe-rendered check for an RGB original. REV-SP-B S5's private 12-pair
