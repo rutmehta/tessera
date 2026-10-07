@@ -528,6 +528,25 @@ impl CameraLinearProxy {
             LensProfileSource::Database { .. } => !matches!(s.correction.source, Source::Database),
             LensProfileSource::AutoCalibrated => false,
         };
+        // ENG-7c: before ENG-7b, mode None and an unavailable named profile
+        // skipped the raw's built-in opcodes, so such a snapshot recorded no
+        // built-in correction and its pixels lack the raw-domain stages. It
+        // cannot be reinterpreted; report it as stale (regenerate from the
+        // original) rather than as a corrupt container.
+        if use_embedded
+            && parsed.present()
+            && matches!(
+                s.lens.profile,
+                LensProfileSource::None | LensProfileSource::Database { .. }
+            )
+            && !matches!(s.correction.source, Source::Embedded)
+        {
+            return Err(EngineError::Unsupported {
+                what: "smart preview stale: built before built-in lens corrections applied in \
+                       this lens mode; regenerate from original"
+                    .into(),
+            });
+        }
         if use_embedded && !parsed.stages[2].is_empty() {
             return Err(invalid("late sensor opcodes require original"));
         }

@@ -176,6 +176,33 @@ impl Engine {
             .map(Some)
             .map_err(failure)
     }
+    /// Remove a clean local preview (journal, pixels, pending intent). A dirty
+    /// journal refuses (`discard_clean`), so unsynced edits are never removed.
+    fn remove_local_preview(&self, id: ImageId) -> Result<()> {
+        if let Some((journal, _)) = self.local_smart_preview(id)? {
+            journal.discard_clean().map_err(failure)?;
+        }
+        let dir = self.smart_dir(id)?;
+        match fs::remove_file(dir.join("pixels.tsp")) {
+            Ok(()) => (),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+            Err(e) => return Err(e.into()),
+        }
+        match fs::remove_file(dir.join("sync-pending.json")) {
+            Ok(()) => (),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+            Err(e) => return Err(e.into()),
+        }
+        match fs::remove_dir(&dir) {
+            Ok(()) => (),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+            Err(e) => return Err(e.into()),
+        }
+        if dir.parent().unwrap().exists() {
+            fs::File::open(dir.parent().unwrap())?.sync_all()?;
+        }
+        Ok(())
+    }
     pub(crate) fn require_smart_preview_synced(&self, id: ImageId) -> Result<()> {
         if let Some((_, snapshot)) = self.local_smart_preview(id)?
             && snapshot.dirty
@@ -231,9 +258,22 @@ impl Engine {
         let write = gate.begin_write()?;
         let destination = self.smart_dir(id)?;
         if destination.try_exists()? {
-            return Err(failure(
-                "Smart Preview already exists; synchronize edits and discard before rebuilding",
-            ));
+            // ENG-7c: a clean (synchronized) Stale preview is replaced in place.
+            // Anything else, including a Stale preview with unsynced edits, is
+            // refused so no local edit is lost.
+            let stale_clean = match self.local_smart_preview(id)? {
+                Some((_, snapshot)) if !snapshot.dirty => self
+                    .load_smart_preview(id)
+                    .err()
+                    .is_some_and(|e| e.to_string().contains("stale")),
+                _ => false,
+            };
+            if !stale_clean {
+                return Err(failure(
+                    "Smart Preview already exists; synchronize edits and discard before rebuilding",
+                ));
+            }
+            self.remove_local_preview(id)?;
         }
         let path = self.original_path(id)?;
         let path_gate = crate::recipe_write::gate_for(&path)?;
@@ -345,35 +385,18 @@ impl Engine {
         let id = parse_id(&image_id)?;
         let gate = image_edit_admission::gate_for(id)?;
         let _write = gate.begin_write()?;
-        if let Some((journal, _)) = self.local_smart_preview(id)? {
-            journal.discard_clean().map_err(failure)?;
-        }
-        let dir = self.smart_dir(id)?;
-        match fs::remove_file(dir.join("pixels.tsp")) {
-            Ok(()) => (),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-            Err(e) => return Err(e.into()),
-        }
-        match fs::remove_file(dir.join("sync-pending.json")) {
-            Ok(()) => (),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-            Err(e) => return Err(e.into()),
-        }
-        match fs::remove_dir(&dir) {
-            Ok(()) => (),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-            Err(e) => return Err(e.into()),
-        }
-        if dir.parent().unwrap().exists() {
-            fs::File::open(dir.parent().unwrap())?.sync_all()?;
-        }
-        Ok(())
+        self.remove_local_preview(id)
     }
     pub fn synchronize_smart_preview(&self, image_id: String) -> Result<SmartPreviewInfo> {
         let id = parse_id(&image_id)?;
         let gate = image_edit_admission::gate_for(id)?;
         let write = gate.begin_write()?;
-        let (mut journal, snapshot, _, path) = self.load_smart_preview(id)?;
+        // ENG-7c: synchronizing publishes the journal's recipe; it never needs
+        // the pixels, so a Stale (undecodable) preview can still be synced.
+        let (mut journal, snapshot) = self
+            .local_smart_preview(id)?
+            .ok_or_else(|| failure("Smart Preview missing"))?;
+        let path = self.original_path(id)?;
         reconcile_acknowledged_intent(&journal)?;
         if !path.is_file() {
             return Err(failure(
