@@ -712,7 +712,7 @@ impl Renderer {
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
             return prepared.render_tiles(image, settings, coords, output, cancel, sink);
         }
-        if image.camera_linear_proxy().is_some() || image.metadata().catalog_orientation.is_some() {
+        if image.camera_linear_proxy().is_some() {
             return self.run_camera_linear_proxy(image, settings, coords, output, cancel, sink);
         }
         if Self::requires_cpu_chain(settings) {
@@ -763,7 +763,7 @@ impl Renderer {
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
             return prepared.render_progressive(image, settings, viewport, output, cancel, sink);
         }
-        if image.camera_linear_proxy().is_some() || image.metadata().catalog_orientation.is_some() {
+        if image.camera_linear_proxy().is_some() {
             cancel.check()?;
 
             for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
@@ -814,9 +814,7 @@ impl Renderer {
         }
         // The proxy reference route reduces after geometry, including partial
         // edge bins. Keep this rounding separate from original tiled previews.
-        if (image.camera_linear_proxy().is_some() || image.metadata().catalog_orientation.is_some())
-            && level > 0
-        {
+        if image.camera_linear_proxy().is_some() && level > 0 {
             return Ok(Self::output_extent(image, settings, 0)?.at_level(level));
         }
         let e = image.level_extent(level);
