@@ -353,6 +353,52 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn lr13b_thumbnail_reports_missing_or_corrupt_imported_mask() {
+        use engine_api::recipe::{
+            EditMeta, LocalAdjustment, LocalParams, MaskComponent, MaskKind, mask::AdobeAiMask,
+        };
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("synthetic.dng");
+        std::fs::write(
+            &path,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
+        let mut component = MaskComponent::new(MaskKind::Subject { model: None });
+        component.adobe_ai = Some(AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some([94; 32]),
+            regenerate: false,
+        });
+        let mut recipe = core::Recipe::default();
+        recipe
+            .edit(EditMeta::user("Imported mask", 1), |s| {
+                s.locals.adjustments.push(LocalAdjustment {
+                    components: vec![component],
+                    params: LocalParams {
+                        exposure: 1.,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+            })
+            .unwrap();
+        let result = render_imported(
+            &path,
+            engine_api::id::ImageId(1316),
+            &recipe,
+            root.path(),
+            4,
+        );
+        assert!(
+            result.is_err(),
+            "thumbnail silently discarded an unavailable imported raster"
+        );
+        assert!(result.unwrap_err().to_string().contains("mask"));
+    }
 }
 
 use engine_api::jobs::{Job, JobContext, Priority, Scheduler};
