@@ -636,3 +636,38 @@ After `cargo clean -p cull -p tessera-ffi`, with load averages of 19 to 37:
   3 skipped, 0 failures; 5 Swift Testing tests passed).
 - Strict release build (`-strict-concurrency=complete -warnings-as-errors`):
   complete.
+
+## LR-13f
+
+Follow-up to the third review (LR-13e). NB1, S1 to S3 and the nits were
+confirmed fixed. It found one new blocker (NB2), introduced by the LR-13e
+wake-latency nit. All fixtures are synthetic. The work was done by
+Claude Opus 5.5.
+
+### Review items
+
+| Finding | Code | Test |
+| --- | --- | --- |
+| NB2: the worker cleared `wake_pending` after every hashed image, so `Wake` tickets piled up in the 17-slot ticket channel during a multi-poll regroup job while hashing ran. `poll_previews` then blocked on `send` under the FFI session lock (reviewer: 200 ms per poll with a 40 ms provider). | `background.rs` worker: `wake_pending.load` instead of `swap(false)`. Only the queued `Wake` ticket clears the flag, so at most one Wake is queued; 16 hash tickets plus it fit the `WINDOW + 1` channel and sends never block. Early notification after each image is kept. Chosen over `try_send` with Full treated as success because it restores the invariant instead of masking a full channel. | `lr13f_poll_and_wake_never_block_while_provider_is_busy`: 40 images, provider blocked between images. Each round releases one image, then the host poll plus the job's wake must return while the provider is busy. Before the fix it stalled in round 2. |
+| Nit: singleton removal during a pending job | n/a | `lr13f_singleton_removal_during_pending_regroup_matches_reference` (the chain fixture gains one far, untimed singleton) |
+| Nit: hash gained while a job is pending (`add_source`) | n/a | `lr13f_hash_gained_during_pending_regroup_matches_reference` (removals in both halves keep the job multi-poll; the gain arrives mid-job; result matches the all-pairs reference) |
+
+Addition to the LR-13e worst-case note: new damage arriving while a job runs
+(another removal, or a changed hash) restarts the job from scratch
+(`schedule_default` resets its cursors). Steady removals from one huge
+component of distinct hashes can therefore keep a job running. The published
+groups stay the last complete result throughout.
+
+### Gate results
+
+After `cargo clean -p cull -p tessera-ffi`, with load averages of 11 to 62:
+
+- `cargo test --release` for cull, tessera-ffi, ml-embed and ml-quality:
+  **775 passed, 0 failed, 38 ignored**.
+- `cargo clippy --release --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --all -- --check`: clean.
+- `apps/mac/build-ffi.sh`: succeeded with no drift.
+- `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK** (927 XCTest executed,
+  3 skipped, 0 failures; 5 Swift Testing tests passed).
+- Strict release build (`-strict-concurrency=complete -warnings-as-errors`):
+  complete.
