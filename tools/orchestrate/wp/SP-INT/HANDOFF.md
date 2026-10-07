@@ -421,7 +421,7 @@ had not moved (`fc3e757d`), so no rebase was needed. Tests first.
 
 | Item | Code | Test |
 | --- | --- | --- |
-| NB1 (blocker) re-import silently dropped Tessera edits on in-place Smart Previews imported before SP-INT2 | (a) Apply re-keys every in-place Smart Preview in one pre-pass before any conflict check or write, so `existing_edit_conflict` judges the recipe the photo actually has; plan preview and apply agree. (b) `Sidecar::pin_protected_identities` (replaces `pin_protected_identity`) migrates rather than orphans: the recipe a path resolves to now (alias or legacy content key) is copied to the new key when that key has none, so byte-identical proxies that shared one legacy recipe each get a copy; the legacy object is removed once no remaining path alias references it (one directory listing per apply, only after a migration). With overwrite the copy is then replaced by the Lightroom recipe, so nothing is orphaned. (c) Key: `AgLibraryFile.id_global`, the UUID that already names each Smart Preview (`<id_global>.dng`) and that the importer uses to find it. It is unique per photo file across catalogs and does not change when the catalog is renamed or moved (SP-INT2 hashed the catalog path). Virtual copies share their master's file and Smart Preview, as before; a catalog duplicated from another keeps its ids, so the same photo resolves to the same recipe. (d) The pinned alias is written durably in the pre-pass, so skipped and resumed rows keep the key across a restart without a recipe write (N3) | `lrcat_rekey_tests.rs` (synthetic legacy state: content-keyed recipes carrying a Tessera edit from the app): without overwrite skipped and kept, plan and apply agree; with overwrite replaced, legacy object not orphaned; two byte-identical proxies with shared legacy edits both keep them; renamed and moved catalog (with its Smart Previews bundle) keeps edits; new keys survive a restart (child process) without a recipe write. RED 0/5, GREEN 5/5. Sidecar storage test moved to the batch API (11/11) |
+| NB1 (blocker) re-import silently dropped Tessera edits on in-place Smart Previews imported before SP-INT2 | (a) Apply re-keys every in-place Smart Preview in one pre-pass before any conflict check or write, so `existing_edit_conflict` judges the recipe the photo actually has; plan preview and apply agree. (b) **Superseded in SP-INT4 (NB2, NB3)**, which replaced this migration. `Sidecar::pin_protected_identities` (replaces `pin_protected_identity`) migrates rather than orphans: the recipe a path resolves to now (alias or legacy content key) is copied to the new key when that key has none, so byte-identical proxies that shared one legacy recipe each get a copy; the legacy object is removed once no remaining path alias references it (one directory listing per apply, only after a migration). With overwrite the copy is then replaced by the Lightroom recipe, so nothing is orphaned. (c) Key: `AgLibraryFile.id_global`, the UUID that already names each Smart Preview (`<id_global>.dng`) and that the importer uses to find it. It does not change when the catalog is renamed or moved (SP-INT2 hashed the catalog path). **Corrected in SP-INT4 (NS4):** it is *not* unique across catalogs: a duplicated or restored catalog keeps its ids. See SP-INT4 for how shared and conflicting ids are handled. Virtual copies share their master's file and Smart Preview, as before. (d) The pinned alias is written durably in the pre-pass, so skipped and resumed rows keep the key across a restart without a recipe write (N3) | `lrcat_rekey_tests.rs` (synthetic legacy state: content-keyed recipes carrying a Tessera edit from the app): without overwrite skipped and kept, plan and apply agree; with overwrite replaced, legacy object not orphaned; two byte-identical proxies with shared legacy edits both keep them; renamed and moved catalog (with its Smart Previews bundle) keeps edits; new keys survive a restart (child process) without a recipe write. RED 0/5, GREEN 5/5. Sidecar storage test moved to the batch API (11/11) |
 | NS2 request cache held full recipes | `PreviewSources` caches `ImportedFacts` (stored original path, catalog orientation, imported AI raster keys, Lens Blur depth key) only; bounded at 50,000 entries. Entries are reused while the caller's recipe hash and the owner recipe file's size and mtime are unchanged | `sp_int3_request_cache_holds_a_small_projection_not_the_recipe`: one proxy with a 1 MiB retained Lightroom payload. RED 1,054,721 bytes retained (bound 4,096), GREEN |
 | N4 model-folder listing per poll | Folded into NS2: the listing for Lens Blur identities is refreshed at most every 2 s per engine | Covered by the existing S6 identity test (identity computed directly) |
 | N1 stale original/orientation in the request key | The render identity includes the stored original path and the catalog orientation; the cache is keyed by the recipe file stamp as above | `sp_int3_request_key_tracks_stored_original_and_catalog_orientation`. RED (same key after the stored original changed), GREEN |
@@ -457,3 +457,46 @@ gates (same list as SP-INT2).
 - `3f280dfd` test(SP-INT3): print notes say Rendered from a Smart Preview
 - `f119d145` fix(SP-INT3): print and document notes say Rendered from a Smart Preview
 - `a04f2233` style(SP-INT3): clippy: test-only identity wrappers, function reference
+
+## SP-INT4 — migration safety and scale (REV3-SP)
+
+Review: `REV3-SP.out.md` (CHANGES-REQUIRED: NB2 and NB3 in the NB1
+migration), read completely. Commits sit on top of `261e3088`; `origin/main`
+had not moved (`fc3e757d`). Tests first. Coordinator ruling applied: a recipe
+is never deleted unless the recipe at its destination key holds identical
+bytes.
+
+| Item | Code | Test |
+| --- | --- | --- |
+| NB2 (blocker) migration deleted a recipe it never copied | `store::migrate_pins` replaced by `PinBatch` (`Sidecar::protected_pin_batch`; `protected_pin_preview` for the plan), with a per-photo `PinOutcome`. Destination absent: copy recipe and XMP (Migrated). Destination identical: share it (Shared when another source is pinned to it). Destination different and owned by another pinned source: **Conflict**: the photo keeps its own recipe and key; nothing is copied, merged or deleted. Destination different and owned by nobody (an interrupted migration): **Recovered**: the newer by mtime is on the key; if that is the legacy recipe the older copy is renamed to `<key>.backup-<ns>.json`, otherwise the legacy recipe is kept. A legacy recipe and its XMP are deleted in `finish()` only when no path or content alias references them and their bytes equal the destination's (N6: same rule for XMP). When a photo migrates, its content alias is pointed at the identical new object, so unmigrated sources with those bytes still find the edits | `sidecar/tests/pin_migration.rs`: two catalogs sharing a file id with different edits keep both (second reports Conflict and keeps reading its own); identical edits share one recipe and the legacy object is still deduplicated; crash after the copy before the key was saved, both directions (newer wins, other kept). RED was a compile error; the behavioural RED is REV3-SP's reproduction. GREEN 4/4 |
+| NB2 visible conflict (ruling) | The import report and the plan preview list "Edits conflict" (kept separate), "Edits recovered" and "Shared with another catalog" entries (`unsupported` issues) | `lrcat_rekey_tests::sp_int4_second_catalog_with_different_edits_keeps_them_and_reports_a_conflict` (plan and report; A keeps 1.25, B keeps 2.5). RED 0/1, GREEN |
+| NB3 (blocker) quadratic reference scan; no progress or cancel | Each store's `paths/` and `content/` alias directories are read once into reference counts. The apply pre-pass ticks `LrcatPhase::Preparing` ("Updating edit keys") and stops at a cancel request; `finish()` still runs for what was re-keyed | `pin_migration::migration_reads_each_alias_a_bounded_number_of_times`: 600 migrations read 1,200 alias files once (bound: aliases + 4 per pin; the old scan read every alias once per migrated object, about 720,000 reads here). A 20,000-recipe wall-clock bound was tried first and measured **451 s** under load 20-35; the time is three durable writes per photo (`sync_all` = F_FULLFSYNC on macOS, about 7 ms each), linear and now with progress and cancel. Expect several minutes for ~20k proxies on the first re-import after upgrade. The test was changed to the counted bound the coordinator allowed |
+| NS3 concurrent Develop save during the pre-pass | Each photo is re-keyed under its own `OriginalWriteReservation`; a photo whose edits are reserved keeps its recipe and is reported ("Edit key not updated", re-keyed on the next import) | `sp_int4_photo_open_in_develop_is_not_rekeyed_under_it`. RED 0/1, GREEN |
+| NS4 "unique across catalogs" claim; sharing not shown | SP-INT3 row corrected: `id_global` is stable across rename/move but not unique across catalogs (duplicated or restored catalogs keep it). Identical edits share one recipe and the report says so; differing edits are kept separate | `sp_int4_second_catalog_with_identical_edits_shares_and_reports_it`. RED 0/1, GREEN |
+| N5 double hashing | Each in-place proxy is content-hashed once per apply (in the pre-pass); afterwards its pinned alias resolves without hashing, and the content-alias update reuses the cached hash | Analysis; no separate test |
+| N6 XMP | Under the same never-delete-unless-identical rule (above) | Covered by the pin_migration tests (copy path) |
+
+Not done in SP-INT4: no lrcat-level test of cancellation during the
+pre-pass (the cancel check is the same flag the import loop uses, checked per
+photo); the items listed as open in SP-INT2/SP-INT3 remain open.
+
+### Final gates (SP-INT4)
+
+Env as above; `cargo clean --release -p` for every touched crate before the
+gates (same list as SP-INT2).
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release --workspace --no-fail-fast` | At `7334497f`: exit 0, **3493 passed, 0 failed, 108 ignored** (load 10-35). `raw_fixture_goldens`, `fixture_level3_matches_pipeline_cpu` (all cameras) and the real-RAW M10 parity ran and passed; no SKIPPED line |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | exit 0 (first attempt) |
+| `cargo fmt --all -- --check` | exit 0 |
+| `cd apps/mac && ./build-ffi.sh` | exit 0, no bindings drift |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: 996 tests, 3 skipped, 0 failures (load 8-23) |
+| strict release build | exit 0 (196 s); only the known BLAKE3 linker warning |
+
+### SP-INT4 commits
+
+- `2bab9f1d` test(SP-INT4): re-keying never deletes a differing recipe and scales linearly
+- `4a368047` fix(SP-INT4): never delete a recipe that differs from its destination; one reference scan
+- `f5de6747` test(SP-INT4): import reports edit-key conflicts, cross-catalog sharing and photos open in Develop
+- `7334497f` fix(SP-INT4): re-keying reports conflicts and sharing, reserves each photo, ticks and cancels
