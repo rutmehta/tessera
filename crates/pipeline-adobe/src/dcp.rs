@@ -1448,4 +1448,15 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn missing_second_illuminant_uses_first_matrix_without_hiding_bad_data() {
+        let mut entries = base();
+        entries.push((50722, 10, vec![2., 0., 0., 0., 2., 0., 0., 0., 2.]));
+        let single = DcpProfile::parse(&fixture(false, 0x4352, &base())).unwrap();
+        let missing = DcpProfile::parse(&fixture(false, 0x4352, &entries)).unwrap();
+        assert_eq!(missing.apply([0.2; 3], 5000.), single.apply([0.2; 3], 5000.));
+        entries.last_mut().unwrap().2 = vec![0.; 9];
+        assert!(DcpProfile::parse(&fixture(false, 0x4352, &entries)).is_err());
+    }
+
 }
