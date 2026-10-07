@@ -2,7 +2,10 @@ use crate::{Image, RenderSource, Rgb8Image, basic_tone, dcp::DcpProfile};
 use engine_api::{
     EngineError, EngineResult,
     color::{ChromaticAdaptation, ColorMatrix3, WorkingSpace},
-    recipe::{DevelopSettings, settings::DisplayTransform},
+    recipe::{
+        DevelopSettings,
+        settings::{DisplayTransform, GamutMapping},
+    },
 };
 
 /// Full-resolution compatibility operators followed by linear-light area reduction.
@@ -303,20 +306,21 @@ pub fn render_scaled_with_profile(
     profile: Option<&DcpProfile>,
 ) -> EngineResult<Rgb8Image> {
     let rgb = render_linear_scaled_with_profile(settings, source, scale, profile)?;
-    encode(&rgb)
+    encode(&rgb, settings.output.gamut_mapping)
 }
 
-fn encode(rgb: &Image) -> EngineResult<Rgb8Image> {
+/// The Adobe Output stage: linear sRGB under the recipe's gamut mapping
+/// (`pipeline_cpu::map_gamut`, Rec.2020 grey point), sRGB OETF, 8 bits.
+fn encode(rgb: &Image, gamut: GamutMapping) -> EngineResult<Rgb8Image> {
     let m = WorkingSpace::LinearSrgb.to_xyz().inverse()? * WorkingSpace::LinearRec2020.to_xyz();
     let mut output = Rgb8Image::new(rgb.width(), rgb.height());
     for (i, pixel) in output.pixels_mut().enumerate() {
-        let value = m.apply([
-            rgb.planes()[0][i] as f64,
-            rgb.planes()[1][i] as f64,
-            rgb.planes()[2][i] as f64,
-        ]);
+        let v: [f32; 3] = std::array::from_fn(|c| rgb.planes()[c][i]);
+        let y = 0.2627 * v[0] + 0.6780 * v[1] + 0.0593 * v[2];
+        let value = m.apply(v.map(f64::from)).map(|c| c as f32);
         *pixel = image::Rgb(
-            value.map(|v| (pipeline_cpu::srgb_oetf(v as f32).clamp(0., 1.) * 255.).round() as u8),
+            pipeline_cpu::map_gamut(value, y, gamut, 1.)
+                .map(|v| (pipeline_cpu::srgb_oetf(v).clamp(0., 1.) * 255.).round() as u8),
         );
     }
     Ok(output)

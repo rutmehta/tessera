@@ -212,7 +212,7 @@ impl CpuStageOp {
         let peak = headroom.map_or(1., pipeline_cpu::sanitize_headroom);
         let mut y = luminance.into_iter();
         pipeline_cpu::map_rgb(&mut input, |v| {
-            map_gamut(v, y.next().unwrap_or_default(), gamut, peak)
+            pipeline_cpu::map_gamut(v, y.next().unwrap_or_default(), gamut, peak)
         })?;
         if headroom.is_some() {
             return Ok(input);
@@ -224,26 +224,6 @@ impl CpuStageOp {
             .collect();
         Tile::from_samples(input.coord(), input.layout(), samples)
     }
-}
-
-/// Linear sRGB `v` with luminance `y` into `[0, peak]` under `gamut` (see
-/// [`CpuStageOp::adobe_display`]): chroma toward grey, as the export does.
-fn map_gamut(v: [f32; 3], y: f32, gamut: GamutMapping, peak: f32) -> [f32; 3] {
-    if gamut == GamutMapping::Clip {
-        return v.map(|c| c.clamp(0., peak));
-    }
-    let grey = y.clamp(0., peak);
-    let mut chroma = 1f32;
-    for c in v {
-        let d = c - grey;
-        if c < 0. {
-            chroma = chroma.min(-grey / d);
-        }
-        if c > peak {
-            chroma = chroma.min((peak - grey) / d);
-        }
-    }
-    v.map(|c| (grey + chroma * (c - grey)).clamp(0., peak))
 }
 
 impl StageOp for CpuStageOp {

@@ -130,6 +130,30 @@ pub fn display_float(
     )
 }
 
+/// Display-referred linear RGB `v` into `[0, peak]` under `gamut`, for
+/// renditions without the native sigmoid (the Adobe process, ENG-9). `y` is
+/// the pixel's working-space (Rec.2020) luminance, the grey point the managed
+/// export transform uses. `Clip` clamps each channel; `Perceptual` keeps hue
+/// and luminance and compresses chroma until every channel fits, as the
+/// export transform's search does.
+pub fn map_gamut(v: [f32; 3], y: f32, gamut: GamutMapping, peak: f32) -> [f32; 3] {
+    if gamut == GamutMapping::Clip {
+        return v.map(|c| c.clamp(0.0, peak));
+    }
+    let grey = y.clamp(0.0, peak);
+    let mut chroma = 1.0f32;
+    for c in v {
+        let d = c - grey;
+        if c < 0.0 {
+            chroma = chroma.min(-grey / d);
+        }
+        if c > peak {
+            chroma = chroma.min((peak - grey) / d);
+        }
+    }
+    v.map(|c| (grey + chroma * (c - grey)).clamp(0.0, peak))
+}
+
 /// Largest EDR headroom (linear multiple of SDR white) the HDR display
 /// transform accepts: 8 stops. Current EDR displays reach 16× (4 stops) and
 /// the value must stay well inside the half-float surface range.
