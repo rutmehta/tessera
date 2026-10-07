@@ -2,6 +2,8 @@
 //! normalized place, with the same look, on the full-resolution original once
 //! it is relinked. Both carry the same absolute catalog orientation.
 mod common;
+#[path = "common/raw_fixtures.rs"]
+mod raw_fixtures;
 #[allow(dead_code)]
 #[path = "../../raw-decode/tests/support/mod.rs"]
 mod support;
@@ -220,15 +222,16 @@ fn lr8m_proxy_edits_land_on_the_relinked_full_resolution_original() {
     assert_relink_parity(&path, 7500);
 }
 
-/// The same parity on a real camera file (skipped when fixtures/raw is absent).
+/// The same parity on a real camera file (ENG-6 fixture rules: a visible
+/// SKIPPED line when fixtures/raw is absent, a failure when required).
 #[test]
 fn lr8m_proxy_edits_land_on_a_relinked_real_raw() {
-    let root = std::env::var_os("PIPELINE_RAW_FIXTURES")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw"));
-    let path = root.join("sample.dng");
+    let path = raw_fixtures::root().join("sample.dng");
     if !path.exists() {
-        eprintln!("skipping: {} is absent", path.display());
+        raw_fixtures::skipped(
+            "lr8m_proxy_edits_land_on_a_relinked_real_raw",
+            "sample.dng is absent",
+        );
         return;
     }
     assert_relink_parity(&path, 7600);
