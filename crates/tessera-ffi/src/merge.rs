@@ -769,4 +769,46 @@ mod proxy_source_tests {
         a.validate().unwrap();
         b.validate().unwrap();
     }
+
+    /// REV-SP-B S2: libraries indexed before LR-8m hold orientation 1 for
+    /// catalog-oriented proxies; merges must use the catalog orientation, as
+    /// export's Source::open does, not the stale index row.
+    #[test]
+    fn sp_int2_merge_sources_prefer_the_catalog_orientation_over_the_index() {
+        let root = tempfile::tempdir().unwrap();
+        let photos = root.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let path = photos.join("proxy.dng");
+        std::fs::write(
+            &path,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
+        let engine =
+            crate::Engine::open(root.path().join("support").to_string_lossy().into_owned())
+                .unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine.list_images(Default::default()).unwrap()[0]
+            .id
+            .clone();
+        let indexed = engine.photo_sources(std::slice::from_ref(&id)).unwrap()[0].orientation;
+        let catalog = if indexed == 8 { 5 } else { 8 };
+        // The recipe gains a catalog orientation after indexing (an INT-era
+        // library): the index row is now stale.
+        let mut recipe = engine_api::recipe::Recipe::new(id.parse().unwrap());
+        recipe
+            .unknown
+            .insert("lightroom_orientation".into(), serde_json::json!(catalog));
+        sidecar::Sidecar::write_recipe(
+            sidecar::Sidecar::paths(&path).recipe,
+            &sidecar::RecipeDocument {
+                recipe,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(engine.photo_sources(&[id]).unwrap()[0].orientation, catalog);
+    }
 }
