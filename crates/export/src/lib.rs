@@ -332,7 +332,11 @@ pub fn needs_segmenter(recipe: &Recipe) -> bool {
         .filter(|g| g.enabled && g.amount != 0.)
         .flat_map(|g| &g.components)
         .flat_map(|c| c.active_leaves())
-        .any(|c| c.kind.is_ai() && c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_none())
+        .any(|c| {
+            c.kind.is_ai()
+                && !matches!(c.kind, engine_api::recipe::MaskKind::Depth { .. })
+                && c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_none()
+        })
 }
 
 /// Rendered pixels without writing a file (print, contact sheets): the same

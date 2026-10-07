@@ -868,7 +868,11 @@ pub(crate) enum Source {
     Raw(Box<(raw_decode::CfaImage, raw_decode::RawMetadata)>),
 }
 impl Source {
-    pub(crate) fn open(path: &Path, _orientation: u16) -> Result<Self> {
+    pub(crate) fn open(
+        path: &Path,
+        _orientation: u16,
+        process: engine_api::recipe::ProcessVersion,
+    ) -> Result<Self> {
         let orientation = catalog::catalog_orientation(path);
         let source = catalog::source_path(path);
         let path = source.as_path();
@@ -877,11 +881,18 @@ impl Source {
             .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
             && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(path)?)?
         {
-            let profile = image_core::pipeline_adobe::dcp::read_embedded_profile(
-                &mut std::fs::File::open(path)?,
-            )
-            .ok()
-            .flatten();
+            // Profile metadata belongs to the Adobe path (LR-13b): Native
+            // rendering never reads those optional tags. On the Adobe path a
+            // malformed profile falls back to the unprofiled render (LR-8d).
+            let profile = if process.family == engine_api::recipe::ProcessFamily::Adobe {
+                image_core::pipeline_adobe::dcp::read_embedded_profile(&mut std::fs::File::open(
+                    path,
+                )?)
+                .ok()
+                .flatten()
+            } else {
+                None
+            };
             let mut proxy =
                 pipeline_cpu::CameraLinearProxy::from_dng(dng)?.with_embedded_profile(profile);
             if let Some(orientation) = orientation {
@@ -1253,7 +1264,7 @@ impl Engine {
             }
             let result = plan.map_err(failure).and_then(|naming| {
                 let (recipe, packet) = self.recipe_and_xmp(item)?;
-                let source = Source::open(&item.path, item.orientation)?;
+                let source = Source::open(&item.path, item.orientation, recipe.process_version)?;
                 let image = export::ExportImage {
                     source: source.render_source(),
                     name: &name,
@@ -1492,7 +1503,7 @@ impl Engine {
             .pop()
             .ok_or_else(|| failure("image not found"))?;
         let (recipe, _) = self.recipe_and_xmp(&item)?;
-        let source = Source::open(&item.path, item.orientation)?;
+        let source = Source::open(&item.path, item.orientation, recipe.process_version)?;
         let crop = recipe.settings.geometry.crop.rect;
         let mut segmenter = if export::needs_segmenter(&recipe) {
             Some(
