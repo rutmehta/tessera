@@ -342,3 +342,58 @@ fn protected_rewrite_does_not_redirect_another_paths_existing_recipe() {
     );
     std::fs::remove_dir_all(root).unwrap();
 }
+
+/// SP-INT2 (REV-SP-A S5): in-place Smart Previews pinned to their catalog
+/// image keep separate recipes even when byte-identical, across restarts.
+#[test]
+fn pinned_protected_identities_keep_identical_sources_separate() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/.scratch-pinned");
+    let bundle = root.join("Catalog Smart Previews.lrdata/A/A1B2");
+    let support = root.join("support");
+    let photos = [bundle.join("A1B2-one.dng"), bundle.join("A1B2-two.dng")];
+    let register = || {
+        Sidecar::register_store(&bundle.canonicalize().unwrap(), &support);
+        for (i, photo) in photos.iter().enumerate() {
+            Sidecar::pin_protected_identity(photo, format!("catalog image {i}").as_bytes());
+        }
+    };
+    if std::env::var_os("TESSERA_TEST_PINNED_CHILD").is_some() {
+        Sidecar::register_store(&bundle.canonicalize().unwrap(), &support);
+        for (i, photo) in photos.iter().enumerate() {
+            let doc = Sidecar::read_recipe(Sidecar::paths(photo).recipe).unwrap();
+            assert_eq!(doc.recipe.settings.tone.exposure, i as f32 + 0.5);
+        }
+        return;
+    }
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&bundle).unwrap();
+    for photo in &photos {
+        std::fs::write(photo, b"byte-identical smart preview").unwrap();
+    }
+    register();
+    for (i, photo) in photos.iter().enumerate() {
+        let mut doc = RecipeDocument::default();
+        doc.recipe
+            .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+                s.tone.exposure = i as f32 + 0.5;
+            })
+            .unwrap();
+        Sidecar::write_recipe(Sidecar::paths(photo).recipe, &doc).unwrap();
+    }
+    assert_ne!(
+        Sidecar::paths(&photos[0]).recipe,
+        Sidecar::paths(&photos[1]).recipe
+    );
+    assert!(
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "pinned_protected_identities_keep_identical_sources_separate"
+            ])
+            .env("TESSERA_TEST_PINNED_CHILD", "1")
+            .status()
+            .unwrap()
+            .success()
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}

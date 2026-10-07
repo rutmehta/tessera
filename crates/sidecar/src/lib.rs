@@ -185,6 +185,19 @@ impl Sidecar {
         store::register_read_only(source, support);
     }
 
+    /// Key a protected (Lightroom-owned or read-only) source's recipe by an
+    /// owner identity instead of its content, e.g. an in-place Smart Preview
+    /// by its catalog image, so byte-identical files stay separate photos.
+    /// Published durably by the next write to that recipe. Ordinary sources
+    /// keep their adjacent sidecars and are unaffected.
+    pub fn pin_protected_identity(image_path: impl AsRef<Path>, identity: &[u8]) {
+        let image = image_path.as_ref();
+        if Self::is_lightroom_owned(image) || store::is_read_only(image) {
+            let key = blake3::derive_key("tessera protected recipe identity v1", identity);
+            store::pin(image, &blake3::Hash::from_bytes(key).to_hex());
+        }
+    }
+
     /// Lightroom bundle components are immutable source locations.
     pub fn is_lightroom_owned(path: impl AsRef<Path>) -> bool {
         lightroom_root(path.as_ref()).is_some()

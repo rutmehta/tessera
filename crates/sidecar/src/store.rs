@@ -70,18 +70,26 @@ enum Alias {
         content_hash: String,
         recipe_key: String,
     },
+    /// A path whose recipe identity was fixed by its owner (an in-place
+    /// Lightroom Smart Preview keyed by catalog image): never content-keyed,
+    /// so byte-identical sources stay separate recipes.
+    Pinned {
+        pinned: String,
+    },
     Key(String),
 }
 impl Alias {
     fn recipe_key(&self) -> &str {
         match self {
             Self::Path { recipe_key, .. } => recipe_key,
+            Self::Pinned { pinned } => pinned,
             Self::Key(key) => key,
         }
     }
     fn content_hash(&self) -> &str {
         match self {
             Self::Path { content_hash, .. } => content_hash,
+            Self::Pinned { pinned } => pinned,
             Self::Key(key) => key,
         }
     }
@@ -179,6 +187,14 @@ pub(super) fn paths(image: &Path) -> SidecarPaths {
         .to_string();
     let alias = store.join("paths").join(format!("{path_key}.json"));
     let previous = read_alias(&alias);
+    if let Some(pinned @ Alias::Pinned { .. }) = previous {
+        let recipe = recipe_path(&store, pinned.recipe_key());
+        register_aliases(&recipe, vec![(alias, pinned)]);
+        return SidecarPaths {
+            xmp: recipe.with_extension("xmp"),
+            recipe,
+        };
+    }
     // A path already owning a recipe wins over changed source bytes. Content
     // aliases point directly to stable object keys (never to another alias).
     let existing = previous
@@ -213,28 +229,51 @@ pub(super) fn paths(image: &Path) -> SidecarPaths {
     if let Some(content) = content {
         aliases.push((content_alias(&store, &content), Alias::Key(key)));
     }
-    {
-        let mut registry = registry().lock().unwrap_or_else(|e| e.into_inner());
-        for (alias, key) in aliases {
-            if let Some((previous, _)) = registry
-                .aliases
-                .insert(alias.clone(), (recipe.clone(), key.clone()))
-                && previous != recipe
-                && let Some(aliases) = registry.destinations.get_mut(&previous)
-            {
-                aliases.remove(&alias);
-            }
-            registry
-                .destinations
-                .entry(recipe.clone())
-                .or_default()
-                .insert(alias, key);
-        }
-    }
+    register_aliases(&recipe, aliases);
     SidecarPaths {
         xmp: recipe.with_extension("xmp"),
         recipe,
     }
+}
+
+fn register_aliases(recipe: &Path, aliases: Vec<(PathBuf, Alias)>) {
+    let mut registry = registry().lock().unwrap_or_else(|e| e.into_inner());
+    for (alias, key) in aliases {
+        if let Some((previous, _)) = registry
+            .aliases
+            .insert(alias.clone(), (recipe.to_path_buf(), key.clone()))
+            && previous != recipe
+            && let Some(aliases) = registry.destinations.get_mut(&previous)
+        {
+            aliases.remove(&alias);
+        }
+        registry
+            .destinations
+            .entry(recipe.to_path_buf())
+            .or_default()
+            .insert(alias, key);
+    }
+}
+
+/// Fix a protected source's recipe identity to `key` (64 hex characters).
+/// Lookup-only until the next write to that recipe publishes the alias.
+pub(super) fn pin(image: &Path, key: &str) {
+    let image = resolved_path(image);
+    let store = support(&image).join(".edits/lightroom");
+    let path_key = blake3::hash(image.as_os_str().as_encoded_bytes())
+        .to_hex()
+        .to_string();
+    let alias = store.join("paths").join(format!("{path_key}.json"));
+    let recipe = recipe_path(&store, key);
+    register_aliases(
+        &recipe,
+        vec![(
+            alias,
+            Alias::Pinned {
+                pinned: key.to_owned(),
+            },
+        )],
+    );
 }
 
 pub(super) fn persist_aliases(destination: &Path) -> EngineResult<()> {

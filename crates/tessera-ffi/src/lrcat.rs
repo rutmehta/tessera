@@ -1579,6 +1579,19 @@ impl LrcatImport {
                         "original_path": r.original_path
                     }),
                 );
+                // In place, the recipe of a Lightroom-owned Smart Preview is
+                // keyed by its catalog image, not its bytes (REV-SP-A S5), so
+                // byte-identical Smart Previews stay separate photos. Copies
+                // are already per image (M7) and keep adjacent sidecars.
+                Sidecar::pin_protected_identity(
+                    &r.path,
+                    format!(
+                        "lightroom smart preview\0{}\0{}",
+                        self.catalog.display(),
+                        image.catalog_id
+                    )
+                    .as_bytes(),
+                );
             }
             progress.tick(
                 LrcatPhase::WritingEdits,
