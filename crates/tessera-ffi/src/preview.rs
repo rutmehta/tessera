@@ -18,6 +18,7 @@ mod tests {
             max_px: 64,
             recipe_hash: String::new(),
             revision: [0; 32],
+            render: [0; 32],
         };
         engine
             .preview_states
@@ -540,6 +541,72 @@ pub(super) struct RequestKey {
     max_px: u32,
     recipe_hash: String,
     revision: [u8; 32],
+    /// Imported sources: render-plan version plus mask-raster availability
+    /// ([`imported_render_identity`]). Zero for ordinary originals.
+    render: [u8; 32],
+}
+
+/// Bump whenever the imported/proxy thumbnail render plan changes which
+/// pixels a given recipe produces (dependencies, mask hooks, effect resources).
+/// Version 2: LR-13b imported mask hooks, retouch and cached depth on proxies.
+pub(crate) const IMPORTED_RENDER_PLAN_VERSION: u32 = 2;
+
+/// Identity of an imported thumbnail beyond its recipe: the render-plan version
+/// and, for every imported AI raster the recipe references, whether a valid
+/// durable raster is present (and its payload revision). A raster appearing,
+/// disappearing or being replaced therefore re-renders instead of serving a
+/// stale frame or a cached failure. Reads at most 32 bytes per referenced raster.
+pub(crate) fn imported_render_identity(recipe: &core::Recipe, support: &Path) -> [u8; 32] {
+    render_identity(recipe, support, IMPORTED_RENDER_PLAN_VERSION)
+}
+
+pub(crate) fn render_identity(recipe: &core::Recipe, support: &Path, version: u32) -> [u8; 32] {
+    let mut hash = blake3::Hasher::new();
+    hash.update(b"tessera-imported-thumbnail\0");
+    hash.update(&version.to_le_bytes());
+    let mut keys: Vec<[u8; 32]> = recipe
+        .settings
+        .locals
+        .adjustments
+        .iter()
+        .flat_map(|g| &g.components)
+        .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+        .filter_map(|c| c.adobe_ai.as_ref().and_then(|a| a.mask_key))
+        .collect();
+    keys.sort_unstable();
+    keys.dedup();
+    if !keys.is_empty() {
+        // Not MaskStore::new: a listing request must not create directories.
+        let root = support.join("imported-masks");
+        let store = root
+            .is_dir()
+            .then(|| ml_segment::MaskStore::new(&root, 0).ok())
+            .flatten();
+        for key in keys {
+            hash.update(&key);
+            match store.as_ref().and_then(|s| s.pinned_revision(&key).ok()) {
+                Some(revision) => {
+                    hash.update(&[1]);
+                    hash.update(&revision);
+                }
+                None => {
+                    hash.update(&[0]);
+                }
+            }
+        }
+    }
+    *hash.finalize().as_bytes()
+}
+
+/// The owner's recipe when `path` is an imported (proxy or catalog-oriented)
+/// source, read once. Ordinary originals return None.
+fn imported_recipe(path: &Path) -> Option<core::Recipe> {
+    let recipe = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(path).recipe)
+        .ok()?
+        .recipe;
+    (recipe.unknown.contains_key("lightroom_smart_preview")
+        || recipe.unknown.contains_key("lightroom_orientation"))
+    .then_some(recipe)
 }
 pub(super) enum State {
     Pending,
@@ -563,6 +630,10 @@ impl Engine {
         .map_err(failure)?
         .file_hash;
         let default_hash = core::Recipe::default().recipe_hash().to_string();
+        let render = match imported_recipe(Path::new(&path)) {
+            Some(recipe) => imported_render_identity(&recipe, self.support_dir()?),
+            None => [0; 32],
+        };
         let request = RequestKey {
             image_id,
             max_px,
@@ -574,6 +645,7 @@ impl Engine {
                 recipe_hash
             },
             revision,
+            render,
         };
         let mut states = self.preview_states.lock().map_err(failure)?;
         match states.get(&request) {
@@ -692,6 +764,7 @@ impl Engine {
                 max_px,
                 recipe_hash: String::new(),
                 revision: [0; 32],
+                render: [0; 32],
             },
             path: path.into(),
             completed: true,
