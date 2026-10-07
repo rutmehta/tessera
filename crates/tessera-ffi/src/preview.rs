@@ -814,6 +814,47 @@ pub(crate) fn render_identity(recipe: &core::Recipe, support: &Path, version: u3
             }
         }
     }
+    // Lens Blur (REV-SP-A S6): the imported depth slot and whether any model
+    // weights are cached, so a frame that failed for lack of depth re-renders
+    // once either arrives. One stat per slot, one directory listing.
+    if let Some(blur) = &recipe.settings.effects.lens_blur {
+        hash.update(b"lens-blur\0");
+        if let Some(key) = blur.depth.as_ref().and_then(|d| d.mask_key) {
+            hash.update(&key);
+            let root = support.join("previews/depth-cache");
+            match root
+                .is_dir()
+                .then(|| ml_segment::MaskStore::new(&root, 0).ok())
+                .flatten()
+                .and_then(|s| s.pinned_revision(&key).ok())
+            {
+                Some(revision) => {
+                    hash.update(&[1]);
+                    hash.update(&revision);
+                }
+                None => {
+                    hash.update(&[0]);
+                }
+            }
+        }
+        let mut models: Vec<_> = std::fs::read_dir(support.join("models/cache"))
+            .into_iter()
+            .flatten()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name())
+            .filter(|n| {
+                std::path::Path::new(n)
+                    .extension()
+                    .is_some_and(|x| x == "onnx")
+            })
+            .collect();
+        models.sort();
+        for name in models {
+            hash.update(name.as_encoded_bytes());
+            hash.update(&[0]);
+        }
+        hash.update(&[u8::from(std::env::var_os("TESSERA_DEPTH_MODELS").is_some())]);
+    }
     *hash.finalize().as_bytes()
 }
 
