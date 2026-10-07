@@ -655,6 +655,34 @@ impl Renderer {
         rect: PixelRect,
         output: RenderOutput,
     ) -> EngineResult<Vec<Tile>> {
+        let mut out = Vec::new();
+        self.render_region_into(
+            image,
+            settings,
+            level,
+            rect,
+            output,
+            &CancellationToken::new(),
+            &mut |t| out.push(t),
+        )?;
+        Ok(out)
+    }
+
+    /// [`Renderer::render_region_as`] with the caller's cancellation,
+    /// delivering each tile to `sink` in raster order instead of collecting
+    /// them (ENG-10: Adobe-process exports draw whole frames this way, so no
+    /// tile vector of the frame is retained beside the caller's copy).
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_region_into(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        rect: PixelRect,
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        sink: &mut dyn FnMut(Tile),
+    ) -> EngineResult<()> {
         let planned;
         let settings = if let Some(proxy) = image.camera_linear_proxy() {
             planned = proxy
@@ -670,7 +698,7 @@ impl Renderer {
             settings
         };
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
-            return prepared.render_region_as(image, settings, level, rect, output);
+            return prepared.render_region_into(image, settings, level, rect, output, cancel, sink);
         }
         if image.camera_linear_proxy().is_some() {
             self.validate_camera_linear_proxy(image, settings)?;
@@ -678,16 +706,7 @@ impl Renderer {
         self.validate_settings(settings)?;
         let extent = Self::output_extent(image, settings, level)?;
         let coords = Self::tiles_in_extent(extent, level, rect);
-        let mut out = Vec::with_capacity(coords.len());
-        self.render_tiles(
-            image,
-            settings,
-            &coords,
-            output,
-            &CancellationToken::new(),
-            &mut |t| out.push(t),
-        )?;
-        Ok(out)
+        self.render_tiles(image, settings, &coords, output, cancel, sink)
     }
 
     /// Renders specific output tiles (all of one level), delivering each to

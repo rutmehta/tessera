@@ -1,4 +1,5 @@
 //! Full-resolution image export.
+mod adobe_render;
 mod ai_masks;
 mod batch;
 mod depth;
@@ -473,6 +474,7 @@ pub fn render_pixels_with_notes(
             &mut notes,
             support,
             retouch,
+            cancel,
         )?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else if !recipe.settings.locals.retouch.is_empty() {
@@ -875,6 +877,7 @@ pub fn render_one_cancellable(
             &mut warnings,
             settings.mask_support.as_deref(),
             settings.retouch.clone(),
+            cancel,
         )?;
         let rgb = match upscale {
             Some(model) => upscale_rgb(rgb, model)?,

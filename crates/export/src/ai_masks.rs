@@ -179,6 +179,22 @@ fn ready_masks(
     warnings: &mut Vec<String>,
     mask_support: Option<&std::path::Path>,
 ) -> EngineResult<MaskRasterCache> {
+    let cache = MaskRasterCache::new(0);
+    if let Some(hooks) = ready_hooks(source, settings, segmenter, warnings, mask_support)? {
+        cache.set_hooks(Some(hooks));
+    }
+    Ok(cache)
+}
+
+/// The materialized external rasters as mask hooks; `None` when the recipe
+/// requests no external component (procedural masks need no hooks).
+fn ready_hooks(
+    source: &RenderSource<'_>,
+    settings: &DevelopSettings,
+    segmenter: Option<&mut dyn MaskSegmenter>,
+    warnings: &mut Vec<String>,
+    mask_support: Option<&std::path::Path>,
+) -> EngineResult<Option<Arc<dyn MaskHooks>>> {
     let (w, h, metadata) = match source {
         RenderSource::Rgb(i) | RenderSource::StoredRgb { image: i, .. } => {
             (i.width(), i.height(), None)
@@ -229,7 +245,7 @@ fn ready_masks(
         }
     }
     if requests.is_empty() {
-        return Ok(MaskRasterCache::new(0));
+        return Ok(None);
     }
     // Stable as-shot segmentation input; it is independent of local/global edits.
     let scale = w.max(h).div_ceil(2048).max(1);
@@ -356,9 +372,7 @@ fn ready_masks(
             },
         ));
     }
-    let cache = MaskRasterCache::new(0);
-    cache.set_hooks(Some(Arc::new(ReadyMasks(rasters))));
-    Ok(cache)
+    Ok(Some(Arc::new(ReadyMasks(rasters))))
 }
 
 /// Develop's renderer for every Adobe-process recipe (RAW and RGB originals
@@ -367,6 +381,11 @@ fn ready_masks(
 /// post-demosaic denoise and process family as Develop. Adobe pixels never
 /// receive a Native sigmoid. Returns display-referred linear Rec.2020 floats
 /// before the managed output transform.
+///
+/// Adobe-process recipes are drawn by Develop's renderer itself at the level
+/// of `scale` ([`crate::adobe_render`], ENG-10); `scale` must then be 1, 2,
+/// 4 or 8.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_develop(
     source: &RenderSource<'_>,
     recipe: &engine_api::recipe::Recipe,
@@ -375,10 +394,59 @@ pub(crate) fn render_develop(
     warnings: &mut Vec<String>,
     support: Option<&std::path::Path>,
     retouch: Option<Arc<dyn pipeline_cpu::RetouchRenderer>>,
+    cancel: &engine_api::jobs::CancellationToken,
 ) -> EngineResult<image::Rgb32FImage> {
     let mut settings = recipe.settings.clone();
     settings.output.proof_profile = None;
-    let cache = ready_masks(source, &settings, segmenter, warnings, support)?;
+    let adobe = recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe;
+    if adobe {
+        // Fail before materializing any resource.
+        crate::adobe_render::level(scale)?;
+    }
+    let hooks = ready_hooks(source, &settings, segmenter, warnings, support)?;
+    // Originals resolve the model root like every other export (proxies keep
+    // their render plan, which drops Lens Blur without a depth resource).
+    let proxy = matches!(source, RenderSource::CameraLinear(_));
+    let depth_root = match support {
+        Some(root) => Some(root.to_path_buf()),
+        None if !proxy && settings.effects.lens_blur.is_some() => Some(crate::depth::support()?),
+        None => None,
+    };
+    let depth_provider = if settings.effects.lens_blur.is_some() {
+        depth_root
+            .as_deref()
+            .map(|root| image_core::depth::DepthProvider::from_support(root).map(Arc::new))
+            .transpose()?
+    } else {
+        None
+    };
+    let denoiser = match support {
+        Some(root) => crate::depth::denoiser(source, &settings, root)?,
+        None if matches!(source, RenderSource::Cfa { .. })
+            && pipeline_cpu::denoise_active(&settings.denoise) =>
+        {
+            crate::depth::denoiser(source, &settings, &crate::depth::support()?)?
+        }
+        None => None,
+    };
+    if adobe {
+        // ENG-10: Develop's own renderer, at the level of the render scale.
+        return crate::adobe_render::render(
+            source,
+            recipe.process_version,
+            &settings,
+            scale,
+            crate::adobe_render::Resources {
+                masks: hooks,
+                retouch,
+                depth: depth_provider,
+                denoiser,
+            },
+            cancel,
+        );
+    }
+    let cache = MaskRasterCache::new(0);
+    cache.set_hooks(hooks);
     let locals = |input: &Image, groups: &[LocalAdjustment]| {
         let mut planes = input.planes().to_vec();
         for group in groups
@@ -404,26 +472,8 @@ pub(crate) fn render_develop(
         }
         Image::new(input.width(), input.height(), planes)
     };
-    // Originals resolve the model root like every other export (proxies keep
-    // their render plan, which drops Lens Blur without a depth resource).
-    let proxy = matches!(source, RenderSource::CameraLinear(_));
-    let depth_root = match support {
-        Some(root) => Some(root.to_path_buf()),
-        None if !proxy && settings.effects.lens_blur.is_some() => Some(crate::depth::support()?),
-        None => None,
-    };
-    let depth_renderer = if settings.effects.lens_blur.is_some() {
-        depth_root
-            .as_deref()
-            .map(|root| {
-                image_core::depth::DepthProvider::from_support(root).map(|provider| {
-                    image_core::Renderer::new(Default::default()).with_depth(Arc::new(provider))
-                })
-            })
-            .transpose()?
-    } else {
-        None
-    };
+    let depth_renderer = depth_provider
+        .map(|provider| image_core::Renderer::new(Default::default()).with_depth(provider));
     let depth_effects = |input: &Image| {
         depth_renderer
             .as_ref()
@@ -437,42 +487,13 @@ pub(crate) fn render_develop(
             .map(|_| &depth_effects as &pipeline_cpu::DepthEffectHook<'_>),
         ..Default::default()
     };
-    let denoiser = match support {
-        Some(root) => crate::depth::denoiser(source, &settings, root)?,
-        None if matches!(source, RenderSource::Cfa { .. })
-            && pipeline_cpu::denoise_active(&settings.denoise) =>
-        {
-            crate::depth::denoiser(source, &settings, &crate::depth::support()?)?
-        }
-        None => None,
-    };
     let denoiser = denoiser
         .as_ref()
         .map(|d| d as &dyn pipeline_cpu::PostDemosaicDenoise);
-    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe {
-        let rgb = image_core::pipeline_adobe::render_linear_scaled_with_denoiser(
-            &settings,
-            source,
-            scale,
-            None,
-            Some(&locals),
-            &context,
-            denoiser,
-        )?;
-        Ok(image::Rgb32FImage::from_fn(
-            rgb.width(),
-            rgb.height(),
-            |x, y| {
-                let i = (y * rgb.width() + x) as usize;
-                image::Rgb(std::array::from_fn(|c| rgb.planes()[c][i]))
-            },
-        ))
-    } else {
-        let rgb = pipeline_cpu::render_linear_scaled_with_local_hook(
-            &settings, source, scale, &context, None, denoiser, &locals,
-        )?;
-        Ok(crate::depth::tone_map(rgb))
-    }
+    let rgb = pipeline_cpu::render_linear_scaled_with_local_hook(
+        &settings, source, scale, &context, None, denoiser, &locals,
+    )?;
+    Ok(crate::depth::tone_map(rgb))
 }
 
 #[cfg(test)]
