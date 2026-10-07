@@ -537,7 +537,15 @@ fn lr_clean_resident_presence_near_black_matches_cpu() {
             clarity,
             ..Default::default()
         };
-        let actual = resident(&gpu, &input, &s, &LocalToneOptions { preview: false, statistics_key: key(9071) });
+        let actual = resident(
+            &gpu,
+            &input,
+            &s,
+            &LocalToneOptions {
+                preview: false,
+                statistics_key: key(9071),
+            },
+        );
         let expected = pipeline_cpu::tone_extra_image(&input, &s).unwrap();
         let max = actual
             .planes()

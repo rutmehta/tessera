@@ -307,3 +307,11 @@ Tests cover persistent Agent history and envelopes, rejected mutations, masks,
 crop, style lookup/amount, selection, histogram bins, comparison images/metrics,
 export pixels, CLI exec, in-memory MCP initialization/list/call/resources, invalid
 schema errors, and a spawned stdio server.
+
+### LR-CLEAN owner note: preview scale changes
+
+No-spot recipes retain the selected backend and its existing preview scale-switch
+behavior: neighborhood operations can differ across levels because previews run
+at the requested scale. Retouch (and local features requiring CPU) selects the CPU
+chain before admission/Upright analysis. Do not infer that the retouch CPU-chain
+consistency guarantee extends to a no-spot recipe when switching preview levels.

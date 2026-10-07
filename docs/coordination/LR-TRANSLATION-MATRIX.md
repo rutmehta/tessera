@@ -12,6 +12,7 @@ field or operator the existing recipe cannot express. Lane assignments for
 unnamed residual features are LR-2 for tone/color and LR-7 for geometry/metadata;
 the coordinator should review these assignments before implementation.
 
+- `cloud`: warning-level diagnostic for an operation requiring Adobe cloud; source is retained and the cloud result is not rendered.
 - `retained`: exact source is kept, including partially decoded structures and
   inactive values. It does not mean nothing renders.
 - `unsupported-diagnostic`: unsupported source yields a diagnostic and is kept.
@@ -78,11 +79,11 @@ structure; a scalar or empty payload is not proof of full structure coverage.
 | `Contrast` | `/settings/tone/legacy_pv2010/contrast` | LR-2 | approximate; no-op when default | `50` |
 | `ConvertToGrayscale` | `/settings/color/monochrome/enabled` | LR-2 | approximate; no-op when default | `true` |
 | `CurveRefineSaturation` | MISSING: tone-curve saturation refinement | LR-2 | unsupported-diagnostic; no-op when default | — |
-| `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic | — |
+| `DepthBasedCorrections` | /settings/locals/adjustments (MaskKind::Depth) | LR-4 | unsupported-diagnostic; no-op when default (empty) | — |
 | `DepthMapInfo` | `/settings/effects/lens_blur/depth` | LR-6 | approximate | `{ DepthSource = "synthetic", BaseRawDepthTable = "synthetic-id" }` |
-| `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | unsupported-diagnostic; no-op when default | — |
-| `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
-| `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | unsupported-diagnostic | — |
+| `EnableDistractionRemoval` | MISSING: cloud removal result/resource and execution semantics | LR-7 | cloud; no-op when default | `true,FilterList={{What="synthetic"}}` |
+| `GenerativeRemove` | requires Adobe cloud; not translatable | LR-7 | cloud | `true` |
+| `GenerativeFill` | requires Adobe cloud; not translatable | LR-7 | cloud | `true` |
 | `Exposure` | `/settings/tone/legacy_pv2010/exposure` | LR-2 | approximate; no-op when default | `1` |
 | `ExtendedToneCurveName2012` | MISSING: HDR-domain curve/name; /settings/tone/curves is normalized SDR | LR-2 | retained | — |
 | `ExtendedToneCurvePV2012` | `/settings/tone/curves_extended/rgb` | LR-2 | approximate | `{0,0,255,300,510,600}` |
@@ -370,7 +371,9 @@ retain their existing approximation contract.
 
 Retouch accepts `HealVersion`, `MaskID`, `CenterWeight`, and absolute source-Y
 spelling `OffsetY`. Stateful dab commands `r`/`f`/`h` update stamp radius, flow
-and hardness; `CenterWeight` maps to brush and circle feather.
+and hardness. For circles, mapping `CenterWeight` to feather is an unverified
+assumption; explicit Feather must agree with that interpretation or the spot is
+retained with a warning.
 Conflicting `SourceY` and `OffsetY` values retain source and warn. Equal uppercase/lowercase aliases are accepted; conflicts
 fail closed. A redundant ellipse is accepted only when its center and both radii
 match the supported flat circular spot and its selection controls are neutral.
@@ -442,3 +445,8 @@ with a no-feature admission control. Synthetic Lua and XMP fixtures cover every
 item, including retained radial conflict. The import-to-CPU reference tolerance
 is 2e-6 scene-linear; exact source, one Import history entry, and field-matching
 info diagnostics are checked independently.
+
+LR-CLEAN clarification: native linear-light luminance masks exported as Adobe XMP
+are read by Lightroom on its perceptual luminance scale; this does not preserve
+linear-light selection semantics across applications. Non-Paint `MaskValue != 1`
+is unsupported: retain source and warn rather than report a rendered approximation.
