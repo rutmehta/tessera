@@ -355,7 +355,12 @@ one. Resource IDs are opaque, never filenames. An injected raster must have the
 extent the renderer masks in, measured with the renderer's own recognizer and
 decoder: RGB sources after EXIF orientation, RAW sources by active sensor area
 (never a container preview or unrotated file dimensions). The source is only
-measured for an AI-masked image when a resolver is supplied.
+measured for an AI-masked image when a mask resolver is supplied, through the
+mask-specific guarded closure. The separate depth extent measurement runs only
+when a depth resolver is supplied. Each apply attempts at most 256 resources;
+invalid resources consume that attempt budget. The validated extent determines
+u16 output cost before resolution, and no further resource is resolved once
+another plane cannot fit the 256 MiB accepted-output budget.
 Raster provenance fields (`FullMaskSize`, `LocalInputDigest`,
 `LocalInputDigestVersion`) are accepted on AI mask kinds only. Retained person, part
 and instance masks report "AI person, part or instance selection is not implemented".

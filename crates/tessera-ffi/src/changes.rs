@@ -180,15 +180,19 @@ impl Engine {
     /// crash-orphaned content. Dry runs never modify the index or mask store.
     pub fn prune_missing(&self, dry_run: bool) -> Result<u32> {
         let mut state = self.lock()?;
-        let removed = state.index.prune_missing(dry_run)?;
+        let admission = crate::lrcat_masks::admission()?;
         if !dry_run {
-            crate::lrcat_masks::prune_missing(self.support_dir()?, |id| {
-                !matches!(
-                    state.index.image_info(id),
-                    Err(engine_api::EngineError::NotFound { .. })
-                )
+            // A published/resumable import may not have reached indexing yet.
+            // Only a known original proven absent establishes a dead owner.
+            admission.prune_missing(self.support_dir()?, |id| {
+                state
+                    .index
+                    .image_info(id)
+                    .map_or(true, |info| info.path.try_exists().unwrap_or(true))
             })?;
         }
+        let removed = state.index.prune_missing(dry_run)?;
+        drop(admission);
         drop(state);
         if !dry_run {
             self.notify_changes();
@@ -205,6 +209,12 @@ impl Engine {
             .map(|id| crate::parse_id(id))
             .collect::<Result<Vec<_>>>()?;
         let mut state = self.lock()?;
+        let admission = crate::lrcat_masks::admission()?;
+        let known: std::collections::HashSet<_> = ids
+            .iter()
+            .copied()
+            .filter(|id| state.index.image_info(*id).is_ok())
+            .collect();
         let removed = state.index.forget_missing(&ids)?;
         let depth_root = self.support_dir()?.join("previews/depth-cache");
         sidecar::Sidecar::ensure_destination(&depth_root, "remove imported depth")?;
@@ -217,11 +227,14 @@ impl Engine {
                 state.index.image_info(*id),
                 Err(engine_api::EngineError::NotFound { .. })
             ) {
-                gone.push(*id);
+                if known.contains(id) {
+                    gone.push(*id);
+                }
                 store.remove_pinned(&image_core::depth::imported_depth_key(*id))?;
             }
         }
-        crate::lrcat_masks::remove_images(self.support_dir()?, gone)?;
+        admission.remove_images(self.support_dir()?, gone)?;
+        drop(admission);
         drop(state);
         self.notify_changes();
         Ok(removed as u32)

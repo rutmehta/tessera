@@ -755,6 +755,13 @@ fn lr5d_mask_only_resolver_measures_only_ai_sources_once() {
             "s={Exposure2012=1}".into()
         };
         let (engine, _, fixture) = catalog_with(temp.path(), &source);
+        // The stock fixture has originals without develop rows. Give every
+        // original this test's source so the expected measurement count covers
+        // all imported images, without changing the assertion or its bound.
+        rusqlite::Connection::open(&fixture.catalog).unwrap().execute(
+            "INSERT INTO Adobe_imageDevelopSettings SELECT id_local, ?1, '15.4' FROM Adobe_images WHERE id_local NOT IN (SELECT image FROM Adobe_imageDevelopSettings)",
+            [&source],
+        ).unwrap();
         let import = engine
             .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
             .unwrap();

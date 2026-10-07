@@ -1118,7 +1118,16 @@ fn component_raster_key(c: &MaskComponent) -> Option<String> {
     c.adobe_ai
         .as_ref()
         .and_then(|s| s.mask_key)
-        .map(|key| format!("imported:{}", blake3::Hash::from_bytes(key).to_hex()))
+        .and_then(|key| {
+            // Disk identity deduplicates immutable pixels. Session identity must
+            // also distinguish every fallback request if those pixels disappear.
+            ai_key(&c.kind).map(|request| {
+                format!(
+                    "imported:{}:{request}",
+                    blake3::Hash::from_bytes(key).to_hex()
+                )
+            })
+        })
         .or_else(|| ai_key(&c.kind))
 }
 
@@ -3030,7 +3039,9 @@ mod lr5d_fallback_tests {
             assert_eq!(hooks.rasterize(&input, &mixed, 0).unwrap(), vec![0.; 4]);
             assert!(!session.shared.masks.group_available(&mixed));
         }
-        let mut recipe = engine_api::recipe::Recipe::new(engine_api::id::ImageId(1));
+        let mut recipe = import_lrcat::develop(1, "s={Exposure2012=1}", "15.4")
+            .unwrap()
+            .0;
         recipe.set_imported_masks(groups.clone()).unwrap();
         let input_export = export::ExportImage {
             source: pipeline_cpu::RenderSource::Rgb(&input),

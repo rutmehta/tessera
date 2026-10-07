@@ -5,6 +5,21 @@ use ml_segment::{MaskRaster, MaskStore};
 
 pub(crate) const MAX_SLOTS: usize = 256;
 const MAX_BYTES: u64 = 256 << 20;
+// One in-process admission domain for publication and collection, including
+// separate Engine instances. Lock order is Engine state -> admission; publishing
+// sidecars under admission must never acquire Engine state or call host callbacks.
+static PUBLICATION: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+pub(crate) struct Admission {
+    _guard: std::sync::MutexGuard<'static, ()>,
+}
+
+pub(crate) fn admission() -> Result<Admission> {
+    Ok(Admission {
+        _guard: PUBLICATION.lock().map_err(failure)?,
+    })
+}
+
 const REGENERATED: &str = "regenerated: no Adobe mask raster; Tessera re-segments at render";
 
 pub(crate) fn has_masks(recipe: &Recipe) -> bool {
@@ -92,6 +107,7 @@ fn publish_without_masks(
     root: &std::path::Path,
     publish: impl FnOnce(&Recipe) -> Result<()>,
 ) -> Result<()> {
+    let _admission = admission()?;
     publish(recipe)?;
     // No record, or no store at all, is the common case. A record that cannot
     // be removed is a harmless superset; the import itself has succeeded.
@@ -118,8 +134,8 @@ pub(crate) fn import(
     apply(recipe, id, extent(), &store, resolve, publish)
 }
 
-/// At most 256 rasters and 256 MiB per apply. Immutable content keys mean a
-/// failed or interrupted apply can never change pixels an existing recipe
+/// At most 256 attempted resources and 256 MiB of accepted u16 output per apply.
+/// Immutable content keys mean a failed or interrupted apply can never change pixels an existing recipe
 /// references. The owner record lists what the published recipe references.
 pub(crate) fn apply(
     recipe: &mut Recipe,
@@ -140,6 +156,11 @@ pub(crate) fn apply(
         .collect();
     let mut rasters = Vec::new();
     let mut bytes = 0;
+    let mut attempts = 0;
+    // Validate before calling the resolver, not after allocating or decoding.
+    let pixels = u64::from(extent.0) * u64::from(extent.1);
+    let output_cost =
+        (extent.0 != 0 && extent.1 != 0 && pixels <= (MAX_BYTES - 48) / 4).then(|| pixels * 2 + 48);
     let mut unresolved = false;
     let mut any = false;
     while let Some(c) = stack.pop() {
@@ -151,24 +172,15 @@ pub(crate) fn apply(
             continue;
         };
         any = true;
-        let raster = if rasters.len() < MAX_SLOTS {
-            state
-                .resource_id
-                .as_deref()
-                .and_then(&mut resolve)
-                .and_then(|b| decode(&b, extent))
-                .filter(|r| {
-                    let size = r.data().len() as u64 * 2 + 48;
-                    if bytes + size > MAX_BYTES {
-                        false
-                    } else {
-                        bytes += size;
-                        true
-                    }
-                })
-        } else {
-            None
-        };
+        let raster = output_cost
+            .filter(|cost| attempts < MAX_SLOTS && *cost <= MAX_BYTES - bytes)
+            .and_then(|cost| {
+                let resource = state.resource_id.as_deref()?;
+                attempts += 1;
+                let raster = resolve(resource).and_then(|b| decode(&b, extent))?;
+                bytes += cost;
+                Some(raster)
+            });
         state.mask_key = raster.as_ref().map(MaskRaster::content_key);
         state.regenerate = raster.is_none();
         unresolved |= state.regenerate;
@@ -191,6 +203,7 @@ pub(crate) fn apply(
     }
     // Write immutable blobs before publication. A crash can leave only orphans,
     // never different pixels under a key that an existing recipe already owns.
+    let _admission = admission()?;
     let owner = owner_path(store, id);
     let prior = owner_keys(&owner)?;
     let mut current = Vec::new();
@@ -226,81 +239,96 @@ pub(crate) fn apply(
     Ok(())
 }
 
-/// Drops the ownership records of removed images and collects their content
-/// once for the batch. An image that never owned an imported raster costs one
-/// failed unlink: no store is opened and no directory is listed.
-pub(crate) fn remove_images(
-    support: &std::path::Path,
-    ids: impl IntoIterator<Item = ImageId>,
-) -> Result<()> {
-    let owners = support.join("imported-masks").join("owners");
-    let mut removed = false;
-    for id in ids {
-        match std::fs::remove_file(owners.join(id.to_string())) {
-            Ok(()) => removed = true,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e.into()),
-        }
-    }
-    if removed {
-        prune_missing(support, |_| true)
-    } else {
-        Ok(())
-    }
+#[cfg(test)]
+fn remove_images(support: &std::path::Path, ids: impl IntoIterator<Item = ImageId>) -> Result<()> {
+    admission()?.remove_images(support, ids)
 }
 
-/// Explicit maintenance, not a per-pin write scan. Keeps shared and historical
-/// keys of live owners; removes missing owners and crash-orphaned blobs.
-pub(crate) fn prune_missing(
-    support: &std::path::Path,
-    mut alive: impl FnMut(ImageId) -> bool,
-) -> Result<()> {
-    #[cfg(test)]
+#[cfg(test)]
+fn prune_missing(support: &std::path::Path, alive: impl FnMut(ImageId) -> bool) -> Result<()> {
     lr5d_race_tests::before_collection();
-    let root = support.join("imported-masks");
-    if !root.exists() {
-        return Ok(());
-    }
-    let owners = root.join("owners");
-    let pinned = root.join("pinned");
-    for path in [&root, &owners, &pinned] {
-        sidecar::Sidecar::ensure_destination(path, "prune imported masks")?;
-    }
-    let mut retained = std::collections::HashSet::new();
-    if owners.exists() {
-        for entry in std::fs::read_dir(&owners)? {
-            let entry = entry?;
-            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
-                continue;
-            };
-            let Ok(id) = crate::parse_id(&name) else {
-                continue;
-            };
-            if alive(id) {
-                retained.extend(owner_keys(&entry.path())?);
-            } else {
-                std::fs::remove_file(entry.path())?;
+    admission()?.prune_missing(support, alive)
+}
+
+impl Admission {
+    /// Drops the ownership records of removed images and collects their content
+    /// once for the batch. An image that never owned an imported raster costs one
+    /// failed unlink: no store is opened and no directory is listed.
+    pub(crate) fn remove_images(
+        &self,
+        support: &std::path::Path,
+        ids: impl IntoIterator<Item = ImageId>,
+    ) -> Result<()> {
+        let owners = support.join("imported-masks").join("owners");
+        let mut removed = false;
+        for id in ids {
+            match std::fs::remove_file(owners.join(id.to_string())) {
+                Ok(()) => removed = true,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(e.into()),
             }
         }
-    }
-    if pinned.exists() {
-        for entry in std::fs::read_dir(&pinned)? {
-            let path = entry?.path();
-            if path.extension().is_none_or(|extension| extension != "mask") {
-                continue;
-            }
-            let Some(name) = path.file_stem().and_then(|stem| stem.to_str()) else {
-                continue;
-            };
-            let Ok(key) = blake3::Hash::from_hex(name) else {
-                continue;
-            };
-            if !retained.contains(key.as_bytes()) {
-                std::fs::remove_file(path)?;
-            }
+        if removed {
+            self.prune_missing(support, |_| true)
+        } else {
+            Ok(())
         }
     }
-    Ok(())
+
+    /// Explicit maintenance, not a per-pin write scan. Keeps shared and historical
+    /// keys of live or unindexed owners; removes proven-dead owners and orphans.
+    /// The caller must retain an owner when its catalog row is absent: the durable
+    /// record may belong to a cancelled import whose resume skips published recipes.
+    pub(crate) fn prune_missing(
+        &self,
+        support: &std::path::Path,
+        mut alive: impl FnMut(ImageId) -> bool,
+    ) -> Result<()> {
+        let root = support.join("imported-masks");
+        if !root.exists() {
+            return Ok(());
+        }
+        let owners = root.join("owners");
+        let pinned = root.join("pinned");
+        for path in [&root, &owners, &pinned] {
+            sidecar::Sidecar::ensure_destination(path, "prune imported masks")?;
+        }
+        let mut retained = std::collections::HashSet::new();
+        if owners.exists() {
+            for entry in std::fs::read_dir(&owners)? {
+                let entry = entry?;
+                let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                    continue;
+                };
+                let Ok(id) = crate::parse_id(&name) else {
+                    continue;
+                };
+                if alive(id) {
+                    retained.extend(owner_keys(&entry.path())?);
+                } else {
+                    std::fs::remove_file(entry.path())?;
+                }
+            }
+        }
+        if pinned.exists() {
+            for entry in std::fs::read_dir(&pinned)? {
+                let path = entry?.path();
+                if path.extension().is_none_or(|extension| extension != "mask") {
+                    continue;
+                }
+                let Some(name) = path.file_stem().and_then(|stem| stem.to_str()) else {
+                    continue;
+                };
+                let Ok(key) = blake3::Hash::from_hex(name) else {
+                    continue;
+                };
+                if !retained.contains(key.as_bytes()) {
+                    std::fs::remove_file(path)?;
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -794,9 +822,6 @@ mod lr5d_bounds_tests {
 }
 
 #[cfg(test)]
-static PUBLICATION: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-#[cfg(test)]
 mod lr5d_race_tests {
     use super::*;
     use std::sync::{Arc, Barrier, mpsc};
@@ -846,7 +871,7 @@ mod lr5d_race_tests {
                     let mut recipe = import_lrcat::develop(1, "s={MaskGroupBasedCorrections={{CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskDigest='synthetic'}}}}}", "15.4").unwrap().0;
                     let mut png = std::io::Cursor::new(Vec::new());
                     image::GrayImage::from_pixel(2, 1, image::Luma([128])).write_to(&mut png, image::ImageFormat::Png).unwrap();
-                    apply(&mut recipe, ImageId(1), (2, 1), &store, |_| Some(png.get_ref().clone()), |_| {
+                    apply(&mut recipe, ImageId(1), (2, 1), store, |_| Some(png.get_ref().clone()), |_| {
                         if !pause_after_blobs {
                             barrier_ref.wait();
                             barrier_ref.wait();

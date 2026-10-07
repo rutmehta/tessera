@@ -1522,7 +1522,7 @@ impl LrcatImport {
                 }
                 image.recipe.image_id = Some(id);
                 // Resolution is read-only and is never inferred from resource ID text.
-                let extent = if mask_resolver.is_some() || depth_resolver.is_some() {
+                let extent = if depth_resolver.is_some() {
                     #[cfg(test)]
                     LR5D_MEASUREMENTS.with(|counts| {
                         let (depth, mask) = counts.get();
