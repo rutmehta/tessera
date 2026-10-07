@@ -133,7 +133,7 @@ final class UnderstandingController {
         do {
             _ = try engine.caption(imageIds: [id])
             captionWanted = id
-            app.statusMessage = "Describing \(item.url?.lastPathComponent ?? "the photo") on this Mac…"
+            app.statusMessage = "Describing \(item.name) on this Mac…"
             startPolling()
         } catch {
             app.statusMessage = "Generate caption failed: \(error.localizedDescription)"
@@ -273,7 +273,7 @@ final class UnderstandingController {
         library?.saveIPTC(IptcEdit(title: nil, caption: caption, copyright: nil, creator: nil, keywords: nil,
                                    altText: altText), items: [item])
         draft = nil
-        app.statusMessage = "Saved caption and alt text to \(app.library.items[item].url?.lastPathComponent ?? "the photo")"
+        app.statusMessage = "Saved caption and alt text to \(app.library.items[item].name)"
     }
 
     // MARK: Settings ▸ AI

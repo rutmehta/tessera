@@ -247,7 +247,9 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
                     references[imageID] = r
                     return r
                 }()
-                newItems.append(PhotoItem(id: newItems.count, url: url, name: url.lastPathComponent,
+                // Imported Smart Previews show the catalog's file name, not their UUID
+                // (user data: shown and used in labels, never in identifiers).
+                newItems.append(PhotoItem(id: newItems.count, url: url, name: row.displayName ?? url.lastPathComponent,
                                           kind: StubLibrary.kind(forExtension: url.pathExtension) ?? .raw,
                                           captureDate: date, pixelWidth: 0, pixelHeight: 0, groupID: g,
                                           engineImage: reference))

@@ -2367,7 +2367,7 @@ final class AppModel {
                       self.engineLibrary === owner,
                       self.focusedItem?.engineImage?.imageID == ref.imageID else {
                     let id = recovery.register(owner: owner, controller: controller,
-                                               displayName: item.url?.lastPathComponent ?? ref.imageID)
+                                               displayName: item.name)
                     recovery.transferOpen(token: token, to: id)
                     _ = await recovery.requestClose(id).value
                     return
@@ -2404,7 +2404,7 @@ final class AppModel {
         developTask = nil
         activeDevelopOpen = nil
         let sessionID = developRecovery.register(owner: owner, controller: controller,
-            displayName: focusedItem?.url?.lastPathComponent ?? controller.imageID,
+            displayName: focusedItem?.name ?? controller.imageID,
             onClose: { [weak self] id, outcome in
                 self?.publishDevelopClose(outcome, sessionID: id)
             })
