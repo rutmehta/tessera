@@ -1,32 +1,18 @@
 //! Exercise staged corrections when an opcode-bearing RAW fixture is available.
+#[path = "common/raw_fixtures.rs"]
+mod raw_fixtures;
+
 use pipeline_cpu::{RenderSource, render_linear_scaled};
 use raw_decode::RawSource;
-use std::path::{Path, PathBuf};
 
 #[test]
 fn real_opcode_fixtures_when_available() {
-    let root = std::env::var_os("RAW_DECODE_FIXTURES")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw"));
-    if !root.exists() {
-        eprintln!("opcode fixture coverage unavailable: fixtures/raw absent");
-        return;
-    }
+    const TEST: &str = "real_opcode_fixtures_when_available";
+    let fixtures = raw_fixtures::all(TEST);
     let mut inspected = 0;
     let mut rendered = 0;
-    for entry in std::fs::read_dir(root).unwrap() {
-        let path = entry.unwrap().path();
-        if !path.is_file()
-            || !path.extension().is_some_and(|e| {
-                matches!(
-                    e.to_string_lossy().to_ascii_lowercase().as_str(),
-                    "cr3" | "arw" | "nef" | "raf" | "dng"
-                )
-            })
-        {
-            continue;
-        }
-        let mut source = RawSource::open(&path).unwrap();
+    for path in &fixtures {
+        let mut source = RawSource::open(path).unwrap();
         let metadata = source.metadata();
         inspected += 1;
         if !metadata.opcode_lists.iter().flatten().any(|b| b.len() > 4) {
@@ -44,6 +30,14 @@ fn real_opcode_fixtures_when_available() {
         .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
         assert!(output.planes().iter().flatten().all(|v| v.is_finite()));
         rendered += 1;
+    }
+    if !fixtures.is_empty() && rendered == 0 {
+        raw_fixtures::notice(
+            TEST,
+            &format!(
+                "none of the {inspected} RAW fixtures carries DNG opcode lists; staged opcode rendering was not exercised"
+            ),
+        );
     }
     eprintln!("opcode fixture coverage: inspected {inspected}, rendered {rendered}");
 }

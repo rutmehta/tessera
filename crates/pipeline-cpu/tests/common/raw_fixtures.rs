@@ -3,7 +3,7 @@
 //! Tests never pass silently when the fixtures are absent. Without them a test
 //! prints an uncaptured `SKIPPED` line naming itself (libtest has no runtime
 //! ignore), and with `TESSERA_REQUIRE_RAW_FIXTURES` set it fails instead.
-//! A copy of this file lives in `crates/pipeline-cpu/tests/common/`.
+//! A copy of this file lives in `crates/image-core/tests/common/`.
 #![allow(dead_code)]
 
 use std::io::Write;

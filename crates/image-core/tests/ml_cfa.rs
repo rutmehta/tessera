@@ -1,4 +1,7 @@
 #![cfg(feature = "ml-denoise")]
+#[path = "common/raw_fixtures.rs"]
+mod raw_fixtures;
+
 use engine_api::{
     id::ModelRef,
     recipe::settings::{DenoiseMethod, DenoiseSettings},
@@ -191,21 +194,15 @@ fn automatic_noise_backend_preserves_zero_amount_without_weights() {
 
 #[test]
 fn estimate_available_raw_fixtures_without_weights() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
+    const TEST: &str = "estimate_available_raw_fixtures_without_weights";
+    let fixtures = raw_fixtures::all(TEST);
     let mut tested = 0;
-    for entry in std::fs::read_dir(root).into_iter().flatten().flatten() {
-        let path = entry.path();
-        let ext = path
-            .extension()
-            .and_then(|x| x.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        if !["dng", "nef", "arw", "cr3", "raf"].contains(&ext.as_str()) {
-            continue;
-        }
-        let raw =
-            image_core::RawImage::open(engine_api::id::ImageId(4900 + tested), &path).unwrap();
+    let mut not_bayer = Vec::new();
+    for path in &fixtures {
+        let raw = image_core::RawImage::open(engine_api::id::ImageId(4900 + tested), path).unwrap();
         let Some(turns) = image_core::cfa::bayer_turns(raw.metadata().cfa_layout) else {
+            // The packed estimator is Bayer-only by design (X-Trans RAF).
+            not_bayer.push(raw_fixtures::name(path));
             continue;
         };
         let image = pipeline_cpu::Image::from_pyramid(raw.cfa().pyramid()).unwrap();
@@ -230,7 +227,13 @@ fn estimate_available_raw_fixtures_without_weights() {
         );
         tested += 1;
     }
-    if tested == 0 {
-        eprintln!("SKIP raw noise fixtures: no Bayer raw fixtures available");
+    if !not_bayer.is_empty() {
+        raw_fixtures::notice(
+            TEST,
+            &format!("not Bayer, so not estimated: {}", not_bayer.join(", ")),
+        );
+    }
+    if !fixtures.is_empty() && tested == 0 {
+        raw_fixtures::skipped(TEST, "no Bayer RAW fixture is present");
     }
 }
