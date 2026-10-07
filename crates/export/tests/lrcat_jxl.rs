@@ -142,3 +142,72 @@ fn external_dng_gpu_backend_accepts_native_rgb_tail_and_exports() {
     .unwrap();
     assert_eq!(image::image_dimensions(output).unwrap(), (10, 12));
 }
+
+/// Justification for ab924590's contract change (A-LR13 item 8). The old
+/// assertion "every external DNG declines the resident tail" encoded a
+/// limitation, not a requirement: after the camera-profile stage a LinearRaw
+/// proxy is ordinary linear RGB, and the Metal regression
+/// `lr13_external_linearraw_identity_orientation_can_use_resident_rgb_tail`
+/// (pipeline-gpu/tests/smart_preview.rs) checks GPU submissions and CPU pixel
+/// agreement for that case. What the old assertion protected is kept here:
+/// every case that needs caller-owned scalar resources or a rotated catalog
+/// frame still declines the GPU tail, so it takes the explicit CPU route.
+#[test]
+fn external_dng_resident_tail_admits_only_identity_native_rgb() {
+    use engine_api::recipe::{
+        DevelopSettings, MaskComponent, MaskKind,
+        mask::{BrushStroke, RetouchKind, RetouchOperation, RetouchTarget},
+        settings::LensBlur,
+    };
+    let bytes = support::lossy_dng(false, false);
+    let proxy = |orientation: Option<u16>| {
+        let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes))
+            .unwrap()
+            .unwrap();
+        let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng).unwrap();
+        assert!(proxy.is_external_dng());
+        match orientation {
+            Some(o) => proxy.with_catalog_orientation(o).unwrap(),
+            None => proxy,
+        }
+    };
+    let plain = DevelopSettings::default();
+    assert!(proxy(None).resident_tail_plan(&plain).unwrap().is_some());
+    assert!(proxy(Some(1)).resident_tail_plan(&plain).unwrap().is_some());
+    for rotated in [3, 6, 8] {
+        assert!(
+            proxy(Some(rotated))
+                .resident_tail_plan(&plain)
+                .unwrap()
+                .is_none(),
+            "rotated catalog frame {rotated} must keep the CPU route"
+        );
+    }
+    let mut blur = plain.clone();
+    blur.effects.lens_blur = Some(LensBlur {
+        amount: 50.,
+        ..Default::default()
+    });
+    assert!(proxy(None).resident_tail_plan(&blur).unwrap().is_none());
+    let mut retouch = plain.clone();
+    retouch.locals.retouch.push(RetouchOperation {
+        id: engine_api::id::RetouchId(1),
+        kind: RetouchKind::Heal {
+            source_offset: [0.25, 0.],
+        },
+        target: RetouchTarget::Area {
+            components: vec![MaskComponent::new(MaskKind::Brush {
+                strokes: vec![BrushStroke {
+                    points: vec![[0.5, 0.5, 1.]],
+                    radius: 0.1,
+                    feather: 0.,
+                    ..Default::default()
+                }],
+            })],
+        },
+        opacity: 100.,
+        feather: 0.,
+        enabled: true,
+    });
+    assert!(proxy(None).resident_tail_plan(&retouch).unwrap().is_none());
+}
