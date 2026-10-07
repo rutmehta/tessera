@@ -1,7 +1,7 @@
-//! ENG-7b: exports report when no lens profile was applied (export ruling)
-//! and when a named lens profile is not available (S3). The note travels in
-//! the existing per-file export warnings (`<file>.tessera-warnings.txt`),
-//! which the app lists in the completion toast.
+//! ENG-7b/7c: exports report a named lens profile that is not available (S3)
+//! in the existing per-file export warnings (`<file>.tessera-warnings.txt`),
+//! which the app lists in the completion toast. A default (Auto) raw with no
+//! profile available is the normal case and writes no warnings file (REV2 N-B2).
 use engine_api::{
     color::ColorMatrix3,
     jobs::CancellationToken,
@@ -84,10 +84,9 @@ fn raw_export_notes_missing_and_unavailable_lens_profiles() {
         image: &cfa,
         metadata: &m,
     };
-    assert_eq!(
-        warnings(raw(), LensProfileSource::Auto),
-        ["No lens profile available — no profile correction applied"]
-    );
+    // ENG-7c (REV2 N-B2): Auto without a profile is the normal case (Tessera
+    // has no lens database), so it is not a per-file warning.
+    assert!(warnings(raw(), LensProfileSource::Auto).is_empty());
     assert_eq!(
         warnings(
             raw(),
@@ -102,4 +101,37 @@ fn raw_export_notes_missing_and_unavailable_lens_profiles() {
     assert!(warnings(raw(), LensProfileSource::None).is_empty());
     let pixels = pipeline_cpu::Image::new(8, 6, vec![vec![0.18; 48]; 3]).unwrap();
     assert!(warnings(RenderSource::Rgb(&pixels), LensProfileSource::Auto).is_empty());
+}
+
+/// ENG-7c (REV2 N-B2): a default raw export writes no warnings file.
+#[test]
+fn default_raw_export_writes_no_warnings_file() {
+    let (cfa, m) = fixture(32, 24);
+    let dir = tempfile::tempdir().unwrap();
+    let settings = ExportSettings {
+        output_dir: dir.path().into(),
+        format: Format::Png,
+        metadata: Metadata::None,
+        ..Default::default()
+    };
+    let image = ExportImage {
+        source: RenderSource::Cfa {
+            image: &cfa,
+            metadata: &m,
+        },
+        name: "default",
+        sequence: 1,
+        date: "",
+        metadata: None,
+    };
+    let path = export::export_one(&image, &Recipe::default(), &settings).unwrap();
+    assert!(path.exists());
+    let files: Vec<_> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert!(
+        !files.iter().any(|f| f.ends_with(".tessera-warnings.txt")),
+        "{files:?}"
+    );
 }

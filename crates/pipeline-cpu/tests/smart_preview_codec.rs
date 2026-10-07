@@ -836,3 +836,54 @@ fn eng7_legacy_auto_estimate_is_not_applied_on_reopen() {
     assert_eq!(c["source"], "Image");
     assert_eq!(c["sample"]["distortion"]["k1"], -0.101);
 }
+
+/// One DNG FixVignetteRadial opcode payload (a built-in correction).
+fn eng7c_vignette_opcode() -> Vec<u8> {
+    let mut b = Vec::new();
+    for x in [1_u32, 3, 0x01030000, 0, 56] {
+        b.extend(x.to_be_bytes());
+    }
+    for x in [0.5_f64, 0., 0., 0., 0., 0.5, 0.5] {
+        b.extend(x.to_be_bytes());
+    }
+    b
+}
+
+/// ENG-7c (REV2 N-B1): a container generated before ENG-7b for a raw with
+/// built-in opcodes in lens mode None (or with an unavailable named profile)
+/// recorded no built-in correction (source Manual). It cannot be reinterpreted
+/// (its pixels lack the built-in stage), so it is reported as stale, to be
+/// regenerated from the original, never as a corrupt container.
+#[test]
+fn eng7c_legacy_none_mode_opcode_container_is_stale() {
+    use engine_api::{
+        EngineError,
+        recipe::settings::{LensProfileRef, LensProfileSource},
+    };
+    let bytes = proxy().encode_persistent(100).unwrap();
+    let named = serde_json::to_value(LensProfileSource::Database {
+        profile: LensProfileRef::named("Adobe (Synthetic Missing Lens)"),
+    })
+    .unwrap();
+    for list in 0..3 {
+        for mode in [serde_json::json!({"kind":"none"}), named.clone()] {
+            let legacy = change_json(&bytes, |v| {
+                let mut lists = serde_json::json!([null, null, null]);
+                lists[list] = serde_json::to_value(eng7c_vignette_opcode()).unwrap();
+                v["metadata"]["opcode_lists"] = lists;
+                v["metadata"]["has_opcode_list"] = serde_json::json!(true);
+                v["lens"]["profile"] = mode.clone();
+                v["correction"]["source"] = serde_json::json!("Manual");
+                v["correction"]["sample"] = serde_json::Value::Null;
+            });
+            match CameraLinearProxy::decode_persistent(&legacy) {
+                Err(EngineError::Unsupported { what }) => assert!(
+                    what.contains("stale") && what.contains("regenerate from original"),
+                    "list {list} {mode}: {what}"
+                ),
+                Err(e) => panic!("list {list} {mode}: not reported stale: {e}"),
+                Ok(_) => panic!("list {list} {mode}: legacy snapshot accepted"),
+            }
+        }
+    }
+}
