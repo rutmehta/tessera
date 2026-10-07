@@ -245,7 +245,7 @@ impl LibraryStore {
         }
         for folder in folders {
             c.index
-                .scan(&folder, &catalog::Sidecars, &catalog::EmbeddedMetadata)?;
+                .scan(&folder, &catalog::Sidecars, &catalog::IndexedMetadata)?;
         }
         c.index.sync_keyword_tree(&pairs)?;
         Ok(())

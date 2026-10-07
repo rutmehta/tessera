@@ -442,7 +442,7 @@ impl Engine {
                 path.parent()
                     .ok_or_else(|| failure("original has no folder"))?,
                 &catalog::Sidecars,
-                &catalog::EmbeddedMetadata,
+                &catalog::IndexedMetadata,
             )?;
             journal
                 .mark_synced(

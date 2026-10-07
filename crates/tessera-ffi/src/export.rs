@@ -1131,7 +1131,12 @@ impl Engine {
         let mut taken = HashSet::new();
         let mut plans = Vec::with_capacity(pending.len());
         for (i, item) in pending.iter().enumerate() {
-            let name = stem(&item.path)?;
+            // Imported Smart Previews export under the catalog's file name
+            // (A-LR8 M6), never their UUID or copy name.
+            let name = match catalog::proxy_display_name(&item.path) {
+                Some(original) => stem(Path::new(&original))?,
+                None => stem(&item.path)?,
+            };
             let extension = if options.format == FileFormat::Original {
                 item.path
                     .extension()

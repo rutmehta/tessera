@@ -639,6 +639,23 @@ pub(crate) struct Shared {
     masks: Arc<masks::MaskShared>,
 }
 
+impl Shared {
+    /// Proxy settings this session cannot draw, judged with the resources its
+    /// renders actually use (including the session depth provider, which every
+    /// render snapshot installs), so notices match what the frame shows.
+    fn proxy_plan_fields(
+        &self,
+        proxy: &pipeline_cpu::CameraLinearProxy,
+        settings: &DevelopSettings,
+    ) -> Vec<&'static str> {
+        (*self.renderer)
+            .clone()
+            .with_depth(self.depth_provider.clone())
+            .proxy_render_plan(proxy, settings)
+            .1
+    }
+}
+
 /// Renderer and model dependencies shared by visible Develop and read-only
 /// saved-recipe consumers. This deliberately contains no session state or
 /// save-worker lifecycle.
@@ -1335,7 +1352,7 @@ impl Engine {
                     SaveFailure::after_recipe(failure("image has no folder"), &published)
                 })?,
                 &catalog::Sidecars,
-                &catalog::EmbeddedMetadata,
+                &catalog::IndexedMetadata,
             )
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
         Ok((doc.recipe.recipe_hash().to_string(), published))
@@ -1366,7 +1383,7 @@ impl Engine {
             path.parent()
                 .ok_or_else(|| failure("image has no folder"))?,
             &catalog::Sidecars,
-            &catalog::EmbeddedMetadata,
+            &catalog::IndexedMetadata,
         )?;
         Ok(doc.recipe)
     }
@@ -2830,9 +2847,7 @@ impl DevelopSession {
         if let Some(proxy) = self.shared.image.camera_linear_proxy() {
             ignored.extend(
                 self.shared
-                    .renderer
-                    .proxy_render_plan(proxy, &st.live)
-                    .1
+                    .proxy_plan_fields(proxy, &st.live)
                     .into_iter()
                     .map(str::to_owned),
             );
@@ -2852,7 +2867,7 @@ impl DevelopSession {
             .camera_linear_proxy()
             .filter(|p| p.is_external_dng())
         {
-            let mut fields = self.shared.renderer.proxy_render_plan(proxy, &st.live).1;
+            let mut fields = self.shared.proxy_plan_fields(proxy, &st.live);
             if self.shared.masks.unavailable(&st.live) {
                 fields.push("/locals/adjustments");
             }

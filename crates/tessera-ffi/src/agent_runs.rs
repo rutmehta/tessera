@@ -462,7 +462,7 @@ impl Engine {
         // Resync only this admitted original. A folder scan could discover a
         // target excluded as unavailable at admission after it reconnects.
         c.index
-            .scan_file(path, &catalog::Sidecars, &catalog::EmbeddedMetadata)?;
+            .scan_file(path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
         drop(c);
         Ok(())
     }

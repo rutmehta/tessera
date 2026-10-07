@@ -24,6 +24,10 @@ pub struct SessionImage {
     pub in_basket: bool,
     /// Index into `CullSession::groups`.
     pub group: u32,
+    /// Catalog file name of an imported Smart Preview (user data: show it,
+    /// never put it in accessibility identifiers). None for ordinary files.
+    #[uniffi(default = None)]
+    pub display_name: Option<String>,
 }
 
 /// Burst / near-duplicate group. Members follow queue order.
@@ -424,23 +428,36 @@ impl Inner {
             }
         }
         let mut stmt = self.reader.prepare_cached(
-            "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1') FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
+            "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1'),(SELECT value FROM metadata WHERE image_id=i.id AND key=?2),(SELECT value FROM metadata WHERE image_id=i.id AND key=?3),COALESCE((SELECT hash FROM recipe_hash WHERE image_id=i.id),'') FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?1",
         )?;
         let mut out = Vec::with_capacity(ids.len());
         for id in ids {
             let key = id.to_string();
-            let (path, capture_time, orientation) = stmt.query_row([&key], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, Option<String>>(1)?,
-                    r.get::<_, String>(2)?,
-                ))
-            })?;
-            let (source, lightroom_smart_preview) = self.listing.source(*id, Path::new(&path));
+            let (path, capture_time, orientation, facts) = stmt.query_row(
+                [
+                    key.as_str(),
+                    crate::catalog::LISTING_RECIPE_KEY,
+                    crate::catalog::LISTING_ORIGINAL_KEY,
+                ],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                        r.get::<_, String>(2)?,
+                        crate::catalog::ScanFacts {
+                            recipe: r.get(3)?,
+                            original: r.get(4)?,
+                            current: r.get(5)?,
+                        },
+                    ))
+                },
+            )?;
+            let row = self.listing.source(*id, Path::new(&path), Some(&facts));
             out.push(SessionImage {
-                lightroom_smart_preview,
+                lightroom_smart_preview: row.offline,
+                display_name: row.display_name,
                 id: key,
-                path: source,
+                path: row.source,
                 capture_time,
                 orientation: orientation.parse().unwrap_or(1),
                 // Reconciled from sidecars when the session opened (or the image joined).
@@ -1143,7 +1160,7 @@ mod offline_library_tests {
                 .scan_file(
                     &path,
                     &crate::catalog::Sidecars,
-                    &crate::catalog::EmbeddedMetadata,
+                    &crate::catalog::IndexedMetadata,
                 )
                 .unwrap();
             ids.push(index.image_at(&path).unwrap().unwrap());
@@ -1177,12 +1194,16 @@ mod offline_library_tests {
             };
             assert_eq!(row.path, expected.to_string_lossy());
         }
-        // An edited recipe makes that row's scan-time facts stale: exactly one
-        // recipe read on the next listing, none for the unchanged rows.
+        // An engine edit re-indexes the file, refreshing its facts: still no
+        // recipe reads on the next listing.
         let edited = ids[1].to_string();
         let mut recipe: engine_api::recipe::Recipe =
             serde_json::from_str(&engine.get_recipe(edited.clone()).unwrap()).unwrap();
-        recipe.settings.tone.exposure = 0.5;
+        recipe
+            .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+                s.tone.exposure = 0.5;
+            })
+            .unwrap();
         engine
             .set_recipe_json(edited, serde_json::to_string(&recipe).unwrap())
             .unwrap();
@@ -1194,6 +1215,19 @@ mod offline_library_tests {
             .images()
             .unwrap();
         assert_eq!(again.len(), 4);
+        assert_eq!(crate::catalog::proxy_recipe_reads() - reads, 0);
+        // Facts recorded for another recipe hash are stale: that row falls
+        // back to exactly one recipe read and still projects correctly.
+        let path = photos.join("proxy-2.dng");
+        let stale = crate::catalog::ScanFacts {
+            recipe: Some("0".repeat(64)),
+            original: Some(String::new()),
+            current: recipe.recipe_hash().to_string(),
+        };
+        let reads = crate::catalog::proxy_recipe_reads();
+        let row = crate::catalog::project(&path, Some(&stale));
         assert_eq!(crate::catalog::proxy_recipe_reads() - reads, 1);
+        assert!(row.offline);
+        assert_eq!(row.display_name.as_deref(), Some("synthetic-2.raw"));
     }
 }

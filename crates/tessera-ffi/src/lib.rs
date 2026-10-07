@@ -165,6 +165,10 @@ pub struct ImageSummary {
     pub orientation: u16,
     pub selection: Selection,
     pub recipe_hash: String,
+    /// Catalog file name of an imported Smart Preview (user data: show it,
+    /// never put it in accessibility identifiers). None for ordinary files.
+    #[uniffi(default = None)]
+    pub display_name: Option<String>,
 }
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct FolderHandle {
@@ -313,7 +317,7 @@ impl Engine {
         Sidecar::write_recipe(paths.recipe, doc)?;
         Sidecar::write_xmp(paths.xmp, packet)?;
         c.index
-            .scan_file(path, &catalog::Sidecars, &catalog::EmbeddedMetadata)?;
+            .scan_file(path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
         Ok(())
     }
 }
@@ -405,7 +409,7 @@ impl Engine {
         let updated =
             self.lock()?
                 .index
-                .scan(&path, &catalog::Sidecars, &catalog::EmbeddedMetadata)?;
+                .scan(&path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
         self.emit(EngineEvent::ScanProgress {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,
@@ -434,15 +438,22 @@ impl Engine {
         let mut result = Vec::new();
         for id in ids {
             let id_string = id.to_string();
-            let (path, capture_time, orientation, recipe_hash) = c.reader.query_row(
-                "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1'),COALESCE(h.hash,'') FROM image i JOIN file f ON f.id=i.file_id LEFT JOIN recipe_hash h ON h.image_id=i.id WHERE i.id=?",
-                [&id_string], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?)))?;
-
-            let (source, lightroom_smart_preview) = catalog::source_projection(Path::new(&path));
+            let (path, capture_time, orientation, recipe_hash, listed, original) = c.reader.query_row(
+                "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1'),COALESCE(h.hash,''),(SELECT value FROM metadata WHERE image_id=i.id AND key=?2),(SELECT value FROM metadata WHERE image_id=i.id AND key=?3) FROM image i JOIN file f ON f.id=i.file_id LEFT JOIN recipe_hash h ON h.image_id=i.id WHERE i.id=?1",
+                [id_string.as_str(), catalog::LISTING_RECIPE_KEY, catalog::LISTING_ORIGINAL_KEY], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?)))?;
+            let row = catalog::project(
+                Path::new(&path),
+                Some(&catalog::ScanFacts {
+                    recipe: listed,
+                    original,
+                    current: recipe_hash.clone(),
+                }),
+            );
             result.push(ImageSummary {
-                lightroom_smart_preview,
+                lightroom_smart_preview: row.offline,
+                display_name: row.display_name,
                 id: id_string,
-                path: source.to_string_lossy().into_owned(),
+                path: row.source,
                 capture_time,
                 orientation: orientation.parse().unwrap_or(1),
                 selection: c.index.selection(id)?.unwrap_or_default().into(),
