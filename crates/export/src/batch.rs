@@ -99,14 +99,7 @@ pub fn export_batch_with_jobs(
         max_bytes = max_bytes.max(pixels.saturating_mul(64));
     }
     if jobs > 1 && std::env::var("TESSERA_EXPORT_BACKEND").as_deref() != Ok("cpu") {
-        // Two renders overlap one image's CPU work (sensor copy, lens
-        // analysis) with the other's GPU bands when outputs are small enough
-        // to hold three at once (two rendering, one encoding).
-        let renders = if max_output <= PIPELINE_PAIR_PIXELS {
-            2
-        } else {
-            1
-        };
+        let renders = pipeline_renders(items, settings, max_output);
         return export_pipeline(items, settings, progress, cancel, renders);
     }
     let cores = std::thread::available_parallelism().map_or(1, usize::from);
@@ -161,6 +154,22 @@ pub fn export_batch_with_jobs(
 /// Largest output (pixels) for which two renders run at once: Web and
 /// screen presets, not full-size float frames of large sensors.
 const PIPELINE_PAIR_PIXELS: u64 = 16 << 20;
+
+/// Renders [`export_pipeline`] runs at once. Two renders overlap one
+/// image's CPU work (sensor copy, lens analysis) with the other's GPU bands
+/// when outputs are small enough to hold three at once (two rendering, one
+/// encoding).
+fn pipeline_renders(
+    _items: &[ExportItem<'_>],
+    _settings: &ExportSettings,
+    max_output: u64,
+) -> usize {
+    if max_output <= PIPELINE_PAIR_PIXELS {
+        2
+    } else {
+        1
+    }
+}
 
 /// A rendezvous channel admits `renders` renders while the caller encodes the
 /// prior frame (JPEG encoding itself is stripe-parallel). The zero-capacity
@@ -292,6 +301,100 @@ fn export_serial(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A RAW item whose metadata claims `w`x`h` (admission reads only the
+    /// metadata; the sensor plane is a stand-in).
+    fn admitted(
+        w: u32,
+        h: u32,
+        process: engine_api::recipe::ProcessVersion,
+        settings: &ExportSettings,
+    ) -> usize {
+        let cfa = raw_decode::CfaImage::from_linear(2, 2, vec![0.1; 4]).unwrap();
+        let metadata = raw_decode::RawMetadata {
+            make: "synthetic".into(),
+            model: "camera".into(),
+            lens: None,
+            iso: 100.,
+            shutter_s: 0.01,
+            aperture: 4.,
+            focal_mm: 50.,
+            capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
+            orientation: 1,
+            width: w,
+            height: h,
+            cfa_layout: raw_decode::CfaLayout::Bayer([[0, 1], [1, 2]]),
+            black_levels: [0.; 4],
+            white_level: 65535,
+            as_shot_wb: [2., 1., 1.5, 1.],
+            camera_to_xyz: engine_api::color::ColorMatrix3::IDENTITY,
+            cam_xyz: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.], [0.; 3]],
+            rgb_cam: [[0.; 4]; 3],
+            default_crop: [0, 0, w, h],
+            has_gain_map: false,
+            has_opcode_list: false,
+            opcode_lists: [None, None, None],
+        };
+        let recipe = Recipe {
+            process_version: process,
+            ..Default::default()
+        };
+        let items = [ExportItem {
+            image: ExportImage {
+                source: pipeline_cpu::RenderSource::Cfa {
+                    image: &cfa,
+                    metadata: &metadata,
+                },
+                name: "photo",
+                sequence: 1,
+                date: "",
+                metadata: None,
+            },
+            recipe: &recipe,
+        }];
+        let (ow, oh) = settings.resize.dimensions(w, h).unwrap();
+        pipeline_renders(&items, settings, u64::from(ow) * u64::from(oh))
+    }
+
+    /// ENG-10: an Adobe-process render holds several level-size float frames
+    /// on the host (Develop's renderer), unlike the resident GPU bands of a
+    /// Native render. Two run at once only while both fit the pair budget:
+    /// full-size 16 and 24 MP Adobe exports render one at a time, Web-sized
+    /// ones (render scale 2) still pair. Native admission is unchanged.
+    #[test]
+    fn eng10_pipeline_pairs_adobe_renders_only_within_the_memory_budget() {
+        use engine_api::recipe::ProcessVersion;
+        let full = ExportSettings::default();
+        let web = ExportSettings {
+            resize: crate::Resize::LongEdge(2048),
+            render_scale: 2,
+            ..Default::default()
+        };
+        for (w, h) in [(4928, 3276), (6000, 4000)] {
+            assert_eq!(
+                admitted(w, h, ProcessVersion::adobe(6), &full),
+                1,
+                "{w}x{h} full"
+            );
+            assert_eq!(
+                admitted(w, h, ProcessVersion::adobe(6), &web),
+                2,
+                "{w}x{h} web"
+            );
+            assert_eq!(
+                admitted(w, h, ProcessVersion::NATIVE_CURRENT, &full),
+                2,
+                "{w}x{h} native"
+            );
+        }
+        // Native keeps its output-size rule.
+        assert_eq!(
+            admitted(8000, 6000, ProcessVersion::NATIVE_CURRENT, &full),
+            1
+        );
+    }
 
     #[test]
     fn serial_cancellation_before_commit_discards_prepared_files() {
