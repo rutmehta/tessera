@@ -524,3 +524,69 @@ fn int1_offline_proxy_nested_locals_adobe_render_and_orientation() {
     without_upright.geometry.upright = Default::default();
     assert_ne!(pixels, render(&renderer, &without_upright));
 }
+
+/// LR-8R: LR-5b validates injected masks in the proxy's oriented active frame.
+#[test]
+fn lr8r_oriented_offline_proxy_accepts_matching_imported_ai_raster() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = import_lrcat::fixture::write(&temp.path().join("fixture")).unwrap();
+    import_lrcat::fixture::write_smart_previews(&fixture).unwrap();
+    let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    db.execute(
+        "INSERT INTO Adobe_imageDevelopSettings(image,text,processVersion) VALUES(35,?1,'15.4')",
+        ["s={MaskGroupBasedCorrections={{LocalExposure2012=1,CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskDigest='mask'}}}}}"],
+    ).unwrap();
+    db.execute(
+        "UPDATE Adobe_images SET orientation='BC' WHERE id_local=35",
+        [],
+    )
+    .unwrap();
+    drop(db);
+    let support = temp.path().join("support");
+    let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+    let import = engine
+        .clone()
+        .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let mut options = import.default_options().unwrap();
+    options.relocations[0].to = fixture.photos.to_string_lossy().into_owned();
+    options.library_folder = fixture.photos.to_string_lossy().into_owned();
+    options.copy_proxies = true;
+    let resolved = resolve(&import.plan, &options).unwrap();
+    let row = resolved
+        .iter()
+        .find(|r| r.outcome == Outcome::OfflineProxy)
+        .unwrap();
+    let metadata =
+        raw_decode::lossy_dng::read_metadata(&mut std::fs::File::open(&row.path).unwrap())
+            .unwrap()
+            .unwrap();
+    assert_eq!(metadata.default_crop[2..], [12, 10]);
+    let (w, h) = (10, 12);
+    let mut png = Cursor::new(Vec::new());
+    image::GrayImage::from_pixel(w, h, image::Luma([128]))
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+    let resource = Arc::new(Resource {
+        id: 35,
+        bytes: png.into_inner(),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let report = import
+        .apply_with_resolvers(options, None, Some(resource.clone()), None)
+        .unwrap();
+    assert_eq!((report.imported, report.indexed), (6, 6));
+    assert_eq!(resource.calls.load(Ordering::SeqCst), 1);
+    let images = engine.list_images(crate::ImageQuery::default()).unwrap();
+    let proxy = images.iter().find(|r| r.lightroom_smart_preview).unwrap();
+    let recipe: Recipe =
+        serde_json::from_str(&engine.get_recipe(proxy.id.clone()).unwrap()).unwrap();
+    let key = recipe.settings.locals.adjustments[0].components[0]
+        .adobe_ai
+        .as_ref()
+        .unwrap()
+        .mask_key
+        .expect("matching oriented proxy mask must remain available under LR-5b");
+    let plane = export::mask_ai::imported_plane(&support, &key).unwrap();
+    assert_eq!((plane.width, plane.height), (w, h));
+}
