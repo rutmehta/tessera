@@ -2848,6 +2848,14 @@ impl DevelopSession {
             .into_iter()
             .map(|field| proxy_notice_text(field).to_owned())
             .collect();
+        if let Some(note) = self
+            .shared
+            .renderer
+            .for_process_version(st.recipe.process_version)
+            .profile_notice(&self.shared.image, &st.live)
+        {
+            notes.push(note.to_owned());
+        }
         notes.sort();
         notes.dedup();
         Ok(notes)

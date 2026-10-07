@@ -397,21 +397,26 @@ impl Renderer {
         image: &RawImage,
         settings: &DevelopSettings,
     ) -> EngineResult<Option<Self>> {
-        let named_adobe = pipeline_adobe::names_adobe_profile(settings);
-        if (!self.is_adobe() && !named_adobe) || self.dcp_resolved {
+        if !self.is_adobe() || self.dcp_resolved {
             return Ok(None);
         }
-        let mut next = if self.is_adobe() {
-            self.clone()
-        } else {
-            self.for_process_version(engine_api::recipe::ProcessVersion::adobe(6))
-        };
-        // An explicit resolved external DCP wins. Otherwise use the DNG's own
-        // profile, including when an Adobe-named binary profile isn't installed.
+        let mut next = self.clone();
+        // Only an imported Adobe-named LinearRaw proxy can substitute its
+        // embedded profile. Originals and Native recipes keep main's dispatch.
         if next.dcp.is_none()
-            && let Some(bytes) = image.embedded_dcp()?
+            && let Some(proxy) = image.camera_linear_proxy()
         {
-            next = next.with_dcp_profile(bytes)?;
+            let bytes = image.embedded_dcp().ok().flatten();
+            let (profile, _) = pipeline_adobe::embedded_profile_fallback(proxy, settings, bytes);
+            if let Some(profile) = profile {
+                next.dcp = Some((
+                    Arc::new(profile),
+                    ParamHash(engine_api::id::Digest::derive(
+                        "tessera embedded DCP v1",
+                        bytes.expect("parsed profile bytes"),
+                    )),
+                ));
+            }
         }
         if let Some((profile, _)) = &next.dcp {
             next.ops = Arc::new(crate::AdobeStageOp::with_profile(
@@ -429,6 +434,25 @@ impl Renderer {
         }
         next.dcp_resolved = true;
         Ok(Some(next))
+    }
+
+    /// Per-photo informational status for the same profile resolution as rendering.
+    /// No file paths, profile parser details, or recipe values enter the message.
+    pub fn profile_notice(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+    ) -> Option<&'static str> {
+        if !self.is_adobe() || self.dcp.is_some() {
+            return None;
+        }
+        let proxy = image.camera_linear_proxy()?;
+        pipeline_adobe::embedded_profile_fallback(
+            proxy,
+            settings,
+            image.embedded_dcp().ok().flatten(),
+        )
+        .1
     }
 
     fn is_adobe(&self) -> bool {
@@ -512,7 +536,7 @@ impl Renderer {
         let seed = if self.is_adobe() {
             ParamHash::chain(
                 seed,
-                ParamHash::of(StageId::CameraProfile, &"adobe-compat-lr10-v2"),
+                ParamHash::of(StageId::CameraProfile, &"adobe-compat-lr8e2-v1"),
             )
         } else {
             seed

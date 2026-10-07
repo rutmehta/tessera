@@ -22,6 +22,7 @@ pub struct DcpProfile {
     exposure_offset: f32,
     auto_black: bool,
     output_referred: bool,
+    embedded_defaults: bool,
 }
 
 /// Selected camera neutral and interpolation temperature, resolved once per render.
@@ -29,6 +30,7 @@ pub struct DcpProfile {
 pub struct DcpWhiteBalance {
     temperature: f32,
     neutral: [f64; 3],
+    tint: engine_api::color::ColorMatrix3,
 }
 
 struct Reader<'a> {
@@ -64,7 +66,7 @@ struct Field {
     kind: u16,
     values: Vec<f64>,
 }
-fn fields(bytes: &[u8]) -> Result<BTreeMap<u16, Field>, String> {
+fn fields(bytes: &[u8], embedded_defaults: bool) -> Result<BTreeMap<u16, Field>, String> {
     let be = match bytes.get(..2) {
         Some(b"II") => false,
         Some(b"MM") => true,
@@ -131,6 +133,10 @@ fn fields(bytes: &[u8]) -> Result<BTreeMap<u16, Field>, String> {
         ) {
             continue;
         }
+        // Installed profiles retain main's interpretation of optional DNG defaults.
+        if !embedded_defaults && matches!(tag, 50730 | 51109 | 51110 | 50879) {
+            continue;
+        }
         total_values = total_values.checked_add(n).ok_or("DCP resource limit")?;
         if n > 3_000_000 || total_values > 6_000_000 {
             return Err("DCP field exceeds resource limit".into());
@@ -192,6 +198,13 @@ fn illuminant(value: f64) -> Result<f64, String> {
         0 => Ok(0.), // SDK: unknown illuminant uses only the first calibration.
         1 | 4 | 9 => Ok(5500.),
         3 | 17 => Ok(2856.),
+        // EXIF fluorescent ranges: midpoint temperatures used by the DNG SDK.
+        2 | 14 => Ok(4150.),
+        12 => Ok(6400.),
+        13 => Ok(5050.),
+        15 => Ok(3575.),
+        16 => Ok(2925.),
+        255 => Ok(0.), // Other has no temperature without spectral data: single matrix.
         10 => Ok(6504.),
         11 => Ok(7504.),
         18 => Ok(4874.),
@@ -290,6 +303,18 @@ impl Table {
         out
     }
     fn apply(&self, rgb: [f64; 3], other: Option<&Table>, w: f64) -> [f64; 3] {
+        self.apply_domain(rgb, other, w, true)
+    }
+    fn apply_sdr(&self, rgb: [f64; 3]) -> [f64; 3] {
+        self.apply_domain(rgb, None, 0., false)
+    }
+    fn apply_domain(
+        &self,
+        rgb: [f64; 3],
+        other: Option<&Table>,
+        w: f64,
+        headroom: bool,
+    ) -> [f64; 3] {
         let mut hsv = rgb_to_hsv(rgb.map(|v| v.max(0.)));
         if self.encoded {
             hsv[2] = encode(hsv[2]);
@@ -303,7 +328,12 @@ impl Table {
         }
         hsv[0] = (hsv[0] + adjustment[0]).rem_euclid(360.);
         hsv[1] = (hsv[1] * adjustment[1]).clamp(0., 1.);
-        hsv[2] = (hsv[2] * adjustment[2]).clamp(0., 1.);
+        // Bound the table lookup, not scene radiance. Negative exposure must
+        // still be able to recover values above one after HueSatMap.
+        hsv[2] = (hsv[2] * adjustment[2]).max(0.);
+        if !headroom {
+            hsv[2] = hsv[2].min(1.);
+        }
         if self.encoded {
             hsv[2] = decode(hsv[2]);
         }
@@ -447,6 +477,7 @@ fn mix(a: Matrix, b: Matrix, w: f64) -> Matrix {
 }
 const D50: [f64; 3] = [0.96422, 1., 0.82521];
 // Rec.2020 D65 xy=(.3127,.3290), matching XYZ_TO_REC2020 below.
+const LEGACY_D65: [f64; 3] = [0.95047, 1., 1.08883];
 const D65: [f64; 3] = [0.9504559270516716, 1., 1.0890577507598784];
 const XYZ_TO_PROPHOTO: Matrix = [
     [1.3459433, -0.2556075, -0.0511118],
@@ -463,6 +494,13 @@ const XYZ_TO_REC2020: Matrix = [
     [-0.666684352, 1.616481237, 0.015768546],
     [0.017639857, -0.042770613, 0.942103121],
 ];
+fn legacy_white(t: f64) -> [f64; 3] {
+    if (t - 6504.).abs() < 0.5 {
+        LEGACY_D65
+    } else {
+        white(t)
+    }
+}
 fn white(t: f64) -> [f64; 3] {
     // Daylight locus above 4000 K, Planckian approximation below it.
     if (t - 6504.).abs() < 0.5 {
@@ -511,6 +549,16 @@ impl DcpProfile {
     /// tables, and a tone curve. See `DCP.md` for the rendering contract and limits.
     /// Malformed or unsupported structural/color data returns a descriptive error.
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
+        Self::parse_with_defaults(bytes, false)
+    }
+
+    /// Embedded proxy substitution opts into the SDK camera-neutral, black,
+    /// exposure-offset and ACR3 defaults. Installed profiles keep main's look.
+    pub fn parse_embedded(bytes: &[u8]) -> Result<Self, String> {
+        Self::parse_with_defaults(bytes, true)
+    }
+
+    fn parse_with_defaults(bytes: &[u8], embedded_defaults: bool) -> Result<Self, String> {
         let extracted;
         let bytes = if matches!(bytes.get(2..4), Some([42, 0] | [0, 42])) {
             extracted = read_embedded_profile(&mut std::io::Cursor::new(bytes))?
@@ -519,17 +567,26 @@ impl DcpProfile {
         } else {
             bytes
         };
-        let f = fields(bytes)?;
-        let temperature1 = illuminant(required(&f, 50778, 3, 1)?[0])?;
+        let f = fields(bytes, embedded_defaults)?;
+        // DNG CalibrationIlluminant1 defaults to 0 (unknown).
+        let temperature1 = if f.contains_key(&50778) {
+            illuminant(required(&f, 50778, 3, 1)?[0])?
+        } else {
+            0.
+        };
         let calibration2 = if f.contains_key(&50779) {
             Some(illuminant(required(&f, 50779, 3, 1)?[0])?)
         } else {
-            None
+            f.contains_key(&50722).then_some(0.)
         };
         // Public SDK dng_color_spec constructor: invalid/unknown calibration
         // temperatures select the first set, rather than inventing an illuminant.
         let single = temperature1 == 0. || calibration2 == Some(0.);
         let second = if single {
+            // A single-matrix fallback must not hide malformed unused data.
+            if f.contains_key(&50722) {
+                matrix(&f, 50722)?;
+            }
             None
         } else if f.contains_key(&50722) || f.contains_key(&50779) {
             let t = illuminant(required(&f, 50779, 3, 1)?[0])?;
@@ -548,7 +605,11 @@ impl DcpProfile {
                 if f.contains_key(&50965) && !single {
                     return Err("ForwardMatrix2 requires dual illuminants".into());
                 }
-                None
+                if f.contains_key(&50965) {
+                    Some(matrix(&f, 50965)?)
+                } else {
+                    None
+                }
             };
             for m in std::iter::once(one).chain(two) {
                 let mapped = mul(m, [1.; 3]);
@@ -556,16 +617,17 @@ impl DcpProfile {
                     return Err("ForwardMatrix must map unit camera neutral to D50".into());
                 }
             }
-            Some((one, two))
+            Some((one, if single { None } else { two }))
         } else {
             None
         };
         let hue1 = Table::parse(&f, 50937, 50938, 51107)?;
-        let hue2 = if f.contains_key(&50939) && !single {
-            if second.is_none() {
+        let hue2 = if f.contains_key(&50939) {
+            if second.is_none() && !single {
                 return Err("Second HueSatMap requires dual illuminants".into());
             }
-            Table::parse(&f, 50937, 50939, 51107)?
+            let table = Table::parse(&f, 50937, 50939, 51107)?;
+            if single { None } else { table }
         } else {
             None
         };
@@ -602,9 +664,10 @@ impl DcpProfile {
         let output_referred = reference == 1.;
         Ok(Self {
             output_referred,
+            embedded_defaults,
             baseline_exposure: exposure(50730)?,
             exposure_offset: exposure(51109)?,
-            auto_black: black == 0. && !output_referred,
+            auto_black: embedded_defaults && black == 0. && !output_referred,
             color1: matrix(&f, 50721)?,
             temperature1: if temperature1 == 0. {
                 5000.
@@ -627,6 +690,9 @@ impl DcpProfile {
     /// Convert normalized, un-white-balanced camera RGB to linear Rec.2020 D65.
     /// Temperature is Kelvin; invalid values use CalibrationIlluminant1.
     pub fn apply(&self, rgb: [f32; 3], temperature: f32) -> [f32; 3] {
+        if !self.embedded_defaults {
+            return self.apply_tone(self.apply_without_tone(rgb, temperature));
+        }
         self.apply_tone(self.apply_look(self.apply_exposure(
             self.apply_without_tone(rgb, temperature),
             self.baseline_exposure,
@@ -666,6 +732,9 @@ impl DcpProfile {
     /// middle channel, preserving HSV hue (unlike three independent curves).
     /// https://android.googlesource.com/platform/external/dng_sdk/+/de700ad461e35af50b28b861943a0b0753b10929/source/dng_reference.cpp
     pub fn apply_tone(&self, rgb: [f32; 3]) -> [f32; 3] {
+        if !self.embedded_defaults {
+            return self.apply_installed_tone(rgb);
+        }
         // SDK dng_render::Render uses an identity default for output-referred
         // negatives. An explicit ProfileToneCurve still takes precedence.
         if self.output_referred && self.tone.is_none() {
@@ -692,9 +761,12 @@ impl DcpProfile {
 
     /// ProfileLookTable is a separate post-exposure stage (DNG 1.7.1, p. 57).
     pub fn apply_look(&self, rgb: [f32; 3]) -> [f32; 3] {
-        self.look.as_ref().map_or(rgb, |table| {
-            map_prophoto(rgb, |pro| table.apply(pro, None, 0.))
-        })
+        if !self.embedded_defaults {
+            return rgb; // Installed-profile LookTable retains its pre-tone placement.
+        }
+        self.look
+            .as_ref()
+            .map_or(rgb, |table| map_prophoto(rgb, |pro| table.apply_sdr(pro)))
     }
 
     /// The as-shot neutral is authoritative even off the temperature/tint slider
@@ -766,6 +838,7 @@ impl DcpProfile {
             return Ok(DcpWhiteBalance {
                 temperature: temperature as f32,
                 neutral,
+                tint: engine_api::color::ColorMatrix3::IDENTITY,
             });
         }
         let (temperature, tint) = match settings.mode {
@@ -796,19 +869,133 @@ impl DcpProfile {
         Ok(DcpWhiteBalance {
             temperature,
             neutral: normalize(mul(cm, selected))?,
+            tint: engine_api::color::ColorMatrix3::IDENTITY,
+        })
+    }
+
+    /// Resolve the installed profile's historical temperature/tint path or
+    /// the embedded proxy's SDK camera neutral, according to profile provenance.
+    pub fn resolve_for_camera(
+        &self,
+        settings: &engine_api::recipe::settings::WhiteBalanceSettings,
+        camera_xyz: engine_api::color::ColorMatrix3,
+        multipliers: [f32; 4],
+    ) -> engine_api::EngineResult<DcpWhiteBalance> {
+        use engine_api::{color::ColorMatrix3, recipe::settings::WhiteBalanceMode};
+        if self.embedded_defaults {
+            return self.resolve_white_balance(settings, multipliers);
+        }
+        let (temperature, tint) = match settings.mode {
+            WhiteBalanceMode::AsShot => {
+                pipeline_cpu::as_shot_temperature_tint(camera_xyz, multipliers)?
+            }
+            WhiteBalanceMode::Custom => (settings.temperature, settings.tint),
+            WhiteBalanceMode::Daylight | WhiteBalanceMode::Flash => (5503., 0.),
+            WhiteBalanceMode::Cloudy => (6504., 0.),
+            WhiteBalanceMode::Shade => (7504., 0.),
+            WhiteBalanceMode::Tungsten => (2856., 0.),
+            WhiteBalanceMode::Fluorescent => (4230., 0.),
+            WhiteBalanceMode::Auto => {
+                return Err(engine_api::EngineError::invalid(
+                    "white balance",
+                    "Auto is not implemented",
+                ));
+            }
+        };
+        let mut tinted = settings.clone();
+        tinted.mode = WhiteBalanceMode::Custom;
+        tinted.temperature = temperature;
+        tinted.tint = tint;
+        let mut neutral = tinted.clone();
+        neutral.tint = 0.;
+        let tint = if tint == 0. {
+            ColorMatrix3::IDENTITY
+        } else {
+            pipeline_cpu::white_balance_matrix(&tinted, camera_xyz, multipliers)?
+                * pipeline_cpu::white_balance_matrix(&neutral, camera_xyz, multipliers)?
+                    .inverse()?
+        };
+        Ok(DcpWhiteBalance {
+            temperature,
+            neutral: [1.; 3],
+            tint,
         })
     }
 
     pub fn apply_camera(&self, rgb: [f32; 3], wb: &DcpWhiteBalance) -> [f32; 3] {
-        self.apply_camera_at(rgb, wb.temperature, Some(wb.neutral))
+        if self.embedded_defaults {
+            self.apply_camera_at(rgb, wb.temperature, Some(wb.neutral))
+        } else {
+            let p = self.apply_installed_camera(rgb, wb.temperature);
+            // Preserve the native f32 tint residual arithmetic used on main.
+            wb.tint
+                .to_f32()
+                .map(|r| r[0] * p[0] + r[1] * p[1] + r[2] * p[2])
+        }
     }
 
     /// Camera calibration, white balance and HueSatMap, before exposure,
     /// ProfileLookTable and ProfileToneCurve. Input is normalized unbalanced camera RGB.
     pub fn apply_without_tone(&self, rgb: [f32; 3], temperature: f32) -> [f32; 3] {
-        self.apply_camera_at(rgb, temperature, None)
+        if self.embedded_defaults {
+            self.apply_camera_at(rgb, temperature, None)
+        } else {
+            self.apply_installed_camera(rgb, temperature)
+        }
     }
 
+    fn apply_installed_tone(&self, rgb: [f32; 3]) -> [f32; 3] {
+        let Some(tone) = &self.tone else {
+            return rgb;
+        };
+        let xyz = mul(inverse(XYZ_TO_REC2020).unwrap(), rgb.map(f64::from));
+        let pro = mul(XYZ_TO_PROPHOTO, adapt(xyz, LEGACY_D65, D50));
+        let xyz = mul(PROPHOTO_TO_XYZ, pro.map(|v| tone.apply(v)));
+        mul(XYZ_TO_REC2020, adapt(xyz, D50, LEGACY_D65)).map(|v| v as f32)
+    }
+
+    fn apply_installed_camera(&self, rgb: [f32; 3], temperature: f32) -> [f32; 3] {
+        let t = if temperature.is_finite() && temperature > 0. {
+            f64::from(temperature).clamp(1667., 25000.)
+        } else {
+            self.temperature1
+        };
+        let w = self.weight(t);
+        let cm = self
+            .second
+            .map_or(self.color1, |(m, _)| mix(self.color1, m, w));
+        // A valid endpoint pair can still cross a singular matrix. Fall back to
+        // the nearer calibrated endpoint rather than generating NaNs.
+        let inv = inverse(cm).unwrap_or_else(|| {
+            inverse(if w > 0.5 {
+                self.second.unwrap().0
+            } else {
+                self.color1
+            })
+            .unwrap()
+        });
+        let camera = rgb.map(|v| if v.is_finite() { f64::from(v) } else { 0. });
+        let mut xyz = adapt(mul(inv, camera), legacy_white(t), D50);
+        if let Some((one, two)) = self.forward {
+            let neutral = mul(cm, legacy_white(t));
+            if neutral.iter().all(|&v| v > 1e-12) {
+                let fm = two.map_or(one, |two| mix(one, two, w));
+                xyz = mul(fm, std::array::from_fn(|i| camera[i] / neutral[i]));
+            }
+        }
+        if self.hue1.is_some() || self.look.is_some() {
+            let mut pro = mul(XYZ_TO_PROPHOTO, xyz);
+            if let Some(table) = &self.hue1 {
+                pro = table.apply(pro, self.hue2.as_ref(), w);
+            }
+            if let Some(table) = &self.look {
+                pro = table.apply_sdr(pro);
+            }
+            xyz = mul(PROPHOTO_TO_XYZ, pro);
+        }
+        mul(XYZ_TO_REC2020, adapt(xyz, D50, LEGACY_D65))
+            .map(|v| v.clamp(-(f32::MAX as f64), f32::MAX as f64) as f32)
+    }
     fn apply_camera_at(
         &self,
         rgb: [f32; 3],
@@ -877,7 +1064,7 @@ mod tests {
     use super::*;
     #[test]
     fn lr10_missing_tone_uses_published_acr3_curve_but_explicit_identity_wins() {
-        let p = DcpProfile::parse(&fixture(false, 42, &base())).unwrap();
+        let p = DcpProfile::parse_embedded(&fixture(false, 42, &base())).unwrap();
         // Public DNG SDK ACR3 table samples at indices 128, 256, 512, 768.
         for (input, expected) in [
             (0.125, 0.25961),
@@ -891,14 +1078,14 @@ mod tests {
         }
         let mut entries = base();
         entries.push((50940, 11, vec![0., 0., 1., 1.]));
-        let explicit = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let explicit = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         close(explicit.apply_tone([0.25; 3]), [0.25; 3], 0.00002);
     }
 
     #[test]
     fn lr10_look_is_deferred_until_after_exposure() {
         let mut entries = base();
-        let plain = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let plain = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         entries.extend([
             (50981, 4, vec![1., 2., 2.]),
             (
@@ -907,7 +1094,7 @@ mod tests {
                 vec![0., 1., 1., 0., 1., 1., 0., 1., 1., 120., 1., 1.],
             ),
         ]);
-        let look = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let look = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         let camera = [0.2, 0.1, 0.03];
         // The camera/WB/HueSat stage must not bake the value-dependent look.
         close(
@@ -943,7 +1130,7 @@ mod tests {
     fn lr10_profile_tone_preserves_hue_between_channel_extrema() {
         let mut entries = base();
         entries.push((50940, 11, vec![0., 0., 0.25, 0.1, 0.5, 0.3, 1., 1.]));
-        let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let p = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         let to_working =
             |pro| mul(XYZ_TO_REC2020, adapt(mul(PROPHOTO_TO_XYZ, pro), D50, D65)).map(|v| v as f32);
         // Curve endpoints .25 -> .1, .5 -> .3. The middle channel lies
@@ -971,7 +1158,7 @@ mod tests {
                 (51109, kind, vec![1.]),
                 (51110, 4, vec![1.]),
             ]);
-            let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+            let p = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
             close(
                 p.apply([0.96422 * 0.05, 0.05, 0.82521 * 0.05], 5003.),
                 [0.2; 3],
@@ -983,16 +1170,16 @@ mod tests {
     #[test]
     fn lr10_auto_black_uses_sdk_shadow_ramp_and_none_bypasses_it() {
         let mut entries = neutral_profile();
-        let auto = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let auto = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         entries.push((51110, 4, vec![1.]));
-        let none = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let none = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         let camera = [0.96422 * 0.02, 0.02, 0.82521 * 0.02];
         close(none.apply(camera, 5003.), [0.02; 3], 0.00001);
         // SDK defaults: shadows=5, shadowScale=stage3Gain=1; black=.005.
         // Above black+radius=.0075 the ramp is (x-.005)/(.995).
         close(auto.apply(camera, 5003.), [0.015075377; 3], 0.00001);
         entries.last_mut().unwrap().2 = vec![2.];
-        assert!(DcpProfile::parse(&fixture(false, 42, &entries)).is_err());
+        assert!(DcpProfile::parse_embedded(&fixture(false, 42, &entries)).is_err());
     }
 
     #[test]
@@ -1006,7 +1193,7 @@ mod tests {
                     vec![0.96422, 0., 0., 0., 1., 0., 0., 0., 0.82521],
                 ));
             }
-            let profile = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+            let profile = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
             let wb = profile
                 .resolve_white_balance(&Default::default(), [2., 1., 1.5, 1.])
                 .unwrap();
@@ -1021,7 +1208,7 @@ mod tests {
     #[test]
     fn lr10_exposure_runs_after_hue_and_before_value_dependent_look() {
         let mut entries = neutral_profile();
-        let plain = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let plain = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         let table = vec![0., 1., 1., 0., 1., 1., 0., 1., 1., 120., 1., 1.];
         entries.extend([
             (50730, 10, vec![1.]),
@@ -1031,7 +1218,7 @@ mod tests {
             (50981, 4, vec![1., 2., 2.]),
             (50982, 11, table),
         ]);
-        let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let p = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         // ProPhoto (.1,0,0): HueSat +12 degrees, exposure doubles V to .2,
         // Look +24 degrees => HSV(36,1,.2) => ProPhoto (.2,.12,0).
         let input = mul(PROPHOTO_TO_XYZ, [0.1, 0., 0.]).map(|v| v as f32);
@@ -1047,8 +1234,8 @@ mod tests {
     fn lr10_unknown_illuminant_uses_first_calibration_like_sdk() {
         let mut entries = base();
         entries[1].2 = vec![0.];
-        let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
-        let known = DcpProfile::parse(&fixture(false, 42, &base())).unwrap();
+        let p = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
+        let known = DcpProfile::parse_embedded(&fixture(false, 42, &base())).unwrap();
         close(
             p.apply_without_tone([0.1, 0.2, 0.3], 5003.),
             known.apply_without_tone([0.1, 0.2, 0.3], 5003.),
@@ -1061,7 +1248,7 @@ mod tests {
         let mut entries = base();
         entries[1].2 = vec![23.];
         entries.push((50879, 3, vec![1.]));
-        let p = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let p = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         close(p.apply_tone([0.25; 3]), [0.25; 3], 0.00001);
         close(
             p.apply([0.96422 * 0.02, 0.02, 0.82521 * 0.02], 5003.),
@@ -1070,7 +1257,7 @@ mod tests {
         );
         // An explicit curve still overrides the output-referred default.
         entries.push((50940, 11, vec![0., 0., 0.5, 0.25, 1., 1.]));
-        let explicit = DcpProfile::parse(&fixture(false, 42, &entries)).unwrap();
+        let explicit = DcpProfile::parse_embedded(&fixture(false, 42, &entries)).unwrap();
         close(explicit.apply_tone([0.5; 3]), [0.25; 3], 0.00002);
     }
 
@@ -1454,9 +1641,11 @@ mod tests {
         entries.push((50722, 10, vec![2., 0., 0., 0., 2., 0., 0., 0., 2.]));
         let single = DcpProfile::parse(&fixture(false, 0x4352, &base())).unwrap();
         let missing = DcpProfile::parse(&fixture(false, 0x4352, &entries)).unwrap();
-        assert_eq!(missing.apply([0.2; 3], 5000.), single.apply([0.2; 3], 5000.));
+        assert_eq!(
+            missing.apply([0.2; 3], 5000.),
+            single.apply([0.2; 3], 5000.)
+        );
         entries.last_mut().unwrap().2 = vec![0.; 9];
         assert!(DcpProfile::parse(&fixture(false, 0x4352, &entries)).is_err());
     }
-
 }

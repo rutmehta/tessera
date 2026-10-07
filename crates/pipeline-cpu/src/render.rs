@@ -553,6 +553,19 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.denoise = s.denoise.clone();
     supported.linearize = s.linearize.clone();
     supported.demosaic.method = s.demosaic.method;
+    // An imported Adobe identity is inert in Native. It must not select an
+    // Adobe pipeline or hide an otherwise renderable photo; calibration is
+    // still the native metadata matrix. Creative looks remain unsupported.
+    if s.camera_profile
+        .profile
+        .name
+        .0
+        .split_whitespace()
+        .next()
+        .is_some_and(|word| word.eq_ignore_ascii_case("Adobe"))
+    {
+        supported.camera_profile.profile = s.camera_profile.profile.clone();
+    }
     supported.white_balance = s.white_balance.clone();
     supported.tone = s.tone.clone();
     supported.detail = s.detail.clone();
