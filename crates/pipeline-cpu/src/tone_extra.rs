@@ -661,6 +661,12 @@ mod tests {
         }
     }
     #[test]
+    fn lr_clean_decode_keeps_nan_and_saturates_infinity() {
+        assert!(decode(f32::NAN).is_nan());
+        assert_eq!(decode(f32::INFINITY), f32::MAX);
+        assert_eq!(decode(1e30), f32::MAX);
+    }
+    #[test]
     fn log_axis_is_scalar_single_precision() {
         let input = 0.3_f32;
         let actual: f32 = encode(input);
