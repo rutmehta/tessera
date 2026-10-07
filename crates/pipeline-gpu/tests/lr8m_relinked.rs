@@ -8,7 +8,7 @@ mod common;
 #[path = "../../raw-decode/tests/support/mod.rs"]
 mod support;
 
-use engine_api::{id::ImageId, jobs::CancellationToken, recipe::DevelopSettings};
+use engine_api::{id::ImageId, recipe::DevelopSettings};
 use image_core::{PixelRect, RawImage, Renderer, RendererConfig, TileCache};
 use pipeline_gpu::{GpuContext, GpuStageOp};
 use std::sync::Arc;
@@ -36,20 +36,21 @@ fn lr8m_relinked_original_renders_resident_like_an_ordinary_import() {
         gpu.can_render_resident(&relinked, &s).unwrap(),
         "a relinked original must not be forced onto the scalar CPU route"
     );
-    let rect = PixelRect::full(relinked.level_extent(0));
-    let cancel = CancellationToken::new();
-    let resident = gpu
-        .render_resident_region(&relinked, &s, 0, rect, &cancel)
-        .unwrap()
-        .expect("relinked original renders resident");
-    let expected = gpu
-        .render_resident_region(&ordinary, &s, 0, rect, &cancel)
-        .unwrap()
-        .expect("ordinary import renders resident");
-    let extent = relinked.level_extent(0);
-    assert_eq!(extent, ordinary.level_extent(0));
-    assert_eq!(
-        common::assemble_u8(extent, &resident),
-        common::assemble_u8(extent, &expected)
-    );
+    // Develop's GPU renderer draws both through the same resident-capable
+    // RAW route (lens plan included): identical frames at every level.
+    for level in [0u8, 1, 2] {
+        let extent = Renderer::output_extent(&relinked, &s, level).unwrap();
+        assert_eq!(
+            extent,
+            Renderer::output_extent(&ordinary, &s, level).unwrap()
+        );
+        let rect = PixelRect::full(extent);
+        let actual = gpu.render_region(&relinked, &s, level, rect).unwrap();
+        let expected = gpu.render_region(&ordinary, &s, level, rect).unwrap();
+        assert_eq!(
+            common::assemble_u8(extent, &actual),
+            common::assemble_u8(extent, &expected),
+            "level {level}"
+        );
+    }
 }
