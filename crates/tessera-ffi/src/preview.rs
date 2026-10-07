@@ -173,8 +173,10 @@ mod tests {
 
     #[test]
     fn lr13d_cull_hash_ignores_mac_cache_tiers_with_catalog_orientation() {
-        // The Mac grid is 384px; its loupe tier is 2560px. Imported catalog
-        // orientation is baked into those pixels, so their cache key is 1.
+        // The Mac grid is 384px; its loupe tier is 2560px. Since LR-8m the
+        // app keys imported thumbnails by the catalog orientation (6 here),
+        // as for an ordinary RAW; entries written before LR-8m used 1. Both
+        // tiers are planted and neither may feed the cull hash (REV-SP-B S3).
         for max_px in [384, 2560] {
             let (dir, info, mut recipe) = cull_proxy_fixture();
             recipe
@@ -193,12 +195,22 @@ mod tests {
                 previews::PreviewStore::new(dir.path().join("previews"), 512 << 20).unwrap();
             let grid =
                 image::RgbImage::from_fn(90, 80, |x, y| image::Rgb([(200 - x - y / 4) as u8; 3]));
-            let key =
-                previews::PreviewKey::for_source(&info.path, max_px, 1, recipe.recipe_hash().0.0)
+            let keys: Vec<_> = [6u8, 1]
+                .into_iter()
+                .map(|orientation| {
+                    let key = previews::PreviewKey::for_source(
+                        &info.path,
+                        max_px,
+                        orientation,
+                        recipe.recipe_hash().0.0,
+                    )
                     .unwrap();
-            store
-                .put_image_cancellable(&key, &grid, max_px, &|| Ok(()))
-                .unwrap();
+                    store
+                        .put_image_cancellable(&key, &grid, max_px, &|| Ok(()))
+                        .unwrap();
+                    key
+                })
+                .collect();
             let decodes = raw_decode::lossy_dng::pixel_decode_count();
             let lenses = pipeline_cpu::lens_resolution_count();
             let hash = cull_preview_hash(&info, dir.path()).unwrap();
@@ -208,10 +220,12 @@ mod tests {
                 "stable source pixels must ignore rendered previews"
             );
             assert_eq!(pipeline_cpu::lens_resolution_count(), lenses);
-            let expected =
-                cull::dhash_jpeg(&store.get(&key, previews::Level::Full).unwrap()).unwrap();
             assert_eq!(hash, cold);
-            assert_ne!(hash, Some(expected));
+            for key in &keys {
+                let planted =
+                    cull::dhash_jpeg(&store.get(key, previews::Level::Full).unwrap()).unwrap();
+                assert_ne!(hash, Some(planted), "orientation {}", key.orientation);
+            }
         }
     }
 
