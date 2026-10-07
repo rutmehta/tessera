@@ -80,7 +80,7 @@ fn all_eight_catalog_orientations_keep_crop_masks_upright_and_lens_in_the_sensor
 }
 
 #[test]
-fn cfa_and_generated_proxy_share_the_oriented_edit_frame() {
+fn cfa_and_generated_proxy_share_the_sensor_edit_frame() {
     use engine_api::recipe::ProcessVersion;
     let dng =
         raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false, false)))

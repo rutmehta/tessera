@@ -489,8 +489,26 @@ fn profile_rejects_tmpdir_widening() {
         assert!(std::fs::read_dir(app).unwrap().next().is_none());
         return;
     }
-    // A synthetic directory outside OS scratch roots; mutate only the child's env.
-    let root = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
+    // A synthetic directory outside OS scratch roots; mutate only the child's
+    // env. The first candidate not under /tmp or the system temp directory,
+    // so a checkout that itself lives in a scratch root still tests a
+    // widened TMPDIR (REV-SP-B N6).
+    let temp = system_temp_dir().unwrap();
+    let scratch = Path::new("/tmp").canonicalize().unwrap();
+    let base = [
+        std::env::current_dir().ok(),
+        Some(PathBuf::from(env!("CARGO_MANIFEST_DIR"))),
+        // The test binary's own directory (the target dir), usually elsewhere.
+        std::env::current_exe()
+            .ok()
+            .and_then(|e| e.parent().map(Path::to_path_buf)),
+    ]
+    .into_iter()
+    .flatten()
+    .filter_map(|p| p.canonicalize().ok())
+    .find(|p| !p.starts_with(&temp) && !p.starts_with(&scratch))
+    .expect("a synthetic directory outside the OS scratch roots");
+    let root = tempfile::tempdir_in(base).unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",

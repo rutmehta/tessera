@@ -220,6 +220,9 @@ impl CameraLinearProxy {
         if settings.effects.lens_blur.is_some() || !settings.locals.retouch.is_empty() {
             return Ok(None);
         }
+        // Not needed for correctness since LR-8m (orientation is display-only);
+        // kept until the rotated-proxy GPU tail is admitted in a performance
+        // follow-up (export/tests/lrcat_jxl.rs pins the decline).
         if self.metadata.catalog_orientation.is_some_and(|o| o != 1) {
             return Ok(None);
         }

@@ -541,6 +541,27 @@ fn int1_offline_proxy_nested_locals_adobe_render_and_orientation() {
     let mut without_upright = recipe.settings.clone();
     without_upright.geometry.upright = Default::default();
     assert_ne!(pixels, render(&renderer, &without_upright));
+    // REV-SP-B N2: orientation is display-only (LR-8m). The same proxy with
+    // catalog orientation 1 renders exactly the same sensor-frame pixels.
+    let upright = RawImage::open_with_catalog_orientation(id, path, Some(1)).unwrap();
+    let extent = Renderer::output_extent(&upright, &recipe.settings, 0).unwrap();
+    let upright_pixels: Vec<f32> = renderer
+        .render_region_as(
+            &upright,
+            &recipe.settings,
+            0,
+            PixelRect::full(extent),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap()
+        .iter()
+        .flat_map(|t| t.samples::<f32>().unwrap().to_vec())
+        .collect();
+    assert_eq!(upright.metadata().orientation, 1);
+    assert_eq!(
+        pixels, upright_pixels,
+        "orientation 6 renders as orientation 1"
+    );
 }
 
 /// LR-8R: LR-5b validates injected masks in the proxy's active frame, which is
