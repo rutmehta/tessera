@@ -290,6 +290,16 @@ final class DocumentAccessibilityTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(position, 0, file: file, line: line)
             XCTAssertEqual(row.accessibilityIndex(), position, file: file, line: line)
             XCTAssertEqual(row.accessibilityIdentifier(), "document.layers.row.\(position)", file: file, line: line)
+            if let cell = outline.view(atColumn: 0, row: position, makeIfNecessary: false) as? LayerRowCell {
+                XCTAssertEqual(cell.accessibilityIdentifier(), "document.layers.row.\(position).cell", file: file, line: line)
+                @MainActor func visibilityControl(_ view: NSView) -> NSView? {
+                    if view.accessibilityIdentifier().hasSuffix(".visibility") { return view }
+                    return view.subviews.lazy.compactMap(visibilityControl).first
+                }
+                let eye = visibilityControl(cell)
+                XCTAssertNotNil(eye, file: file, line: line)
+                XCTAssertEqual(eye?.accessibilityIdentifier(), "document.layers.row.\(position).visibility", file: file, line: line)
+            }
         }
     }
 
@@ -317,6 +327,11 @@ final class DocumentAccessibilityTests: XCTestCase {
         for position in 0..<outline.numberOfRows { _ = outline.rowView(atRow: position, makeIfNecessary: true) }
         XCTAssertEqual(outline.numberOfRows, 301)
         XCTAssertEqual(outline.row(forItem: last), 300)
+        assertRowPositions(outline)
+        source.layers.insert(NSObject(), at: 0)
+        outline.insertItems(at: IndexSet(integer: 1), inParent: nil, withAnimation: [])
+        for position in 0..<outline.numberOfRows { _ = outline.rowView(atRow: position, makeIfNecessary: true) }
+        XCTAssertEqual(outline.numberOfRows, 302)
         assertRowPositions(outline)
         XCTAssertFalse(window.isKeyWindow)
         XCTAssertFalse(NSApp.isActive)
@@ -360,7 +375,7 @@ final class DocumentAccessibilityTests: XCTestCase {
 private final class LargeOutlineFixture: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
     let group = NSObject()
     let children = (0..<20).map { _ in NSObject() }
-    let layers = (0..<300).map { _ in NSObject() }
+    var layers = (0..<300).map { _ in NSObject() }
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
         item == nil ? layers.count + 1 : children.count
@@ -376,7 +391,8 @@ private final class LargeOutlineFixture: NSObject, NSOutlineViewDataSource, NSOu
         LayerRowView()
     }
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
-        let view = NSTextField(labelWithString: "Layer")
+        let view = LayerRowCell()
+        view.setRow(outlineView.row(forItem: item))
         view.setAccessibilityLabel("Layer")
         return view
     }
