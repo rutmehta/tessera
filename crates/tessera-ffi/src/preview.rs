@@ -260,6 +260,22 @@ mod tests {
             thumb.get_pixel(2, 0),
             "gradient kept"
         );
+        // Same-level comparison: each request is exactly Develop's
+        // render_region of the full frame at the level it selects.
+        let image = catalog::open_image(id, &path).unwrap();
+        let settings = crate::develop::session_renderable(&recipe.settings, true, false);
+        let renderer = image_core::Renderer::new(Default::default()).for_recipe(&recipe);
+        for (max_px, level) in [(long.div_ceil(4), 2), (long.div_ceil(4) + 1, 1), (long, 0)] {
+            let extent = image_core::Renderer::output_extent(&image, &settings, level).unwrap();
+            let tiles = renderer
+                .render_region(&image, &settings, level, image_core::PixelRect::full(extent))
+                .unwrap();
+            assert_eq!(
+                render(max_px),
+                crate::lrcat_fidelity::stitch(extent, &tiles).unwrap(),
+                "thumbnail for {max_px}px differs from the level-{level} region render"
+            );
+        }
     }
 
     #[test]
@@ -352,6 +368,115 @@ mod tests {
                 "thumbnail dropped an available proxy effect"
             );
         }
+    }
+
+    #[test]
+    fn lr13b_thumbnail_request_identity_tracks_mask_rasters_and_plan_version() {
+        use engine_api::recipe::{
+            EditMeta, LocalAdjustment, LocalParams, MaskComponent, MaskKind, mask::AdobeAiMask,
+        };
+        let root = tempfile::tempdir().unwrap();
+        let support = root.path().join("support");
+        let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+        let path = root.path().join("proxy.dng");
+        std::fs::write(
+            &path,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
+        let id = engine_api::id::ImageId(1318);
+        let extent = catalog::open_image(id, &path).unwrap().level_extent(0);
+        let raster = ml_segment::MaskRaster::new(
+            extent.width,
+            extent.height,
+            vec![1.; extent.area() as usize],
+        )
+        .unwrap();
+        let mut component = MaskComponent::new(MaskKind::Subject { model: None });
+        component.adobe_ai = Some(AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some(raster.content_key()),
+            regenerate: false,
+        });
+        let mut recipe = core::Recipe::new(id);
+        recipe.unknown.insert(
+            "lightroom_smart_preview".into(),
+            serde_json::json!({"original_path": root.path().join("offline.raw")}),
+        );
+        recipe
+            .edit(EditMeta::user("Imported mask", 1), |s| {
+                s.locals.adjustments.push(LocalAdjustment {
+                    components: vec![component],
+                    params: LocalParams {
+                        exposure: 1.,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+            })
+            .unwrap();
+        sidecar::Sidecar::write_recipe(
+            sidecar::Sidecar::paths(&path).recipe,
+            &sidecar::RecipeDocument {
+                recipe: recipe.clone(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let request = || {
+            engine.request_raw(
+                id.to_string(),
+                path.to_string_lossy().into_owned(),
+                64,
+                recipe.recipe_hash().to_string(),
+            )
+        };
+        let settle = || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+            while engine
+                .preview_states
+                .lock()
+                .unwrap()
+                .values()
+                .any(|state| matches!(state, State::Pending))
+            {
+                assert!(std::time::Instant::now() < deadline, "preview job timed out");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        };
+        assert!(request().unwrap().pending);
+        settle();
+        let missing = request().expect_err("missing raster must fail the thumbnail");
+        assert!(missing.to_string().contains("mask"), "{missing}");
+        ml_segment::MaskStore::new(support.join("imported-masks"), 0)
+            .unwrap()
+            .put_content_pinned(&raster)
+            .unwrap();
+        let after = request().expect("a stored raster must not be answered by the cached failure");
+        assert!(after.pending, "a newly available raster re-renders the thumbnail");
+        settle();
+        assert!(request().unwrap().bytes.is_some());
+
+        let document = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&path).recipe)
+            .unwrap()
+            .recipe;
+        let current = imported_render_identity(&document, &support);
+        assert_ne!(current, [0; 32], "imported sources carry a render identity");
+        assert_ne!(
+            current,
+            render_identity(&document, &support, IMPORTED_RENDER_PLAN_VERSION + 1),
+            "the render-plan version is part of the identity"
+        );
+        ml_segment::MaskStore::new(support.join("imported-masks"), 0)
+            .unwrap()
+            .remove_pinned(&raster.content_key())
+            .unwrap();
+        assert_ne!(
+            imported_render_identity(&document, &support),
+            current,
+            "removing a raster changes the identity"
+        );
     }
 
     #[test]
