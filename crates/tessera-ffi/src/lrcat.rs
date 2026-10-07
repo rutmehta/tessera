@@ -1503,7 +1503,11 @@ impl LrcatImport {
                 ))
             })
             .collect();
-        Sidecar::pin_protected_identities(&pins)?;
+        let mut batch = Sidecar::protected_pin_batch();
+        for (path, identity) in &pins {
+            batch.pin(path, identity)?;
+        }
+        batch.finish()?;
         let existing = Library::read(&library_path)?;
         let ids: HashMap<ImageId, ImageId> = self.app_ids(&resolved);
         let mut merge = merge_library(

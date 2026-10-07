@@ -358,7 +358,11 @@ fn pinned_protected_identities_keep_identical_sources_separate() {
             .enumerate()
             .map(|(i, photo)| (photo.clone(), format!("catalog image {i}").into_bytes()))
             .collect();
-        Sidecar::pin_protected_identities(&pins).unwrap();
+        let mut batch = Sidecar::protected_pin_batch();
+        for (photo, identity) in &pins {
+            batch.pin(photo, identity).unwrap();
+        }
+        batch.finish().unwrap();
     };
     if std::env::var_os("TESSERA_TEST_PINNED_CHILD").is_some() {
         Sidecar::register_store(&bundle.canonicalize().unwrap(), &support);

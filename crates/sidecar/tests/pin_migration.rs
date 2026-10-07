@@ -110,7 +110,11 @@ fn two_catalogs_sharing_identical_edits_share_one_recipe_and_dedupe() {
     let b = s.proxy("B", UUID, b"identical preview bytes");
     edit(&a, 1.5);
     let legacy = Sidecar::paths(&a).recipe;
-    assert_eq!(legacy, Sidecar::paths(&b).recipe, "legacy content key shared");
+    assert_eq!(
+        legacy,
+        Sidecar::paths(&b).recipe,
+        "legacy content key shared"
+    );
     let identity = format!("lightroom smart preview file\0{UUID}").into_bytes();
     let mut batch = Sidecar::protected_pin_batch();
     assert_eq!(batch.pin(&a, &identity).unwrap(), PinOutcome::Migrated);
@@ -127,7 +131,11 @@ fn two_catalogs_sharing_identical_edits_share_one_recipe_and_dedupe() {
 #[test]
 fn crash_after_copy_before_key_save_keeps_the_newer_recipe_and_a_backup() {
     for legacy_newer in [true, false] {
-        let s = Scratch::new(if legacy_newer { "crash-legacy" } else { "crash-dest" });
+        let s = Scratch::new(if legacy_newer {
+            "crash-legacy"
+        } else {
+            "crash-dest"
+        });
         let p = s.proxy("A", UUID, b"preview");
         let identity = format!("lightroom smart preview file\0{UUID}").into_bytes();
         let destination = Sidecar::protected_identity_recipe(&p, &identity);
@@ -168,13 +176,15 @@ fn crash_after_copy_before_key_save_keeps_the_newer_recipe_and_a_backup() {
     }
 }
 
-/// NB3: one batch over 20,000 legacy recipes is linear (the reference scan is
-/// read once per store), measured in release builds.
+/// NB3: the reference scan reads each store's alias directories once, and
+/// each pin reads a constant number of aliases, so a pass is linear in the
+/// number of recipes. Counted operations, not wall-clock: every recipe write
+/// is a durable F_FULLFSYNC on macOS (about 7 ms each, three per migrated
+/// photo), which dominates the time and is itself linear.
 #[test]
-#[cfg_attr(debug_assertions, ignore = "timing bound applies to release builds")]
-fn twenty_thousand_legacy_recipes_migrate_in_bounded_time() {
+fn migration_reads_each_alias_a_bounded_number_of_times() {
     let s = Scratch::new("scale");
-    let n = 20_000;
+    let n = 600;
     let proxies: Vec<PathBuf> = (0..n)
         .map(|i| {
             let uuid = format!("{:08X}-0000-4000-8000-{i:012X}", i);
@@ -183,6 +193,13 @@ fn twenty_thousand_legacy_recipes_migrate_in_bounded_time() {
             p
         })
         .collect();
+    let aliases = std::fs::read_dir(s.support.join(".edits/lightroom/paths"))
+        .unwrap()
+        .count()
+        + std::fs::read_dir(s.support.join(".edits/lightroom/content"))
+            .unwrap()
+            .count();
+    let before = Sidecar::alias_reads();
     let started = std::time::Instant::now();
     let mut batch = Sidecar::protected_pin_batch();
     for (i, p) in proxies.iter().enumerate() {
@@ -190,11 +207,24 @@ fn twenty_thousand_legacy_recipes_migrate_in_bounded_time() {
         assert_eq!(batch.pin(p, &identity).unwrap(), PinOutcome::Migrated);
     }
     batch.finish().unwrap();
-    let elapsed = started.elapsed();
-    eprintln!("migrated {n} recipes in {elapsed:?}");
+    let reads = Sidecar::alias_reads() - before;
+    eprintln!(
+        "migrated {n} recipes in {:?}; {reads} alias reads for {aliases} alias files",
+        started.elapsed()
+    );
+    // One scan of every alias file plus at most four alias reads per pin.
+    // The quadratic scan read every alias file once per migrated object.
     assert!(
-        elapsed < std::time::Duration::from_secs(30),
-        "{n} migrations took {elapsed:?}"
+        reads <= (aliases + 4 * n) as u64,
+        "{reads} alias reads for {n} pins over {aliases} aliases"
     );
     assert_eq!(exposure(&proxies[n - 1]), 0.5);
+    assert!(
+        !std::fs::read_dir(s.support.join(".edits/lightroom/objects"))
+            .unwrap()
+            .flatten()
+            .flat_map(|d| std::fs::read_dir(d.path()).unwrap().flatten())
+            .any(|f| f.file_name().to_string_lossy().contains("backup")),
+        "no backups for clean migrations"
+    );
 }
