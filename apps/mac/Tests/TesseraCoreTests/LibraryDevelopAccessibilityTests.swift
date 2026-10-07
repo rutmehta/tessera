@@ -309,6 +309,10 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         for stem in EstablishedAccessibilityIdentifiers.stems {
             XCTAssertTrue(present.contains(stem), "Established identifier missing: \(stem)")
         }
+        XCTAssertTrue(present.contains("transform-"), "Transform slider identifier prefix missing")
+        let sliders = TransformControls.all.map { "transform-" + $0.path.last!.replacingOccurrences(of: "_", with: "-") }
+        XCTAssertEqual(sliders, EstablishedAccessibilityIdentifiers.transformSliders,
+                       "Transform slider identifiers changed; update the pins deliberately")
     }
 
     func testModelProgressRetryIdentifiers() async throws {
@@ -432,7 +436,20 @@ enum EstablishedAccessibilityIdentifiers {
         return stems.contains(identifier)
             || legacyPatterns.contains { identifier.range(of: $0, options: .regularExpression) != nil }
             || ["detail-ai-denoise-model-retry", "lensblur-model-retry"].contains(identifier)
+            || transformSliders.contains(identifier)
     }
+
+    // TransformPanel builds these as "transform-" + control path, so they are not source
+    // literals; each is pinned exactly and checked against TransformControls.all.
+    static let transformSliders = [
+        "transform-vertical",
+        "transform-horizontal",
+        "transform-rotate",
+        "transform-aspect",
+        "transform-scale",
+        "transform-offset-x",
+        "transform-offset-y",
+    ]
 
     // Full anchored templates, not arbitrary suffixes beneath a legacy prefix.
     private static let legacyPatterns = [
