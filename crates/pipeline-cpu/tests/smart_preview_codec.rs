@@ -780,3 +780,51 @@ fn legacy_ca_lr7b_optional_prefix_survives_persistent_codec() {
         render_linear_scaled(&settings, &RenderSource::CameraLinear(&decoded.proxy), 1).is_err()
     );
 }
+
+/// ENG-7: a container written before Auto stopped estimating may carry an
+/// image-estimated distortion/vignette under `Auto`. Reopening it applies the
+/// current meaning of Auto (embedded, else profile, else nothing): the estimate
+/// is dropped and an image-estimated CA (baked by generation, governed by
+/// `remove_chromatic_aberration`) is kept. `AutoCalibrated` keeps its estimate.
+#[test]
+fn eng7_legacy_auto_estimate_is_not_applied_on_reopen() {
+    let bytes = proxy().encode_persistent(100).unwrap();
+    let estimate = |ca: bool| {
+        serde_json::to_value(lens::CalibrationSample {
+            distortion: lens::BrownConrady {
+                k1: -0.101,
+                ..Default::default()
+            },
+            vignette: [-0.05, 0., 0.],
+            ca_red: if ca { [1.01, 0., 0.] } else { [1., 0., 0.] },
+            ..Default::default()
+        })
+        .unwrap()
+    };
+    let legacy = |mode: serde_json::Value, ca: bool| {
+        change_json(&bytes, |v| {
+            v["lens"]["profile"] = mode;
+            v["lens"]["remove_chromatic_aberration"] = serde_json::json!(true);
+            v["correction"]["source"] = serde_json::json!("Image");
+            v["correction"]["sample"] = estimate(ca);
+        })
+    };
+    let reopened = |bytes: &[u8]| {
+        let decoded = CameraLinearProxy::decode_persistent(bytes).unwrap();
+        snapshot(&decoded.proxy.encode_persistent(100).unwrap())["correction"].clone()
+    };
+    // Estimate plus CA: only the CA survives.
+    let c = reopened(&legacy(serde_json::json!({"kind":"auto"}), true));
+    assert_eq!(c["source"], "Image", "{c}");
+    assert_eq!(c["sample"]["distortion"]["k1"], 0.0, "{c}");
+    assert_eq!(c["sample"]["vignette"], serde_json::json!([0.0, 0.0, 0.0]));
+    assert_eq!(c["sample"]["ca_red"], serde_json::json!([1.01, 0.0, 0.0]));
+    // Estimate only: nothing is applied.
+    let c = reopened(&legacy(serde_json::json!({"kind":"auto"}), false));
+    assert_eq!(c["source"], "Manual", "{c}");
+    assert!(c["sample"].is_null(), "{c}");
+    // The explicit opt-in is unchanged.
+    let c = reopened(&legacy(serde_json::json!({"kind":"auto_calibrated"}), true));
+    assert_eq!(c["source"], "Image");
+    assert_eq!(c["sample"]["distortion"]["k1"], -0.101);
+}
