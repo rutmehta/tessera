@@ -1,14 +1,15 @@
 //! Conditional recipe schema version 4 (LR-SCHEMA).
 //!
 //! A recipe that *uses* a field an older (schema 3) build would misrender or
-//! drop on re-save is written as schema 4; every other recipe stays schema 3
-//! and byte-identical. Which fields count is decided by exactly one list,
+//! drop on re-save is written as schema 4. Other recipes retain their stored
+//! version, including schema 4 after its features are removed. Native point
+//! colors without Adobe selection fields remain representable in schema 3. Which fields count is decided by exactly one list,
 //! [`V4_FEATURE_PREDICATES`]. Nothing else may decide the written version.
 //!
 //! Adding a feature (one line, plus a test in `v4_feature_predicates`):
 //!
 //! ```text
-//! ("point_colors", |r| !r.settings.color.point_colors.is_empty()),
+//! ("point_colors", |r| r.settings.color.point_colors.iter().any(|p| p.selection.is_some())),
 //! ```
 //!
 //! and a test that calls `assert_bumped_only_when_present("point_colors", ..)`.
@@ -50,7 +51,11 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] =
             !r.settings.locals.retouch.is_empty() || !r.history.base.locals.retouch.is_empty()
         }),
         ("point_colors", |r| {
-            !r.settings.color.point_colors.is_empty()
+            r.settings
+                .color
+                .point_colors
+                .iter()
+                .any(|p| p.selection.is_some())
         }),
         ("adobe_ai_mask", |r| {
             mask_feature(r, |c| c.adobe_ai.is_some())
@@ -334,12 +339,18 @@ mod v4_feature_predicates {
     #[test]
     fn lr1c_point_colors_bumps_only_when_present() {
         assert_bumped_only_when_present("point_colors", |r| {
-            r.settings.color.point_colors.push(super::super::settings::PointColor {
-                selection: Some(super::super::settings::PointColorSelection {
-                    source_hsl: [0., 0.5, 0.5], hue: [0., 0.25, 0.75, 1.],
-                    saturation: [0., 0.25, 0.75, 1.], luminance: [0., 0.25, 0.75, 1.],
-                }), ..Default::default()
-            });
+            r.settings
+                .color
+                .point_colors
+                .push(super::super::settings::PointColor {
+                    selection: Some(super::super::settings::PointColorSelection {
+                        source_hsl: [0., 0.5, 0.5],
+                        hue: [0., 0.25, 0.75, 1.],
+                        saturation: [0., 0.25, 0.75, 1.],
+                        luminance: [0., 0.25, 0.75, 1.],
+                    }),
+                    ..Default::default()
+                });
         });
     }
 
@@ -360,7 +371,12 @@ mod v4_feature_predicates {
         r.settings.tone.curves_extended = None;
         assert_eq!(required_schema_version(&r), 3);
         assert_eq!(written_version(&r.to_json().unwrap()), 4);
-        assert_eq!(Recipe::from_json(&r.to_json().unwrap()).unwrap().schema_version, 4);
+        assert_eq!(
+            Recipe::from_json(&r.to_json().unwrap())
+                .unwrap()
+                .schema_version,
+            4
+        );
     }
 
     #[test]

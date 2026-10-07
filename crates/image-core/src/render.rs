@@ -605,6 +605,9 @@ impl Renderer {
         if image.camera_linear_proxy().is_some() {
             return self.run_camera_linear_proxy(image, settings, coords, output, cancel, sink);
         }
+        if Self::requires_cpu_chain(settings) {
+            return self.run_m2(image, settings, coords, output, cancel, sink);
+        }
         let lens = self.interactive_lens_plan(image, settings, cancel)?;
         let mut r = self.resolve(image, settings)?;
         r.lens = lens.as_ref();
@@ -648,6 +651,14 @@ impl Renderer {
                 let extent = Self::output_extent(image, settings, level)?;
                 let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
                 self.run_camera_linear_proxy(image, settings, &coords, output, cancel, sink)?;
+            }
+            return cancel.check();
+        }
+        if Self::requires_cpu_chain(settings) {
+            for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
+                let extent = Self::output_extent(image, settings, level)?;
+                let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
+                self.run_m2(image, settings, &coords, output, cancel, sink)?;
             }
             return cancel.check();
         }
@@ -883,6 +894,17 @@ impl Renderer {
         Ok(developed)
     }
 
+    // Decide before admission: Upright analysis must use only the selected
+    // backend's memo, never populate a discarded GPU/native analysis first.
+    fn requires_cpu_chain(settings: &DevelopSettings) -> bool {
+        !settings.locals.retouch.is_empty()
+            || settings
+                .locals
+                .adjustments
+                .iter()
+                .any(|g| g.enabled && g.requires_cpu())
+    }
+
     fn run_m2(
         &self,
         image: &RawImage,
@@ -896,13 +918,7 @@ impl Renderer {
         // Avoid mixing the spot's CPU result with GPU rounding in Detail/Tone.
         // Preserve Adobe process selection and any resolved DCP profile.
         let cpu;
-        let renderer = if settings.locals.retouch.is_empty()
-            && !settings
-                .locals
-                .adjustments
-                .iter()
-                .any(|g| g.enabled && g.requires_cpu())
-        {
+        let renderer = if !Self::requires_cpu_chain(settings) {
             self
         } else {
             let cached = self.cpu_retouch.get_or_init(|| {
