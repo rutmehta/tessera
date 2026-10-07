@@ -374,7 +374,7 @@ written together with its change it says so.
 
 ### B-S5: private comparison (numbers only)
 
-Same 12 deterministic pairs (step over the 3,000+ comparable offline proxies),
+Same 12 deterministic pairs (every 1,243rd of 14,924 comparable offline proxies),
 64×64 Triangle comparison, after this lane's frame change:
 - Rotated pairs (display orientation 5-8): **1 of 12** (pair 12, orientation 8). Rotated **and** cropped: **0 of 12**, so this sample cannot discriminate the crop frame on rotated photos.
 - Orientation/aspect match: **11 of 12**, the same pairs as before; pair 12 still mismatches. Tessera's display output for pair 12 is portrait (683×1024), Lightroom's cached preview landscape (1752×1168). Pair 12 is uncropped, so the crop frame is not the cause; the harness does not apply the preview cache's own orientation column (`ImageCacheEntry.orientation`), which is the likely cause. Not investigated further in this lane.
