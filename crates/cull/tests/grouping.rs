@@ -1,3 +1,4 @@
+mod common;
 use cull::{CullSession, Decision, GroupingOptions, Scorer, dhash};
 use engine_api::EngineResult;
 use image::{Rgb, RgbImage};
@@ -117,7 +118,8 @@ fn dhash_groups_jpeg_brightness_and_blur_variants_not_opposite_gradient() {
     index
         .scan(dir.path(), &NoopSidecarReader, &index::NoopMetadataProvider)
         .unwrap();
-    let session = CullSession::open(&index, dir.path()).unwrap();
+    let mut session = CullSession::open(&index, dir.path()).unwrap();
+    common::finish_previews(&mut session);
     let mut sizes: Vec<_> = session.groups().iter().map(|g| g.images.len()).collect();
     sizes.sort();
     assert_eq!(sizes, [1, 3]);

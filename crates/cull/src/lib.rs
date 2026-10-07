@@ -1,6 +1,8 @@
 //! Sidecar-backed, keyboard-oriented culling. No AI signal applies a decision.
+mod background;
 mod defects;
 mod grouping;
+mod hash_cache;
 mod incremental;
 pub mod learning;
 mod library;
@@ -84,7 +86,8 @@ enum Targets<'t> {
     Images(&'t [ImageId]),
 }
 
-type PreviewProvider = Box<dyn Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync>;
+type PreviewProvider =
+    std::sync::Arc<dyn Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync>;
 
 /// A fixed review queue. Changes do not remove images from the active query.
 /// `I` is how the session holds its index: borrowed (`&Index`, see `open`) or
@@ -102,6 +105,8 @@ pub struct CullSession<I> {
     scorer: Option<Box<dyn Scorer>>,
     grouping_strategy: Option<Box<dyn GroupingStrategy>>,
     preview_hash: PreviewProvider,
+    previews: background::BackgroundPreviews,
+    preview_notify: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
     library: Option<PathBuf>,
     basket_target: Option<String>,
     /// The source, kept so incremental inserts apply the same membership rules.
@@ -150,7 +155,7 @@ impl OwnedCullSession {
             Box::new(index),
             Source::Folder(folder),
             Some(ids),
-            Box::new(preview_hash),
+            std::sync::Arc::new(preview_hash),
         )
     }
     /// Open a second connection to the same SQLite file for this; WAL lets it
@@ -161,7 +166,12 @@ impl OwnedCullSession {
         source: impl Into<Source>,
         preview: impl Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync + 'static,
     ) -> EngineResult<Self> {
-        Self::open_with_policy(Box::new(index), source.into(), None, Box::new(preview))
+        Self::open_with_policy(
+            Box::new(index),
+            source.into(),
+            None,
+            std::sync::Arc::new(preview),
+        )
     }
     pub fn open_owned(index: Index, source: impl Into<Source>) -> EngineResult<Self> {
         Self::open_with(Box::new(index), source.into())
@@ -169,7 +179,7 @@ impl OwnedCullSession {
 }
 impl<I: Deref<Target = Index>> CullSession<I> {
     fn open_with(index: I, source: Source) -> EngineResult<Self> {
-        Self::open_with_policy(index, source, None, Box::new(preview_hash))
+        Self::open_with_policy(index, source, None, std::sync::Arc::new(preview_hash))
     }
     fn open_with_policy(
         index: I,
@@ -177,6 +187,13 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         declared: Option<HashSet<ImageId>>,
         preview_hash: PreviewProvider,
     ) -> EngineResult<Self> {
+        let preview_hash = hash_cache::persistent(
+            index
+                .database_path()
+                .and_then(Path::parent)
+                .map(Path::to_path_buf),
+            preview_hash,
+        );
         // Read first: changes committed while the queue is built are re-applied (idempotently).
         let change_seq = index.change_head()?;
         let (query, folder) = match source {
@@ -228,6 +245,8 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             scorer: None,
             grouping_strategy: None,
             preview_hash,
+            previews: Default::default(),
+            preview_notify: None,
             library: if declared.is_none() {
                 folder.as_ref().map(|p| p.join("library.json"))
             } else {

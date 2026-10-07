@@ -246,18 +246,59 @@ pub(crate) fn lightroom_proxy(path: &Path) -> Option<serde_json::Value> {
         .get("lightroom_smart_preview")
         .cloned()
 }
-pub(crate) fn source_path(path: &Path) -> PathBuf {
-    lightroom_proxy(path)
-        .and_then(|v| {
-            v.get("original_path")
-                .and_then(|p| p.as_str())
-                .map(PathBuf::from)
-        })
+/// Listing projection: read one recipe and check the candidate original once.
+/// Pixel requests resolve independently so their source is never a stale snapshot.
+pub(crate) fn source_projection(path: &Path) -> (PathBuf, bool) {
+    let proxy = lightroom_proxy(path);
+    let source = proxy
+        .as_ref()
+        .and_then(|v| v.get("original_path").and_then(|p| p.as_str()))
+        .map(PathBuf::from)
         .filter(|p| p.is_file())
-        .unwrap_or_else(|| path.to_path_buf())
+        .unwrap_or_else(|| path.to_path_buf());
+    let offline = proxy.is_some() && source == path;
+    (source, offline)
 }
+pub(crate) fn source_path(path: &Path) -> PathBuf {
+    source_projection(path).0
+}
+#[cfg(test)]
 pub(crate) fn is_offline_proxy(path: &Path) -> bool {
-    lightroom_proxy(path).is_some() && source_path(path) == path
+    source_projection(path).1
+}
+
+/// Catalog-change invalidated listing facts. A warm refresh performs no recipe
+/// reads or original stats for unchanged rows; reopen takes a fresh snapshot.
+#[derive(Default)]
+pub(crate) struct ListingCache {
+    sequence: u64,
+    sources: std::collections::HashMap<ImageId, (String, bool)>,
+}
+impl ListingCache {
+    pub fn sync(&mut self, index: &index::Index) -> EngineResult<()> {
+        let changes = index.changes_since(self.sequence)?;
+        if changes.reset {
+            self.sources.clear();
+        }
+        for change in changes.changes {
+            if !matches!(change.kind, index::ChangeKind::Updated(fields)
+                if !fields.intersects(index::ChangeFields::FILE | index::ChangeFields::RECIPE | index::ChangeFields::METADATA))
+            {
+                self.sources.remove(&change.id);
+            }
+        }
+        self.sequence = changes.to;
+        Ok(())
+    }
+    pub fn source(&mut self, id: ImageId, path: &Path) -> (String, bool) {
+        self.sources
+            .entry(id)
+            .or_insert_with(|| {
+                let (source, offline) = source_projection(path);
+                (source.to_string_lossy().into_owned(), offline)
+            })
+            .clone()
+    }
 }
 
 pub(crate) fn catalog_orientation(path: &Path) -> Option<u16> {

@@ -131,20 +131,26 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             .map(|id| self.index.image_info(*id))
             .collect::<EngineResult<Vec<_>>>()?;
         let mut parents: Vec<_> = (0..infos.len()).collect();
-        let mut errors = Vec::new();
-        let mut hashes = vec![None; infos.len()];
+        // Explicit regroup also revalidates source fingerprints, on the worker.
+        // No cached hash is trusted on the open/regroup path itself.
+        self.previews = Default::default();
+        self.hashes.clear();
+        self.preview_errors.clear();
         if options.near_duplicates && self.declared.is_none() {
-            for (n, info) in infos.iter().enumerate() {
-                match (self.preview_hash)(info) {
-                    Ok(hash) => hashes[n] = hash,
-                    Err(error) => errors.push((info.id, error)),
-                }
+            for info in &infos {
+                self.previews.enqueue(info.clone());
             }
         }
         if let Some(strategy) = &self.grouping_strategy {
-            for n in 0..infos.len() {
+            // Downstream policies see a complete hash snapshot, not arbitrary
+            // partial completion order. With hashes disabled they run at once.
+            for n in 0..if self.previews.pending() {
+                0
+            } else {
+                infos.len()
+            } {
                 for m in 0..n {
-                    if strategy.related(&infos[m], &infos[n], hashes[m], hashes[n], options) {
+                    if strategy.related(&infos[m], &infos[n], None, None, options) {
                         join(&mut parents, m, n);
                     }
                 }
@@ -161,17 +167,6 @@ impl<I: Deref<Target = Index>> CullSession<I> {
                     join(&mut parents, pair[0].0, pair[1].0);
                 }
             }
-            let mut seen: Vec<(usize, u64)> = Vec::new();
-            for (n, hash) in hashes.iter().enumerate() {
-                if let Some(hash) = *hash {
-                    for &(m, other) in &seen {
-                        if near_duplicate(hash, other) {
-                            join(&mut parents, m, n);
-                        }
-                    }
-                    seen.push((n, hash));
-                }
-            }
         }
         let mut groups: BTreeMap<usize, Group> = BTreeMap::new();
         for (n, id) in self.images.iter().enumerate() {
@@ -182,9 +177,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
                 .push(*id);
         }
         self.groups = groups.into_values().collect();
-        self.preview_errors = errors;
         self.options = options;
-        self.hashes = self.images.iter().copied().zip(hashes).collect();
         self.infos = infos.into_iter().map(|i| (i.id, i)).collect();
         Ok(())
     }
@@ -217,20 +210,94 @@ impl<I: Deref<Target = Index>> CullSession<I> {
     pub(crate) fn refresh_grouping_inputs(&mut self, id: ImageId) -> EngineResult<()> {
         let info = self.index.image_info(id)?;
         self.preview_errors.retain(|(e, _)| *e != id);
-        let hash = if self.options.near_duplicates && self.declared.is_none() {
-            match (self.preview_hash)(&info) {
+        self.hashes.remove(&id);
+        self.previews.remove(id);
+        if self.options.near_duplicates && self.declared.is_none() {
+            self.previews.enqueue(info.clone());
+        }
+        self.infos.insert(id, info);
+        Ok(())
+    }
+    /// Wake the host after a bounded result batch. The callback runs outside
+    /// all session locks and may request another poll. It must not own the session.
+    pub fn set_preview_notifier(&mut self, notify: impl Fn() + Send + Sync + 'static) {
+        self.preview_notify = Some(std::sync::Arc::new(notify));
+    }
+    /// True while deferred hashes remain. Hosts poll after displaying the queue.
+    pub fn previews_pending(&self) -> bool {
+        self.previews.pending()
+    }
+    /// Starts/advances background hashing, applying at most 16 ready results.
+    /// Never decodes pixels on the caller. Dropping the session cancels queued
+    /// work; an already running codec can finish its one image before retiring.
+    pub fn poll_previews(&mut self) -> EngineResult<bool> {
+        let results = self
+            .previews
+            .poll(&self.preview_hash, &self.preview_notify)?;
+        let mut changed = Vec::new();
+        for (id, result) in results {
+            if !self.infos.contains_key(&id) {
+                continue;
+            }
+            self.preview_errors.retain(|(image, _)| *image != id);
+            let hash = match result {
                 Ok(hash) => hash,
                 Err(error) => {
                     self.preview_errors.push((id, error));
                     None
                 }
+            };
+            self.hashes.insert(id, hash);
+            changed.push(id);
+        }
+        if changed.is_empty() {
+            return Ok(false);
+        }
+        if self.grouping_strategy.is_some() {
+            return if self.previews.pending() {
+                Ok(false)
+            } else {
+                self.regroup_images(&self.images.clone())
+            };
+        }
+        // New hashes only add edges. Join existing components and compare each
+        // newly hashed image once against the queue: O(batch * N), not repeated
+        // all-pairs reconstruction of an ever-growing near-duplicate component.
+        let positions: std::collections::HashMap<_, _> = self
+            .images
+            .iter()
+            .enumerate()
+            .map(|(n, id)| (*id, n))
+            .collect();
+        let mut parents: Vec<_> = (0..self.images.len()).collect();
+        for group in &self.groups {
+            for pair in group.images.windows(2) {
+                join(&mut parents, positions[&pair[0]], positions[&pair[1]]);
             }
-        } else {
-            None
-        };
-        self.hashes.insert(id, hash);
-        self.infos.insert(id, info);
-        Ok(())
+        }
+        for id in changed {
+            let n = positions[&id];
+            for (m, other) in self.images.iter().enumerate() {
+                if m != n && root(&mut parents, m) != root(&mut parents, n) {
+                    let (a, b) = if m < n { (*other, id) } else { (id, *other) };
+                    if self.related(a, b) {
+                        join(&mut parents, m, n);
+                    }
+                }
+            }
+        }
+        let mut groups: BTreeMap<usize, Group> = BTreeMap::new();
+        for (n, id) in self.images.iter().enumerate() {
+            groups
+                .entry(root(&mut parents, n))
+                .or_insert_with(|| Group { images: Vec::new() })
+                .images
+                .push(*id);
+        }
+        let groups: Vec<_> = groups.into_values().collect();
+        let changed = groups != self.groups;
+        self.groups = groups;
+        Ok(changed)
     }
     pub fn current_group(&self) -> Option<usize> {
         let id = self.current()?;

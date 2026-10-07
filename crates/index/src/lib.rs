@@ -40,6 +40,7 @@ type Result<T> = std::result::Result<T, IndexError>;
 #[derive(Debug)]
 struct Core {
     conn: Connection,
+    image_info_reads: std::cell::Cell<u64>,
 }
 
 impl Core {
@@ -183,7 +184,10 @@ impl Core {
                 "../migrations/009_people_medoid_invalidation.sql"
             ))?;
         }
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            image_info_reads: std::cell::Cell::new(0),
+        })
     }
 
     /// Scans a filesystem root and indexes supported image files.
