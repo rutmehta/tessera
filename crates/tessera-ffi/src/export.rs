@@ -348,6 +348,7 @@ impl ExportOptions {
     }
     fn settings(&self, output_dir: PathBuf) -> Result<export::ExportSettings> {
         Ok(export::ExportSettings {
+            mask_support: None,
             retouch: Some(Arc::new(brush::render_retouch)),
             format: match self.format {
                 FileFormat::Jpeg => export::Format::Jpeg {
@@ -1229,6 +1230,7 @@ impl Engine {
                 }
                 let crop = recipe.settings.geometry.crop.rect;
                 let settings = export::ExportSettings {
+                    mask_support: Some(self.support_dir()?.to_path_buf()),
                     naming,
                     original_raw: options.embed_original_raw.then(|| item.path.clone()),
                     metadata_sources: [(image.sequence, item.path.clone())].into(),
@@ -1450,7 +1452,7 @@ impl Engine {
         let (recipe, _) = self.recipe_and_xmp(&item)?;
         let source = Source::open(&item.path, item.orientation)?;
         let crop = recipe.settings.geometry.crop.rect;
-        let segmenter = if export::needs_segmenter(&recipe) {
+        let mut segmenter = if export::needs_segmenter(&recipe) {
             Some(
                 export::mask_ai::load_segmenter(self.support_dir()?)
                     .map_err(|e| failure(format!("AI masks: {e}")))?,
@@ -1468,7 +1470,6 @@ impl Engine {
         } else {
             export::ColorSpace::DisplayP3
         };
-        let mut segmenter = segmenter;
         let rgb = export::render_pixels_with_resources(
             &export::ExportImage {
                 source: source.render_source(),
@@ -1495,6 +1496,7 @@ impl Engine {
                 Some(s) => Some(s.as_mut()),
                 None => None,
             },
+            Some(self.support_dir()?),
             Some(Arc::new(brush::render_retouch)),
         )?;
         let (width, height) = rgb.dimensions();

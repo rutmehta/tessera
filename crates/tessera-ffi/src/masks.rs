@@ -417,6 +417,7 @@ fn renderable_component(c: &MaskComponent) -> Option<MaskComponent> {
     };
     Some(MaskComponent {
         enabled: c.enabled,
+        adobe_ai: c.adobe_ai.clone(),
         group: None,
         luminance_bounds: c.luminance_bounds,
         kind,
@@ -538,6 +539,45 @@ fn ai_key(k: &MaskKind) -> Option<String> {
         .then(|| serde_json::to_string(k).unwrap_or_default())
 }
 
+fn component_ai_state(
+    c: &MaskComponent,
+    enabled: bool,
+    ai: &HashMap<String, AiEntry>,
+) -> AiMaskState {
+    if !enabled {
+        return AiMaskState::NotAi;
+    }
+    let keys: Vec<_> = c.active_leaves().filter_map(component_raster_key).collect();
+    if keys.is_empty() {
+        return AiMaskState::NotAi;
+    }
+    for key in &keys {
+        if let Some(AiEntry::Failed(message)) = ai.get(key) {
+            return AiMaskState::Failed {
+                message: format!("Unavailable: {message}"),
+            };
+        }
+    }
+    for key in &keys {
+        match ai.get(key) {
+            Some(AiEntry::Ready(_)) => {}
+            Some(AiEntry::Pending { fraction, message }) => {
+                return AiMaskState::Pending {
+                    fraction: *fraction,
+                    message: message.clone(),
+                };
+            }
+            _ => {
+                return AiMaskState::Pending {
+                    fraction: 0.,
+                    message: "Pending/unavailable: queued".into(),
+                };
+            }
+        }
+    }
+    AiMaskState::Ready
+}
+
 fn group_info(g: &LocalAdjustment, ai: &HashMap<String, AiEntry>) -> MaskGroupInfo {
     let params = serde_json::to_value(&g.params).unwrap_or(Value::Null);
     MaskGroupInfo {
@@ -551,25 +591,11 @@ fn group_info(g: &LocalAdjustment, ai: &HashMap<String, AiEntry>) -> MaskGroupIn
             .iter()
             .map(|c| {
                 let key = if c.group.is_none() && g.enabled && c.enabled {
-                    ai_key(&c.kind)
+                    component_raster_key(c)
                 } else {
                     None
                 };
-                let state = match &key {
-                    None => AiMaskState::NotAi,
-                    Some(k) => match ai.get(k) {
-                        Some(AiEntry::Ready(_)) => AiMaskState::Ready,
-                        Some(AiEntry::Failed(m)) => AiMaskState::Failed { message: m.clone() },
-                        Some(AiEntry::Pending { fraction, message }) => AiMaskState::Pending {
-                            fraction: *fraction,
-                            message: message.clone(),
-                        },
-                        None => AiMaskState::Pending {
-                            fraction: 0.0,
-                            message: "Queued".into(),
-                        },
-                    },
-                };
+                let state = component_ai_state(c, g.enabled, ai);
                 MaskComponentInfo {
                     enabled: c.enabled,
                     kind: if c.group.is_some() {
@@ -718,6 +744,46 @@ impl MaskShared {
         })
     }
 
+    fn refresh_imported(
+        &self,
+        support: &std::path::Path,
+        key: &str,
+        imported: &[u8; 32],
+    ) -> anyhow::Result<()> {
+        // Imported keys are immutable content identities. A ready session owns
+        // the plane; edits must not reopen the store or checksum the file.
+        if matches!(
+            self.ai.lock().unwrap_or_else(|e| e.into_inner()).get(key),
+            Some(AiEntry::Ready(_))
+        ) {
+            return Ok(());
+        }
+        let plane = mask_backend::imported_plane(support, imported)?;
+        // Stored pixels are only usable at the render extent. Anything else
+        // takes the regeneration path, exactly as file export does.
+        anyhow::ensure!(
+            self.extents.first() == Some(&(plane.width, plane.height)),
+            "stored mask raster has the wrong extent"
+        );
+        self.set_ai(key, AiEntry::Ready(Arc::new(plane)));
+        Ok(())
+    }
+
+    /// Every enabled AI leaf has pixels: a stored raster validated on load or
+    /// a finished segmentation (resampled on use). Pending and failed do not.
+    fn group_available(&self, group: &LocalAdjustment) -> bool {
+        let entries = self.ai.lock().unwrap_or_else(|e| e.into_inner());
+        group
+            .components
+            .iter()
+            .flat_map(MaskComponent::active_leaves)
+            .filter(|c| c.kind.is_ai())
+            .all(|c| {
+                component_raster_key(c)
+                    .is_some_and(|key| matches!(entries.get(&key), Some(AiEntry::Ready(_))))
+            })
+    }
+
     fn listener(&self) -> Option<Arc<dyn MaskListener>> {
         self.listener
             .lock()
@@ -751,12 +817,11 @@ impl MaskShared {
     }
 
     fn set_ai(&self, key: &str, entry: AiEntry) {
-        let ready = matches!(entry, AiEntry::Ready(_));
         self.ai
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .insert(key.into(), entry);
-        if ready {
+        {
             self.resampled
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
@@ -785,8 +850,11 @@ impl MaskHooks for Hooks {
         group: &LocalAdjustment,
         _level: u8,
     ) -> engine_api::EngineResult<Vec<f32>> {
-        mask_backend::compose(input, group, |kind, w, h| {
-            let key = ai_key(kind)
+        if !self.0.group_available(group) {
+            return Ok(vec![0.; (input.width() * input.height()) as usize]);
+        }
+        mask_backend::compose_with_components(input, group, |c, w, h| {
+            let key = component_raster_key(c)
                 .ok_or_else(|| engine_api::EngineError::invalid("mask", "unsupported AI kind"))?;
             Ok(self.0.ai_plane(&key, w, h))
         })
@@ -872,7 +940,11 @@ impl AiMaskJob {
                 None
             }
             Err(e) => {
-                let message = format!("{e:#}");
+                let message = if self.key.starts_with("imported:") {
+                    format!("Regenerating missing stored mask: {e:#}")
+                } else {
+                    format!("{e:#}")
+                };
                 masks.set_ai(&self.key, AiEntry::Failed(message.clone()));
                 Some(message)
             }
@@ -882,7 +954,14 @@ impl AiMaskJob {
                 key: self.key.clone(),
                 title: component_title(&self.kind),
                 fraction: 1.0,
-                message: if error.is_some() { "Failed" } else { "Ready" }.into(),
+                message: if error.is_some() {
+                    "Unavailable"
+                } else if self.key.starts_with("imported:") {
+                    "Regenerated missing stored mask"
+                } else {
+                    "Ready"
+                }
+                .into(),
                 done: true,
                 error,
             });
@@ -895,7 +974,7 @@ impl AiMaskJob {
                 .iter()
                 .flat_map(|g| &g.components)
                 .flat_map(MaskComponent::active_leaves)
-                .any(|c| ai_key(&c.kind).as_deref() == Some(&self.key));
+                .any(|c| component_raster_key(c).as_deref() == Some(&self.key));
             if uses && !st.closing && !st.closed {
                 // Rasters are part of the mask cache key: re-render.
                 st.rendered = None;
@@ -905,11 +984,16 @@ impl AiMaskJob {
     }
 
     fn progress(&self, masks: &MaskShared, fraction: f32, message: &str) {
+        let message = if self.key.starts_with("imported:") {
+            format!("Regenerating missing stored mask: {message}")
+        } else {
+            message.to_string()
+        };
         masks.set_ai(
             &self.key,
             AiEntry::Pending {
                 fraction,
-                message: message.into(),
+                message: message.clone(),
             },
         );
         if let Some(l) = masks.listener() {
@@ -917,7 +1001,7 @@ impl AiMaskJob {
                 key: self.key.clone(),
                 title: component_title(&self.kind),
                 fraction,
-                message: message.into(),
+                message,
                 done: false,
                 error: None,
             });
@@ -1030,15 +1114,41 @@ impl Job for AiMaskJob {
     }
 }
 
+fn component_raster_key(c: &MaskComponent) -> Option<String> {
+    c.adobe_ai
+        .as_ref()
+        .and_then(|s| s.mask_key)
+        .and_then(|key| {
+            // Disk identity deduplicates immutable pixels. Session identity must
+            // also distinguish every fallback request if those pixels disappear.
+            ai_key(&c.kind).map(|request| {
+                format!(
+                    "imported:{}:{request}",
+                    blake3::Hash::from_bytes(key).to_hex()
+                )
+            })
+        })
+        .or_else(|| ai_key(&c.kind))
+}
+
 /// Queues segmentation for AI components of `settings` without a raster.
 pub(crate) fn ensure_ai_jobs(shared: &Arc<Shared>, settings: &DevelopSettings) {
-    let wanted: Vec<(String, MaskKind)> = settings
+    let wanted: Vec<_> = settings
         .locals
         .adjustments
         .iter()
+        .filter(|g| g.enabled && g.amount != 0.)
         .flat_map(|g| &g.components)
         .flat_map(MaskComponent::active_leaves)
-        .filter_map(|c| ai_key(&c.kind).map(|k| (k, c.kind.clone())))
+        .filter_map(|c| {
+            component_raster_key(c).map(|k| {
+                (
+                    k,
+                    c.kind.clone(),
+                    c.adobe_ai.as_ref().and_then(|a| a.mask_key),
+                )
+            })
+        })
         .collect();
     if wanted.is_empty() {
         return;
@@ -1046,16 +1156,32 @@ pub(crate) fn ensure_ai_jobs(shared: &Arc<Shared>, settings: &DevelopSettings) {
     let Some(engine) = shared.engine.upgrade() else {
         return;
     };
-    let mut ai = shared.masks.ai.lock().unwrap_or_else(|e| e.into_inner());
-    for (key, kind) in wanted {
-        if ai.contains_key(&key) {
+    for (key, kind, imported) in wanted {
+        if shared
+            .masks
+            .ai
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains_key(&key)
+        {
             continue;
         }
-        ai.insert(
-            key.clone(),
+        let mut message = "Queued".to_string();
+        if let Some(imported) = imported {
+            let result = engine
+                .support_dir()
+                .map_err(|e| anyhow::anyhow!("{e}"))
+                .and_then(|p| shared.masks.refresh_imported(p, &key, &imported));
+            match result {
+                Ok(()) => continue,
+                Err(_) => message = "Regenerating: stored AI raster missing or unavailable".into(),
+            }
+        }
+        shared.masks.set_ai(
+            &key,
             AiEntry::Pending {
-                fraction: 0.0,
-                message: "Queued".into(),
+                fraction: 0.,
+                message,
             },
         );
         let job = AiMaskJob {
@@ -1198,11 +1324,14 @@ fn thumbnail_raster(
     {
         return None;
     }
+    if !masks.group_available(group) {
+        return Some(vec![0.; (width * height) as usize]);
+    }
     let image =
         pipeline_cpu::Image::new(width, height, vec![vec![0.0; (width * height) as usize]; 3])
             .ok()?;
-    mask_backend::compose(&image, &renderable_group(group), |kind, w, h| {
-        let key = ai_key(kind)
+    mask_backend::compose_with_components(&image, &renderable_group(group), |c, w, h| {
+        let key = component_raster_key(c)
             .ok_or_else(|| engine_api::EngineError::invalid("mask", "unsupported AI kind"))?;
         Ok(masks.ai_plane(&key, w, h))
     })
@@ -1404,6 +1533,7 @@ impl DevelopSession {
         g.components.push(MaskComponent {
             enabled: true,
             group: None,
+            adobe_ai: None,
             luminance_bounds: None,
             kind,
             combine: combine.into(),
@@ -1426,7 +1556,9 @@ impl DevelopSession {
         default_model(&mut kind);
         let mut st = self.shared.edit_lock()?;
         let g = find_group(&mut st.live.locals.adjustments, group_id)?;
-        component_at(g, index)?.kind = kind;
+        let component = component_at(g, index)?;
+        component.kind = kind;
+        component.adobe_ai = None;
         self.shared.masks_changed(&mut st, interactive);
         Ok(())
     }
@@ -1685,6 +1817,7 @@ impl DevelopSession {
                     .push(MaskComponent {
                         enabled: true,
                         group: None,
+                        adobe_ai: None,
                         luminance_bounds: None,
                         kind: component,
                         combine: combine.into(),
@@ -1804,6 +1937,7 @@ impl DevelopSession {
                     .push(MaskComponent {
                         enabled: true,
                         group: None,
+                        adobe_ai: None,
                         luminance_bounds: None,
                         kind,
                         combine: combine.into(),
@@ -2386,6 +2520,7 @@ mod tests {
                 MaskComponent {
                     enabled: true,
                     group: None,
+                    adobe_ai: None,
                     luminance_bounds: None,
                     kind: MaskKind::Linear {
                         start: [0.0, 0.0],
@@ -2505,5 +2640,475 @@ mod lr4_tests {
                 end: [1., 0.]
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod lr5_imported_tests {
+    use super::*;
+    #[test]
+    fn lr5b_imported_raster_cache_does_not_reopen_between_frames() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("imported-masks");
+        let store = ml_segment::MaskStore::new(&root, 0).unwrap();
+        let key = [43; 32];
+        store
+            .put_pinned(
+                &key,
+                &ml_segment::MaskRaster::new(2, 1, vec![0., 1.]).unwrap(),
+            )
+            .unwrap();
+        let shared = MaskShared::with_extents(vec![(2, 1)]);
+        shared.refresh_imported(dir.path(), "cached", &key).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+        shared.refresh_imported(dir.path(), "cached", &key).unwrap();
+        assert_eq!(&*shared.ai_plane("cached", 2, 1), &[0., 1.]);
+    }
+    #[test]
+    fn imported_rasters_have_distinct_component_identity_and_render_without_inference() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ml_segment::MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
+        let shared = MaskShared::with_extents(vec![(2, 1)]);
+        let mut components = Vec::new();
+        for (key, data) in [([1; 32], vec![1., 0.]), ([2; 32], vec![0.25, 1.])] {
+            store
+                .put_pinned(&key, &ml_segment::MaskRaster::new(2, 1, data).unwrap())
+                .unwrap();
+            let mut c = MaskComponent::new(MaskKind::Sky { model: None });
+            c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+                resource_id: Some("opaque".into()),
+                category: "Sky".into(),
+                mask_key: Some(key),
+                regenerate: false,
+            });
+            shared
+                .refresh_imported(dir.path(), &component_raster_key(&c).unwrap(), &key)
+                .unwrap();
+            components.push(c);
+        }
+        components[1].combine = MaskCombine::Subtract;
+        let mut group = LocalAdjustment {
+            components,
+            params: LocalParams {
+                exposure: 1.,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let image = pipeline_cpu::Image::new(2, 1, vec![vec![0.18; 2]; 3]).unwrap();
+        let hooks = Hooks(shared);
+        let alpha = hooks.rasterize(&image, &group, 0).unwrap();
+        assert_eq!(alpha, vec![0.75, 0.]);
+        let adjusted = pipeline_cpu::adjust_local(&image, &group.params, 100.).unwrap();
+        let rendered = pipeline_cpu::blend_local(&image, &adjusted, &alpha).unwrap();
+        assert!((rendered.planes()[0][0] - 0.315).abs() < 1e-5);
+        assert!((rendered.planes()[0][1] - 0.18).abs() < 1e-5);
+        let revision = hooks.revision();
+        store
+            .put_pinned(
+                &[3; 32],
+                &ml_segment::MaskRaster::new(2, 1, vec![0., 1.]).unwrap(),
+            )
+            .unwrap();
+        group.components[0].adobe_ai.as_mut().unwrap().mask_key = Some([3; 32]);
+        hooks
+            .0
+            .refresh_imported(
+                dir.path(),
+                &component_raster_key(&group.components[0]).unwrap(),
+                &[3; 32],
+            )
+            .unwrap();
+        assert!(hooks.revision() > revision);
+        assert_eq!(hooks.rasterize(&image, &group, 0).unwrap(), vec![0., 0.]);
+        let normalized = renderable_group(&group);
+        assert_eq!(
+            normalized.components[0].adobe_ai,
+            group.components[0].adobe_ai
+        );
+        let missing = Hooks(MaskShared::with_extents(vec![(2, 1)]));
+        assert_eq!(missing.rasterize(&image, &group, 0).unwrap(), vec![0., 0.]);
+        assert!(!dir.path().join("models").exists());
+    }
+}
+
+#[cfg(test)]
+mod lr5b_unavailable_tests {
+    use super::*;
+    #[test]
+    fn lr5b_nested_unavailable_mask_reports_pending_ui() {
+        let mut parent = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
+        parent.group = Some(vec![MaskComponent::new(MaskKind::Subject { model: None })]);
+        let group = LocalAdjustment {
+            components: vec![parent],
+            ..Default::default()
+        };
+        let info = group_info(&group, &HashMap::new());
+        assert!(matches!(info.components[0].ai, AiMaskState::Pending { .. }));
+    }
+    #[test]
+    fn lr5b_regenerated_imported_job_invalidates_live_frame() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([100, 100, 100]))
+            .save(photos.join("synthetic.jpg"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("app").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        let session = engine.clone().open_develop_session(id).unwrap();
+        let kind = MaskKind::Subject { model: None };
+        let mut component = MaskComponent::new(kind.clone());
+        component.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some([49; 32]),
+            regenerate: false,
+        });
+        let key = component_raster_key(&component).unwrap();
+        {
+            let mut state = session.shared.edit_lock().unwrap();
+            state.live.locals.adjustments.push(LocalAdjustment {
+                components: vec![component],
+                ..Default::default()
+            });
+            state.rendered = Some(state.drawn());
+        }
+        let generation = session.shared.generation.load(Ordering::SeqCst);
+        AiMaskJob {
+            shared: Arc::downgrade(&session.shared),
+            key,
+            kind,
+        }
+        .finish(
+            &session.shared,
+            Ok(AlphaPlane {
+                width: 2,
+                height: 2,
+                data: vec![1.; 4],
+            }),
+        );
+        assert!(session.shared.generation.load(Ordering::SeqCst) > generation);
+        session.close().unwrap();
+    }
+    fn imported_subject(key: [u8; 32]) -> MaskComponent {
+        let mut c = MaskComponent::new(MaskKind::Subject { model: None });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some(key),
+            regenerate: false,
+        });
+        c
+    }
+    /// M6: once the stored raster is gone the segmentation job answers under
+    /// the same imported key at the proxy level, not the level 0 extent. That
+    /// regenerated plane must render instead of leaving the adjustment skipped.
+    #[test]
+    fn lr5b_regenerated_imported_plane_renders_at_proxy_extent() {
+        let shared = MaskShared::with_extents(vec![(4, 2), (2, 1)]);
+        let c = imported_subject([51; 32]);
+        let key = component_raster_key(&c).unwrap();
+        shared.set_ai(
+            &key,
+            AiEntry::Ready(Arc::new(AlphaPlane {
+                width: 2,
+                height: 1,
+                data: vec![1.; 2],
+            })),
+        );
+        let group = LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        };
+        let image = pipeline_cpu::Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
+        assert_eq!(
+            Hooks(shared).rasterize(&image, &group, 0).unwrap(),
+            vec![1.; 8]
+        );
+    }
+    /// M6: a stored raster of the wrong extent is not usable pixels. It must
+    /// take the regeneration path (as export does), never sit "ready" unused.
+    #[test]
+    fn lr5b_wrong_extent_stored_raster_is_not_ready_and_requests_regeneration() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ml_segment::MaskStore::new(dir.path().join("imported-masks"), 0).unwrap();
+        let stored = store
+            .put_content_pinned(&ml_segment::MaskRaster::new(2, 1, vec![1.; 2]).unwrap())
+            .unwrap();
+        let shared = MaskShared::with_extents(vec![(4, 2), (2, 1)]);
+        let c = imported_subject(stored);
+        let key = component_raster_key(&c).unwrap();
+        assert!(shared.refresh_imported(dir.path(), &key, &stored).is_err());
+        assert!(
+            !matches!(shared.ai.lock().unwrap().get(&key), Some(AiEntry::Ready(_))),
+            "a wrong-extent raster must not be reported ready"
+        );
+        let info = group_info(
+            &LocalAdjustment {
+                components: vec![c],
+                ..Default::default()
+            },
+            &shared.ai.lock().unwrap(),
+        );
+        assert!(matches!(info.components[0].ai, AiMaskState::Pending { .. }));
+    }
+    #[test]
+    fn lr5b_unavailable_inverted_and_subtracted_ai_has_zero_effect_and_pending_ui() {
+        let shared = MaskShared::with_extents(vec![(2, 1)]);
+        let image = pipeline_cpu::Image::new(2, 1, vec![vec![0.18; 2]; 3]).unwrap();
+        for subtract in [false, true] {
+            let mut ai = MaskComponent::new(MaskKind::Subject { model: None });
+            ai.invert = !subtract;
+            ai.combine = if subtract {
+                MaskCombine::Subtract
+            } else {
+                MaskCombine::Add
+            };
+            let mut components = vec![];
+            if subtract {
+                components.push(MaskComponent::new(MaskKind::Linear {
+                    start: [0., 0.],
+                    end: [1., 0.],
+                }));
+            }
+            components.push(ai);
+            let group = LocalAdjustment {
+                components,
+                params: LocalParams {
+                    exposure: 1.,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let info = group_info(&group, &HashMap::new());
+            assert!(matches!(
+                info.components.last().unwrap().ai,
+                AiMaskState::Pending { .. }
+            ));
+            let alpha = Hooks(shared.clone()).rasterize(&image, &group, 0).unwrap();
+            assert_eq!(alpha, vec![0., 0.], "subtract={subtract}");
+            let adjusted = pipeline_cpu::adjust_local(&image, &group.params, 100.).unwrap();
+            let out = pipeline_cpu::blend_local(&image, &adjusted, &alpha).unwrap();
+            assert_eq!(out.planes(), image.planes());
+        }
+    }
+}
+
+#[cfg(test)]
+mod lr5d_fallback_tests {
+    use super::*;
+    struct PromptPlanes(bool);
+    impl MaskSegmenter for PromptPlanes {
+        fn segment(
+            &mut self,
+            image: &RgbImage,
+            request: &SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            let SegmentRequest::Prompts { clicks, .. } = request else {
+                anyhow::bail!("expected object prompts")
+            };
+            let second = clicks[0][0] > 0.5;
+            anyhow::ensure!(!(second && self.0), "second object unavailable");
+            Ok(vec![
+                if second { 0.75 } else { 0.25 };
+                (image.width() * image.height()) as usize
+            ])
+        }
+    }
+    impl export::mask_ai::MaskSegmenter for PromptPlanes {
+        fn segment(
+            &mut self,
+            image: &RgbImage,
+            request: &export::mask_ai::SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            let export::mask_ai::SegmentRequest::Prompts { clicks, .. } = request else {
+                anyhow::bail!("expected object prompts")
+            };
+            let second = clicks[0][0] > 0.5;
+            anyhow::ensure!(!(second && self.0), "second object unavailable");
+            Ok(vec![
+                if second { 0.75 } else { 0.25 };
+                (image.width() * image.height()) as usize
+            ])
+        }
+    }
+    struct Listener(std::sync::mpsc::Sender<MaskJobUpdate>);
+    impl MaskListener for Listener {
+        fn overlay_ready(&self, _: MaskOverlayFrame) {}
+        fn ai_progress(&self, update: MaskJobUpdate) {
+            if update.done {
+                let _ = self.0.send(update);
+            }
+        }
+    }
+    fn check(second_fails: bool) {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(2, 2, image::Rgb([100, 100, 100]))
+            .save(photos.join("synthetic.jpg"))
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        engine.install_mask_segmenter(Box::new(PromptPlanes(second_fails)));
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        let session = engine.clone().open_develop_session(id).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        session.set_mask_listener(Some(Arc::new(Listener(tx))));
+        let store =
+            ml_segment::MaskStore::new(engine.support_dir().unwrap().join("imported-masks"), 0)
+                .unwrap();
+        let raster = ml_segment::MaskRaster::new(2, 2, vec![0.5; 4]).unwrap();
+        let shared_key = store.put_content_pinned(&raster).unwrap();
+        assert_eq!(store.put_content_pinned(&raster).unwrap(), shared_key);
+        std::fs::remove_file(store.root().join("pinned").join(format!(
+            "{}.mask",
+            blake3::Hash::from_bytes(shared_key).to_hex()
+        )))
+        .unwrap();
+        let groups: Vec<_> = [0.25, 0.75]
+            .into_iter()
+            .map(|x| {
+                let mut c = MaskComponent::new(MaskKind::Object {
+                    prompt: None,
+                    region: None,
+                    points: vec![[x, 0.5]],
+                    model: None,
+                });
+                c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+                    resource_id: None,
+                    category: "Object".into(),
+                    mask_key: Some(shared_key),
+                    regenerate: false,
+                });
+                LocalAdjustment {
+                    id: engine_api::id::MaskId(if x < 0.5 { 1 } else { 2 }),
+                    params: engine_api::recipe::mask::LocalParams {
+                        exposure: 1.,
+                        ..Default::default()
+                    },
+                    components: vec![c],
+                    ..Default::default()
+                }
+            })
+            .collect();
+        let mut settings = DevelopSettings::default();
+        settings.locals.adjustments = groups.clone();
+        ensure_ai_jobs(&session.shared, &settings);
+        assert_eq!(
+            session.shared.masks.ai.lock().unwrap().len(),
+            2,
+            "shared disk content must not merge distinct fallback requests"
+        );
+        let updates: Vec<_> = (0..2)
+            .map(|_| rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap())
+            .collect();
+        assert_eq!(
+            updates.iter().filter(|u| u.error.is_some()).count(),
+            usize::from(second_fails)
+        );
+        let input = pipeline_cpu::Image::new(2, 2, vec![vec![0.18; 4]; 3]).unwrap();
+        let hooks = Hooks(session.shared.masks.clone());
+        assert_eq!(
+            hooks.rasterize(&input, &groups[0], 0).unwrap(),
+            vec![0.25; 4]
+        );
+        assert_eq!(
+            hooks.rasterize(&input, &groups[1], 0).unwrap(),
+            vec![if second_fails { 0. } else { 0.75 }; 4]
+        );
+        if second_fails {
+            let mut mixed = groups[0].clone();
+            mixed.components.push(groups[1].components[0].clone());
+            mixed.invert = true;
+            assert_eq!(hooks.rasterize(&input, &mixed, 0).unwrap(), vec![0.; 4]);
+            assert!(!session.shared.masks.group_available(&mixed));
+        }
+        let mut recipe = import_lrcat::develop(1, "s={Exposure2012=1}", "15.4")
+            .unwrap()
+            .0;
+        recipe.set_imported_masks(groups.clone()).unwrap();
+        let input_export = export::ExportImage {
+            source: pipeline_cpu::RenderSource::Rgb(&input),
+            name: "synthetic",
+            sequence: 1,
+            date: "",
+            metadata: None,
+        };
+        let request = export::RenderRequest {
+            color_space: export::ColorSpace::Srgb,
+            resize: export::Resize::None,
+            sharpen_for: export::SharpenFor::None,
+            scale: 1,
+        };
+        let cancel = engine_api::jobs::CancellationToken::new();
+        let rendered = export::render_pixels_with_mask_support(
+            &input_export,
+            &recipe,
+            &request,
+            &cancel,
+            Some(&mut PromptPlanes(second_fails)),
+            Some(engine.support_dir().unwrap()),
+        );
+        if second_fails {
+            assert!(
+                rendered
+                    .unwrap_err()
+                    .to_string()
+                    .contains("second object unavailable")
+            );
+        } else {
+            // Export of the planes actually used by preview must match regeneration.
+            let mut preview_groups = groups;
+            for group in &mut preview_groups {
+                let plane = hooks.rasterize(&input, group, 0).unwrap();
+                let key = store
+                    .put_content_pinned(&ml_segment::MaskRaster::new(2, 2, plane).unwrap())
+                    .unwrap();
+                group.components[0].adobe_ai.as_mut().unwrap().mask_key = Some(key);
+            }
+            recipe.set_imported_masks(preview_groups).unwrap();
+            let preview_pixels = export::render_pixels_with_mask_support(
+                &input_export,
+                &recipe,
+                &request,
+                &cancel,
+                None,
+                Some(engine.support_dir().unwrap()),
+            )
+            .unwrap();
+            assert!(
+                rendered
+                    .unwrap()
+                    .as_raw()
+                    .iter()
+                    .zip(preview_pixels.as_raw())
+                    .all(|(a, b)| (a - b).abs() < 1e-4)
+            );
+        }
+        session.close().unwrap();
+    }
+    #[test]
+    fn lr5d_missing_shared_blob_regenerates_distinct_object_prompts() {
+        check(false);
+    }
+    #[test]
+    fn lr5d_missing_shared_blob_second_request_failure_stays_unavailable() {
+        check(true);
     }
 }

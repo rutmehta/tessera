@@ -222,6 +222,42 @@ pub trait LrcatProgressListener: Send + Sync {
     fn on_progress(&self, progress: LrcatProgress);
 }
 
+#[cfg(test)]
+thread_local! {
+    static LR5D_MEASUREMENTS: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
+}
+
+/// Extent an injected mask raster must have: the space the renderer masks in.
+/// The same recognizer and decoder as rendering decide it, so RGB sources are
+/// measured after EXIF orientation and RAW sources by their active sensor
+/// area, never by a container preview or unrotated file dimensions. Only
+/// called for an AI-masked image when the caller injects rasters.
+fn render_mask_extent(path: &Path) -> (u32, u32) {
+    #[cfg(test)]
+    LR5D_MEASUREMENTS.with(|counts| {
+        let (depth, mask) = counts.get();
+        counts.set((depth, mask + 1));
+    });
+    if image_core::RgbSource::recognizes(path) {
+        return image_core::RgbSource::open(path)
+            .map(|source| (source.pixels().width(), source.pixels().height()))
+            .unwrap_or((0, 0));
+    }
+    raw_decode::RawSource::open(path)
+        .map(|raw| {
+            let meta = raw.metadata();
+            (meta.default_crop[2], meta.default_crop[3])
+        })
+        .unwrap_or((0, 0))
+}
+
+/// Caller-owned opaque resource association. Supply a full sensor-aligned
+/// grayscale PNG/TIFF, including any Adobe crop/origin expansion.
+#[uniffi::export(with_foreign)]
+pub trait LrcatMaskResolver: Send + Sync {
+    fn resolve(&self, catalog_image_id: i64, resource_id: String) -> Option<Vec<u8>>;
+}
+
 /// Caller-owned association of opaque Adobe resource IDs with this catalog image.
 /// Return None for missing/proprietary resources; IDs are never filesystem paths.
 #[uniffi::export(with_foreign)]
@@ -536,25 +572,35 @@ fn note_approximate(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path) 
 }
 
 fn note_diagnostics(issues: &mut Vec<LrcatIssue>, recipe: &Recipe, path: &Path, status: &str) {
+    // A resource regeneration note is its own group: it must stay visible
+    // beside the same key's translation note, not hide behind its reason.
+    let regenerated = |reason: &str| reason.starts_with("regenerated");
     for (key, entries) in import_lrcat::diagnostics::entries(recipe) {
-        let Some(first) = entries.iter().find(|e| {
+        let mut seen = [false; 2];
+        for entry in entries.iter().filter(|e| {
             e.status == status && e.level == if status == "cloud" { "warning" } else { "info" }
-        }) else {
-            continue;
-        };
-        match issues.iter_mut().find(|i| i.category == key) {
-            Some(group) => {
-                group.count += 1;
-                if group.examples.len() < 5 {
-                    group.examples.push(display_path(path));
-                }
+        }) {
+            let class = regenerated(&entry.reason);
+            if std::mem::replace(&mut seen[usize::from(class)], true) {
+                continue;
             }
-            None => issues.push(issue(
-                &key,
-                first.reason.clone(),
-                1,
-                vec![display_path(path)],
-            )),
+            match issues
+                .iter_mut()
+                .find(|i| i.category == key && regenerated(&i.reason) == class)
+            {
+                Some(group) => {
+                    group.count += 1;
+                    if group.examples.len() < 5 {
+                        group.examples.push(display_path(path));
+                    }
+                }
+                None => issues.push(issue(
+                    &key,
+                    entry.reason.clone(),
+                    1,
+                    vec![display_path(path)],
+                )),
+            }
         }
     }
 }
@@ -1202,7 +1248,17 @@ impl LrcatImport {
         options: LrcatOptions,
         listener: Option<Arc<dyn LrcatProgressListener>>,
     ) -> Result<LrcatReport> {
-        self.apply_with_depth_resolver(options, listener, None)
+        self.apply_with_resolvers(options, listener, None, None)
+    }
+
+    /// Apply with caller-associated AI mask resources.
+    pub fn apply_with_mask_resolver(
+        &self,
+        options: LrcatOptions,
+        listener: Option<Arc<dyn LrcatProgressListener>>,
+        resolver: Option<Arc<dyn LrcatMaskResolver>>,
+    ) -> Result<LrcatReport> {
+        self.apply_with_resolvers(options, listener, resolver, None)
     }
 
     /// Apply with caller-associated depth resources.
@@ -1212,7 +1268,17 @@ impl LrcatImport {
         listener: Option<Arc<dyn LrcatProgressListener>>,
         resolver: Option<Arc<dyn LrcatDepthResolver>>,
     ) -> Result<LrcatReport> {
-        let depth_resolver = resolver;
+        self.apply_with_resolvers(options, listener, None, resolver)
+    }
+
+    /// Apply both independent resource resolvers before publishing one recipe.
+    pub fn apply_with_resolvers(
+        &self,
+        options: LrcatOptions,
+        listener: Option<Arc<dyn LrcatProgressListener>>,
+        mask_resolver: Option<Arc<dyn LrcatMaskResolver>>,
+        depth_resolver: Option<Arc<dyn LrcatDepthResolver>>,
+    ) -> Result<LrcatReport> {
         self.cancel.store(false, Ordering::SeqCst);
         let started = Instant::now();
         let mut progress = Progress::new(listener);
@@ -1457,6 +1523,11 @@ impl LrcatImport {
                 image.recipe.image_id = Some(id);
                 // Resolution is read-only and is never inferred from resource ID text.
                 let extent = if depth_resolver.is_some() {
+                    #[cfg(test)]
+                    LR5D_MEASUREMENTS.with(|counts| {
+                        let (depth, mask) = counts.get();
+                        counts.set((depth + 1, mask));
+                    });
                     image::image_dimensions(&r.path)
                         .ok()
                         .or_else(|| {
@@ -1487,20 +1558,31 @@ impl LrcatImport {
                 if imported.is_some() {
                     clear_pending_depth_diagnostic(&mut image.recipe);
                 }
-                let result = write_image(
-                    &r.path,
+                let result = crate::lrcat_masks::import(
+                    &mut image.recipe,
                     id,
-                    &image.recipe,
-                    &selection,
-                    &keywords,
-                    &admission,
+                    &self.engine.support_dir()?.join("imported-masks"),
+                    // Only an injected raster is ever measured against it.
+                    || {
+                        if mask_resolver.is_some() {
+                            render_mask_extent(&r.path)
+                        } else {
+                            (0, 0)
+                        }
+                    },
+                    |resource| {
+                        mask_resolver.as_ref().and_then(|resolver| {
+                            resolver.resolve(image.catalog_id, resource.into())
+                        })
+                    },
+                    |recipe| write_image(&r.path, id, recipe, &selection, &keywords, &admission),
                 );
                 if result.is_err() {
                     let key = image_core::depth::imported_depth_key(id);
                     if let Some(prior) = prior {
-                        prior.store_pinned(&depth_store, &key).map_err(failure)?;
+                        let _ = prior.store_pinned(&depth_store, &key);
                     } else {
-                        depth_store.remove_pinned(&key)?;
+                        let _ = depth_store.remove_pinned(&key);
                     }
                 }
                 result
@@ -2332,6 +2414,10 @@ mod lrcat_resume_tests {
 #[cfg(all(test, target_os = "macos"))]
 #[path = "lrcat_profile.rs"]
 mod lrcat_profile;
+
+#[cfg(test)]
+#[path = "lrcat_mask_tests.rs"]
+mod lrcat_mask_tests;
 
 #[cfg(test)]
 #[path = "lrcat_depth_tests.rs"]

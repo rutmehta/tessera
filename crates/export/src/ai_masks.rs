@@ -3,7 +3,7 @@ use engine_api::{
     EngineError, EngineResult,
     recipe::{
         DevelopSettings,
-        mask::{LocalAdjustment, MaskKind},
+        mask::{LocalAdjustment, MaskComponent},
     },
     stage::{ParamHash, StageId},
 };
@@ -23,7 +23,7 @@ pub(crate) fn active(settings: &DevelopSettings) -> bool {
     })
 }
 
-struct ReadyMasks(Vec<(MaskKind, AlphaPlane)>);
+struct ReadyMasks(Vec<(MaskComponent, AlphaPlane)>);
 impl MaskHooks for ReadyMasks {
     fn revision(&self) -> u64 {
         0
@@ -34,11 +34,11 @@ impl MaskHooks for ReadyMasks {
         group: &LocalAdjustment,
         _level: u8,
     ) -> EngineResult<Vec<f32>> {
-        mask_ai::compose(input, group, |kind, w, h| {
+        mask_ai::compose_with_components(input, group, |component, w, h| {
             let (_, plane) = self
                 .0
                 .iter()
-                .find(|(k, _)| k == kind)
+                .find(|(c, _)| c == component)
                 .ok_or_else(|| EngineError::invalid("mask", "missing export AI raster"))?;
             Ok(mask_ai::resample(plane, w, h).into())
         })
@@ -57,7 +57,24 @@ pub(crate) fn render(
     settings: &DevelopSettings,
     segmenter: Option<&mut dyn MaskSegmenter>,
 ) -> EngineResult<image::Rgb32FImage> {
-    render_with_hooks(source, settings, segmenter, None, None, &mut Vec::new())
+    render_with_support(source, settings, segmenter, None)
+}
+
+pub(crate) fn render_with_support(
+    source: &RenderSource<'_>,
+    settings: &DevelopSettings,
+    segmenter: Option<&mut dyn MaskSegmenter>,
+    support: Option<&std::path::Path>,
+) -> EngineResult<image::Rgb32FImage> {
+    render_with_hooks(
+        source,
+        settings,
+        segmenter,
+        None,
+        None,
+        &mut Vec::new(),
+        support,
+    )
 }
 
 pub(crate) fn render_with_hooks(
@@ -67,6 +84,7 @@ pub(crate) fn render_with_hooks(
     denoiser: Option<&dyn pipeline_cpu::PostDemosaicDenoise>,
     depth: Option<&image_core::depth::DepthProvider>,
     warnings: &mut Vec<String>,
+    mask_support: Option<&std::path::Path>,
 ) -> EngineResult<image::Rgb32FImage> {
     let mut pre = settings.clone();
     pre.output.proof_profile = None;
@@ -111,11 +129,13 @@ pub(crate) fn render_with_hooks(
             .flat_map(|c| c.active_leaves())
             .filter(|c| c.kind.is_ai())
         {
-            if !requests.iter().any(|(kind, _)| kind == &c.kind) {
-                requests.push((
-                    c.kind.clone(),
-                    mask_ai::request(&c.kind, orientation).map_err(error)?,
-                ));
+            if !requests.iter().any(|(component, _)| component == c) {
+                let request = if c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_some() {
+                    None
+                } else {
+                    Some(mask_ai::request(&c.kind, orientation).map_err(error)?)
+                };
+                requests.push((c.clone(), request));
             }
         }
     }
@@ -128,24 +148,48 @@ pub(crate) fn render_with_hooks(
     let shown = mask_ai::reorient(&pixels, sw, sh, dw, dh, |p| mask_ai::orient(p, orientation));
     let shown = image::RgbImage::from_raw(dw, dh, shown.into_iter().flatten().collect())
         .ok_or_else(|| error("segmentation input"))?;
-    let mut loaded;
-    let segmenter = match segmenter {
-        Some(s) => s,
-        None => {
-            let support = std::env::var_os("TESSERA_APP_SUPPORT")
-                .map(std::path::PathBuf::from)
-                .or_else(|| {
-                    std::env::var_os("HOME").map(|p| {
-                        std::path::PathBuf::from(p).join("Library/Application Support/Tessera")
-                    })
-                })
-                .ok_or_else(|| error("set TESSERA_APP_SUPPORT to the model support directory"))?;
-            loaded = mask_ai::load_segmenter(&support).map_err(error)?;
-            loaded.as_mut()
-        }
+    let support = || -> EngineResult<std::path::PathBuf> {
+        mask_support
+            .map(|root| Ok(root.to_path_buf()))
+            .unwrap_or_else(crate::depth::support)
     };
+    let mut loaded = None;
+    let mut supplied = segmenter;
     let mut rasters = Vec::new();
-    for (kind, request) in requests {
+    for (component, request) in requests {
+        let request = match request {
+            Some(request) => request,
+            None => {
+                let key = component
+                    .adobe_ai
+                    .as_ref()
+                    .and_then(|s| s.mask_key)
+                    .expect("imported reference");
+                match mask_ai::imported_plane(&support()?, &key) {
+                    Ok(plane) if (plane.width, plane.height) == (w, h) => {
+                        rasters.push((component, plane));
+                        continue;
+                    }
+                    _ => warnings.push(
+                        "regenerating AI mask: stored raster missing, corrupt or wrong extent"
+                            .into(),
+                    ),
+                }
+                mask_ai::request(&component.kind, orientation).map_err(error)?
+            }
+        };
+        // Export never renders a different image than the one the user sees
+        // once the mask exists: a model that cannot be loaded, a backend that
+        // fails and an invalid raster are all errors, and nothing is published.
+        // The model is loaded only when a component actually needs inference.
+        if supplied.is_none() && loaded.is_none() {
+            loaded = Some(mask_ai::load_segmenter(&support()?).map_err(error)?);
+        }
+        let segmenter = match (supplied.as_deref_mut(), loaded.as_mut()) {
+            (Some(segmenter), _) => segmenter,
+            (None, Some(segmenter)) => segmenter.as_mut(),
+            (None, None) => unreachable!("loaded above"),
+        };
         let alpha = segmenter.segment(&shown, &request).map_err(error)?;
         if alpha.len() != dw as usize * dh as usize
             || alpha.iter().any(|v| !(0.0..=1.0).contains(v))
@@ -156,7 +200,7 @@ pub(crate) fn render_with_hooks(
             mask_ai::unorient(p, orientation)
         });
         rasters.push((
-            kind,
+            component,
             AlphaPlane {
                 width: sw,
                 height: sh,
@@ -224,7 +268,7 @@ pub(crate) fn render_with_hooks(
 #[cfg(test)]
 mod lr4_tests {
     use super::*;
-    use engine_api::recipe::MaskComponent;
+    use engine_api::recipe::{MaskComponent, MaskKind};
     #[test]
     fn lr4_nested_ai_activates_raster_export_but_disabled_does_not() {
         let mut c = MaskComponent::new(MaskKind::Brush { strokes: vec![] });
@@ -237,5 +281,200 @@ mod lr4_tests {
         assert!(active(&s));
         s.locals.adjustments[0].components[0].enabled = false;
         assert!(!active(&s));
+    }
+}
+
+#[cfg(test)]
+mod lr5b_tests {
+    use super::*;
+    use engine_api::recipe::{MaskComponent, MaskKind};
+    #[test]
+    fn lr5b_missing_stored_raster_regenerates_with_diagnostic() {
+        struct Segmenter;
+        impl MaskSegmenter for Segmenter {
+            fn segment(
+                &mut self,
+                image: &image::RgbImage,
+                _: &mask_ai::SegmentRequest,
+            ) -> anyhow::Result<Vec<f32>> {
+                Ok(vec![1.; (image.width() * image.height()) as usize])
+            }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let input = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
+        let source = RenderSource::Rgb(&input);
+        let mut c = MaskComponent::new(MaskKind::Subject { model: None });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some([47; 32]),
+            regenerate: false,
+        });
+        let mut settings = DevelopSettings::default();
+        let mut group = LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        };
+        group.params.exposure = 1.;
+        settings.locals.adjustments.push(group);
+        let mut warnings = vec![];
+        let out = render_with_hooks(
+            &source,
+            &settings,
+            Some(&mut Segmenter),
+            None,
+            None,
+            &mut warnings,
+            Some(dir.path()),
+        )
+        .unwrap();
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("regenerat") && w.contains("missing"))
+        );
+        let base =
+            render_with_support(&source, &DevelopSettings::default(), None, Some(dir.path()))
+                .unwrap();
+        assert!(out.get_pixel(0, 0)[0] > base.get_pixel(0, 0)[0]);
+    }
+    #[test]
+    fn lr5b_file_export_surfaces_missing_raster_regeneration_notice() {
+        struct Subject;
+        impl MaskSegmenter for Subject {
+            fn segment(
+                &mut self,
+                image: &image::RgbImage,
+                _: &mask_ai::SegmentRequest,
+            ) -> anyhow::Result<Vec<f32>> {
+                Ok(vec![1.; (image.width() * image.height()) as usize])
+            }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let pixels = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
+        let input = crate::ExportImage {
+            source: RenderSource::Rgb(&pixels),
+            name: "synthetic",
+            sequence: 1,
+            date: "",
+            metadata: None,
+        };
+        let mut c = MaskComponent::new(MaskKind::Subject { model: None });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some([46; 32]),
+            regenerate: false,
+        });
+        let mut recipe = engine_api::recipe::Recipe::default();
+        recipe.settings.locals.adjustments.push(LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        });
+        recipe.history.base = recipe.settings.clone();
+        for format in [crate::Format::Jpeg { quality: 90 }, crate::Format::Dng] {
+            let options = crate::ExportSettings {
+                format,
+                mask_support: Some(dir.path().to_path_buf()),
+                output_dir: dir.path().join("out"),
+                ..Default::default()
+            };
+            let rendered = crate::render_one_cancellable(
+                &input,
+                &recipe,
+                &options,
+                &Default::default(),
+                None,
+                Some(&mut Subject),
+            )
+            .unwrap();
+            assert!(
+                rendered
+                    .warnings()
+                    .iter()
+                    .any(|w| w.contains("regenerat") && w.contains("missing"))
+            );
+        }
+    }
+    /// LR-5c ruling 1: export never silently differs from what the user sees
+    /// once the model arrives. No model is an error; nothing is rendered.
+    #[test]
+    fn lr5c_export_without_model_is_an_error_for_inverted_and_subtract_adjustments() {
+        let dir = tempfile::tempdir().unwrap();
+        // The model cannot be loaded from here: deterministic, no network.
+        std::fs::create_dir_all(dir.path().join("models/models.toml")).unwrap();
+        let input = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
+        let source = RenderSource::Rgb(&input);
+        for subtract in [false, true] {
+            let mut ai = MaskComponent::new(MaskKind::Subject { model: None });
+            ai.invert = !subtract;
+            ai.combine = if subtract {
+                engine_api::recipe::mask::MaskCombine::Subtract
+            } else {
+                engine_api::recipe::mask::MaskCombine::Add
+            };
+            let mut group = LocalAdjustment {
+                components: vec![ai],
+                invert: true,
+                ..Default::default()
+            };
+            if subtract {
+                group.components.insert(
+                    0,
+                    MaskComponent::new(MaskKind::Linear {
+                        start: [0., 0.],
+                        end: [1., 0.],
+                    }),
+                );
+            }
+            group.params.exposure = 1.;
+            let mut settings = DevelopSettings::default();
+            settings.locals.adjustments.push(group);
+            let mut warnings = vec![];
+            let error = render_with_hooks(
+                &source,
+                &settings,
+                None,
+                None,
+                None,
+                &mut warnings,
+                Some(dir.path()),
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains("AI mask"), "{error}");
+        }
+    }
+    /// A missing stored raster with no model to regenerate it is an error too.
+    #[test]
+    fn lr5c_missing_stored_raster_without_model_is_an_export_error() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("models/models.toml")).unwrap();
+        let input = Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
+        let mut c = MaskComponent::new(MaskKind::Subject { model: None });
+        c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some([45; 32]),
+            regenerate: false,
+        });
+        let mut group = LocalAdjustment {
+            components: vec![c],
+            ..Default::default()
+        };
+        group.params.exposure = 1.;
+        let mut settings = DevelopSettings::default();
+        settings.locals.adjustments.push(group);
+        assert!(
+            render_with_hooks(
+                &RenderSource::Rgb(&input),
+                &settings,
+                None,
+                None,
+                None,
+                &mut vec![],
+                Some(dir.path()),
+            )
+            .is_err()
+        );
     }
 }

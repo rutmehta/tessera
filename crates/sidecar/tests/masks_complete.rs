@@ -261,3 +261,15 @@ fn lr9_zero_native_color_overlay_keeps_optional_presence() {
     let foreign = masks::import_masks(&tree, true).unwrap();
     assert!(foreign[0]["params"]["color_overlay"].is_null());
 }
+
+#[test]
+fn lr5_adobe_ai_state_round_trips_through_native_xmp() {
+    for state in [
+        json!({"resource_id":"opaque", "category":"Hair", "mask_key":null,"regenerate":true}),
+        json!({"resource_id":"opaque", "category":"Hair", "mask_key":vec![7u8;32],"regenerate":false}),
+    ] {
+        let packet = roundtrip(json!({"kind":"subject", "model":null,"adobe_ai":state}));
+        assert!(packet.contains("adobe_ai"));
+        assert!(!packet.contains("TSMASK"));
+    }
+}

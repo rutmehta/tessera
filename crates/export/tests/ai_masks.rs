@@ -78,6 +78,19 @@ fn invalid_or_failed_segmentation_never_publishes_image_or_sidecar() {
         }));
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
     }
+    // No model at all is the same error (LR-5c ruling 1): the model cannot be
+    // loaded from this support root, deterministically and without network.
+    let dir = tempfile::tempdir().unwrap();
+    let support = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(support.path().join("models/models.toml")).unwrap();
+    let settings = ExportSettings {
+        output_dir: dir.path().into(),
+        mask_support: Some(support.path().into()),
+        ..Default::default()
+    };
+    let error = export_one(&input, &recipe, &settings).unwrap_err();
+    assert!(error.to_string().contains("AI mask"), "{error}");
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
 }
 
 #[test]

@@ -1326,3 +1326,152 @@ fn protected_batch_destination_is_rejected_before_mkdir() {
     assert!(!f.dir.path().join("X.lrdata").exists());
     assert!(result.unwrap_err().to_string().contains("export"));
 }
+
+#[test]
+fn lr5c_ffi_print_and_file_export_without_model_fail_and_stored_rasters_render() {
+    let f = fixture();
+    let print = || {
+        f.engine.render_for_print(
+            PrintRenderRequest {
+                image_id: f.ids[0].clone(),
+                max_width: 48,
+                max_height: 32,
+                sharpening: PrintSharpening::Matte,
+                profile: None,
+            },
+            None,
+        )
+    };
+    let baseline = print().unwrap();
+    let export = |name: &str| {
+        let out = f.dir.path().join(name);
+        let report = f
+            .engine
+            .export_batch(
+                ExportTarget::Images {
+                    image_ids: vec![f.ids[0].clone()],
+                },
+                settings(&out, serde_json::json!({})),
+                None,
+                None,
+            )
+            .unwrap();
+        (report, out)
+    };
+    let (report, plain_out) = export("plain-export");
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    let mut recipe = engine_api::recipe::Recipe {
+        image_id: Some(f.ids[0].parse().unwrap()),
+        ..Default::default()
+    };
+    let mut ai = engine_api::recipe::MaskComponent::new(engine_api::recipe::MaskKind::Subject {
+        model: None,
+    });
+    ai.invert = true;
+    let mut group = engine_api::recipe::LocalAdjustment {
+        components: vec![ai],
+        ..Default::default()
+    };
+    group.params.exposure = 2.;
+    recipe.settings.locals.adjustments.push(group);
+    recipe.history.base = recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(Path::new(&f.folder).join("a.jpg")).recipe,
+        &sidecar::RecipeDocument {
+            recipe,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    // LR-5c ruling 1: with no model, print and file export are errors, never
+    // a silently different image. The model cannot be loaded from this
+    // support root (deterministic, no network).
+    std::fs::create_dir_all(Path::new(&f.support).join("models/models.toml")).unwrap();
+    assert!(print().is_err());
+    let (report, out) = export("ai-export");
+    assert_eq!((report.exported, report.failed), (0, 1), "{report:?}");
+    assert!(!out.join("a.jpg").exists());
+    // Both entry points must read the engine's explicit app root. There is no
+    // segmenter or process-global support override supplying this raster.
+    let store =
+        ml_segment::MaskStore::new(Path::new(&f.support).join("imported-masks"), 0).unwrap();
+    let key = store
+        .put_content_pinned(&ml_segment::MaskRaster::new(48, 32, vec![1.; 48 * 32]).unwrap())
+        .unwrap();
+    let side = sidecar::Sidecar::paths(Path::new(&f.folder).join("a.jpg")).recipe;
+    let mut doc = sidecar::Sidecar::read_recipe(&side).unwrap();
+    let c = &mut doc.recipe.settings.locals.adjustments[0].components[0];
+    c.invert = false;
+    c.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+        resource_id: None,
+        category: "Subject".into(),
+        mask_key: Some(key),
+        regenerate: false,
+    });
+    doc.recipe.history.base = doc.recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(&side, &doc).unwrap();
+    assert_ne!(print().unwrap().data, baseline.data);
+    let (report, resolved_out) = export("resolved-export");
+    assert_eq!((report.exported, report.failed), (1, 0), "{report:?}");
+    assert_ne!(
+        image::open(plain_out.join("a.jpg")).unwrap().to_rgb8(),
+        image::open(resolved_out.join("a.jpg")).unwrap().to_rgb8()
+    );
+}
+
+/// M8: opening a developed image as a document renders through the export
+/// path as well. It must read imported rasters from the engine's explicit app
+/// directory, not from a process-global override.
+#[test]
+fn lr5b_document_from_image_reads_imported_masks_from_the_engine_app_dir() {
+    let f = fixture();
+    let mean = || {
+        let s = f
+            .engine
+            .clone()
+            .open_document_from_image(f.ids[0].clone(), true)
+            .unwrap();
+        let (w, h, px) = s.read_level(0).unwrap();
+        s.close();
+        px.chunks(4).map(|p| p[1]).sum::<f32>() / (w * h) as f32
+    };
+    let baseline = mean();
+    let store =
+        ml_segment::MaskStore::new(Path::new(&f.support).join("imported-masks"), 0).unwrap();
+    let key = store
+        .put_content_pinned(&ml_segment::MaskRaster::new(48, 32, vec![1.; 48 * 32]).unwrap())
+        .unwrap();
+    let mut ai = engine_api::recipe::MaskComponent::new(engine_api::recipe::MaskKind::Subject {
+        model: None,
+    });
+    ai.adobe_ai = Some(engine_api::recipe::mask::AdobeAiMask {
+        resource_id: None,
+        category: "Subject".into(),
+        mask_key: Some(key),
+        regenerate: false,
+    });
+    let mut group = engine_api::recipe::LocalAdjustment {
+        components: vec![ai],
+        ..Default::default()
+    };
+    group.params.exposure = 2.;
+    let mut recipe = engine_api::recipe::Recipe {
+        image_id: Some(f.ids[0].parse().unwrap()),
+        ..Default::default()
+    };
+    recipe.settings.locals.adjustments.push(group);
+    recipe.history.base = recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(Path::new(&f.folder).join("a.jpg")).recipe,
+        &sidecar::RecipeDocument {
+            recipe,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let masked = mean();
+    assert!(
+        masked > baseline + 0.05,
+        "stored raster was not applied: {masked} vs {baseline}"
+    );
+}

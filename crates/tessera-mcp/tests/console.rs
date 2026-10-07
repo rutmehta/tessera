@@ -425,3 +425,42 @@ fn lr4e_create_and_adjust_reject_ninth_mask_level_without_saving() {
         assert_eq!(std::fs::read(&recipe_path).unwrap(), before);
     }
 }
+
+#[test]
+fn lr5b_mcp_export_rejects_ai_masks_before_rendering() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("synthetic.png");
+    image::RgbImage::from_pixel(4, 2, image::Rgb([80, 80, 80]))
+        .save(&path)
+        .unwrap();
+    let mut recipe = engine_api::recipe::Recipe::default();
+    recipe
+        .settings
+        .locals
+        .adjustments
+        .push(engine_api::recipe::LocalAdjustment {
+            components: vec![engine_api::recipe::MaskComponent::new(
+                engine_api::recipe::MaskKind::Subject { model: None },
+            )],
+            ..Default::default()
+        });
+    recipe.history.base = recipe.settings.clone();
+    sidecar::Sidecar::write_recipe(
+        sidecar::Sidecar::paths(&path).recipe,
+        &sidecar::RecipeDocument {
+            recipe,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut console = Console::open(dir.path().join("app")).unwrap();
+    let id = console.open_image(&path).unwrap();
+    let out = dir.path().join("out");
+    let response = console.execute(request(json!({"tool":"export","images":[id],"settings":{"destination":out,"format":{"format":"jpeg","quality":90}}})));
+    let text = serde_json::to_string(&response).unwrap();
+    assert!(
+        text.contains("unsupported") && text.contains("AI mask"),
+        "{text}"
+    );
+    assert!(!out.join("synthetic.jpg").exists());
+}
