@@ -425,7 +425,7 @@ impl Renderer {
         // proxy settings (Auto -> As Shot) that render_region uses.
         let planned;
         let settings = if let Some(proxy) = image.camera_linear_proxy() {
-            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            planned = self.proxy_render_plan(proxy, settings).0;
             &planned
         } else {
             settings
@@ -704,7 +704,7 @@ impl Renderer {
         cancel.check()?;
         let planned;
         let settings = if let Some(proxy) = image.camera_linear_proxy() {
-            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            planned = self.proxy_render_plan(proxy, settings).0;
             &planned
         } else {
             settings
@@ -755,7 +755,7 @@ impl Renderer {
         }
         let planned;
         let settings = if let Some(proxy) = image.camera_linear_proxy() {
-            planned = proxy.render_plan(settings, self.mask_cache.has_hooks()).0;
+            planned = self.proxy_render_plan(proxy, settings).0;
             &planned
         } else {
             settings
