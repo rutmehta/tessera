@@ -1,4 +1,6 @@
 //! Public DNG SDK ACR3 default tone table (scene-linear input/output).
+//! Copyright 2006-2023 Adobe Systems Incorporated. All Rights Reserved.
+//! Used under the Adobe DNG SDK License Agreement; see the root NOTICE.
 //! Published numeric samples from dng_tone_curve_acr3_default::Evaluate:
 //! https://android.googlesource.com/platform/external/dng_sdk/+/de700ad461e35af50b28b861943a0b0753b10929/source/dng_render.cpp
 //! No Adobe binary profile is included. Like the SDK, interpolate the 1025
