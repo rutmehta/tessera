@@ -1,10 +1,65 @@
-# LR-8R port handoff (in progress)
+# LR-8R Smart Preview port handoff
 
-Base: `392c2156aaed72237b594fc640b4b3238d6ad2c1` (gate/b51 candidate).
-Scope: port only; recovered Machine A LR-8 and LR-13 rulings read in full.
-88 source commits: 51 LR-8/8b/8c/LR-10, 12 approved decoder hotfixes,
-then 25 INT-1/LR-12/LR-13 commits. Source messages and existing trailers preserved;
-no new Co-Authored-By trailers added. Exclusions follow task exactly.
+**Status: port implemented; NOT merge-ready.** The remaining Swift gate failure
+is a conflict between current-main B5-50 identifiers and the instruction to defer
+Machine A's open copy-toggle accessibility minor. A scope ruling was requested;
+no identifier change has been applied. No assertion was weakened or excluded.
+
+Base: `392c2156aaed72237b594fc640b4b3238d6ad2c1` (the requested gate/b51 candidate).
+Code/test tip: `63be13a6` (the final branch tip additionally includes this handoff).
+All 88 requested source commits were ported separately, in order, with source
+messages and existing trailers unchanged byte-for-byte. No `-x` or new
+Co-Authored-By trailers were added. The approved decoder is byte-identical to
+`38817f56`. No board changes; Cargo.lock adds only the approved raw-decode edges
+`jxl-oxide` and `zune-jpeg 0.5.15`. No private inputs were used for new tests.
+
+## Remaining gate blocker and proposed resolution
+
+`LibraryDevelopAccessibilityTests.testImportStepsAndSyntheticReport` fails two
+assertions under current-main B5-50:
+
+1. `lightroom-import.smart-previews` is outside the accepted identifier namespace.
+2. The copy-proxy toggle has no identifier.
+
+The minimal proposed source change is `library.import.smartPreviews` and
+`library.import.copyProxies` in `LightroomImportSheet.swift`. Existing assertions
+would stay untouched. However, the binding LR-8 review explicitly lists the
+copy-toggle identifier as an open minor, while the task says not to fix open
+review items. The asynchronous ruling request asks whether these two identifiers
+may be treated as required port compatibility. Until answered, both remain
+unchanged and **SWIFT GATE OK has not been achieved**.
+
+## Finding → code → test
+
+| Finding / required feature | Code | Test coverage |
+|---|---|---|
+| Approved lossy JPEG / JPEG XL LinearRaw admission and bounds | `raw-decode/src/lossy_dng.rs`, exactly `38817f56` | `raw-decode` lossy_dng, lr8e_safety, lr8f_safety (includes LR-8g/h) |
+| Offline proxy discovery/import/copy/relink | `import-lrcat/src/smart_previews.rs`, FFI lrcat/catalog, sidecar store | FFI `offline_proxy_import_develop_copy_and_relink_preserve_lightroom`; read-only store; UUID lookup |
+| Catalog orientation consumed once before normalized edits | image-core source, pipeline-cpu render | catalog_orientation, lrcat_linear, FFI lrcat_orientation_tests; INT-1 |
+| Current LR-5b injected raster extent validation | FFI lrcat/lrcat_masks/masks | LR-5b RGB/RAW extent tests and new LR-8R oriented proxy regression |
+| Current LR-11b B2/B3/S7/S8/S9 semantics | Base sidecar/import/render rules retained; new CPU hook keeps split staging | Existing lr11b tests plus INT-1 nested local operators on oriented Adobe proxy |
+| Current LR-9c cloud and regenerated-mask report groups | Base FFI lrcat report code retained | `lr5b_import_report_shows_cloud_group_and_regeneration_notes_together` |
+| LR-10 Adobe proxy rendering | pipeline-adobe, image-core embedded profile dispatch | embedded_adobe, embedded, dcp_render, lrcat_linear |
+| LR-13 thumbnail/loupe/analysis/cull/Develop routing | FFI imported_proxy/preview/analysis/cull and image-core smart_preview_render | `lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop`; thumbnail-size test |
+| Proxy export with quality warning | export lib, FFI export | export lrcat_jxl; FFI offline proxy export and LR-13 app route |
+| Develop notice wording and HDR conditional | FFI imported proxy notice, Swift Develop session | LR-13 notice wording/no-op HDR and FFI minimum-notice tests |
+| UI source counts, badges and copy/import controls | Swift import sheet/controller, ThumbnailCell, EngineLibrary | Swift LightroomImport tests and full Swift gate |
+| Main numerics, accessibility identifiers, profiler hardening | Base ENG-1..4/B5-50/B5-51 retained in merges | Workspace tests, Swift tests, strict build |
+
+## Port-specific integration fixes and test changes
+
+| Finding | Code | Test / evidence |
+|---|---|---|
+| LR-5b's original-only mask extent helper rejects matching oriented offline proxy rasters | `c77cb368`, FFI `lrcat.rs`: approved metadata reader, active crop, catalog orientation; only offline proxies with injected masks; ordinary originals keep main's helper | RED `814517fb`: synthetic 12x10 proxy, orientation 6, injected 10x12 raster. Full FFI lib 284 pass / 1 fail / 11 ignored → 285 pass / 0 fail / 11 ignored |
+| Old LR-13 notice requires L0 dimensions even after successful lower-resolution LR-5b regeneration | `bafe4684`, `masks.rs`: validated Ready entries count as available, matching main's renderer; stored-raster extent validation unchanged | RED `3aeb1d33`: additional assertion in existing `lr5b_regenerated_imported_plane_renders_at_proxy_extent`; 0/1 → 1/1, then full workspace passes it |
+| Main LR-11b synthetic fixture lacked newly introduced metadata fields | `01a0cc8a`, `tests/lr11b_local.rs`: add `baseline_exposure: 0.` and `catalog_orientation: None` | Compile E0063 observed first; all existing pixel assertions unchanged; workspace passes |
+| Main B5-50 fixture lacked new FFI options | `63be13a6`, `LibraryDevelopAccessibilityTests.swift`: normal defaults `importSmartPreviews: true`, `copyProxies: false` | Swift compile error observed first; existing AX assertions unchanged; runtime then exposes identifier blocker above |
+
+No existing test assertion was changed from old LR-5-v1/old-LR-11 expectations to
+new ones. Current-main assertions were retained. The only additional assertion
+is the regenerated-mask notice readiness check. No bound was relaxed; no test was
+deleted, disabled, or excluded at command level. INT-1 passed without modifying
+its assertions.
 
 ## Conflicts and resolutions
 
@@ -14,8 +69,106 @@ a6b8ab39: fixture README append conflict: retain both approved LR-8f/g provenanc
 e4fadad9: export.rs: retain main mutable segmenter and required AI availability checks in export/print; do not bypass segmenter load for external proxies. Imported proxy mask-hook planning remains deferred LR-13b.
 5d5be036: fixture README reorder conflict: use final source provenance exactly, retaining LR-8f/g and corrected JXL history.
 
+The CPU render conflict keeps LR-11b's `split_local_point_colors`: the new
+imported-mask hook runs separately for Point Color and remaining groups. The FFI
+export conflict keeps main's mutable segmenter and required AI availability
+checks for export and print. LR-13b's imported proxy mask-hook planning remains
+open as instructed.
 
-## Port map
+## Golden and numerical boundary
+
+No stored import goldens, native pixel golden files, or existing import
+fingerprints differ from the base. Both import and RAW fixture golden suites
+passed in workspace attempt 2. These inherited source changes remain explicit:
+
+| File / expectation | Difference from base | Source commit |
+|---|---|---|
+| `pipeline-cpu/tests/golden.rs` | Zeroes metadata BaselineExposure before native fixture rendering; stored golden bytes unchanged. This is open B4, not proof that ordinary Native rendering is unchanged | `e2bff2a5` |
+| `pipeline-adobe/tests/dcp_render.rs` fixture | Missing profile tone curve becomes explicit identity curve | `1e75421c` |
+| Same fixture | Adds explicit black-render policy tag 51110=1 | `bc3b454c` |
+| Same fixture / `tiff_profile_changes_final_cfa_render` | Scale red matrix diagonal only; expected `[0.2; 3]` becomes `[0.21781155; 3]`; 0.0001 tolerance unchanged. M11 remains open | `3e86ef5e` |
+| `import-lrcat/tests/golden.rs` | Adds neighboring-preview ordinary-import byte-equality test; existing fingerprint unchanged | `6c2dace3` |
+
+No new numerical expectation changes or golden re-pins were introduced by LR-8R.
+
+## Exact gate results and all attempts
+
+Environment: `PATH=$HOME/.cargo/bin:$PATH`, `CARGO_BUILD_JOBS=5`,
+`RAYON_NUM_THREADS=5`, `CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-8R`.
+Full logs and command JSON records are outside the repository in
+`/tmp/LR-8R-port`. No GUI was launched manually; no system settings were changed.
+
+| Attempt | Command / log | Exact result |
+|---|---|---|
+| Initial compile | `cargo test --release -p tessera-ffi --lib lrcat_combined`; `combined-1.log` | Exit 0, 7m11s; filter matched 0 tests / 296 filtered. Build evidence only, not test verification |
+| Proxy extent RED | `cargo test --release -p tessera-ffi --lib`; `ffi-lib-1.log` | 284 passed, 1 failed, 11 ignored; new LR-8R raster test failed; INT-1 passed |
+| Proxy extent GREEN | Same; `ffi-lib-2.log` | 285 passed, 0 failed, 11 ignored; 8.48s test time |
+| Package clean | `cargo clean -p` for all 13 touched crates; `clean.log` | Removed 0 files (release artifacts remained); explicitly corrected below |
+| Workspace 1 | `cargo test --release --workspace --no-fail-fast`; `workspace-1.log` | Exit 101, compile E0063 in LR-11b fixture; no tests ran. Fixed by `01a0cc8a` |
+| Notice RED | `cargo test --release -p tessera-ffi --lib lr5b_regenerated_imported_plane_renders_at_proxy_extent`; `notice-red.log` | 0 passed, 1 failed, 295 filtered |
+| Notice GREEN | Same; `notice-green.log` | 1 passed, 0 failed, 295 filtered |
+| Release clean | `cargo clean --release -p` for all touched crates; `clean-release.log` | Removed 913 files / 3.2 GiB before final workspace run |
+| Workspace 2 | `cargo test --release --workspace --no-fail-fast`; `workspace-2.log` | Exit 101; 3,357 passed, 1 failed, 106 ignored, 654 suite/doc-test summaries. Sole failure: previews RAW render wall time 4.30435325s vs unchanged <3.0s; pixel assertions passed |
+| Serialized previews 1 | `cargo test --release -p previews -- --test-threads=1 --nocapture`; `previews-serialized.log` | Exit 101; lib 22 passed, 1 failed, 3 ignored; same wall bound, 3.596126042s. Cargo stopped before integration suites. 86.00s including feature rebuild; machine load afterward 79.26 / 69.74 / 75.92 |
+| Serialized previews 2 | Exact workspace-built `release/deps/previews-53eb2e13d16f88f5 --test-threads=1 --nocapture`; `previews-workspace-binary-serialized.log` | Exit 0; entire failing suite 23 passed, 0 failed, 3 ignored, 0 filtered; wall test 2.59764625s, suite 4.35s (command 4.45s). Machine load afterward 25.33 / 28.16 / 41.96. No code/bound/CI changes |
+| Clippy | `cargo clippy --release --workspace --all-targets -- -D warnings`; `clippy-1.log` | Exit 0; 66.31s |
+| Formatting | `cargo fmt --all -- --check`; `fmt-final.log` | Exit 0 |
+| FFI generation | `cd apps/mac && ./build-ffi.sh`; `ffi-1.log` | Exit 0; 237.72s; no bindings drift, clean worktree |
+| Swift gate 1 | `tools/orchestrate/swift-gate.sh`; `swift-gate-1.log` | Exit 1 after initial build 58.44s; 237.71s total. Wrapper printed no failing test names |
+| Swift diagnostic | Exact underlying `swift test -c release -Xswiftc -enable-testing`; `swift-test-diagnostic.log` | Exit 1, 7.10s; B5-50 fixture initializer missing proxy options; fixed by `63be13a6` |
+| Swift gate 2 | `tools/orchestrate/swift-gate.sh`; `swift-gate-2.log` | Exit 1; 357.55s total, initial build 9.66s. 935 XCTest tests, 3 skipped, 2 assertion failures in one test, 268.872s; all 5 Swift Testing tests / 2 suites passed. Only failed case: B5-50 import identifiers described above |
+| Strict build | `cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors`; `strict-1.log` | Exit 0; 168.49s. Linker warning: BLAKE3 neon object built for macOS 26.2 vs linked 15.0; no Swift warnings-as-errors failure |
+
+The Rust workspace's only runtime failure recovered under the required serialized
+rerun; the original failed invocation is retained rather than relabelled as exit
+0. Import streaming scale passed in 102.94s; FFI streaming memory also passed.
+Final FFI generations performed by Swift gates also left no binding drift.
+
+## Independent review
+
+A read-only reviewer checked decoder equality, LR-11b local staging, LR-5b group
+availability/export checks, LR-9c groups, lockfile boundaries and examined
+numerics/accessibility/profiler changes. Its sole port finding was the regenerated
+mask notice fixed by RED `3aeb1d33` / GREEN `bafe4684`.
+The inherited identity-catalog-orientation non-proxy resident unwrap concern also
+exists in source `124c03bc`; retained for routing follow-up with M4.
+
+## Review items deliberately left open
+
+- B3: scope of embedded-profile fallback, Native Adobe-name dispatch, parse fallback, EXIF illuminants, substitution notice; M11 fixture/0.2 restoration belongs with B3.
+- B4 / LR-8d: Native vs Adobe BaselineExposure split, including removal of inherited golden-test calibration override.
+- M2: unclipped HueSatMap highlights before exposure.
+- M3: scalar thumbnail route still develops full proxy before reducing (LR-13 partial improvement retained).
+- M4: relinked originals normal GPU/lens route.
+- M5: cache library listing.
+- M6: original catalog filename for display/export.
+- M7: image-id proxy copy ownership.
+- M8: common orientation/geometry convention and lens resolution/order.
+- M10: normalized local edits across proxy-to-original relink.
+- M12: Adobe DNG SDK ACR3 licence attribution.
+- Minors: copy-toggle accessibility identifier, production environment override, library destination when SSD absent.
+- LR-8h: stream one compressed tile at a time and allocation evidence; approved decoder is preserved byte-for-byte.
+- LR-13b: export/print imported mask hooks; real depth/retouch support; raster errors in thumbnails/export; defer profile parse to Adobe; persistent notice without per-frame lock; mask availability/plan-version cache key; same-level thumbnail comparison; admission assertion justification for ab924590.
+
+## Added port commits
+
+| Commit | Purpose |
+|---|---|
+| `814517fb` | RED oriented proxy raster integration test |
+| `c77cb368` | GREEN active/oriented proxy mask extent integration |
+| `01a0cc8a` | LR-11b neutral metadata fixture adaptation |
+| `3aeb1d33` | RED regenerated-mask availability notice regression |
+| `bafe4684` | GREEN notice readiness aligned with LR-5b |
+| `1e31cd27` | Port map, integration findings and Rust gate record |
+| `63be13a6` | B5-50 fixture FFI proxy-option adaptation |
+
+## Source → port map
+
+Exclusions: the 12 duplicate hotfix commits `e9925602..e4372184`,
+`1f64ff6f` + `33e56d7d`, old LR-11 commits `86734712`, `7d5bf95e`,
+`92243f2c`, `97176222`, and old-base docs `6682ca82` were not picked.
+The requested open interval excludes `c5f6ae92`; its split-preview test appears
+in the subsequent source append conflict and was retained.
 
 | Original | Port |
 |---|---|
@@ -107,126 +260,3 @@ e4fadad9: export.rs: retain main mutable segmenter and required AI availability 
 | `5d5be036a055ee3375855287ffaa39e28b64b3e2` | `71bcac78683463901f3c89cfbb0a8bfb4f8553e6` |
 | `e07fe9bc9ba04e227a1fd5afed35d42727341e6c` | `9551060fef9497a8f332d9065758bbb60288de02` |
 | `124c03bcf6fcb14a318fc555574f96e62f245595` | `726c334a4ca9121dcc75e8dcfbcfecd304839e29` |
-
-## Review items deliberately left open
-
-- B3: scope of embedded-profile fallback, Native Adobe-name dispatch, parse fallback, EXIF illuminants, substitution notice; M11 fixture/0.2 restoration belongs with B3.
-- B4 / LR-8d: Native vs Adobe BaselineExposure split, including removal of inherited golden-test calibration override.
-- M2: unclipped HueSatMap highlights before exposure.
-- M3: scalar thumbnail route still develops full proxy before reducing (LR-13 partial improvement retained).
-- M4: relinked originals normal GPU/lens route.
-- M5: cache library listing.
-- M6: original catalog filename for display/export.
-- M7: image-id proxy copy ownership.
-- M8: common orientation/geometry convention and lens resolution/order.
-- M10: normalized local edits across proxy-to-original relink.
-- M12: Adobe DNG SDK ACR3 licence attribution.
-- Minors: copy-toggle accessibility identifier, production environment override, library destination when SSD absent.
-- LR-8h: stream one compressed tile at a time and allocation evidence; approved decoder is preserved byte-for-byte.
-- LR-13b: export/print imported mask hooks; real depth/retouch support; raster errors in thumbnails/export; defer profile parse to Adobe; persistent notice without per-frame lock; mask availability/plan-version cache key; same-level thumbnail comparison; admission assertion justification for ab924590.
-
-## Golden boundary
-
-No stored import/native pixel golden files or existing import fingerprints changed by port.
-Inherited source `e2bff2a5` changes `pipeline-cpu/tests/golden.rs` to zero
-BaselineExposure during native golden rendering. This is Machine A B4, explicitly
-left for LR-8d; it is not evidence that ordinary Native rendering is unchanged.
-`6c2dace3` adds ordinary-import neighboring-preview byte-equality coverage.
-No existing assertion or bound has been changed during the port. Gate results pending.
-
-## Verification
-
-Full command logs kept outside repository in `/tmp/LR-8R-port`.
-
-| Attempt | Command | Result |
-|---|---|---|
-| 1 | `cargo test --release -p tessera-ffi --lib lrcat_combined` | Build passed (7m11s); filter matched 0 tests, 296 filtered; not counted as test verification |
-| 2 RED | `cargo test --release -p tessera-ffi --lib` | 284 passed, 1 failed, 11 ignored; new `lr8r_oriented_offline_proxy_accepts_matching_imported_ai_raster` rejected valid raster; INT-1 passed |
-| 3 GREEN | `cargo test --release -p tessera-ffi --lib` | 285 passed, 0 failed, 11 ignored (8.48s) |
-| Precheck | `cargo fmt --all -- --check` | Passed |
-| Clean | `cargo clean` with `-p` for all touched crates | Completed before final gates |
-
-Environment: `PATH=$HOME/.cargo/bin:$PATH`, `CARGO_BUILD_JOBS=5`,
-`RAYON_NUM_THREADS=5`, `CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-8R`.
-
-## Port integration regression and fix
-
-| Finding | Code | Test |
-|---|---|---|
-| LR-5b's original-only mask extent helper rejects injected oriented LinearRaw proxy rasters | `c77cb368`: `lrcat.rs` uses approved metadata reader, active crop and catalog orientation only for offline proxy injection; ordinary originals retain main helper | RED `814517fb`: synthetic 12x10 proxy, orientation 6, accepts/pins a 10x12 injected AI raster; full FFI library RED → GREEN |
-| LR-11b Point Color ordering must survive imported-mask hook addition | `3f3e4c8a`: invoke hook separately for Point Color and remaining locals | Existing LR-11b stage tests retained; INT-1 nested local edits/orientation passes |
-| Main AI dependency availability checks must survive LR-13 routing | `4dd6a6fd`: keep mutable segmenter and export/print load checks | Existing LR-5b checks retained; full gates pending |
-
-## Added port commits
-
-- `814517fb`: RED oriented proxy raster integration test.
-- `c77cb368`: oriented active proxy mask extent fix.
-
-
-## Independent port review
-
-Read-only reviewer checked approved decoder equality, LR-11b local staging,
-LR-5b group availability/export checks, LR-9c groups, lockfile boundaries,
-numerics/accessibility/profiler changes. One P2 found: inherited LR-13
-`MaskShared::unavailable` incorrectly requires full-resolution dimensions after
-successful lower-resolution LR-5b regeneration. RED `3aeb1d33` added a notice assertion to the existing LR-5b lower-extent regression; it failed 0/1. GREEN `bafe4684` aligns notice readiness with validated `Ready` entries; focused rerun passed 1/1. Existing raster/pixel assertions and stored-extent validation remain unchanged.
-Inherited identity-catalog-orientation non-proxy resident unwrap concern is
-also present at source `124c03bc`, so retained for routing follow-up with M4.
-
-## Feature port checklist (final gate evidence pending)
-
-| Finding / required feature | Code | Test coverage |
-|---|---|---|
-| Approved lossy JPEG / JPEG XL LinearRaw admission and bounds | `raw-decode/src/lossy_dng.rs`, exactly `38817f56` | `raw-decode` lossy_dng, lr8e_safety, lr8f_safety (includes LR-8g/h) |
-| Offline proxy discovery/import/copy/relink | `import-lrcat/src/smart_previews.rs`, FFI lrcat/catalog, sidecar store | FFI `offline_proxy_import_develop_copy_and_relink_preserve_lightroom`; read-only store; UUID lookup |
-| Catalog orientation consumed once before normalized edits | image-core source, pipeline-cpu render | catalog_orientation, lrcat_linear, FFI lrcat_orientation_tests; INT-1 |
-| Current LR-5b injected raster extent validation | FFI lrcat/lrcat_masks/masks | LR-5b RGB/RAW extent tests and new LR-8R oriented proxy regression |
-| Current LR-11b B2/B3/S7/S8/S9 semantics | Base sidecar/import/render rules retained; new CPU hook keeps split staging | Existing lr11b tests plus INT-1 nested local operators on oriented Adobe proxy |
-| Current LR-9c cloud and regenerated-mask report groups | Base FFI lrcat report code retained | `lr5b_import_report_shows_cloud_group_and_regeneration_notes_together` |
-| LR-10 Adobe proxy rendering | pipeline-adobe, image-core embedded profile dispatch | embedded_adobe, embedded, dcp_render, lrcat_linear |
-| LR-13 thumbnail/loupe/analysis/cull/Develop routing | FFI imported_proxy/preview/analysis/cull and image-core smart_preview_render | `lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop`; thumbnail-size test |
-| Proxy export with quality warning | export lib, FFI export | export lrcat_jxl; FFI offline proxy export and LR-13 app route |
-| Develop notice wording and HDR conditional | FFI imported proxy notice, Swift Develop session | LR-13 notice wording/no-op HDR and FFI minimum-notice tests |
-| UI source counts, badges and copy/import controls | Swift import sheet/controller, ThumbnailCell, EngineLibrary | Swift LightroomImport tests and full Swift gate |
-| Main numerics, accessibility identifiers, profiler hardening | Base ENG-1..4/B5-50/B5-51 retained in merges | Workspace tests, Swift tests, strict build |
-
-### Inherited numerical fixture/expectation differences versus base
-
-| File / expectation | Difference already in source | Source commit |
-|---|---|---|
-| `pipeline-cpu/tests/golden.rs` native fixture calibration | Set `metadata.baseline_exposure = 0.` before rendering; golden image bytes unchanged; B4 remains open | `e2bff2a5` |
-| `pipeline-adobe/tests/dcp_render.rs` profile fixture | Missing tone curve becomes explicit identity curve | `1e75421c` |
-| Same profile fixture | Add explicit black-render policy tag 51110=1 | `bc3b454c` |
-| Same profile fixture and `tiff_profile_changes_final_cfa_render` expected input | Scale red matrix diagonal only; expected `[0.2; 3]` becomes `[0.21781155; 3]`, tolerance remains 0.0001; M11 remains open | `3e86ef5e` |
-
-No new numerical expectation changes or golden re-pins were introduced by LR-8R.
-`01a0cc8a` adds neutral metadata fields to the base LR-11b synthetic fixture
-(`baseline_exposure: 0.`, `catalog_orientation: None`); every assertion is unchanged.
-Workspace attempt 1 stopped at compile E0063 in this fixture (no test execution).
-
-Additional port commits:
-- `01a0cc8a`: neutral RawMetadata fields in LR-11b fixture (compile adaptation).
-- `3aeb1d33`: RED regression for regenerated-mask availability notice.
-- `bafe4684`: GREEN readiness notice integration with current LR-5b.
-
-The ordinary `cargo clean -p ...` reported 0 files because the lane held release
-artifacts. An explicit `cargo clean --release -p ...` was therefore run before
-workspace attempt 2; both logs are retained. This avoids claiming a clean build
-from a no-op package clean.
-
-## Final gate attempts (continuing)
-
-| Gate attempt | Result |
-|---|---|
-| Workspace 1 | Compile failure E0063 at `tessera-ffi/tests/lr11b_local.rs:329`, fixed by `01a0cc8a`; no tests ran |
-| Explicit release clean | 913 files / 3.2 GiB removed across all 13 touched crates |
-| Workspace 2: `cargo test --release --workspace --no-fail-fast` | Exit 101: 3,357 passed, 1 failed, 106 ignored; 654 summaries including doc-tests. Only failure: `previews::tests::raw_without_jpeg_is_rendered`, 4.30435325s against unchanged `< 3.0s`; pixel assertions passed |
-| Final formatting: `cargo fmt --all -- --check` | Exit 0 |
-
-Workspace attempt 2 passed INT-1, both LR-8R regressions, existing LR-11b tests,
-FFI Lightroom integration (18 passed / 1 ignored), import goldens and native RAW
-goldens (subject to inherited B4 override). Streaming import scale passed in
-102.94s; no rerun was needed for it. Complete previews crate serialized rerun
-started as required; no CI override or bound/exclusion change was used.
-
-| Serialized previews attempt 1: `cargo test --release -p previews -- --test-threads=1 --nocapture` | Exit 101; lib 22 passed, 1 failed, 3 ignored; same timing assertion, 3.596126042s vs unchanged 3.0s, pixel statistics unchanged. Cargo stopped before the integration suites. Command including standalone feature rebuild took 86.00s. Machine load immediately afterward: 79.26 / 69.74 / 75.92. Gate remains unresolved. |
