@@ -46,7 +46,7 @@ fn legacy(two_photos: bool) -> Setup {
         })
         .collect();
     assert_eq!(proxies.len(), if two_photos { 2 } else { 1 });
-    assert!(proxies.iter().all(|p| Sidecar::is_lightroom_owned(p)));
+    assert!(proxies.iter().all(Sidecar::is_lightroom_owned));
     for path in &proxies {
         let mut doc = RecipeDocument::default();
         doc.recipe.image_id = app_image_id(path);

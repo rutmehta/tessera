@@ -957,10 +957,12 @@ pub(crate) const IMPORTED_RENDER_PLAN_VERSION: u32 = 2;
 /// durable raster is present (and its payload revision). A raster appearing,
 /// disappearing or being replaced therefore re-renders instead of serving a
 /// stale frame or a cached failure. Reads at most 32 bytes per referenced raster.
+#[cfg(test)]
 pub(crate) fn imported_render_identity(recipe: &core::Recipe, support: &Path) -> [u8; 32] {
     render_identity(recipe, support, IMPORTED_RENDER_PLAN_VERSION)
 }
 
+#[cfg(test)]
 pub(crate) fn render_identity(recipe: &core::Recipe, support: &Path, version: u32) -> [u8; 32] {
     let facts = ImportedFacts::of(recipe);
     identity(&facts, support, version, &model_names(support))
