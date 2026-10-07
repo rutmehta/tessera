@@ -36,11 +36,9 @@ pub fn render_linear_scaled_with_profile_and_locals(
     let embedded;
     let profile = if profile.is_none() {
         embedded = match source {
-            RenderSource::CameraLinear(proxy) => proxy
-                .embedded_profile()
-                .map(DcpProfile::parse)
-                .transpose()
-                .map_err(|reason| EngineError::invalid("DCP profile", reason))?,
+            RenderSource::CameraLinear(proxy) => {
+                crate::embedded_profile_fallback(proxy, settings, proxy.embedded_profile()).0
+            }
             _ => None,
         };
         embedded.as_ref()
@@ -128,7 +126,8 @@ pub fn render_linear_scaled_with_profile_and_locals(
         // This assumes point optics are channel-neutral and no clipping occurs;
         // spatial resampling remains in native preprocessing (an approximation).
         let undo = (native_wb * native_profile).inverse()?;
-        let wb = profile.resolve_white_balance(&settings.white_balance, metadata.as_shot_wb)?;
+        let wb =
+            profile.resolve_for_camera(&settings.white_balance, camera_xyz, metadata.as_shot_wb)?;
         for coord in rgb.coords() {
             let mut tile = rgb.tile(coord, 0, 1)?;
             pipeline_cpu::apply_matrix(&mut tile, undo)?;

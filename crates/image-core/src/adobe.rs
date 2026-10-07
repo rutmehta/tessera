@@ -49,7 +49,11 @@ impl AdobeStageOp {
         settings: &engine_api::recipe::DevelopSettings,
     ) -> EngineResult<Self> {
         let m = image.metadata();
-        let white_balance = profile.resolve_white_balance(&settings.white_balance, m.as_shot_wb)?;
+        let camera_xyz = pipeline_cpu::camera_to_xyz(engine_api::color::ColorMatrix3(
+            std::array::from_fn(|r| m.cam_xyz[r].map(f64::from)),
+        ))?;
+        let white_balance =
+            profile.resolve_for_camera(&settings.white_balance, camera_xyz, m.as_shot_wb)?;
         let baseline_gain = 2f32.powf(m.baseline_exposure);
         if !baseline_gain.is_finite() || baseline_gain <= 0. {
             return Err(engine_api::EngineError::invalid(

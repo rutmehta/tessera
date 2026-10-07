@@ -1,7 +1,11 @@
 //! Independent, approximate Adobe PV1–PV6 rendering. See ADOBE_COMPAT.md.
 pub mod curves;
 pub mod dcp;
+mod embedded_profile;
 pub mod fidelity;
+pub use embedded_profile::{
+    SUBSTITUTED_PROFILE_NOTICE, UNAVAILABLE_PROFILE_NOTICE, embedded_profile_fallback,
+};
 mod render;
 use engine_api::recipe::settings::ToneSettings;
 pub use pipeline_cpu::{Image, RenderSource, Rgb8Image};
@@ -10,7 +14,7 @@ pub use render::{
     render_linear_scaled_with_profile_and_locals, render_scaled, render_scaled_with_profile,
 };
 
-/// Adobe profile identities select compatibility rendering; they are never paths.
+/// Recognize imported Adobe profile identities; this never selects a process family.
 pub fn names_adobe_profile(settings: &engine_api::recipe::DevelopSettings) -> bool {
     settings
         .camera_profile

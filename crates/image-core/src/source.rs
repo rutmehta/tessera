@@ -69,7 +69,7 @@ impl RawImage {
             .then(|| {
                 Arc::new(EmbeddedProfile {
                     // Keep a snapshot alongside decoded pixels. Bad profile metadata
-                    // is an Adobe-path error, never a new native-decode failure.
+                    // becomes a non-fatal substitution note, never a decode failure.
                     bytes: pipeline_adobe::dcp::read_embedded_profile(&mut file),
                 })
             });

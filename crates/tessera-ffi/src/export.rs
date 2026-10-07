@@ -880,7 +880,8 @@ impl Source {
             let profile = image_core::pipeline_adobe::dcp::read_embedded_profile(
                 &mut std::fs::File::open(path)?,
             )
-            .map_err(failure)?;
+            .ok()
+            .flatten();
             let mut proxy =
                 pipeline_cpu::CameraLinearProxy::from_dng(dng)?.with_embedded_profile(profile);
             if let Some(orientation) = orientation {
