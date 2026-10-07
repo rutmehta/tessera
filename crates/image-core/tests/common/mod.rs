@@ -157,3 +157,32 @@ pub fn max_f32_diff(a: &[Vec<f32>], b: &[Vec<f32>]) -> f32 {
         })
         .fold(0.0, f32::max)
 }
+
+/// A baseline JPEG of `pixels` carrying an EXIF Orientation tag (APP1
+/// inserted after SOI); `None` writes no EXIF at all.
+pub fn exif_jpeg(pixels: &image::RgbImage, orientation: Option<u16>) -> Vec<u8> {
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 95)
+        .encode_image(pixels)
+        .unwrap();
+    let Some(orientation) = orientation else {
+        return jpeg;
+    };
+    let mut tiff = b"II*\0".to_vec();
+    tiff.extend(8u32.to_le_bytes());
+    tiff.extend(1u16.to_le_bytes());
+    tiff.extend(0x0112u16.to_le_bytes());
+    tiff.extend(3u16.to_le_bytes());
+    tiff.extend(1u32.to_le_bytes());
+    tiff.extend(orientation.to_le_bytes());
+    tiff.extend([0, 0]);
+    tiff.extend(0u32.to_le_bytes());
+    let mut app1 = b"Exif\0\0".to_vec();
+    app1.extend(tiff);
+    let mut out = jpeg[..2].to_vec();
+    out.extend([0xFF, 0xE1]);
+    out.extend(((app1.len() + 2) as u16).to_be_bytes());
+    out.extend(app1);
+    out.extend(&jpeg[2..]);
+    out
+}

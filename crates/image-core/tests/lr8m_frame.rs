@@ -186,14 +186,11 @@ fn lr8m_relinked_original_takes_the_ordinary_raw_route_at_every_level() {
     }
 }
 
-/// REV-SP-B S1, open: a relinked RGB original (JPEG/TIFF/HEIC) still has its
-/// catalog orientation consumed by the decoder (oriented frame), while its
-/// LinearRaw Smart Preview is sensor-frame, so imported crops and masks move
-/// on relink. Follow-up lane LR-8n: open Lightroom-imported RGB sources in
-/// the stored frame and report the catalog orientation as the display
-/// orientation, as for RAW.
+/// LR-8n (REV-SP-B S1): a relinked RGB original (JPEG/TIFF) is read in its
+/// stored (unrotated) frame, like its LinearRaw Smart Preview and like a
+/// relinked RAW. The absolute catalog orientation replaces EXIF and is
+/// reported as the display orientation; the decoder never consumes it.
 #[test]
-#[ignore = "LR-8n follow-up: relinked RGB originals are read in the rotated frame"]
 fn lr8n_relinked_rgb_original_uses_the_stored_frame_like_its_smart_preview() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("original.tif");
@@ -204,10 +201,75 @@ fn lr8n_relinked_rgb_original_uses_the_stored_frame_like_its_smart_preview() {
     .unwrap();
     let relinked = RawImage::open_with_catalog_orientation(ImageId(7900), &path, Some(6)).unwrap();
     assert_eq!(relinked.metadata().orientation, 6, "display orientation");
+    assert_eq!(relinked.metadata().catalog_orientation, Some(6));
     let extent = relinked.active_extent();
     assert_eq!(
         (extent.width, extent.height),
         (64, 48),
         "edits in the stored (sensor) frame, like the Smart Preview"
     );
+
+    // Rotated phone JPEGs: whatever the file's own EXIF says, crop, masks,
+    // Upright and lens land on the stored pixels exactly as on an upright
+    // (orientation 1) import of the same pixels.
+    let content = image::RgbImage::from_fn(96, 64, |x, y| {
+        let blob = if (x as i32 - 70).pow(2) + (y as i32 - 18).pow(2) < 120 {
+            120
+        } else {
+            0
+        };
+        image::Rgb([
+            (20 + x * 2 + blob).min(255) as u8,
+            (30 + y * 3) as u8,
+            (60 + (x + y) % 40) as u8,
+        ])
+    });
+    let upright_path = dir.path().join("upright.jpg");
+    std::fs::write(&upright_path, common::exif_jpeg(&content, None)).unwrap();
+    let renderer = Renderer::new(Default::default());
+    let s = frame_edits();
+    let upright = RawImage::open(ImageId(7910), &upright_path).unwrap();
+    assert_eq!(upright.metadata().orientation, 1);
+    let stored = pixels(&renderer, &upright, &s, 0);
+    for exif in [3u16, 6, 8] {
+        let path = dir.path().join(format!("phone-{exif}.jpg"));
+        std::fs::write(&path, common::exif_jpeg(&content, Some(exif))).unwrap();
+        // An ordinary RGB import consumes EXIF in the decoder (main behaviour,
+        // unchanged by LR-8n): its edit frame is the rotated one.
+        let ordinary = RawImage::open(ImageId(7920 + u128::from(exif)), &path).unwrap();
+        let rotated = if exif >= 5 { (64, 96) } else { (96, 64) };
+        assert_eq!(
+            (
+                ordinary.active_extent().width,
+                ordinary.active_extent().height
+            ),
+            rotated,
+            "ordinary import, EXIF {exif}"
+        );
+        for catalog in 1..=8u16 {
+            let relinked = RawImage::open_with_catalog_orientation(
+                ImageId(7930 + u128::from(exif) * 10 + u128::from(catalog)),
+                &path,
+                Some(catalog),
+            )
+            .unwrap();
+            assert_eq!(relinked.metadata().orientation, catalog);
+            assert_eq!(relinked.metadata().catalog_orientation, Some(catalog));
+            assert_eq!(
+                relinked.active_extent(),
+                upright.active_extent(),
+                "EXIF {exif}, catalog {catalog}: stored frame"
+            );
+            assert_eq!(
+                Renderer::output_extent(&relinked, &s, 0).unwrap(),
+                Renderer::output_extent(&upright, &s, 0).unwrap(),
+                "EXIF {exif}, catalog {catalog}: crop aspect"
+            );
+            assert_eq!(
+                pixels(&renderer, &relinked, &s, 0),
+                stored,
+                "EXIF {exif}, catalog {catalog}: crop, mask, Upright and lens on the stored pixels"
+            );
+        }
+    }
 }
