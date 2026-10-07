@@ -4,16 +4,19 @@
 //! Develop draws a level by box-averaging the white-balanced frame first and
 //! running Detail, Tone, Colour, locals, Effects and Geometry on level pixels
 //! (`image-core` render.rs, "M2 controls"; ENG-6 for the Detail-before-
-//! Geometry order). A scaled export is held to that rendering, with the
-//! same quantisation-only bounds as ENG-9's full-resolution parity
-//! (`eng9_develop_parity.rs`, which is unchanged):
-//! - 0.5 level for Develop's 8-bit rounding (the Adobe Output stage has no
-//!   dither);
-//! - 0.002 for a 16-bit TIFF;
-//! - 0.03 for float order (ICC transform against the Output-stage matrix,
-//!   the 2^-18 Perceptual chroma search).
+//! Geometry order). A scaled export is held to that rendering exactly:
+//! - Develop's linear frame (`RenderOutput::SceneLinear`) at the level, put
+//!   through the export's own output transform (the managed sRGB transform
+//!   with the recipe's gamut mapping), must equal the print floats bit for
+//!   bit, and the 16-bit TIFF file within its own rounding (0.5 code);
+//! - the frame sizes must equal the level's.
 //!
-//! So max <= 0.53 level and mean <= 0.35, in sRGB-encoded 8-bit levels.
+//! The comparison is made after the same output transform on both sides, so
+//! it isolates what ENG-10 changes (which renderer and which level) from
+//! the output transform itself. Develop's 8-bit Output stage against the
+//! export's ICC transform is ENG-9's parity (`eng9_develop_parity.rs`,
+//! unchanged, at full resolution). Scale 1 rows are included as the control:
+//! level 0 is Develop's full-resolution path.
 use engine_api::{
     id::ImageId,
     jobs::CancellationToken,
@@ -24,8 +27,9 @@ use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RendererConfig};
 use pipeline_cpu::{CameraLinearProxy, RenderSource};
 use std::sync::Arc;
 
-const ADOBE_MAX: f32 = 0.53;
-const MEAN: f32 = 0.35;
+/// 16-bit rounding of a float in [0, 1] (the TIFF encoder), plus float
+/// order between the test's `v * 65535` and the encoder's.
+const TIFF_CODES: f32 = 0.5 + 1e-3;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Kind {
@@ -194,7 +198,8 @@ fn recipe(mapping: GamutMapping) -> Recipe {
 
 type Retouch = Option<Arc<dyn pipeline_cpu::RetouchRenderer>>;
 
-/// Develop's SDR Output stage at `level`, assembled, in 8-bit levels.
+/// Develop's linear frame at `level` (`SceneLinear`), put through the
+/// export's output transform into sRGB floats.
 fn develop(image: &RawImage, recipe: &Recipe, level: u8, retouch: Retouch) -> Frame {
     let mut renderer = Renderer::new(RendererConfig {
         process_version: recipe.process_version,
@@ -210,29 +215,46 @@ fn develop(image: &RawImage, recipe: &Recipe, level: u8, retouch: Retouch) -> Fr
             &recipe.settings,
             level,
             PixelRect::full(extent),
-            RenderOutput::Display,
+            RenderOutput::SceneLinear,
         )
         .unwrap();
-    let mut out = vec![[0f32; 3]; extent.area() as usize];
+    let mut linear = image::Rgb32FImage::new(extent.width, extent.height);
     for t in &tiles {
         let l = t.layout();
         let n = l.plane_len();
         let (ox, oy) = t.coord().pixel_origin(engine_api::tile::TILE_SIZE);
-        let values = t.samples::<u8>().unwrap();
+        let values = t.samples::<f32>().unwrap();
         for y in 0..l.extent.height {
             for x in 0..l.extent.width {
                 let i = (y * l.extent.width + x) as usize;
-                let o = ((oy + y) * extent.width + ox + x) as usize;
-                for c in 0..3 {
-                    out[o][c] = f32::from(values[c * n + i]);
-                }
+                linear.put_pixel(
+                    ox + x,
+                    oy + y,
+                    image::Rgb(std::array::from_fn(|c| values[c * n + i])),
+                );
             }
         }
     }
+    let mut registry = color_mgmt::Registry::new();
+    let target = registry.builtin(color_mgmt::Builtin::Srgb).unwrap();
+    let mut settings = recipe.settings.clone();
+    settings.output.proof_profile = None;
+    let rgb = pipeline_cpu::output_managed_linear(
+        &settings,
+        linear,
+        &mut pipeline_cpu::OutputContext {
+            registry: &mut registry,
+            target: pipeline_cpu::OutputTarget::Export(&target),
+            proof: None,
+            options: color_mgmt::TransformOptions::default(),
+        },
+    )
+    .unwrap()
+    .pixels;
     Frame {
-        width: extent.width,
-        height: extent.height,
-        pixels: out,
+        width: rgb.width(),
+        height: rgb.height(),
+        pixels: rgb.pixels().map(|p| p.0).collect(),
     }
 }
 
@@ -252,7 +274,7 @@ fn image(source: RenderSource<'_>) -> ExportImage<'_> {
     }
 }
 
-/// Print floats (sRGB document) at `scale`, as 8-bit levels.
+/// Print floats (sRGB document) at `scale`.
 fn print(fixture: &Fixture, recipe: &Recipe, scale: u32, retouch: Retouch) -> Frame {
     let (rgb, _) = export::render_pixels_with_notes(
         &image(fixture.source()),
@@ -272,14 +294,11 @@ fn print(fixture: &Fixture, recipe: &Recipe, scale: u32, retouch: Retouch) -> Fr
     Frame {
         width: rgb.width(),
         height: rgb.height(),
-        pixels: rgb
-            .pixels()
-            .map(|p| p.0.map(|v| v.clamp(0., 1.) * 255.))
-            .collect(),
+        pixels: rgb.pixels().map(|p| p.0).collect(),
     }
 }
 
-/// A 16-bit sRGB TIFF export at `render_scale`, decoded to 8-bit levels.
+/// A 16-bit sRGB TIFF export at `render_scale`, as 16-bit codes.
 fn export_file(fixture: &Fixture, recipe: &Recipe, scale: u32, retouch: Retouch) -> Frame {
     let dir = tempfile::tempdir().unwrap();
     let path = export::export_one(
@@ -308,43 +327,58 @@ fn export_file(fixture: &Fixture, recipe: &Recipe, scale: u32, retouch: Retouch)
             .as_chunks::<3>()
             .0
             .iter()
-            .map(|p| std::array::from_fn(|c| f32::from(p[c]) / 65535. * 255.))
+            .map(|p| p.map(f32::from))
             .collect(),
     }
 }
 
-/// Records one row; returns failures instead of panicking so the whole
+/// Records one row: `output` against `expected` (scaled by `unit`, 1 for
+/// floats, 65535 for 16-bit codes, after clamping to [0, 1] as the encoder
+/// does) within `limit`. Returns failures instead of panicking so the whole
 /// table is reported.
-fn check(label: &str, develop: &Frame, output: &Frame, failures: &mut Vec<String>) {
-    if (develop.width, develop.height) != (output.width, output.height) {
+fn check(
+    label: &str,
+    expected: &Frame,
+    output: &Frame,
+    unit: f32,
+    limit: f32,
+    failures: &mut Vec<String>,
+) {
+    if (expected.width, expected.height) != (output.width, output.height) {
         eprintln!(
             "ENG10 {label:<46} size {}x{} vs Develop {}x{} FAIL",
-            output.width, output.height, develop.width, develop.height
+            output.width, output.height, expected.width, expected.height
         );
         failures.push(format!(
             "{label}: size {}x{}, Develop level is {}x{}",
-            output.width, output.height, develop.width, develop.height
+            output.width, output.height, expected.width, expected.height
         ));
         return;
     }
-    let (mut max, mut sum) = (0f32, 0f64);
-    for (a, b) in develop.pixels.iter().zip(&output.pixels) {
+    let mut max = 0f32;
+    for (a, b) in expected.pixels.iter().zip(&output.pixels) {
         for c in 0..3 {
-            let d = (a[c] - b[c]).abs();
-            max = max.max(d);
-            sum += f64::from(d);
+            let a = if unit == 1. {
+                a[c]
+            } else {
+                a[c].clamp(0., 1.) * unit
+            };
+            let d = (a - b[c]).abs();
+            // NaN must fail, not compare false.
+            max = if d.is_nan() {
+                f32::INFINITY
+            } else {
+                max.max(d)
+            };
         }
     }
-    let mean = (sum / (3 * develop.pixels.len()) as f64) as f32;
-    let ok = max <= ADOBE_MAX && mean <= MEAN;
+    let ok = max <= limit;
     eprintln!(
-        "ENG10 {label:<46} max {max:>7.3} mean {mean:>6.3} {}",
+        "ENG10 {label:<46} max {max:>10.6} (limit {limit}) {}",
         if ok { "ok" } else { "FAIL" }
     );
     if !ok {
-        failures.push(format!(
-            "{label}: max {max} (limit {ADOBE_MAX}) mean {mean} (limit {MEAN})"
-        ));
+        failures.push(format!("{label}: max {max} (limit {limit})"));
     }
 }
 
@@ -353,19 +387,23 @@ fn run(kind: Kind) {
     let mut failures = Vec::new();
     for mapping in [GamutMapping::Perceptual, GamutMapping::Clip] {
         let r = recipe(mapping);
-        for scale in [2u32, 4, 8] {
+        for scale in [1u32, 2, 4, 8] {
             let level = scale.trailing_zeros() as u8;
             let shown = develop(&fixture.image, &r, level, None);
-            check(
-                &format!("{kind:?} {mapping:?} scale {scale} export"),
-                &shown,
-                &export_file(&fixture, &r, scale, None),
-                &mut failures,
-            );
             check(
                 &format!("{kind:?} {mapping:?} scale {scale} print"),
                 &shown,
                 &print(&fixture, &r, scale, None),
+                1.,
+                0.,
+                &mut failures,
+            );
+            check(
+                &format!("{kind:?} {mapping:?} scale {scale} export"),
+                &shown,
+                &export_file(&fixture, &r, scale, None),
+                65535.,
+                TIFF_CODES,
                 &mut failures,
             );
         }
@@ -460,19 +498,23 @@ fn eng10_scaled_locals_crop_and_retouch_match_develop_level() {
         })
         .unwrap();
         let retouch = (kind == Kind::Raw).then(|| retouch.clone());
-        for scale in [2u32, 4] {
+        for scale in [1u32, 2, 4] {
             let level = scale.trailing_zeros() as u8;
             let shown = develop(&fixture.image, &r, level, retouch.clone());
-            check(
-                &format!("{kind:?} locals+crop scale {scale} export"),
-                &shown,
-                &export_file(&fixture, &r, scale, retouch.clone()),
-                &mut failures,
-            );
             check(
                 &format!("{kind:?} locals+crop scale {scale} print"),
                 &shown,
                 &print(&fixture, &r, scale, retouch.clone()),
+                1.,
+                0.,
+                &mut failures,
+            );
+            check(
+                &format!("{kind:?} locals+crop scale {scale} export"),
+                &shown,
+                &export_file(&fixture, &r, scale, retouch.clone()),
+                65535.,
+                TIFF_CODES,
                 &mut failures,
             );
         }
