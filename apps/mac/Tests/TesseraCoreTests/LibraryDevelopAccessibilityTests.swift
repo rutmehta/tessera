@@ -334,6 +334,42 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         }
     }
 
+    // The window audit hosts only Library/Develop/import screens, so document-panel identifiers
+    // are checked here: explicit samples plus every document.* identifier expression in Sources.
+    func testDocumentPanelIdentifiersAreAccepted() throws {
+        for id in ["document.layers.fx.7", "document.layerStyle.dropShadow.size",
+                   "document.layerStyle.dropShadow.metadata.blend", "document.neural.filter.colorize",
+                   "document.neural.colorize.strength", "document.layers.row.0.cell"] {
+            XCTAssertTrue(EstablishedAccessibilityIdentifiers.accepts(id), id)
+        }
+        for id in ["document.layers.fx.7.extra", "document.layerStyle.a.b.c"] {
+            XCTAssertFalse(EstablishedAccessibilityIdentifiers.accepts(id), id)
+        }
+        let tests = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let sources = tests.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources")
+        let enumerator = try XCTUnwrap(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+        var source = ""
+        for case let url as URL in enumerator where url.pathExtension == "swift" {
+            source += try String(contentsOf: url, encoding: .utf8)
+        }
+        let calls = try NSRegularExpression(pattern: #"(?:accessibilityIdentifier(?:IfPresent)?|setAccessibilityIdentifier)\([^\n]*|\b(?:id|identifier):\s*"(?:\\.|[^"\\])*""#)
+        let strings = try NSRegularExpression(pattern: #""((?:\\.|[^"\\])*)""#)
+        let interpolation = try NSRegularExpression(pattern: #"\\\((?:[^()]|\([^()]*\))*\)"#)
+        var checked = 0
+        for match in calls.matches(in: source, range: NSRange(source.startIndex..., in: source)) {
+            let call = String(source[try XCTUnwrap(Range(match.range, in: source))])
+            for string in strings.matches(in: call, range: NSRange(call.startIndex..., in: call)) {
+                let value = String(call[try XCTUnwrap(Range(string.range(at: 1), in: call))])
+                guard value.hasPrefix("document.") else { continue }
+                let sample = interpolation.stringByReplacingMatches(in: value, range: NSRange(value.startIndex..., in: value),
+                                                                    withTemplate: "7")
+                checked += 1
+                XCTAssertTrue(EstablishedAccessibilityIdentifiers.accepts(sample), "\(value) -> \(sample)")
+            }
+        }
+        XCTAssertGreaterThan(checked, 100, "Document identifier scan found too few expressions")
+    }
+
     func testSidebarFolderIdentifierSurvivesRebuild() {
         let url = URL(fileURLWithPath: "/AXPrivateRoot731")
         let first = SidebarRow(.folder(url), key: "folder:" + url.path, title: "First")
