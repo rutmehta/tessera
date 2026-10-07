@@ -1,8 +1,11 @@
 # LR-CLEAN handoff
 
-Base: `gate/b51`, `392c2156` on `wp/LR-CLEAN`. Synthetic inputs only.
-Status: STOPPED / NOT GATE-CLEAN. The unchanged preview latency bound failed in
-the workspace run and the required serialized retry. No merge approval is claimed.
+Lane: LR-CLEAN2 on `wp/LR-CLEAN`. Synthetic inputs only.
+Base: `origin/main` at `a94b0288`. All 20 lane commits from the old base
+`392c2156` were rebased with `git rebase --onto origin/main 392c2156`.
+Rebase conflicts: none. Main's keyboard, AI-mask and local-adjustment work is retained.
+Status: GATE-CLEAN on the final source tip; results appear in the LR-CLEAN2 section below.
+The original LR-CLEAN attempts are retained as historical evidence.
 
 ## Finding → code → test
 
@@ -30,13 +33,14 @@ the workspace run and the required serialized retry. No merge approval is claime
 | LR-9c: pre/post rebase hash mapping | Already done (`121fa5a0`, ancestor of base) | `tools/orchestrate/wp/LR-9/HANDOFF.md`, Hash mapping table |
 | Identifier pins, including id:/identifier: | `LibraryDevelopAccessibilityTests.swift`: old pins retained; 202 additional current-base literal stems | Historical review count 102 differs from this base; gate scanner guards all pins, including listed examples |
 | Legacy-prefix acceptance | Same file: anchored full dynamic templates | RED unknown row suffix accepted; six isolated Swift helper checks GREEN |
+| Transform sliders broken by anchoring (found in LR-CLEAN2 Swift gate) | Same file: `transformSliders` exact pins (`2c0dca28` RED, `2259f0fe` fix) | Concatenated `"transform-" + path` ids were accepted on main by prefix; anchored pins rejected them (14 window-walk failures). Seven exact pins, equality-checked against `TransformControls.all`; `transform-unpinned` stays rejected |
 | Keyword tree name collision | Product decision, not changed | Library explicitly enforces global name uniqueness; index rejects different parents; see decision below |
-| B5-49: skip focus claim outside document / grid leave test | Dependency-blocked on requested base | B5-49 focus-claim/checklist implementation is absent; see dependency note |
-| B5-49: anchor address normalizer | Dependency-blocked on requested base | Normalizer is absent; no unrelated replacement invented |
-| B5-49c L1 stop-on-repeat | Fixed on later lane `a6cd0ae8`, not in base | Commit inspected; not claimed already merged |
-| B5-49c L2 Shift+Tab History minus | Fixed on later lane `cd281635`, not in base | Commit and B5-49d handoff inspected; tests use six focus arrangements |
-| B5-49c L3 thread-safe FKA getter | Fixed on later lane `867adc0d`, not in base | Commit inspected; requested base lacks `KeyboardAccessHarness.swift` |
-| B5-49c L4 SwiftUI $hex normalization | Fixed on later lane `af23afbf`, not in base | Commit adds `$[0-9a-f]+`; normalization remains too broad for the separate address-anchor finding |
+| B5-49: skip focus claim outside document / grid leave test | Fixed in LR-CLEAN2 (`DocumentWorkspace.setPanelsHidden`; `d31866eb` RED, `b441ec8c` fix) | Restoration claims focus only in document mode; leave test enters `.grid` and preserves the prior responder |
+| B5-49: anchor address normalizer | Fixed in LR-CLEAN2 (`DocumentKeyboardChecklistTests.normalizeAddresses`; `d31866eb` RED, `b441ec8c` fix) | Anchor hex addresses to complete `ObjectIdentifier(0x…)`; diagnostic hex values remain unchanged; existing SwiftUI `$hex` support retained |
+| B5-49c L1 stop-on-repeat | already done (commit `a6cd0ae8`) | Main ancestry verified; row-exit walk stops when a view repeats |
+| B5-49c L2 Shift+Tab History minus | already done (commit `cd281635`) | Main ancestry verified; identity-checked History minus destination and six focus arrangements retained |
+| B5-49c L3 thread-safe FKA getter | already done (commit `867adc0d`) | Main ancestry verified; FKA getter reads lock-protected state; off-main-thread regression retained |
+| B5-49c L4 SwiftUI $hex normalization | already done (commit `af23afbf`) | Main ancestry verified; `$[0-9a-f]+` normalization and its existing assertions retained |
 | Stale layer row/cell identifiers after insert | Done in `LayersOutline.swift` | Stable-source RED: 1 test / 1,200 assertion failures; GREEN: 1 test / 0 failures, after collapse and insertion |
 | ENG-4 independent f64 denominator | `pipeline-cpu/src/tone_extra.rs` | Independent `(1.0_f64/0.18).ln_1p()` oracle; exact zero and overflow branches |
 | ENG-4 host log constants | Done | Both tests RED before fix; GPU unit suite 27 passed, 2 preexisting ignored |
@@ -76,10 +80,9 @@ must not extrapolate the retouch CPU-chain guarantee to those recipes.
 
 ## Dependency and product decisions
 
-The prescribed base does not contain B5-49d: `867adc0d` and `a6cd0ae8` are not
-ancestors, and the checklist/FKA harness files are absent. The user was asked
-whether to retain the base or integrate an approved tip. Until a tip is specified,
-this lane retains the prescribed base and does not silently import another lane.
+The LR-CLEAN2 rebase resolves the previous keyboard dependency block. B5-49d
+L1–L4 are present on main, as are the B5-49e review fixes. Only the document-mode
+focus guard and ObjectIdentifier address anchor required additional changes.
 
 Keyword names are a global identity in both library operations and the index,
 not merely a SwiftUI identity choice. `Library::add_keyword` rejects an existing
@@ -88,7 +91,7 @@ Supporting same-named children beneath different parents needs a decision about
 path/ID-based storage, sidecar tags, search, import conflict handling and API
 compatibility. Changing only ForEach identity would not resolve ambiguous edits.
 
-## Gates / attempts
+## Historical LR-CLEAN gates / attempts (before rebase)
 
 Pre-gate attempts:
 
@@ -152,24 +155,37 @@ Detailed transient logs are kept outside the repository; no private paths, pixel
 data or catalog-derived strings are committed as evidence. No Cargo.lock, board,
 or generated binding changes are present in the committed diff.
 
-## Outstanding work
+## Pending product decision
 
-1. Resolve the preview latency failure without changing the 3.0 s bound, then
-   complete all final gates on the final source tip. The serialized retry alone
-   does not establish whether the cause is shared-machine load or a performance
-   issue, and this handoff makes no such diagnosis.
-2. Obtain an approved B5-49d integration base/tip before applying the outside-
-   document focus/grid-leave and address-normalizer follow-ups. Later-lane L1–L4
-   fixes were inspected, but are not ancestors of this lane. No answer to the
-   base/integration clarification was received before stopping.
-3. Decide whether keyword names remain globally unique or become path/ID-based
-   identities. The existing invariant prevents the hypothesized duplicate-name
-   tree; changing that invariant is a product/API decision, not a view-only fix.
+Keyword-name collisions remain intentionally unimplemented. Decide whether names
+remain globally unique or become path/ID-based identities before changing storage,
+sidecars, search, import conflict handling or API behavior.
+
+## LR-CLEAN2 verification
+
+- RED: both focused regressions failed as expected: grid exit claimed the canvas;
+  broad normalization erased diagnostic hex and partially rewrote an invalid identifier.
+- RED: transform pins: 7 acceptance failures before the fix; GREEN: class 11 tests, 0 failures.
+- All gate logs remain outside the repository. No live library inputs are used.
+- `cargo clean -p` of all ten touched crates before the gates.
+
+| Gate (source tip) | Result | 1/5/15-min load |
+| --- | --- | --- |
+| `cargo test --release --workspace --no-fail-fast` (`b441ec8c`) | PASS: 3287 passed, 0 failed, 99 ignored (640 result lines); `raw_without_jpeg_is_rendered` ok first try, no serialized rerun needed | start 17.5/23.3/25.7; end 24.5/37.0/38.9 |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | PASS | 16.8/32.0/36.9 |
+| `cargo fmt --all -- --check` | PASS | n/a |
+| `apps/mac/build-ffi.sh` | PASS, no bindings drift | n/a |
+| `tools/orchestrate/swift-gate.sh` (`b441ec8c`) | FAILED: `testLibraryAndDevelopWindows` (14 transform slider failures) | 41.7/33.0/36.0 |
+| `tools/orchestrate/swift-gate.sh` (`2259f0fe`) | SWIFT GATE OK: 986 executed, 3 skipped, 0 failures; Swift Testing 5 passed | start 9.9/16.2/25.0 |
+| strict release `swift build --product Tessera` | PASS (only the existing ld min-version warning from the FFI archive) | end 45.7/25.9/24.6 |
+
+The transform commits change only a Swift test file, so the Rust gates on
+`b441ec8c` apply unchanged to the final source tip.
 
 ## Commits / publication
 
-Implementation tip: `c8bff729`. The final documentation commit records this
-blocked handoff; its own hash is reported to the user after publication.
+The list below records original pre-rebase commit IDs for historical traceability.
+Current publication hash is reported to the user after pushing the final handoff.
 Publication target: `origin/wp/LR-CLEAN`; push verification is reported with the
 final hash rather than embedding a self-referential hash here.
 
@@ -192,3 +208,37 @@ final hash rather than embedding a self-referential hash here.
 - `a6218ea3` docs(LR-CLEAN): map all rulings, production changes and dependency limits
 - `fe808744` test(LR-CLEAN): preserve validation before CPU retouch admission
 - `c8bff729` fix(LR-CLEAN): retain full settings admission before the selected CPU chain
+
+LR-CLEAN2 commits after the rebase:
+
+- `d31866eb` test(LR-CLEAN2): expose grid-exit focus claim and broad hex normalization
+- `b441ec8c` fix(LR-CLEAN2): preserve grid focus and anchor object address normalization
+- `2c0dca28` test(LR-CLEAN2): require pinned Transform slider identifiers
+- `2259f0fe` fix(LR-CLEAN2): pin Transform slider identifiers exactly
+
+## Rebase mapping
+
+All 20 entries are patch-equivalent (`git range-diff` reports `=` for each).
+
+| Original | Rebased |
+| --- | --- |
+| `c95a0d64` | `0be255fc` |
+| `53b4ab49` | `cd77b00b` |
+| `67a70145` | `4019fe21` |
+| `1615aa9d` | `93379972` |
+| `8edd9e6d` | `79ba0a63` |
+| `3659aa16` | `919a7ea0` |
+| `dd227299` | `0d69574d` |
+| `85e459fa` | `68594a78` |
+| `f0151a5d` | `b7f2a083` |
+| `0e8f6071` | `3adda07b` |
+| `d7002dd7` | `933e16dc` |
+| `049ed0fa` | `8a835ea2` |
+| `985d66cd` | `e6ca823d` |
+| `5f006db3` | `d83c470d` |
+| `dddb544d` | `3965c044` |
+| `25c56b58` | `b8ade1b3` |
+| `a6218ea3` | `40bdc98c` |
+| `fe808744` | `bdeaa26c` |
+| `c8bff729` | `48715091` |
+| `df01e5ef` | `e469f2b0` |
