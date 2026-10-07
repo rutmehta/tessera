@@ -59,6 +59,19 @@ fn luminance(rgb: [f32; 3]) -> f32 {
     0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]
 }
 
+/// Validate source BaselineExposure only at the Adobe boundary. Native retains
+/// the metadata as data and never applies or validates an exposure gain.
+pub fn validate_baseline_exposure(baseline_exposure: f32) -> engine_api::EngineResult<()> {
+    let gain = baseline_exposure.exp2();
+    if !baseline_exposure.is_finite() || !gain.is_finite() || gain <= 0. {
+        return Err(engine_api::EngineError::invalid(
+            "BaselineExposure",
+            "finite positive gain required",
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

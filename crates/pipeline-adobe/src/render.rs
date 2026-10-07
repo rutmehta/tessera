@@ -104,12 +104,15 @@ pub fn render_linear_scaled_with_profile_and_locals(
         base.detail.noise_reduction.luminance = 0.;
         base.detail.noise_reduction.color = 0.;
     }
-    let mut rgb = pipeline_cpu::render_linear_scaled(&base, source, 1)?;
     let camera_metadata = match source {
         RenderSource::Cfa { metadata, .. } => Some(*metadata),
         RenderSource::CameraLinear(proxy) => Some(proxy.original_metadata()),
         RenderSource::Rgb(_) => None,
     };
+    if let Some(metadata) = camera_metadata {
+        crate::validate_baseline_exposure(metadata.baseline_exposure)?;
+    }
+    let mut rgb = pipeline_cpu::render_linear_scaled(&base, source, 1)?;
     if let (Some(profile), Some(metadata)) = (profile, camera_metadata) {
         let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
             metadata.cam_xyz[r].map(f64::from)

@@ -32,11 +32,15 @@ impl AdobeStageOp {
             counts: Default::default(),
         }
     }
-    pub(crate) fn with_baseline(native: Arc<dyn StageOp>, baseline_exposure: f32) -> Self {
-        Self {
+    pub(crate) fn with_baseline(
+        native: Arc<dyn StageOp>,
+        baseline_exposure: f32,
+    ) -> EngineResult<Self> {
+        pipeline_adobe::validate_baseline_exposure(baseline_exposure)?;
+        Ok(Self {
             baseline_exposure,
             ..Self::new(native)
-        }
+        })
     }
     pub(crate) fn with_profile(
         native: Arc<dyn StageOp>,
