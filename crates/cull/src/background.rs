@@ -256,8 +256,11 @@ impl BackgroundPreviews {
                         return;
                     }
                     // A queued Wake waits behind hash tickets; answer it after
-                    // this image instead (the later ticket is then a no-op poll).
-                    let woken = wake_pending.swap(false, Ordering::AcqRel);
+                    // this image too (the later ticket is then a no-op poll).
+                    // Only the Wake ticket clears the flag: at most one Wake is
+                    // ever queued, so 16 hash tickets plus it fit the channel
+                    // and `wake`/`poll` never block under the host's lock.
+                    let woken = wake_pending.load(Ordering::Acquire);
                     if woken || last || last_notice.elapsed() >= Duration::from_millis(200) {
                         notify_current();
                         last_notice = std::time::Instant::now();
