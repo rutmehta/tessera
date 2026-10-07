@@ -24,7 +24,7 @@ struct SmartPreviewLoupeBadge: View {
                 .accessibilityIdentifier("loupe.smart-preview-badge")
             if !notices.isEmpty {
                 Text(Self.noticeText(notices)).font(Theme.Fonts.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityElement(children: .ignore)
                     .accessibilityAddTraits(.isStaticText)
