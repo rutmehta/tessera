@@ -547,8 +547,6 @@ singleton-removal-during-rebuild regression after reproducing stale queue indice
 Blocked-provider and blocked-callback tests prove that shutdown cannot complete
 early, and Swift queue tests verify detached execution and draining retirements.
 
-### Gates
-
 ### Finding to code to test
 
 | Finding | Code | Test |
@@ -581,6 +579,60 @@ verified it, committed it and ran the gates.
 - `cargo fmt --all -- --check`: clean.
 - `apps/mac/build-ffi.sh`: succeeded with no bindings drift.
 - `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK** (924 XCTest executed,
+  3 skipped, 0 failures; 5 Swift Testing tests passed).
+- Strict release build (`-strict-concurrency=complete -warnings-as-errors`):
+  complete.
+
+## LR-13e
+
+Follow-up to the independent LR-13d re-review (CHANGES-REQUIRED): both LR-13d
+blockers and S2-S4 were confirmed fixed. It found one new blocker (NB1), three
+should-fix items and nits. All fixtures are synthetic. No GUI or private
+library was opened. The work was done by Claude Opus 5.5.
+
+### Review items
+
+| Finding | Code | Test |
+| --- | --- | --- |
+| NB1: every default-policy edit, insert or removal rebuilt the whole library, published partial groups after each 4,096-pair poll, and restarted on each new hash (reviewer: 9,850 to 19,655 groups, 47,372 polls for one edit) | `grouping.rs` `DefaultRebuild` and `schedule_default`. A job starts from the published groups; groups without a damaged member stay joined. Damaged components are recomputed from sorted burst edges, equal-hash joins, distinct-hash pairs inside the damaged set, and changed hashes against every distinct queue hash: O(\|damaged\|^2 + \|changed\| * N) checks, at most 65,536 per poll. Only complete results are published. A changed queue restarts from the published groups and keeps the damaged set. Edits keep the known hash while re-hashing (`refresh_grouping_inputs`). An unchanged hash does nothing, a changed or lost hash damages its component, and an appeared hash only adds edges (also fed to a running job). Only re-timed images regroup immediately; custom strategies still regroup every edited image. | `incremental.rs` `lr13e_tests`: 19,700 images in 9,850 distinct near-duplicate pairs. One edit leaves all unrelated pairs published after every poll, converges in at most 2 polls, and uses at most 19,701 pair checks. A removal uses at most 19,700. An unchanged re-hash does 0 checks. On a 400-image chain, a removal that needs more than one poll publishes exactly the previous groups between polls (at most 3 polls). Hash change, loss, gain and error sequences, and reorder or removal during a pending job, all match the all-pairs reference. |
+| S1: unbounded quit wait | `CullShutdownQueue.drain(timeout:)`; `AppModel.shutdownCullSessions(timeout:)`. `applicationShouldTerminate` waits at most 3 s, then quits regardless (hash cache writes are atomic). | `testBoundedDrainReturnsWhileNativeShutdownIsStuck` |
+| S2: a failed shutdown poisoned later quits | The queue records each failure once and releases failed entries. AppModel resets `isShuttingDownCull` on a failed or timed-out shutdown. | `testFailedShutdownDoesNotPoisonLaterDrains`, `testAppQuitAfterFailedShutdownResetsStateAndCanQuitAgain` |
+| S3: FIFO process-wide joiner | `background.rs` `join_retired`: one short-lived join thread per retired worker. A shared fallback joiner is used only if a thread cannot start. | `lr13e_retirements_join_independently` (blocked provider in one session, prompt barrier in the other) |
+| Nit: singleton assertion ran before hashing finished | New FFI `CullSession.previews_pending`; the Swift test syncs until it is false | `IncrementalLibraryTests` |
+| Nit: wake ticket latency | A pending wake is answered after the current image | covered by existing event-driven FFI test |
+| Nit: `wake_pending` stuck after failed send | reset on send failure | (trivial; worker already dead) |
+| Nit: old `cull-hashes-v1` left behind | `HashCachePolicy::remove_legacy`, once per session on the worker, inside the approved root only, never following symlinks | `lr13e_removes_v1_cache_inside_approved_root_only` |
+| Nit: no FFI test that shutdown releases the lock | n/a (code was already correct) | `lr13e_shutdown_releases_session_lock_before_waiting` |
+| Nit: empty LR-13d "Gates" heading | removed | n/a |
+| Workspace regression reported by LR-13b: three ml tests saw groups before deferred hashing | the tests poll until hashing settles; assertions unchanged | ml-embed `grouping` (2), ml-quality `culling` (1) |
+
+The LR-13d `lr13d_large_component_edit_rebuild_is_bounded` test (debug-build
+250 ms wall-clock check on identical hashes) is replaced by
+`lr13e_identical_hash_component_edit_is_counted` (at most 64 pair checks,
+completes without a poll), as the review suggested. The three LR-13d
+`bounded_rebuild_tests` assumed a full rebuild from empty groups, which NB1
+removes. Their removal, reorder and reference cases are covered by the LR-13e
+tests above.
+
+Worst case that remains: removing an image from one huge component of distinct
+hashes still needs O(K^2) checks for K members (for example about 3,000 polls
+at K = 19,700). During that time the previous groups stay published, minus the
+removed image. No intermediate split is ever shown.
+
+### Gate results
+
+After `cargo clean -p cull -p tessera-ffi`, with load averages of 19 to 37:
+
+- `cargo test --release` for cull, previews, image-core, pipeline-cpu,
+  raw-decode, export, tessera-ffi, tessera-mcp and index: **1514 passed,
+  0 failed, 61 ignored**.
+- `cargo test --release --workspace --no-fail-fast` (after the ml test fix):
+  **3304 passed, 0 failed, 107 ignored**.
+- `cargo clippy --release --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --all -- --check`: clean.
+- `apps/mac/build-ffi.sh`: succeeded with no drift (bindings for
+  `previews_pending` are committed).
+- `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK** (927 XCTest executed,
   3 skipped, 0 failures; 5 Swift Testing tests passed).
 - Strict release build (`-strict-concurrency=complete -warnings-as-errors`):
   complete.
