@@ -1,6 +1,8 @@
+import AppKit
 import Foundation
 import XCTest
 @testable import TesseraCore
+@testable import Tessera
 
 @MainActor
 final class CullShutdownQueueTests: XCTestCase {
@@ -74,5 +76,49 @@ final class CullShutdownQueueTests: XCTestCase {
             try await queue.drain()
             XCTFail("native failure must prevent successful shutdown")
         } catch { XCTAssertTrue(error is Failure) }
+    }
+
+    func testFailedShutdownDoesNotPoisonLaterDrains() async throws {
+        enum Failure: Error { case native }
+        let queue = CullShutdownQueue()
+        queue.enqueue { throw Failure.native }
+        do {
+            try await queue.drain()
+            XCTFail("the first drain reports the failure")
+        } catch { XCTAssertTrue(error is Failure) }
+        try await queue.drain()
+        queue.enqueue {}
+        try await queue.drain()
+    }
+
+    func testBoundedDrainReturnsWhileNativeShutdownIsStuck() async throws {
+        let queue = CullShutdownQueue()
+        let release = DispatchSemaphore(value: 0)
+        let entered = expectation(description: "native shutdown entered")
+        queue.enqueue {
+            entered.fulfill()
+            _ = release.wait(timeout: .now() + 10)
+        }
+        defer { release.signal() }
+        await fulfillment(of: [entered], timeout: 5)
+        let start = ContinuousClock.now
+        let outcome = await queue.drain(timeout: .milliseconds(200))
+        XCTAssertEqual(outcome, .timedOut)
+        XCTAssertLessThan(ContinuousClock.now - start, .seconds(5))
+        release.signal()
+        let joined = await queue.drain(timeout: .seconds(5))
+        XCTAssertEqual(joined, .joined)
+    }
+
+    func testAppQuitAfterFailedShutdownResetsStateAndCanQuitAgain() async throws {
+        enum Failure: Error { case native }
+        _ = NSApplication.shared
+        let app = AppModel()
+        app.cullShutdowns.enqueue { throw Failure.native }
+        let failed = await app.shutdownCullSessions(timeout: .seconds(5))
+        guard case .failed = failed else { return XCTFail("expected failure, got \(failed)") }
+        XCTAssertFalse(app.isShuttingDownCull, "a failed shutdown must not disable libraries")
+        let joined = await app.shutdownCullSessions(timeout: .seconds(5))
+        XCTAssertEqual(joined, .joined)
     }
 }
