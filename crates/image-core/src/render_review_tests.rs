@@ -197,7 +197,7 @@ fn lr3e_spot_upright_reuses_session_analysis() {
     for rotate in [0., 1., 2., 3., 4.] {
         s.geometry.transform.rotate = rotate;
         let start = std::time::Instant::now();
-        r.run_m2(
+        r.render_tiles(
             &image,
             &s,
             &[TileCoord::new(1, 0, 0)],
