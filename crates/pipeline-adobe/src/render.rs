@@ -54,6 +54,22 @@ pub fn render_linear_scaled_with_resources(
     locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
     context: &pipeline_cpu::LensContext<'_>,
 ) -> EngineResult<Image> {
+    render_linear_scaled_with_denoiser(settings, source, scale, profile, locals, context, None)
+}
+
+/// [`render_linear_scaled_with_resources`] with Develop's caller-owned
+/// post-demosaic denoiser, applied in the native preprocessing prefix exactly
+/// where the Develop renderer applies it (ENG-9: exports of RAW originals
+/// with neural denoise). `None` is that function unchanged.
+pub fn render_linear_scaled_with_denoiser(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    profile: Option<&DcpProfile>,
+    locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
+    context: &pipeline_cpu::LensContext<'_>,
+    denoiser: Option<&dyn pipeline_cpu::PostDemosaicDenoise>,
+) -> EngineResult<Image> {
     let embedded;
     let profile = if profile.is_none() {
         embedded = match source {
@@ -143,7 +159,8 @@ pub fn render_linear_scaled_with_resources(
     if let Some(metadata) = camera_metadata {
         crate::validate_baseline_exposure(metadata.baseline_exposure)?;
     }
-    let mut rgb = pipeline_cpu::render_linear_scaled_with_lens(&base, source, 1, context)?;
+    let mut rgb =
+        pipeline_cpu::render_linear_scaled_with_denoise(&base, source, 1, context, denoiser)?;
     if let (Some(profile), Some(metadata)) = (profile, camera_metadata) {
         let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
             metadata.cam_xyz[r].map(f64::from)

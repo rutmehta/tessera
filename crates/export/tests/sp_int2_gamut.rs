@@ -1,13 +1,12 @@
 //! SP-INT2 (REV-SP-A S1, coordinator ruling): Smart Previews use exactly the
-//! gamut policy ordinary originals use on main, in Develop and in export.
+//! gamut policy ordinary originals use, in Develop and in export.
 //!
-//! On main an Adobe-process original is drawn in Develop with the Adobe
-//! stage op's `CpuStageOp::display_linear`: a hard clip in sRGB, whatever
-//! `output.gamut_mapping` says. Its export/print goes through the managed
-//! output transform, which honours `output.gamut_mapping` (Perceptual by
-//! default). Main therefore already differs between Develop and export for
-//! saturated colours (recorded as a separate finding in the SP-INT HANDOFF);
-//! proxies keep exactly that behaviour.
+//! Before ENG-9 an Adobe-process original was drawn in Develop with a hard
+//! clip in sRGB whatever `output.gamut_mapping` said, while export honoured
+//! it. ENG-9 makes the Adobe Output stage honour the recipe's gamut mapping
+//! the way export does (`CpuStageOp::adobe_display`), for originals and
+//! proxies alike: `Clip` is still a hard clip, `Perceptual` compresses
+//! chroma toward the working-space luminance.
 use engine_api::{
     id::ImageId,
     jobs::CancellationToken,
@@ -172,7 +171,7 @@ fn adobe_original() -> RawImage {
 }
 
 #[test]
-fn sp_int2_saturated_proxy_develop_clips_like_an_adobe_original() {
+fn sp_int2_saturated_proxy_develop_uses_the_adobe_original_output_stage() {
     let proxy = saturated_proxy();
     let image = RawImage::from_camera_linear_proxy(
         ImageId(9101),
@@ -185,8 +184,10 @@ fn sp_int2_saturated_proxy_develop_clips_like_an_adobe_original() {
             let r = recipe(mapping, 0.);
             let shown = develop(&image, &r, RenderOutput::Display);
             let linear = develop(&image, &r, RenderOutput::SceneLinear);
-            // The Adobe original's Develop policy on main: Rec.2020 -> linear
-            // sRGB, hard clip, sRGB OETF (CpuStageOp::display_linear).
+            // The Adobe Output stage (originals and proxies): Rec.2020 ->
+            // linear sRGB, the recipe's gamut mapping, sRGB OETF. Clip is a
+            // hard clip; Perceptual compresses chroma toward the Rec.2020
+            // luminance, as the managed export transform does (ENG-9).
             let m = engine_api::color::WorkingSpace::LinearSrgb
                 .to_xyz()
                 .inverse()
@@ -195,13 +196,31 @@ fn sp_int2_saturated_proxy_develop_clips_like_an_adobe_original() {
             let mut clipped = 0usize;
             for i in 0..linear[0].len() {
                 let v = [linear[0][i], linear[1][i], linear[2][i]];
-                for (r, row) in m.0.iter().enumerate() {
-                    let s = row[0] as f32 * v[0] + row[1] as f32 * v[1] + row[2] as f32 * v[2];
-                    clipped += usize::from(!(0. ..=1.).contains(&s));
-                    let expected = (pipeline_cpu::srgb_oetf(s).clamp(0., 1.) * 255.).round();
+                let s: [f32; 3] = std::array::from_fn(|r| {
+                    let row = m.0[r];
+                    row[0] as f32 * v[0] + row[1] as f32 * v[1] + row[2] as f32 * v[2]
+                });
+                clipped += s.iter().filter(|s| !(0. ..=1.).contains(*s)).count();
+                let mapped = if mapping == GamutMapping::Clip {
+                    s
+                } else {
+                    let grey = (0.2627 * v[0] + 0.6780 * v[1] + 0.0593 * v[2]).clamp(0., 1.);
+                    let mut chroma = 1f32;
+                    for c in s {
+                        if c < 0. {
+                            chroma = chroma.min(-grey / (c - grey));
+                        }
+                        if c > 1. {
+                            chroma = chroma.min((1. - grey) / (c - grey));
+                        }
+                    }
+                    s.map(|c| grey + chroma * (c - grey))
+                };
+                for (r, s) in mapped.into_iter().enumerate() {
+                    let expected = (pipeline_cpu::srgb_oetf(s.clamp(0., 1.)) * 255.).round();
                     assert!(
                         (shown[r][i] - expected).abs() <= 1.,
-                        "{mapping:?}: Develop must hard-clip like an Adobe original"
+                        "{mapping:?}: Develop must use the Adobe original's Output stage"
                     );
                 }
             }
@@ -244,11 +263,15 @@ fn sp_int2_saturated_proxy_print_matches_develop_under_the_shared_policy() {
         max <= 2. && mean <= 0.6,
         "Clip saturated: max {max} mean {mean}"
     );
-    // Saturated with Perceptual: print honours the recipe's gamut mapping as
-    // it does for every original's export on main, so it compresses chroma
-    // where Develop clips (main's Develop/export discrepancy, not proxy-only).
+    // Saturated with Perceptual: print honours the recipe's gamut mapping,
+    // and since ENG-9 so does Develop, so they agree here too.
     let r = recipe(GamutMapping::Perceptual, 0.);
     let perceptual = print(&proxy, &r);
+    let (max, mean) = parity(&develop(&image, &r, RenderOutput::Display), &perceptual);
+    assert!(
+        max <= 2. && mean <= 0.6,
+        "Perceptual saturated: max {max} mean {mean}"
+    );
     let clip = print(&proxy, &recipe(GamutMapping::Clip, 0.));
     assert!(
         perceptual.pixels().zip(clip.pixels()).any(|(a, b)| a

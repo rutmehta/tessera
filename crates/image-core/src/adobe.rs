@@ -131,9 +131,9 @@ impl StageOp for AdobeStageOp {
             }
             return CpuStageOp.run(stage, op, input);
         }
-        if matches!(op, Op::Display { .. }) {
-            // Reuse the native CPU output primitive without a second sigmoid.
-            return CpuStageOp::display_linear(input);
+        if let Op::Display { gamut, headroom } = *op {
+            // No second sigmoid; the recipe's gamut mapping, as export (ENG-9).
+            return CpuStageOp::adobe_display(input, gamut, headroom);
         }
         self.native.run(stage, op, input)
     }

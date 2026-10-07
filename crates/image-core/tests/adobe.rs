@@ -268,7 +268,9 @@ fn eng9_adobe_display_honours_gamut_mapping_and_draws_edr() {
             let expected = if mapping == GamutMapping::Clip {
                 v.map(|c| c.clamp(0., 1.))
             } else {
-                let grey = (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]).clamp(0., 1.);
+                // Grey point: working-space (Rec.2020) luminance, as export.
+                let grey = (0.2627 * linear[0][i] + 0.6780 * linear[1][i] + 0.0593 * linear[2][i])
+                    .clamp(0., 1.);
                 let mut chroma = 1f32;
                 for c in v {
                     if c < 0. {
@@ -287,8 +289,17 @@ fn eng9_adobe_display_honours_gamut_mapping_and_draws_edr() {
                     (got - level).abs() <= 0.51,
                     "{mapping:?} SDR pixel {i}: {got} vs {level}"
                 );
+                // The EDR frame is the SDR rendition unencoded: the same
+                // pre-Output tiles, so only the 8-bit rounding separates them.
+                let encoded = pipeline_cpu::srgb_oetf(edr[c][i]) * 255.;
                 assert!(
-                    (edr[c][i] - expected[c]).abs() <= 1e-5,
+                    (encoded - got).abs() <= 0.5 + 1e-3,
+                    "{mapping:?} EDR pixel {i}: {encoded} vs SDR {got}"
+                );
+                // The SceneLinear reference is read from the f16 tile memo
+                // (2^-11 relative), amplified at most 4x by chroma mapping.
+                assert!(
+                    (edr[c][i] - expected[c]).abs() <= 2e-3,
                     "{mapping:?} EDR pixel {i}: {} vs {}",
                     edr[c][i],
                     expected[c]
