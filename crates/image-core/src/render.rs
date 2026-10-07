@@ -84,7 +84,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use engine_api::color::ColorMatrix3;
+use engine_api::color::{ColorMatrix3, WorkingSpace};
 use engine_api::jobs::{CancellationToken, Job, JobContext, Priority};
 use engine_api::recipe::settings::{DemosaicMethod, GamutMapping, HighlightReconstruction};
 use engine_api::recipe::{DevelopSettings, ProcessVersion};
@@ -287,6 +287,8 @@ pub struct Renderer {
 /// Per-request parameters resolved once from the settings and metadata.
 struct Resolved<'a> {
     allow_resident: bool,
+    /// WB assembly defers Adobe exposure to the final Tone stage.
+    prefix_only: bool,
     cfa_full: std::sync::OnceLock<Arc<crate::cfa::PackedCfa>>,
     image: &'a RawImage,
     settings: &'a DevelopSettings,
@@ -418,6 +420,12 @@ impl Renderer {
                 image,
                 settings,
             )?);
+        }
+        if next.dcp.is_none() && image.metadata().baseline_exposure != 0. {
+            next.ops = Arc::new(crate::AdobeStageOp::with_baseline(
+                self.native_ops.clone(),
+                image.metadata().baseline_exposure,
+            ));
         }
         next.dcp_resolved = true;
         Ok(Some(next))
@@ -769,6 +777,7 @@ impl Renderer {
             plan.map = None;
         }
         let mut r = self.resolve(image, &base)?;
+        r.prefix_only = self.is_adobe();
         r.lens = lens.as_ref();
         r.cache_lens = true;
         // Local EV can amplify resident f16 checkpoints beyond the linear
@@ -1071,7 +1080,7 @@ impl Renderer {
         let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
             m.cam_xyz[r].map(f64::from)
         })))?;
-        let profile = pipeline_cpu::camera_profile_matrix(camera_xyz, m.baseline_exposure)?;
+        let profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
         let wb =
             pipeline_cpu::white_balance_matrix(&settings.white_balance, camera_xyz, m.as_shot_wb)?;
         let algorithm = match settings.demosaic.method {
@@ -1086,6 +1095,7 @@ impl Renderer {
         };
         let highlights = settings.linearize.highlight_reconstruction;
         Ok(Resolved {
+            prefix_only: false,
             cfa_full: std::sync::OnceLock::new(),
             allow_resident: image.rgb().is_some()
                 || !pipeline_cpu::denoise_active(&settings.denoise)
@@ -1379,7 +1389,11 @@ impl Renderer {
 
             // F. Tone → Output.
             let tone = Op::Tone(&r.settings.tone);
-            let mut chain = vec![(StageId::Tone, tone)];
+            let mut chain = if r.prefix_only {
+                Vec::new()
+            } else {
+                vec![(StageId::Tone, tone)]
+            };
             if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
                 chain.push((StageId::Output, display));
             }

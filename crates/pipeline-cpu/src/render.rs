@@ -316,7 +316,7 @@ fn render_linear_impl(
             let camera_xyz = crate::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
                 metadata.cam_xyz[r].map(f64::from)
             })))?;
-            let profile = crate::camera_profile_matrix(camera_xyz, metadata.baseline_exposure)?;
+            let profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
             let wb = crate::white_balance_matrix(
                 &settings.white_balance,
                 camera_xyz,

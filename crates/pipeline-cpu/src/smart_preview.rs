@@ -238,7 +238,10 @@ impl CameraLinearProxy {
             crate::camera_to_xyz(engine_api::color::ColorMatrix3(std::array::from_fn(|r| {
                 self.metadata.cam_xyz[r].map(f64::from)
             })))?;
-        let profile = crate::camera_profile_matrix(camera_xyz, self.metadata.baseline_exposure)?;
+        let profile = engine_api::color::WorkingSpace::LinearRec2020
+            .to_xyz()
+            .inverse()?
+            * camera_xyz;
         let wb = crate::white_balance_matrix(
             &settings.white_balance,
             camera_xyz,

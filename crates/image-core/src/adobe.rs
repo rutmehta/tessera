@@ -32,6 +32,12 @@ impl AdobeStageOp {
             counts: Default::default(),
         }
     }
+    pub(crate) fn with_baseline(native: Arc<dyn StageOp>, baseline_exposure: f32) -> Self {
+        Self {
+            baseline_exposure,
+            ..Self::new(native)
+        }
+    }
     pub(crate) fn with_profile(
         native: Arc<dyn StageOp>,
         profile: Arc<pipeline_adobe::dcp::DcpProfile>,
@@ -91,8 +97,11 @@ impl StageOp for AdobeStageOp {
                         profile
                             .apply_exposure(p, self.baseline_exposure + s.exposure.clamp(-10., 10.))
                     })?;
-                    basic.exposure = 0.;
+                } else {
+                    let gain = (self.baseline_exposure + s.exposure.clamp(-10., 10.)).exp2();
+                    pipeline_cpu::map_rgb(&mut input, |p| p.map(|v| v * gain))?;
                 }
+                basic.exposure = 0.;
                 pipeline_cpu::map_rgb(&mut input, |p| pipeline_adobe::basic_tone(p, &basic))?;
                 return Ok(input);
             }
