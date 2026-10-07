@@ -83,7 +83,26 @@ impl ImageEditGate {
     /// Reserve before any destination gate/snapshot or source decoding. Drop
     /// the returned lease on an open failure; retain clones for save workers.
     pub(crate) fn reserve_develop(self: &Arc<Self>, source: EditSource) -> Result<ImageEditLease> {
-        let mut owner = self.owner.lock().map_err(failure)?;
+        // An external writer (an import re-keying or writing this photo's
+        // sidecars) holds the gate only for milliseconds per photo: an editor
+        // opening at that moment waits briefly instead of failing (REV4-SP N7).
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(250);
+        let mut owner = loop {
+            let owner = self.owner.lock().map_err(failure)?;
+            let busy_writer = owner
+                .as_ref()
+                .and_then(Weak::upgrade)
+                .is_some_and(|r| r.source == EditSource::ExternalWriter);
+            if busy_writer
+                && source != EditSource::ExternalWriter
+                && std::time::Instant::now() < deadline
+            {
+                drop(owner);
+                std::thread::sleep(std::time::Duration::from_millis(5));
+                continue;
+            }
+            break owner;
+        };
         if let Some(reservation) = owner.as_ref().and_then(Weak::upgrade) {
             return Err(failure(match reservation.source {
                 EditSource::Original => {

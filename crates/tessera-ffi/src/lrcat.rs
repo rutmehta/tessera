@@ -550,7 +550,6 @@ fn on_disk_sibling(path: &Path, stem: &str) -> Option<String> {
     })
 }
 
-/// Existing `.edits/<stem>.json` that the import must not replace.
 // Test hook: cancel the import after this many photos were re-keyed.
 #[cfg(test)]
 thread_local! {
@@ -568,25 +567,47 @@ const REKEY_SHARED: (&str, &str) = (
 );
 const REKEY_RESERVED: (&str, &str) = (
     "Edit key not updated",
-    "the photo's edits were in use (open in Develop or being exported); it keeps its current recipe and is re-keyed on the next import",
+    "the photo's edits could not be reserved (the reason is listed with each photo); it keeps its current recipe and is re-keyed on the next import",
 );
+
+/// A plain reason for a failed edit reservation (REV4-SP N10).
+fn reservation_reason(error: &crate::BridgeError) -> String {
+    let text = error.to_string();
+    if text.contains("active writer") {
+        "another import or export is writing its edits".into()
+    } else if text.contains("Smart Preview editor") || text.contains("active editor") {
+        "it is open in Develop".into()
+    } else if text.contains("journal") {
+        "it has unsaved Develop changes".into()
+    } else {
+        text
+    }
+}
 const REKEY_RECOVERED: (&str, &str) = (
     "Edits recovered",
     "an interrupted earlier import left two versions of these edits; the one with the newer recorded edit time is used. The other is kept, never deleted: renamed to a <key>.backup-<time>.json file in Tessera's edit store (Application Support, .edits/lightroom/objects), or left in place while other photos still use it",
 );
 
-fn note_rekey(issues: &mut Vec<LrcatIssue>, (category, reason): (&str, &str), path: &Path) {
+fn note_rekey(issues: &mut Vec<LrcatIssue>, kind: (&str, &str), path: &Path) {
+    note_rekey_example(issues, kind, display_path(path));
+}
+
+fn note_rekey_example(
+    issues: &mut Vec<LrcatIssue>,
+    (category, reason): (&str, &str),
+    example: String,
+) {
     if let Some(issue) = issues.iter_mut().find(|i| i.category == category) {
         issue.count += 1;
         if issue.examples.len() < 5 {
-            issue.examples.push(display_path(path));
+            issue.examples.push(example);
         }
     } else {
         issues.push(LrcatIssue {
             category: category.into(),
             reason: reason.into(),
             count: 1,
-            examples: vec![display_path(path)],
+            examples: vec![example],
         });
     }
 }
@@ -600,6 +621,7 @@ fn note_rekey_outcome(issues: &mut Vec<LrcatIssue>, outcome: sidecar::PinOutcome
     }
 }
 
+/// Existing `.edits/<stem>.json` that the import must not replace.
 fn existing_edit_conflict(path: &Path, id: ImageId, overwrite: bool) -> Option<String> {
     let recipe = Sidecar::paths(path).recipe;
     if !recipe.exists() {
@@ -1548,16 +1570,27 @@ impl LrcatImport {
                 let Some(id) = app_image_id(path) else {
                     continue;
                 };
-                let Ok(reservation) = crate::original_write::OriginalWriteReservation::acquire(
+                let reservation = match crate::original_write::OriginalWriteReservation::acquire(
                     self.engine.support_dir()?,
                     &[(id, path.clone())],
-                ) else {
-                    note_rekey(&mut rekey_issues, REKEY_RESERVED, path);
-                    continue;
+                ) {
+                    Ok(reservation) => reservation,
+                    Err(error) => {
+                        note_rekey_example(
+                            &mut rekey_issues,
+                            REKEY_RESERVED,
+                            format!("{}: {}", display_path(path), reservation_reason(&error)),
+                        );
+                        continue;
+                    }
                 };
                 let outcome = batch.pin(path, identity)?;
                 drop(reservation);
                 note_rekey_outcome(&mut rekey_issues, outcome, path);
+                #[cfg(test)]
+                if CANCEL_REKEY_AFTER.with(|c| c.get()) == Some(n + 1) {
+                    self.cancel.store(true, Ordering::SeqCst);
+                }
             }
             batch.finish()?;
         }
