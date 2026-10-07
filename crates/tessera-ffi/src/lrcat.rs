@@ -2621,3 +2621,7 @@ mod depth_tests;
 #[cfg(test)]
 #[path = "lrcat_combined_tests.rs"]
 mod combined_tests;
+
+#[cfg(test)]
+#[path = "lrcat_rekey_tests.rs"]
+mod rekey_tests;
