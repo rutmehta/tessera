@@ -1,5 +1,13 @@
 # Tessera task board — Machine A coordinator
 
+## Batches 51–52 and ownership conflict — 2026-10-07 10:19 UTC
+
+Origin main is `a94b02888fa6ab48a211bb66bb43b589219b9ed7`, with LR-5 AI masks merged at `9d35851b` and LR-11 local adjustments at `862d7db1`. New `docs/coordination/MACHINE-B-MERGES.md` reports independent approvals and exact merged-tree gates (Rust 3276 passed/0 failed/99 ignored; Swift 986 executed/3 skipped/0 failures; Clippy/fmt/drift/strict exits0). These are repository-reported results, not raw gate evidence independently inspected by Codex A. Real Full Keyboard Access ON remains explicitly untested.
+
+The same merge log says B became sole coordinator/main merger on October 7 while A is offline for about a month. This conflicts with this chat's heartbeat instruction that A alone owns main merges. Codex A will not compete for ownership or launch duplicate work; explicit reconciliation is needed before resuming implementation/runtime/merges. Prior batch50 attribution to replacement A is superseded by this new B merge log. Next: reconcile the scheduled instructions with the active B coordinator's recorded role.
+
+LR-8R advanced to `2ee8bfc6`: coordinator-approved literal accessibility identifier fixes at `2d01aab4` reportedly pass FFI/Swift/strict gates; broader review items remain open and branch is unmerged. Mailbox remains zero messages/75 receipts/six reconciled in-progress/16 expired/zero invalid. No duplicate wakeup or receipt ACK.
+
 ## Batch 50 and B lane reconciliation — 2026-10-07 09:54 UTC
 
 Replacement A coordinator published main `f151fe8d5b613a89446514073dddf6ee2a5cc193`, merging B5-21/25/49/49b-e keyboard Tab traversal, key safety and pinned-FKA checklist from `3e48a08b`. Merge presence is verified. B reports passing Swift gates at `b87c2811`; `/Volumes/betterSSD/tessera-validation/batch50` is absent, so this coordinator has not independently verified merged-tree gates or real-FKA GUI acceptance. Next: owning A coordinator supplies integration evidence; Codex A still awaits runtime/ownership handoff.
