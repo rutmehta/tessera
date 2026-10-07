@@ -110,6 +110,7 @@ fn run_with_pipelines(
     };
     job.p[0] = input.width() as f32;
     job.p[1] = input.height() as f32;
+    job.p[11] = crate::curves::log_axis_white();
     job.p[4] = s.texture.clamp(-100., 100.) / 100.;
     job.p[5] = s.clarity.clamp(-100., 100.) / 100.;
     let packed: Vec<[f32; 4]> = (0..n)

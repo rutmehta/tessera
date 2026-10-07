@@ -128,7 +128,11 @@ fn lr6e_apply_pins_depth_before_user_edit_reimports_and_deletes_with_image() {
     let failed = import.apply_with_depth_resolver(options.clone(), None, Some(make_resolver(255)));
     // The per-image write is rolled back; the final catalog scan also rejects
     // this deliberately invalid XMP destination and propagates an I/O error.
-    assert!(failed.is_err());
+    let crate::BridgeError::Failure { message } = failed.unwrap_err();
+    assert!(
+        message.starts_with("i/o error"),
+        "expected I/O failure, got {message}"
+    );
     let store = DepthStore::new(support.join("previews/depth-cache"), 1).unwrap();
     assert!(
         (DepthMap::cached(&store, &key).unwrap().inverse_depth()[0] - 191. / 255.).abs() < 1e-6

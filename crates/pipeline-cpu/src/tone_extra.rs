@@ -165,7 +165,22 @@ fn decode(v: f32) -> f32 {
     if exponent < 80.0 {
         0.18 * crate::tone_math::exp_minus_one(exponent)
     } else {
-        finite((exponent + 0.18_f32.ln()).exp())
+        // At large exponents a rounded product becomes a relative error in
+        // the output. Recover its low part with f32 FMA; keep the common path
+        // and all storage single precision. Low constants are the residuals
+        // of ln(1 + 1/0.18) and ln(0.18) against their f32 high parts.
+        let log_white = crate::tone_math::log_one_plus(1.0 / 0.18);
+        let log_middle = 0.18_f32.ln();
+        let sum = exponent + log_middle;
+        let high = sum.exp();
+        // Only true overflow saturates; NaN propagates as before this branch.
+        if high == f32::INFINITY {
+            return f32::MAX;
+        }
+        let low =
+            v.mul_add(log_white, -exponent) + v * 6.616_209e-8 + ((exponent - sum) + log_middle)
+                - 9.683_124e-8;
+        finite(high * low.exp())
     }
 }
 
@@ -613,7 +628,7 @@ mod tests {
             let input = 2.0_f32.powf(-30.0 + 40.0 * i as f32 / 20000.0);
             let scale = crate::tone_math::log_one_plus(1.0 / 0.18);
             let expected = crate::tone_math::log_one_plus(input / 0.18) / scale;
-            let reference = f64::from(input / 0.18).ln_1p() / f64::from(scale);
+            let reference = (f64::from(input) / 0.18).ln_1p() / (1.0_f64 / 0.18).ln_1p();
             assert!((f64::from(encode(input)) - reference).abs() <= 3e-7 * reference);
             assert_eq!(
                 encode(input).to_bits(),
@@ -631,6 +646,26 @@ mod tests {
                 );
             }
         }
+    }
+    #[test]
+    fn lr_clean_axis_zero_and_overflow_branches() {
+        assert_eq!(encode(0.).to_bits(), 0_f32.to_bits());
+        assert_eq!(decode(0.).to_bits(), 0_f32.to_bits());
+        for input in [f32::MAX * 0.18, f32::MAX] {
+            let reference = (f64::from(input) / 0.18).ln_1p() / (1.0_f64 / 0.18).ln_1p();
+            assert!((f64::from(encode(input)) - reference).abs() <= 3e-7 * reference);
+        }
+        for input in [43., 50.] {
+            let reference = (0.18 * (f64::from(input) * (1.0_f64 / 0.18).ln_1p()).exp_m1())
+                .min(f64::from(f32::MAX));
+            assert!((f64::from(decode(input)) - reference).abs() <= 3e-7 * reference);
+        }
+    }
+    #[test]
+    fn lr_clean_decode_keeps_nan_and_saturates_infinity() {
+        assert!(decode(f32::NAN).is_nan());
+        assert_eq!(decode(f32::INFINITY), f32::MAX);
+        assert_eq!(decode(1e30), f32::MAX);
     }
     #[test]
     fn log_axis_is_scalar_single_precision() {

@@ -336,7 +336,7 @@ fn operation(value: &Value, id: u32) -> Option<RetouchOperation> {
         masks
             .as_array()?
             .iter()
-            .map(|m| stroke(m, feather))
+            .map(|m| stroke(m, fields.contains_key("feather").then_some(feather)))
             .collect::<Option<Vec<_>>>()?
             .into_iter()
             .flatten()
@@ -432,7 +432,7 @@ fn equivalent_circle_mask(value: &Value, flat: &Map<String, Value>) -> Option<bo
     )
 }
 
-fn stroke(value: &Value, feather: f32) -> Option<Vec<BrushStroke>> {
+fn stroke(value: &Value, inherited_feather: Option<f32>) -> Option<Vec<BrushStroke>> {
     let fields = fields(value)?;
     let allowed = [
         "what",
@@ -450,6 +450,7 @@ fn stroke(value: &Value, feather: f32) -> Option<Vec<BrushStroke>> {
         "centery",
         "maskid",
         "centerweight",
+        "feather",
     ];
     if fields.keys().any(|k| !allowed.contains(&k.as_str()))
         || !matches!(fields.get("what")?.as_str()?, "Mask/Paint" | "Mask/Circle")
@@ -469,10 +470,28 @@ fn stroke(value: &Value, feather: f32) -> Option<Vec<BrushStroke>> {
             return None;
         }
     }
-    let feather = if fields.contains_key("centerweight") {
-        100. - percent(&fields, "centerweight", 0.5)?
+    let explicit_feather = if fields.contains_key("feather") {
+        if fields.get("what")?.as_str()? != "Mask/Circle" {
+            return None;
+        }
+        let local = percent(&fields, "feather", 0.)?;
+        if inherited_feather.is_some_and(|parent| (parent - local).abs() > 1e-5) {
+            return None;
+        }
+        Some(local)
     } else {
-        feather
+        inherited_feather
+    };
+    let feather = if fields.contains_key("centerweight") {
+        let inferred = 100. - percent(&fields, "centerweight", 0.5)?;
+        if fields.get("what")?.as_str()? == "Mask/Circle"
+            && explicit_feather.is_some_and(|explicit| (explicit - inferred).abs() > 1e-5)
+        {
+            return None;
+        }
+        inferred
+    } else {
+        explicit_feather.unwrap_or(0.)
     };
     let radius = bounded(number(&fields, "radius")?, 1e-6, 1.0)?;
     if fields.get("what")?.as_str()? == "Mask/Circle" {

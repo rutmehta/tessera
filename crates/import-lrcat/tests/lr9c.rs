@@ -29,6 +29,10 @@ fn cloud_effects_are_visible_and_filter_list_survives() {
 #[test]
 fn mixed_heal_and_generative_keeps_both_dispositions() {
     let (r,w)=lua_develop::parse("s={RetouchAreas={{SpotType='heal',CenterX=0.2,CenterY=0.3,Radius=0.02,SourceX=0.6,SourceY=0.7},{SpotType='generative'}}}","15.4").unwrap();
+    assert_eq!(
+        r.unknown["lrcat_develop_source"]["properties"]["RetouchAreas"],
+        "{{SpotType='heal',CenterX=0.2,CenterY=0.3,Radius=0.02,SourceX=0.6,SourceY=0.7},{SpotType='generative'}}"
+    );
     assert_eq!(r.settings.locals.retouch.len(), 1);
     let notes = diagnostics::entries(&r);
     assert!(
@@ -168,4 +172,36 @@ fn generative_only_retouch_areas_are_cloud_not_ignored() {
     let notes = diagnostics::entries(&r);
     assert!(notes.values().flatten().any(|e| e.status == "cloud"));
     assert!(!notes.values().flatten().any(|e| e.status == "ignored"));
+}
+
+#[test]
+fn lr_clean_empty_depth_corrections_are_noop_but_nonempty_warns() {
+    for (value, noop) in [("{}", true), ("{{Active=true}}", false)] {
+        let (r, w) =
+            lua_develop::parse(&format!("s={{DepthBasedCorrections={value}}}"), "15.4").unwrap();
+        assert_eq!(w.is_empty(), noop, "{w:?}");
+        assert_eq!(
+            r.unknown["lrcat_develop_source"]["properties"]["DepthBasedCorrections"],
+            value
+        );
+    }
+}
+#[test]
+fn lr_clean_circle_feather_and_centerweight_must_agree() {
+    for (feather, agrees) in [("0.3", true), ("0.8", false)] {
+        let (r,w)=lua_develop::parse(&format!("s={{RetouchAreas={{{{SpotType='heal',Feather={feather},SourceX=0.7,SourceY=0.6,Masks={{{{What='Mask/Circle',Radius=0.03,CenterX=0.2,CenterY=0.4,CenterWeight=0.7}}}}}}}}}}"),"15.4").unwrap();
+        assert_eq!(w.is_empty(), agrees, "{w:?}");
+        assert_eq!(r.settings.locals.retouch.len(), usize::from(agrees));
+        assert!(r.unknown["lrcat_develop_source"]["properties"]["RetouchAreas"].is_string());
+    }
+}
+
+#[test]
+fn lr_clean_circle_local_feather_and_centerweight_must_agree() {
+    for (feather, agrees) in [("0.3", true), ("0.8", false)] {
+        let (r,w)=lua_develop::parse(&format!("s={{RetouchAreas={{{{SpotType='heal',SourceX=0.7,SourceY=0.6,Masks={{{{What='Mask/Circle',Radius=0.03,CenterX=0.2,CenterY=0.4,CenterWeight=0.7,Feather={feather}}}}}}}}}}}"),"15.4").unwrap();
+        assert_eq!(w.is_empty(), agrees, "{w:?}");
+        assert_eq!(r.settings.locals.retouch.len(), usize::from(agrees));
+        assert!(r.unknown["lrcat_develop_source"]["properties"]["RetouchAreas"].is_string());
+    }
 }

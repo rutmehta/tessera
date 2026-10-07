@@ -6,6 +6,7 @@
 @group(0) @binding(3) var<storage, read> d: array<vec4<f32>>;
 @group(0) @binding(4) var<storage, read> e: array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> out: array<vec4<f32>>;
+// p[11] is the shared host-computed log-axis white.
 @group(0) @binding(6) var<storage, read> p: array<f32>;
 // Match CPU tone_extra.rs and resident presence.wgsl: 0.1% of white.
 const PRESENCE_LUMA_FLOOR: f32 = 1e-3;
@@ -47,11 +48,11 @@ fn exp_minus_one(x: f32) -> f32 {
 }
 
 fn encode(v:f32)->f32 {
-    if v > 6.125082e37 { return (log(v)-log(0.18))/log_one_plus(1.0/0.18); }
-    return log_one_plus(v/0.18)/log_one_plus(1.0/0.18);
+    if v > 6.1250826e37 { return (log(v)-log(0.18))/p[11]; }
+    return log_one_plus(v/0.18)/p[11];
 }
 fn decode(v:f32)->f32 {
-    let x=v*log_one_plus(1.0/0.18);
+    let x=v*p[11];
     if x>=80.0 { return finite(exp(x+log(0.18))); }
     return 0.18*exp_minus_one(x);
 }

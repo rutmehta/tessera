@@ -574,7 +574,14 @@ final class LayersOutlineView: NSOutlineView, KeyOwningControl {
             guard nativeIndex != nil || proxy.accessibilityRole?() == .row else { return child }
             let number = nativeIndex ?? proxy.accessibilityIndex?() ?? index
             guard let row = rowView(atRow: number, makeIfNecessary: false) else { return child }
-            let label = view(atColumn: 0, row: number, makeIfNecessary: false)?.accessibilityLabel() ?? "Layer row \(number + 1)"
+            let cell = view(atColumn: 0, row: number, makeIfNecessary: false)
+            // AppKit can keep a realized cell while rows above it move. Refresh
+            // its controls together with the row metadata below.
+            if let layer = cell as? LayerRowCell,
+               layer.accessibilityIdentifier() != "document.layers.row.\(number).cell" {
+                layer.setRow(number)
+            }
+            let label = cell?.accessibilityLabel() ?? "Layer row \(number + 1)"
             row.setAccessibilityElement(true)
             row.setAccessibilityRole(.row)
             row.setAccessibilityParent(self)

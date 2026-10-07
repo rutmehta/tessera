@@ -5,7 +5,6 @@ fn lr4c_documented_keys_each_admit_a_renderable_approximation() {
         (r#"MaskSyncID="invented""#, ""),
         (r#"MaskName="invented""#, ""),
         ("MaskVersion=1", ""),
-        ("MaskValue=0.5", ""),
         ("Midpoint=50", ""),
         ("Roundness=0", ""),
         ("", r#"CorrectionID="invented","#),
@@ -68,16 +67,21 @@ fn lr4e_shape_mask_value_is_explicitly_diagnosed() {
         let row = format!(
             "s={{MaskGroupBasedCorrections={{{{CorrectionMasks={{{{{shape},MaskValue=0.3}}}}}}}}}}"
         );
-        let (r, _) = lua_develop::parse(&row, "15.4").unwrap();
-        let notes = import_lrcat::diagnostics::entries(&r);
-        let entry = &notes["MaskGroupBasedCorrections/MaskValue"][0];
-        assert_eq!(entry.status, "approximate");
-        assert!(entry.reason.contains("not reproduced"));
+        let (r, warnings) = lua_develop::parse(&row, "15.4").unwrap();
         assert!(
-            entry
-                .field
-                .as_deref()
-                .is_some_and(|p| serde_json::to_value(&r).unwrap().pointer(p).is_some())
+            warnings.iter().any(|w| w.contains("MaskValue")),
+            "{warnings:?}"
+        );
+        assert!(r.settings.locals.adjustments.is_empty());
+        assert!(
+            !import_lrcat::diagnostics::entries(&r)
+                .values()
+                .flatten()
+                .any(|e| e.status == "approximate")
+        );
+        assert!(
+            r.unknown["lrcat_develop_source"]["properties"]["MaskGroupBasedCorrections"]
+                .is_string()
         );
     }
 }

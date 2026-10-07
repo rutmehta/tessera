@@ -648,7 +648,7 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
     }
 
     private static func normalizeAddresses(_ trace: String) -> String {
-        trace.replacingOccurrences(of: "0x[0-9a-fA-F]+|\\$[0-9a-f]+", with: "<address>", options: .regularExpression)
+        trace.replacingOccurrences(of: "(?<=ObjectIdentifier\\()0x[0-9a-fA-F]+(?=\\))|\\$[0-9a-f]+", with: "<address>", options: .regularExpression)
     }
 
     func testTraceAddressNormalizationIsDeterministic() {
@@ -660,6 +660,8 @@ final class DocumentKeyboardChecklistTests: XCTestCase {
         XCTAssertEqual(Self.normalizeAddresses("SwiftUI.AccessibilityNode $600003a4c0e0 at $1b"),
                        "SwiftUI.AccessibilityNode <address> at <address>")
         XCTAssertEqual(Self.normalizeAddresses("H0=192.0 pt"), "H0=192.0 pt")
+        let diagnostics = "flags=0xABCDEF pixel=0x123 invalid=ObjectIdentifier(0x12oops)"
+        XCTAssertEqual(Self.normalizeAddresses(diagnostics), diagnostics)
     }
 
     private func writeResults(fka: Bool,

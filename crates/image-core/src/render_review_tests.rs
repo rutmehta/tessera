@@ -197,7 +197,7 @@ fn lr3e_spot_upright_reuses_session_analysis() {
     for rotate in [0., 1., 2., 3., 4.] {
         s.geometry.transform.rotate = rotate;
         let start = std::time::Instant::now();
-        r.run_m2(
+        r.render_tiles(
             &image,
             &s,
             &[TileCoord::new(1, 0, 0)],
@@ -214,5 +214,25 @@ fn lr3e_spot_upright_reuses_session_analysis() {
         solves,
         vec![1; 5],
         "manual transforms must reuse the session's L0 analysis"
+    );
+    // Public admission must reject invalid settings before any retouch work,
+    // even though CPU selection now happens before Upright analysis.
+    s.tone.exposure = f32::NAN;
+    let before = full_solves.load(Ordering::Relaxed);
+    assert!(
+        r.render_tiles(
+            &image,
+            &s,
+            &[TileCoord::new(0, 0, 0)],
+            RenderOutput::SceneLinear,
+            &cancel,
+            &mut |_| {}
+        )
+        .is_err()
+    );
+    assert_eq!(
+        full_solves.load(Ordering::Relaxed),
+        before,
+        "invalid full settings must not reach the retouch callback"
     );
 }

@@ -41,6 +41,12 @@ fn gui_command_plans_keep_paths_as_literal_arguments() {
 
 #[test]
 #[cfg(unix)]
+// Release-only for parity with B5-48c: real process spawns and a 1 s script
+// timeout. No wall-clock bound is asserted; outcomes and ordering are.
+#[cfg_attr(
+    debug_assertions,
+    ignore = "release-only: real child processes with a 1 s script timeout (parity with B5-48c)"
+)]
 fn script_timeout_cancellation_empty_and_spawn_failure() {
     use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
@@ -64,10 +70,46 @@ fn script_timeout_cancellation_empty_and_spawn_failure() {
     cancelled.cancel();
     assert!(run_after_export(&actions, std::slice::from_ref(&marker), &cancelled).is_empty());
     assert!(!marker.exists());
+    // Cancellation is ordered after the child's ready marker, not a bound on
+    // scheduler/process-start latency. The guard detects a hung test only.
+    let running = CancellationToken::new();
+    let worker_cancel = running.clone();
+    let worker_actions = AfterExportActions {
+        timeout_seconds: 60,
+        ..actions.clone()
+    };
+    let worker_marker = marker.clone();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        tx.send(run_after_export(
+            &worker_actions,
+            &[worker_marker],
+            &worker_cancel,
+        ))
+        .unwrap();
+    });
+    let guard = std::time::Instant::now();
+    while std::fs::read_to_string(&marker).ok().as_deref() != Some("started")
+        && guard.elapsed() < std::time::Duration::from_secs(30)
+    {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let ready = std::fs::read_to_string(&marker).ok().as_deref() == Some("started");
+    running.cancel();
+    let cancellation = rx
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .expect("cancellation hang guard");
+    worker.join().unwrap();
+    assert!(ready, "child must announce readiness before cancellation");
+    assert_eq!(std::fs::read_to_string(&marker).unwrap(), "started");
+    assert_eq!(cancellation.len(), 1);
+    assert!(cancellation[0].contains("cancelled"));
+    std::fs::remove_file(&marker).unwrap();
+    // The timeout remains one second. Its contract is the outcome; a child
+    // need not have been scheduled before its timeout expires under load.
     let errors = run_after_export(&actions, std::slice::from_ref(&marker), &cancel);
     assert_eq!(errors.len(), 1);
     assert!(errors[0].contains("timed out"));
-    assert_eq!(std::fs::read_to_string(&marker).unwrap(), "started");
     std::fs::remove_file(&script).unwrap();
     assert_eq!(run_after_export(&actions, &[marker], &cancel).len(), 1);
 }

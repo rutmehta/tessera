@@ -189,10 +189,10 @@ struct Bind<'b> {
 
 /// Parameter block (presence.wgsl header).
 #[derive(Clone)]
-struct Params([u32; 24]);
+struct Params([u32; 25]);
 impl Params {
     fn new(frame: Extent, mode: u32, radii: [u32; 4]) -> Self {
-        let mut p = [0; 24];
+        let mut p = [0; 25];
         p[0] = frame.width;
         p[1] = frame.height;
         p[2] = mode;
@@ -200,6 +200,7 @@ impl Params {
         p[9] = frame.width;
         p[10] = frame.height;
         p[23] = frame.width * frame.height;
+        p[24] = crate::curves::log_axis_white().to_bits();
         Self(p)
     }
     fn rect(mut self, x: u32, y: u32, extent: Extent) -> Self {
@@ -849,4 +850,98 @@ fn write_outputs(
         out.insert(coord, run.batch.tile(coord, layout, dst));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod lr_clean_tests {
+    use super::*;
+    #[test]
+    fn resident_parameter_block_carries_host_log_denominator() {
+        let p = Params::new(Extent::new(3, 7), 0, [INACTIVE; 4]);
+        assert_eq!(
+            p.0.len(),
+            25,
+            "presence.wgsl parameter ABI includes denominator at 24"
+        );
+        assert_eq!(*p.0.last().unwrap(), (1_f32 + 1_f32 / 0.18).ln().to_bits());
+    }
+
+    /// presence.wgsl must divide by the host denominator in p[24], not an
+    /// in-shader constant: a sentinel of 2 halves the encoded guide.
+    #[test]
+    fn lr_clean_presence_axis_uses_host_denominator() {
+        use wgpu::util::DeviceExt;
+        let ctx = crate::GpuContext::new().unwrap();
+        let pipelines = Pipelines::new(&ctx).unwrap();
+        let frame = Extent::new(2, 2);
+        let n = frame.area() as usize;
+        let storage = |contents: &[f32]| {
+            ctx.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(contents),
+                    usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+                })
+        };
+        // Neutral white: Rec.2020 luminance of (1, 1, 1) is 1.
+        let src = storage(&vec![1_f32; 3 * n]);
+        let spare: Vec<_> = (0..7).map(|_| storage(&vec![0_f32; 4 * n])).collect();
+        let params = Params::new(frame, 0, [INACTIVE; 4]).f(24, 2.0);
+        let p = ctx
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(&params.0),
+                usage: wgpu::BufferUsages::STORAGE,
+            });
+        let mut buffers = vec![&src];
+        buffers.extend(spare.iter());
+        buffers.push(&p);
+        let entries: Vec<_> = buffers
+            .iter()
+            .enumerate()
+            .map(|(i, buffer)| wgpu::BindGroupEntry {
+                binding: i as u32,
+                resource: buffer.as_entire_binding(),
+            })
+            .collect();
+        let group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: None,
+            layout: &pipelines.layout,
+            entries: &entries,
+        });
+        let zbuf = &spare[5];
+        let staging = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: (n * 4) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = ctx.device.create_command_encoder(&Default::default());
+        {
+            let mut pass = encoder.begin_compute_pass(&Default::default());
+            pass.set_pipeline(&pipelines.zpass);
+            pass.set_bind_group(0, &group, &[]);
+            pass.dispatch_workgroups(1, 1, 1);
+        }
+        encoder.copy_buffer_to_buffer(zbuf, 0, &staging, 0, (n * 4) as u64);
+        ctx.queue.submit([encoder.finish()]);
+        let (tx, rx) = std::sync::mpsc::channel();
+        staging.slice(..).map_async(wgpu::MapMode::Read, move |r| {
+            let _ = tx.send(r);
+        });
+        ctx.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .unwrap();
+        rx.recv().unwrap().unwrap();
+        let z: Vec<f32> =
+            bytemuck::cast_slice(&staging.slice(..).get_mapped_range().unwrap()).to_vec();
+        let expected = (1_f64 / 0.18).ln_1p() / 2.;
+        for value in z {
+            assert!(
+                (f64::from(value) - expected).abs() < 1e-6,
+                "{value} vs {expected}"
+            );
+        }
+    }
 }
