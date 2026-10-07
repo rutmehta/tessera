@@ -110,8 +110,8 @@ fn parity(develop: &[Vec<f32>], print: &image::Rgb32FImage) -> (f32, f32) {
     let mut max = 0f32;
     let mut sum = 0f32;
     for (i, p) in print.pixels().enumerate() {
-        for c in 0..3 {
-            let d = (develop[c][i] - (p.0[c].clamp(0., 1.) * 255.)).abs();
+        for (plane, v) in develop.iter().zip(p.0) {
+            let d = (plane[i] - (v.clamp(0., 1.) * 255.)).abs();
             max = max.max(d);
             sum += d;
         }
@@ -196,8 +196,7 @@ fn sp_int2_saturated_proxy_develop_clips_like_an_adobe_original() {
             for i in 0..linear[0].len() {
                 let v = [linear[0][i], linear[1][i], linear[2][i]];
                 for (r, row) in m.0.iter().enumerate() {
-                    let s =
-                        (row[0] as f32 * v[0] + row[1] as f32 * v[1] + row[2] as f32 * v[2]) as f32;
+                    let s = row[0] as f32 * v[0] + row[1] as f32 * v[1] + row[2] as f32 * v[2];
                     clipped += usize::from(!(0. ..=1.).contains(&s));
                     let expected = (pipeline_cpu::srgb_oetf(s).clamp(0., 1.) * 255.).round();
                     assert!(
