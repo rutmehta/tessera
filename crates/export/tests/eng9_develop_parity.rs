@@ -206,10 +206,20 @@ fn recipe(process: ProcessVersion, mapping: GamutMapping, saturation: f32) -> Re
 
 /// Develop's SDR Output stage, assembled, in 8-bit levels.
 fn develop(image: &RawImage, recipe: &Recipe) -> Vec<[f32; 3]> {
-    let renderer = Renderer::new(RendererConfig {
+    develop_with(image, recipe, None)
+}
+
+/// Caller-owned retouch, as the Develop session installs it.
+type Retouch = Option<Arc<dyn pipeline_cpu::RetouchRenderer>>;
+
+fn develop_with(image: &RawImage, recipe: &Recipe, retouch: Retouch) -> Vec<[f32; 3]> {
+    let mut renderer = Renderer::new(RendererConfig {
         process_version: recipe.process_version,
         ..Default::default()
     });
+    if let Some(retouch) = retouch {
+        renderer = renderer.with_retouch_renderer(retouch);
+    }
     let extent = Renderer::output_extent(image, &recipe.settings, 0).unwrap();
     let tiles = renderer
         .render_region_as(
@@ -251,6 +261,15 @@ fn image(source: RenderSource<'_>) -> ExportImage<'_> {
 
 /// Print pixels converted to sRGB-encoded 8-bit levels.
 fn print(fixture: &Fixture, recipe: &Recipe, space: ColorSpace) -> Vec<[f32; 3]> {
+    print_with(fixture, recipe, space, None)
+}
+
+fn print_with(
+    fixture: &Fixture,
+    recipe: &Recipe,
+    space: ColorSpace,
+    retouch: Retouch,
+) -> Vec<[f32; 3]> {
     let (rgb, _) = export::render_pixels_with_notes(
         &image(fixture.source()),
         recipe,
@@ -263,7 +282,7 @@ fn print(fixture: &Fixture, recipe: &Recipe, space: ColorSpace) -> Vec<[f32; 3]>
         &CancellationToken::new(),
         None,
         None,
-        None,
+        retouch,
     )
     .unwrap();
     rgb.pixels().map(|p| to_srgb_levels(p.0, space)).collect()
@@ -297,6 +316,10 @@ fn srgb_eotf(v: f32) -> f32 {
 
 /// A 16-bit sRGB TIFF file export, decoded to 8-bit levels.
 fn export_file(fixture: &Fixture, recipe: &Recipe) -> Vec<[f32; 3]> {
+    export_file_with(fixture, recipe, None)
+}
+
+fn export_file_with(fixture: &Fixture, recipe: &Recipe, retouch: Retouch) -> Vec<[f32; 3]> {
     let dir = tempfile::tempdir().unwrap();
     let path = export::export_one(
         &image(fixture.source()),
@@ -305,6 +328,7 @@ fn export_file(fixture: &Fixture, recipe: &Recipe) -> Vec<[f32; 3]> {
             format: Format::Tiff { bits: 16 },
             color_space: ColorSpace::Srgb,
             output_dir: dir.path().to_path_buf(),
+            retouch,
             ..Default::default()
         },
     )
@@ -675,4 +699,145 @@ fn eng9_local_adjustments_and_crop_export_and_print_match_develop() {
         }
     }
     assert!(failures.is_empty(), "{failures:#?}");
+}
+
+/// ENG-9b (REV-ENG-9 SF3): a retouch spot on an Adobe RAW original exports
+/// and prints exactly as Develop draws it. The test renderer clones a
+/// centred box from a horizontal source offset, so a frame or ordering
+/// mismatch between the paths would move pixels.
+#[test]
+fn eng9b_adobe_raw_retouch_export_and_print_match_develop() {
+    use engine_api::recipe::{
+        MaskComponent, MaskKind, RetouchOperation,
+        mask::{BrushStroke, RetouchKind, RetouchTarget},
+    };
+    let clone_box = |w: u32, h: u32, planes: &mut [Vec<f32>], ops: &[RetouchOperation]| {
+        for op in ops.iter().filter(|op| op.enabled) {
+            let RetouchKind::Clone { source_offset } = op.kind else {
+                continue;
+            };
+            let dx = (source_offset[0] * w as f32).round() as i64;
+            for plane in planes.iter_mut() {
+                let src = plane.clone();
+                for y in h / 4..3 * h / 4 {
+                    for x in w / 4..3 * w / 4 {
+                        let sx = (i64::from(x) + dx).clamp(0, i64::from(w) - 1) as usize;
+                        plane[(y * w + x) as usize] = src[y as usize * w as usize + sx];
+                    }
+                }
+            }
+        }
+        Ok(())
+    };
+    let retouch: Arc<dyn pipeline_cpu::RetouchRenderer> = Arc::new(clone_box);
+    let fixture = fixture(Kind::Raw);
+    let mut failures = Vec::new();
+    for mapping in [GamutMapping::Perceptual, GamutMapping::Clip] {
+        let plain = recipe(ProcessVersion::adobe(6), mapping, 40.);
+        let mut r = plain.clone();
+        r.edit(EditMeta::user("eng9b", 1), |s| {
+            s.locals.retouch.push(RetouchOperation {
+                id: engine_api::id::RetouchId(1),
+                kind: RetouchKind::Clone {
+                    source_offset: [0.25, 0.],
+                },
+                target: RetouchTarget::Area {
+                    components: vec![MaskComponent::new(MaskKind::Brush {
+                        strokes: vec![BrushStroke {
+                            points: vec![[0.5, 0.5, 1.]],
+                            radius: 0.2,
+                            feather: 0.,
+                            ..Default::default()
+                        }],
+                    })],
+                },
+                opacity: 100.,
+                feather: 0.,
+                enabled: true,
+            });
+        })
+        .unwrap();
+        let shown = develop_with(&fixture.image, &r, Some(retouch.clone()));
+        // The spot must actually change the frame.
+        assert!(
+            parity(&shown, &develop(&fixture.image, &plain)).0 > 2.,
+            "{mapping:?}: retouch must change the frame"
+        );
+        let exported = export_file_with(&fixture, &r, Some(retouch.clone()));
+        assert!(
+            parity(&exported, &export_file(&fixture, &plain)).0 > 2.,
+            "{mapping:?}: the export must apply the retouch"
+        );
+        check(
+            &format!("Raw Adobe6 retouch {mapping:?} export"),
+            ADOBE_MAX,
+            &shown,
+            &exported,
+            &mut failures,
+        );
+        check(
+            &format!("Raw Adobe6 retouch {mapping:?} print sRGB"),
+            ADOBE_MAX,
+            &shown,
+            &print_with(&fixture, &r, ColorSpace::Srgb, Some(retouch.clone())),
+            &mut failures,
+        );
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+/// ENG-9b (REV-ENG-9 SF1): an Adobe-process HDR export tells the user that
+/// the file holds a standard-dynamic-range rendition. Native HDR does not.
+#[test]
+fn eng9b_adobe_hdr_export_warns_that_it_is_sdr() {
+    for kind in [Kind::Raw, Kind::Rgb, Kind::Proxy] {
+        let fixture = fixture(kind);
+        for process in processes() {
+            let mut r = recipe(process, GamutMapping::Perceptual, 0.);
+            r.edit(EditMeta::user("eng9b", 2), |s| {
+                s.output.hdr = true;
+                s.output.hdr_headroom_stops = 1.;
+            })
+            .unwrap();
+            let dir = tempfile::tempdir().unwrap();
+            let rendered = export::render_one_cancellable(
+                &image(fixture.source()),
+                &r,
+                &ExportSettings {
+                    format: Format::Png,
+                    hdr: Some(export::HdrTransfer::Pq),
+                    color_space: ColorSpace::Rec2020,
+                    output_dir: dir.path().to_path_buf(),
+                    ..Default::default()
+                },
+                &CancellationToken::new(),
+                None,
+                None,
+            )
+            .unwrap();
+            let warned = rendered.warnings().iter().any(|w| {
+                w.contains("Lightroom-process edits render in standard dynamic range")
+                    && w.contains("no highlights above SDR white")
+            });
+            assert_eq!(
+                warned,
+                process.family == engine_api::recipe::ProcessFamily::Adobe,
+                "{kind:?} {process:?}: {:?}",
+                rendered.warnings()
+            );
+            // The warning reaches the report written beside the file.
+            let path = rendered.finish(&CancellationToken::new()).unwrap();
+            let report = std::fs::read_dir(dir.path())
+                .unwrap()
+                .map(|e| e.unwrap().path())
+                .filter(|p| p != &path && p.extension().is_none_or(|e| e != "xmp"))
+                .filter_map(|p| std::fs::read_to_string(p).ok())
+                .any(|t| t.contains("standard dynamic range"));
+            assert_eq!(
+                report,
+                process.family == engine_api::recipe::ProcessFamily::Adobe,
+                "{kind:?} {process:?}: warning report"
+            );
+        }
+    }
 }

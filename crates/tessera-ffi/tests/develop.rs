@@ -1267,3 +1267,36 @@ fn native_adobe_profile_identities_render_like_main_and_are_visible() {
     }
     open.session.close().unwrap();
 }
+
+/// ENG-9b (REV-ENG-9 SF1): with HDR on, an Adobe-process (Lightroom) recipe
+/// shows the same notice its HDR export records: the Adobe pipeline renders
+/// standard dynamic range. Native HDR and Adobe without HDR show nothing.
+#[test]
+fn eng9b_adobe_hdr_shows_the_sdr_notice() {
+    let Some(h) = harness("nef") else {
+        return;
+    };
+    let session = h
+        .engine
+        .clone()
+        .open_develop_session(h.image_id.clone())
+        .unwrap();
+    let noticed = |s: &DevelopSession| {
+        s.render_notices().unwrap().iter().any(|n| {
+            n.contains("Lightroom-process edits render in standard dynamic range")
+                && n.contains("no highlights above SDR white")
+        })
+    };
+    let hdr = |on: bool| serde_json::json!({"output": {"hdr": on}}).to_string();
+    session.set_settings(hdr(true), false).unwrap();
+    assert!(!noticed(&session), "Native HDR has real highlights");
+    assert!(
+        session
+            .set_process_version(r#"{"family":"adobe","revision":6}"#.into())
+            .unwrap()
+    );
+    assert!(noticed(&session), "Adobe + HDR must say it is SDR");
+    session.set_settings(hdr(false), false).unwrap();
+    assert!(!noticed(&session), "no notice with HDR off");
+    session.close().unwrap();
+}
