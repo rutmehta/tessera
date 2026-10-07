@@ -246,6 +246,19 @@ fn lr8n_relinked_rgb_original_uses_the_stored_frame_like_its_smart_preview() {
             rotated,
             "ordinary import, EXIF {exif}"
         );
+        // REV-LR-8n N1: pin the pixels too. The ordinary import renders
+        // exactly like an upright (no EXIF, lossless) file holding the
+        // already-rotated content, so its edits act in the rotated frame.
+        let mut shown = image::load_from_memory(&std::fs::read(&path).unwrap()).unwrap();
+        shown.apply_orientation(image::metadata::Orientation::from_exif(exif as u8).unwrap());
+        let shown_path = dir.path().join(format!("shown-{exif}.png"));
+        shown.to_rgb8().save(&shown_path).unwrap();
+        let shown = RawImage::open(ImageId(7960 + u128::from(exif)), &shown_path).unwrap();
+        assert_eq!(
+            pixels(&renderer, &ordinary, &s, 0),
+            pixels(&renderer, &shown, &s, 0),
+            "ordinary import, EXIF {exif}: edits in the rotated (displayed) frame"
+        );
         for catalog in 1..=8u16 {
             let relinked = RawImage::open_with_catalog_orientation(
                 ImageId(7930 + u128::from(exif) * 10 + u128::from(catalog)),
