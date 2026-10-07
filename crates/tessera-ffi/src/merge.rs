@@ -294,9 +294,13 @@ impl Engine {
         ids.iter().map(|id| {
             let canonical = parse_id(id)?.to_string();
             if !seen.insert(canonical.clone()) { return Err(failure("duplicate image_id")); }
-            let path = Self::path(&c, &canonical)?.into();
+            let path: PathBuf = Self::path(&c, &canonical)?.into();
             let orientation: String = c.reader.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&canonical], |r| r.get(0))?;
-            Ok(PhotoSource { id: canonical, path, orientation: orientation.parse().unwrap_or(1) })
+            // The catalog orientation replaces EXIF and wins over a stale
+            // index row, as in export's Source::open (REV-SP-B S2).
+            let orientation = crate::catalog::catalog_orientation(&path)
+                .unwrap_or_else(|| orientation.parse().unwrap_or(1));
+            Ok(PhotoSource { id: canonical, path, orientation })
         }).collect()
     }
     /// Atomic no-clobber file publication. Cancellation after this checkpoint may
