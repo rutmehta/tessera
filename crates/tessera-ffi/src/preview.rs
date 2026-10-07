@@ -611,6 +611,59 @@ mod tests {
         );
     }
 
+    /// REV-SP-A S6: a Lens Blur thumbnail that failed for lack of depth must
+    /// re-render once its imported depth or the depth model becomes available.
+    #[test]
+    fn sp_int2_thumbnail_identity_tracks_lens_blur_depth_and_model() {
+        let root = tempfile::tempdir().unwrap();
+        let support = root.path();
+        let id = engine_api::id::ImageId(1319);
+        let key = image_core::depth::imported_depth_key(id);
+        let mut recipe = core::Recipe::new(id);
+        recipe
+            .edit(engine_api::recipe::EditMeta::user("Lens Blur", 1), |s| {
+                s.effects.lens_blur = Some(engine_api::recipe::settings::LensBlur {
+                    amount: 50.,
+                    depth: Some(engine_api::recipe::settings::LensBlurDepth {
+                        mask_key: Some(key),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                });
+            })
+            .unwrap();
+        let mut plain = recipe.clone();
+        plain
+            .edit(engine_api::recipe::EditMeta::user("Off", 2), |s| {
+                s.effects.lens_blur = None
+            })
+            .unwrap();
+        let none = imported_render_identity(&recipe, support);
+        assert_ne!(
+            none,
+            imported_render_identity(&plain, support),
+            "Lens Blur participates in the identity"
+        );
+        let store =
+            image_core::ml_depth::DepthStore::new(support.join("previews/depth-cache"), 0).unwrap();
+        image_core::ml_depth::DepthMap::from_normalized_inverse(2, 2, vec![0.5; 4])
+            .unwrap()
+            .store_pinned(&store, &key)
+            .unwrap();
+        let with_depth = imported_render_identity(&recipe, support);
+        assert_ne!(with_depth, none, "imported depth arriving re-renders");
+        store.remove_pinned(&key).unwrap();
+        assert_eq!(imported_render_identity(&recipe, support), none);
+        let cache = support.join("models/cache");
+        std::fs::create_dir_all(&cache).unwrap();
+        std::fs::write(cache.join("synthetic-model.onnx"), b"weights").unwrap();
+        assert_ne!(
+            imported_render_identity(&recipe, support),
+            none,
+            "depth-model availability re-renders"
+        );
+    }
+
     #[test]
     fn lr13b_thumbnail_reports_invalid_and_skips_missing_imported_mask() {
         use engine_api::recipe::{
