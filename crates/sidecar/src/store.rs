@@ -326,13 +326,8 @@ fn same_bytes(a: &Path, b: &Path) -> bool {
 /// The recorded write stamp of a recipe document, when it has one.
 fn recorded(path: &Path) -> Option<(i64, u64, String)> {
     let doc: super::RecipeDocument = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
-    (doc.last_writer.timestamp_ms > 0).then(|| {
-        (
-            doc.last_writer.timestamp_ms,
-            doc.last_writer.counter,
-            doc.last_writer.machine_id,
-        )
-    })
+    let stamp = doc.last_writer;
+    (stamp.timestamp_ms > 0).then_some((stamp.timestamp_ms, stamp.counter, stamp.machine_id))
 }
 
 /// Whether `a` holds the newer edit: recorded edit time when both documents

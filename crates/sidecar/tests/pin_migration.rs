@@ -61,25 +61,6 @@ fn exposure(path: &Path) -> f32 {
     exposure_at(&Sidecar::paths(path).recipe)
 }
 
-/// Every recipe object in the store with this exposure (backups included).
-fn objects_with(support: &Path, value: f32) -> usize {
-    let mut n = 0;
-    let mut stack = vec![support.join(".edits/lightroom/objects")];
-    while let Some(dir) = stack.pop() {
-        for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
-            let p = entry.path();
-            if p.is_dir() {
-                stack.push(p);
-            } else if p.extension().is_some_and(|e| e == "json")
-                && Sidecar::read_recipe(&p).is_ok_and(|d| d.recipe.settings.tone.exposure == value)
-            {
-                n += 1;
-            }
-        }
-    }
-    n
-}
-
 const UUID: &str = "AB12CD34-0000-4000-8000-000000000001";
 
 #[test]
