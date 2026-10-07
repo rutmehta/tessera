@@ -3,6 +3,11 @@
 use sidecar::{PinOutcome, RecipeDocument, Sidecar};
 use std::path::{Path, PathBuf};
 
+/// The alias-read and content-hash counters are process-wide, so a counted
+/// test must not overlap the other tests in this binary: every test holds
+/// this lock.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 struct Scratch {
     root: PathBuf,
     support: PathBuf,
@@ -65,6 +70,7 @@ const UUID: &str = "AB12CD34-0000-4000-8000-000000000001";
 
 #[test]
 fn two_catalogs_sharing_a_file_id_with_different_edits_keep_both() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let s = Scratch::new("two-catalogs");
     let a = s.proxy("A", UUID, b"preview bytes from catalog A");
     let b = s.proxy("B", UUID, b"preview bytes from catalog B (rebuilt)");
@@ -86,6 +92,7 @@ fn two_catalogs_sharing_a_file_id_with_different_edits_keep_both() {
 
 #[test]
 fn two_catalogs_sharing_identical_edits_share_one_recipe_and_dedupe() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let s = Scratch::new("shared");
     let a = s.proxy("A", UUID, b"identical preview bytes");
     let b = s.proxy("B", UUID, b"identical preview bytes");
@@ -166,6 +173,7 @@ fn backups(support: &Path) -> Vec<PathBuf> {
 /// classifies the same way.
 #[test]
 fn crash_after_copy_before_key_save_keeps_the_newer_recipe_and_a_backup() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     for legacy_newer in [true, false] {
         let s = Scratch::new(if legacy_newer {
             "crash-legacy"
@@ -219,6 +227,7 @@ fn crash_after_copy_before_key_save_keeps_the_newer_recipe_and_a_backup() {
 /// photo), which dominates the time and is itself linear.
 #[test]
 fn migration_reads_each_alias_a_bounded_number_of_times() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let s = Scratch::new("scale");
     let n = 600;
     let proxies: Vec<PathBuf> = (0..n)
@@ -270,6 +279,7 @@ fn migration_reads_each_alias_a_bounded_number_of_times() {
 /// re-read every proxy file each time.
 #[test]
 fn repeated_lookups_over_a_large_library_hash_each_proxy_once() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let s = Scratch::new("hash-cache");
     let n = 9_000;
     let proxies: Vec<PathBuf> = (0..n)
