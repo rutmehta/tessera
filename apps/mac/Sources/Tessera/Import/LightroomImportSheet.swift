@@ -208,8 +208,9 @@ private struct MappingStep: View {
                         .accessibilityIdentifier("lightroom-import.source-counts")
                 }
                 Toggle("Import offline photos using Lightroom Smart Previews", isOn: $importer.importSmartPreviews)
-                    .accessibilityIdentifier("lightroom-import.smart-previews")
+                    .accessibilityIdentifier("library.import.smartPreviews")
                 Toggle("Copy Smart Previews into Tessera storage", isOn: $importer.copyProxies)
+                    .accessibilityIdentifier("library.import.copyProxies")
                     .disabled(!importer.importSmartPreviews)
                     .help("Keep editing if you move or remove the Lightroom catalog. Off references previews in place.")
                 foldersSection
