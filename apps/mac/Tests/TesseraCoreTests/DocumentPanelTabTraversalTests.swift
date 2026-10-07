@@ -563,7 +563,7 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
             windows = []
         }
     }
-    private func assertNonTabPanelRestoration(_ restore: (DocumentWorkspace) -> Void) throws {
+    private func assertNonTabPanelRestoration(leavingDocument: Bool = false, _ restore: (DocumentWorkspace) -> Void) throws {
         let model = gridModel()
         model.viewMode = .document
         let (window, host) = hostFixture(model, inspector: true)
@@ -576,12 +576,23 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         XCTAssertTrue(eyeButtons(host).isEmpty)
         // Deterministic reproduction of AppKit's fallback after detaching a focused panel.
         XCTAssertTrue(window.makeFirstResponder(nil))
+        let priorResponder = window.firstResponder
+        if leavingDocument { model.viewMode = .grid }
         restore(model.documents)
         XCTAssertFalse(model.documents.panelsHidden)
         let viewport = try XCTUnwrap(find(host, DocumentViewportView.self).first)
-        XCTAssertTrue(window.firstResponder === viewport, "Restore must immediately claim stray focus")
+        if leavingDocument {
+            XCTAssertTrue(window.firstResponder === priorResponder, "Leaving document must not claim canvas focus")
+            XCTAssertFalse(window.firstResponder === viewport)
+        } else {
+            XCTAssertTrue(window.firstResponder === viewport, "Restore must immediately claim stray focus")
+        }
         settle(host)
-        XCTAssertTrue(window.firstResponder === viewport)
+        if leavingDocument {
+            XCTAssertFalse(window.firstResponder === viewport)
+        } else {
+            XCTAssertTrue(window.firstResponder === viewport)
+        }
         XCTAssertFalse(window.isKeyWindow)
         XCTAssertFalse(window.isMainWindow)
         XCTAssertFalse(NSApp.isActive)
@@ -595,8 +606,8 @@ final class DocumentPanelTabTraversalTests: XCTestCase {
         try assertNonTabPanelRestoration { $0.cycleScreenMode() }
     }
 
-    func testLeavingDocumentModeRestoresPanelsAndClaimsStrayFocus() throws {
-        try assertNonTabPanelRestoration { $0.didLeaveDocumentMode() }
+    func testLeavingDocumentModeRestoresPanelsWithoutClaimingCanvasFocus() throws {
+        try assertNonTabPanelRestoration(leavingDocument: true) { $0.didLeaveDocumentMode() }
     }
 
 }
