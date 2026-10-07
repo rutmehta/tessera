@@ -230,6 +230,9 @@ fn lr13_external_proxy_optional_settings_export_with_warning_and_adobe_pixels() 
         1,
     )
     .unwrap();
+    // LR-8m (A-LR8 M8): the proxy develops in the sensor frame and export
+    // applies the catalog orientation (6) once, at the end, as for a RAW.
+    let expected = image::imageops::rotate90(&expected);
     assert_eq!(actual.dimensions(), expected.dimensions());
     for (a, b) in actual.as_raw().iter().zip(expected.as_raw()) {
         assert!(

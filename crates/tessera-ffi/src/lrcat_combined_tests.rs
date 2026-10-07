@@ -467,14 +467,16 @@ fn int1_offline_proxy_nested_locals_adobe_render_and_orientation() {
     let source = crate::catalog::open_image(id, path).unwrap();
     assert!(source.camera_linear_proxy().is_some());
     assert_eq!(source.metadata().catalog_orientation, Some(6));
-    assert_eq!(source.metadata().orientation, 1);
+    // LR-8m (A-LR8 M8): the catalog orientation is the display orientation
+    // and the edit frame is the sensor frame, as for an ordinary RAW.
+    assert_eq!(source.metadata().orientation, 6);
     let unrotated = RawImage::open(id, path).unwrap();
     let extent = source.active_extent();
     let raw_extent = unrotated.active_extent();
     assert_ne!(raw_extent.width, raw_extent.height);
     assert_eq!(
         (extent.width, extent.height),
-        (raw_extent.height, raw_extent.width)
+        (raw_extent.width, raw_extent.height)
     );
     let config = RendererConfig {
         process_version: recipe.process_version,
@@ -541,7 +543,8 @@ fn int1_offline_proxy_nested_locals_adobe_render_and_orientation() {
     assert_ne!(pixels, render(&renderer, &without_upright));
 }
 
-/// LR-8R: LR-5b validates injected masks in the proxy's oriented active frame.
+/// LR-8R: LR-5b validates injected masks in the proxy's active frame, which is
+/// the sensor frame for every catalog orientation (LR-8m, A-LR8 M8).
 #[test]
 fn lr8r_oriented_offline_proxy_accepts_matching_imported_ai_raster() {
     let temp = tempfile::tempdir().unwrap();
@@ -578,7 +581,8 @@ fn lr8r_oriented_offline_proxy_accepts_matching_imported_ai_raster() {
             .unwrap()
             .unwrap();
     assert_eq!(metadata.default_crop[2..], [12, 10]);
-    let (w, h) = (10, 12);
+    // Orientation 'BC' (6) no longer swaps the raster extent (was 10x12).
+    let (w, h) = (12, 10);
     let mut png = Cursor::new(Vec::new());
     image::GrayImage::from_pixel(w, h, image::Luma([128]))
         .write_to(&mut png, image::ImageFormat::Png)

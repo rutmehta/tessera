@@ -7,7 +7,7 @@ mod support;
 
 use engine_api::{
     jobs::CancellationToken,
-    recipe::{LocalAdjustment, LocalParams, MaskComponent, MaskKind, Recipe},
+    recipe::{EditMeta, LocalAdjustment, LocalParams, MaskComponent, MaskKind, Recipe},
 };
 use export::*;
 use pipeline_cpu::{CameraLinearProxy, RenderSource};
@@ -44,28 +44,31 @@ fn lr8m_proxy_export_orients_once_after_sensor_frame_edits_and_lens() {
         .collect();
     let proxy = CameraLinearProxy::from_dng(dng).unwrap();
     let mut recipe = Recipe::default();
-    let s = &mut recipe.settings;
-    s.detail.sharpening.amount = 0.;
-    s.detail.noise_reduction.color = 0.;
-    s.geometry.crop.rect.left = 0.125;
-    s.geometry.crop.rect.right = 0.8125;
-    s.geometry.crop.rect.top = 0.25;
-    s.geometry.crop.rect.bottom = 0.9375;
-    s.lens.manual_distortion = 12.;
-    s.lens.manual_vignetting = 30.;
-    s.locals.adjustments.push(LocalAdjustment {
-        components: vec![MaskComponent::new(MaskKind::Radial {
-            center: [0.7, 0.35],
-            radii: [0.22, 0.3],
-            angle: 20.,
-            feather: 50.,
-        })],
-        params: LocalParams {
-            exposure: 1.,
-            ..Default::default()
-        },
-        ..Default::default()
-    });
+    recipe
+        .edit(EditMeta::user("LR-8m frame edits", 1), |s| {
+            s.detail.sharpening.amount = 0.;
+            s.detail.noise_reduction.color = 0.;
+            s.geometry.crop.rect.left = 0.125;
+            s.geometry.crop.rect.right = 0.8125;
+            s.geometry.crop.rect.top = 0.25;
+            s.geometry.crop.rect.bottom = 0.9375;
+            s.lens.manual_distortion = 12.;
+            s.lens.manual_vignetting = 30.;
+            s.locals.adjustments.push(LocalAdjustment {
+                components: vec![MaskComponent::new(MaskKind::Radial {
+                    center: [0.7, 0.35],
+                    radii: [0.22, 0.3],
+                    angle: 20.,
+                    feather: 50.,
+                })],
+                params: LocalParams {
+                    exposure: 1.,
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+        })
+        .unwrap();
     let request = RenderRequest {
         color_space: ColorSpace::Srgb,
         resize: Resize::None,

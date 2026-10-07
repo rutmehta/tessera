@@ -1178,7 +1178,12 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
                         image_core::Renderer::new(Default::default()).for_recipe(&recipe);
                     let extent =
                         image_core::Renderer::output_extent(&raw, &recipe.settings, 0).unwrap();
-                    develop_dimensions = (extent.width, extent.height);
+                    // LR-8m (A-LR8 M8): Develop renders the sensor frame and the
+                    // host orients it by the catalog orientation, exactly as for
+                    // an ordinary RAW; thumbnails and exports are displayed
+                    // pixels, oriented once.
+                    assert_eq!(raw.metadata().orientation, 6);
+                    develop_dimensions = (extent.height, extent.width);
                     assert_eq!(
                         actual.dimensions(),
                         develop_dimensions,
