@@ -24116,18 +24116,28 @@ public struct PrintImage: Equatable, Hashable {
     public var channels: UInt32
     public var data: Data
     public var icc: Data
+    /**
+     * What a Smart Preview could not reproduce, as sentences (empty for
+     * originals), the same notes a file export records beside its output.
+     */
+    public var notes: [String]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(width: UInt32, height: UInt32, 
         /**
          * 3 (RGB), 4 (CMYK) or 1 (gray).
-         */channels: UInt32, data: Data, icc: Data) {
+         */channels: UInt32, data: Data, icc: Data, 
+        /**
+         * What a Smart Preview could not reproduce, as sentences (empty for
+         * originals), the same notes a file export records beside its output.
+         */notes: [String] = []) {
         self.width = width
         self.height = height
         self.channels = channels
         self.data = data
         self.icc = icc
+        self.notes = notes
     }
 
     
@@ -24150,7 +24160,8 @@ public struct FfiConverterTypePrintImage: FfiConverterRustBuffer {
                 height: FfiConverterUInt32.read(from: &buf), 
                 channels: FfiConverterUInt32.read(from: &buf), 
                 data: FfiConverterData.read(from: &buf), 
-                icc: FfiConverterData.read(from: &buf)
+                icc: FfiConverterData.read(from: &buf), 
+                notes: FfiConverterSequenceString.read(from: &buf)
         )
     }
 
@@ -24160,6 +24171,7 @@ public struct FfiConverterTypePrintImage: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.channels, into: &buf)
         FfiConverterData.write(value.data, into: &buf)
         FfiConverterData.write(value.icc, into: &buf)
+        FfiConverterSequenceString.write(value.notes, into: &buf)
     }
 }
 
