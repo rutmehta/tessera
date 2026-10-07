@@ -8,7 +8,7 @@ mod support;
 fn lr10_reads_embedded_profile_from_linear_raw_subifd_in_both_byte_orders() {
     for be in [false, true] {
         let bytes = support::lossy_dng(be, false);
-        let profile = DcpProfile::parse(&bytes).expect("embedded DNG profile");
+        let profile = DcpProfile::parse_embedded(&bytes).expect("embedded DNG profile");
         let rgb = profile.apply_tone([0.25; 3]);
         for channel in rgb {
             assert!((channel - 0.52069).abs() < 0.0001);
@@ -53,10 +53,10 @@ fn lr10_embedded_reader_never_reads_pixel_payload_and_rejects_cycles() {
     let extracted = pipeline_adobe::dcp::read_embedded_profile(&mut reader)
         .unwrap()
         .unwrap();
-    DcpProfile::parse(&extracted).unwrap();
+    DcpProfile::parse_embedded(&extracted).unwrap();
     let mut cycle = bytes;
     cycle[34..38].copy_from_slice(&8u32.to_le_bytes());
-    assert!(DcpProfile::parse(&cycle).is_err());
+    assert!(DcpProfile::parse_embedded(&cycle).is_err());
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn lr10_raw_subifd_inherits_root_tone_and_exposure_tags() {
     for v in [0f32, 0., 1., 1.] {
         bytes.extend(v.to_le_bytes());
     }
-    let profile = DcpProfile::parse(&bytes).unwrap();
+    let profile = DcpProfile::parse_embedded(&bytes).unwrap();
     for v in profile.apply_tone([0.25; 3]) {
         assert!((v - 0.25).abs() < 0.00002);
     }

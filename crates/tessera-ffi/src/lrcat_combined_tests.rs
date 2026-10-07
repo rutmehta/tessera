@@ -378,7 +378,7 @@ fn int1_offline_proxy_nested_locals_adobe_render_and_orientation() {
     let fixture = import_lrcat::fixture::write(&temp.path().join("fixture")).unwrap();
     import_lrcat::fixture::write_smart_previews(&fixture).unwrap();
     let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
-    let row = r#"s={Sharpness=0,ColorNoiseReduction=0,ConvertToGrayscale=false,
+    let row = r#"s={CameraProfile='Adobe Color',Sharpness=0,ColorNoiseReduction=0,ConvertToGrayscale=false,
         PerspectiveUpright=1,UprightTransform_1='1,0,0,0,1,0,0.02,0,1',
         MaskGroupBasedCorrections={{MainCurve={0,0,255,127.5},
           LocalPointColors={'0,0.5,0.5,0.5,0,0,0.5,0,0.25,0.75,1,0,0.25,0.75,1,0,0.25,0.75,1'},
@@ -499,11 +499,27 @@ fn int1_offline_proxy_nested_locals_adobe_render_and_orientation() {
     let pixels = render(&renderer, &recipe.settings);
     assert!(pixels.iter().all(|v| v.is_finite()));
     assert!(pixels.iter().any(|v| *v > 0.));
-    // Explicit DNG profile equals embedded dispatch, including the ACR3 default.
-    let explicit = Renderer::new(config)
-        .with_dcp_profile(&std::fs::read(path).unwrap())
-        .unwrap();
-    assert_eq!(pixels, render(&explicit, &recipe.settings));
+    // Compare the eligible embedded substitution with an explicitly parsed
+    // embedded profile. Installed DCPs retain their separate main behaviour.
+    let embedded =
+        image_core::pipeline_adobe::dcp::DcpProfile::parse_embedded(&std::fs::read(path).unwrap())
+            .unwrap();
+    let explicit = image_core::pipeline_adobe::render_linear_scaled_with_profile(
+        &recipe.settings,
+        &pipeline_cpu::RenderSource::CameraLinear(source.camera_linear_proxy().unwrap()),
+        1,
+        Some(&embedded),
+    )
+    .unwrap();
+    assert_eq!(
+        pixels,
+        explicit
+            .planes()
+            .iter()
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>()
+    );
     for remove_curve in [false, true] {
         let mut settings = recipe.settings.clone();
         if remove_curve {
