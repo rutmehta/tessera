@@ -63,7 +63,12 @@ fn all_catalog_orientations_survive_relink_and_export_without_double_rotation() 
                 .iter()
                 .flat_map(|t| t.samples::<u8>().unwrap().to_vec())
                 .collect();
-            let export = crate::export::Source::open(&proxy, 1).unwrap();
+            let export = crate::export::Source::open(
+                &proxy,
+                1,
+                engine_api::recipe::ProcessVersion::NATIVE_CURRENT,
+            )
+            .unwrap();
             let export_pixels = pipeline_cpu::render(&settings, &export.render_source()).unwrap();
             (extent, values, export_pixels)
         };

@@ -266,7 +266,7 @@ pub(crate) fn open_image(
     } else {
         engine_api::recipe::Recipe::new(id)
     };
-    let source = crate::export::Source::open(&path, orientation)?;
+    let source = crate::export::Source::open(&path, orientation, recipe.process_version)?;
     let name = stem(&path);
     let image = export::ExportImage {
         source: source.render_source(),
