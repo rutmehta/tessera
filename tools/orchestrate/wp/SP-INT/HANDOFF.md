@@ -500,3 +500,43 @@ gates (same list as SP-INT2).
 - `4a368047` fix(SP-INT4): never delete a recipe that differs from its destination; one reference scan
 - `f5de6747` test(SP-INT4): import reports edit-key conflicts, cross-catalog sharing and photos open in Develop
 - `7334497f` fix(SP-INT4): re-keying reports conflicts and sharing, reserves each photo, ticks and cancels
+
+## SP-INT5 — last nits before merge (REV4-SP)
+
+Review: `REV4-SP.out.md` (APPROVE-WITH-NITS), read completely. Commits sit on
+top of `7f235b34`; `origin/main` had not moved (`fc3e757d`). Tests first. The
+RED commit for S1 is labelled `test(SP-INT4b)` by mistake; it belongs to this
+lane (not reworded, per the lane rules).
+
+| Item | Code | Test |
+| --- | --- | --- |
+| S1 crash recovery chose "newer" by mtime and left the loser unlabelled | The winner is the recipe whose recorded `last_writer` (timestamp, counter, machine) is newer, as the sidecar merge decides; file mtime only when a document has no recorded time. In both directions the loser is renamed to `<key>.backup-<ns>.json` (with its XMP) beside it; lookups only resolve `<key>.json`, so nothing reads or overwrites it. The content alias points at the winner. A legacy object other photos still use is left in place for them. The report's "Edits recovered" text names where the other version is | `pin_migration::crash_after_copy_before_key_save_keeps_the_newer_recipe_and_a_backup`, rewritten: recorded times decide while mtimes are falsified the other way; exactly one labelled backup holding the loser; no unlabelled loser at the legacy key; a never-pinned twin with the same bytes resolves to the winner. RED (3.0 shown instead of 2.0), GREEN |
+| N9 plan/apply agreement in that case | The plan preview applies the same decision | Same test asserts the preview's outcome |
+| N7 Develop open fails while its photo is re-keyed | `reserve_develop` waits up to 250 ms (5 ms steps, gate lock released) when an external writer holds the photo; longer writers still fail as before | `image_edit_admission::tests::sp_int5_editor_waits_out_a_brief_external_writer` (30 ms writer). RED, GREEN |
+| N10 "Edit key not updated" guessed the reason | Each listed photo carries its actual reason (another import or export writing its edits, open in Develop, unsaved Develop changes, or the raw error) | `sp_int4_photo_open_in_develop_is_not_rekeyed_under_it` asserts the reason. RED, GREEN |
+| N11 no import-level cancel test | Test-only hook cancels after k re-keyed photos | `sp_int5_cancel_during_rekey_then_rerun_keeps_every_edit`: cancel after 1 of 2, report cancelled, both edits intact; re-run keeps both, separate recipes. RED (not cancelled), GREEN |
+| N8 plan refreshes re-hash every in-place proxy | The protected content-hash cache (keyed by path and file version) holds 131,072 entries instead of 8,192 (~200 bytes each) | `pin_migration::repeated_lookups_over_a_large_library_hash_each_proxy_once` (9,000 proxies, second pass re-hashes none). RED 9,000, GREEN |
+
+### Final gates (SP-INT5)
+
+Env as above; `cargo clean --release -p` for every touched crate before the
+gates (same list as SP-INT2).
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release --workspace --no-fail-fast` | At `8910fe9f`: exit 0, **3496 passed, 0 failed, 108 ignored** (load 10-19); no SKIPPED line, real-fixture tests ran. The next commit is clippy-only (`then_some`, an unused test helper removed); `pin_migration` rerun 5/5 |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | Attempt 1: two lints, fixed in the clippy commit. Attempt 2: exit 0 |
+| `cargo fmt --all -- --check` | exit 0 |
+| `cd apps/mac && ./build-ffi.sh` | exit 0, no bindings drift |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: 996 tests, 3 skipped, 0 failures (load 11-16) |
+| strict release build | exit 0 (187 s); only the known BLAKE3 linker warning |
+
+### SP-INT5 commits
+
+- `2623110d` test(SP-INT4b): crash recovery picks the recorded newer edit and labels the loser
+- `4b59d0d6` fix(SP-INT5): crash recovery uses recorded edit times and labels the loser
+- `96eedf76` test(SP-INT5): Develop waits out a brief re-key; real reservation reasons; cancel and re-run
+- `c1b6d5de` fix(SP-INT5): editors wait out a brief re-key; reservation reasons named; cancel hook
+- `7c9bc3f6` test(SP-INT5): a large library is not re-hashed on every plan refresh
+- `8910fe9f` fix(SP-INT5): size the protected content-hash cache for whole libraries
+- `25b9d334` style(SP-INT5): clippy: then_some for the recorded stamp; drop an unused test helper
