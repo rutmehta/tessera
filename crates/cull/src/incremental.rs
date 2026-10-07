@@ -590,8 +590,10 @@ mod lr13e_tests {
             }
             hash = bits.iter().fold(hash, |h, b| h ^ (1 << b));
         }
+        // A far, untimed singleton after the chain.
+        hashes.push(Some(splitmix(424_242)));
         let mut session = session(index, &hashes, |n| {
-            (n % 50 < 3).then_some((n / 50) as f64 * 100.0 + n as f64)
+            (n < 400 && n % 50 < 3).then_some((n / 50) as f64 * 100.0 + n as f64)
         });
         session.groups = reference(&session);
         session
@@ -674,7 +676,43 @@ mod lr13e_tests {
         session.remove_images(&[ImageId(399)]).unwrap();
         settle(&mut session, &[], 8);
         assert_eq!(session.groups, reference(&session));
-        assert_eq!(session.images.len(), 398);
+        assert_eq!(session.images.len(), 399);
+        session.retire_previews().wait();
+    }
+
+    #[test]
+    fn lr13f_singleton_removal_during_pending_regroup_matches_reference() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = chain(&index);
+        assert!(session.groups.iter().any(|g| g.images == ids(&[400])));
+        session.remove_images(&[ImageId(200)]).unwrap();
+        assert!(session.previews_pending());
+        session.remove_images(&[ImageId(400)]).unwrap();
+        settle(&mut session, &[], 8);
+        assert_eq!(session.groups, reference(&session));
+        session.retire_previews().wait();
+    }
+
+    #[test]
+    fn lr13f_hash_gained_during_pending_regroup_matches_reference() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = chain(&index);
+        let original = session.hashes[&ImageId(300)];
+        session
+            .apply_hash_results(vec![(ImageId(300), Ok(None))])
+            .unwrap();
+        settle(&mut session, &[], 8);
+        assert_eq!(session.groups, reference(&session));
+        // Image 300 split the chain: damage both halves so the job spans polls.
+        session
+            .remove_images(&[ImageId(200), ImageId(350)])
+            .unwrap();
+        assert!(session.previews_pending(), "the gain must arrive mid-job");
+        session
+            .apply_hash_results(vec![(ImageId(300), Ok(original))])
+            .unwrap();
+        settle(&mut session, &[], 8);
+        assert_eq!(session.groups, reference(&session));
         session.retire_previews().wait();
     }
 }
