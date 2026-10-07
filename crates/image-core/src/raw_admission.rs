@@ -211,8 +211,6 @@ fn admit_metadata(decoded: &DecodedCapturedCfa) -> Result<MetadataFacts, Refusal
         return Err(Refusal::Calibration);
     }
     let camera_xyz = pipeline_cpu::camera_to_xyz(cam_xyz).map_err(|_| Refusal::Calibration)?;
-    pipeline_cpu::camera_profile_matrix(camera_xyz, metadata.baseline_exposure)
-        .map_err(|_| Refusal::Calibration)?;
     // Invertibility alone does not establish a usable as-shot scene white.
     pipeline_cpu::white_balance_matrix(
         &WhiteBalanceSettings::default(),

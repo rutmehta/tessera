@@ -12,24 +12,6 @@ pub fn camera_to_xyz(cam_xyz: ColorMatrix3) -> EngineResult<ColorMatrix3> {
     cam_xyz.inverse()
 }
 
-/// Shared default camera profile and DNG exposure, for CFA and LinearRaw alike.
-pub fn camera_profile_matrix(
-    camera_xyz: ColorMatrix3,
-    baseline_exposure: f32,
-) -> EngineResult<ColorMatrix3> {
-    let gain = 2f32.powf(baseline_exposure);
-    if !baseline_exposure.is_finite() || !gain.is_finite() || gain <= 0. {
-        return Err(EngineError::invalid(
-            "BaselineExposure",
-            "finite positive gain required",
-        ));
-    }
-    let profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
-    Ok(ColorMatrix3(
-        profile.0.map(|row| row.map(|v| v * f64::from(gain))),
-    ))
-}
-
 /// Bake matrix coefficients once to f32; pixel arithmetic stays scalar f32.
 pub fn apply_matrix(tile: &mut Tile, matrix: ColorMatrix3) -> EngineResult<()> {
     if matrix.0.iter().flatten().any(|v| !v.is_finite()) {

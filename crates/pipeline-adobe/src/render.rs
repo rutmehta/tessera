@@ -114,8 +114,7 @@ pub fn render_linear_scaled_with_profile_and_locals(
         let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
             metadata.cam_xyz[r].map(f64::from)
         })))?;
-        let native_profile =
-            pipeline_cpu::camera_profile_matrix(camera_xyz, metadata.baseline_exposure)?;
+        let native_profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
         let native_wb = pipeline_cpu::white_balance_matrix(
             &settings.white_balance,
             camera_xyz,
@@ -144,9 +143,7 @@ pub fn render_linear_scaled_with_profile_and_locals(
         rgb = detailed;
     }
     let mut basic = settings.tone.clone();
-    if profile.is_some() {
-        basic.exposure = 0.;
-    }
+    basic.exposure = 0.;
     for coord in rgb.coords() {
         let mut tile = rgb.tile(coord, 0, 1)?;
         if let (Some(profile), Some(metadata)) = (profile, camera_metadata) {
@@ -156,6 +153,11 @@ pub fn render_linear_scaled_with_profile_and_locals(
                     metadata.baseline_exposure + settings.tone.exposure.clamp(-10., 10.),
                 )
             })?;
+        } else {
+            let gain = (camera_metadata.map_or(0., |m| m.baseline_exposure)
+                + settings.tone.exposure.clamp(-10., 10.))
+            .exp2();
+            pipeline_cpu::map_rgb(&mut tile, |p| p.map(|v| v * gain))?;
         }
         pipeline_cpu::map_rgb(&mut tile, |p| basic_tone(p, &basic))?;
         // ProfileToneCurve is deferred until after exposure/basic tone, once.

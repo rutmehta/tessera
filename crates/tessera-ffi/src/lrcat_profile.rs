@@ -1181,7 +1181,6 @@ fn lr13_proxy_admission_from_env() {
                         let camera = pipeline_cpu::camera_to_xyz(engine_api::color::ColorMatrix3(
                             std::array::from_fn(|r| metadata.cam_xyz[r].map(f64::from)),
                         ))?;
-                        pipeline_cpu::camera_profile_matrix(camera, metadata.baseline_exposure)?;
                         pipeline_cpu::white_balance_matrix(
                             &checked.white_balance,
                             camera,

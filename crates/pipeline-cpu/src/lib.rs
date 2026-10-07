@@ -56,8 +56,7 @@ pub use render::{
 };
 mod mosaic;
 pub use color::{
-    apply_matrix, as_shot_temperature_tint, camera_profile_matrix, camera_to_xyz,
-    temperature_white, white_balance_matrix,
+    apply_matrix, as_shot_temperature_tint, camera_to_xyz, temperature_white, white_balance_matrix,
 };
 use engine_api::{EngineError, EngineResult, recipe::settings::ToneSettings, tile::Tile};
 pub use mosaic::{DemosaicAlgorithm, demosaic, inverse_linearize, reconstruct_highlights};
