@@ -60,7 +60,10 @@ fn lua_import(key: &str, value: &str) -> Result<(Recipe, Vec<String>), String> {
     } else {
         context
     };
-    let hdr = if EXTENDED_TONE_CURVE_KEYS.contains(&key) {
+    // Extended curves, global and per-mask alike, translate only for HDR output.
+    let hdr = if EXTENDED_TONE_CURVE_KEYS.contains(&key)
+        || key.starts_with("MaskGroupBasedCorrections/Extended")
+    {
         "HDREditMode=1,"
     } else {
         ""
@@ -110,7 +113,7 @@ fn check_rows(matrix: &str, import: &Import) -> Result<(Counts, BTreeSet<String>
         }
         if !matches!(
             cells[3],
-            "LR-1" | "LR-2" | "LR-3" | "LR-4" | "LR-5" | "LR-6" | "LR-7"
+            "LR-1" | "LR-2" | "LR-3" | "LR-4" | "LR-5" | "LR-6" | "LR-7" | "LR-11"
         ) {
             return Err(format!("invalid lane: {line}"));
         }

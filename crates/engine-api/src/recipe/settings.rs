@@ -94,7 +94,23 @@ impl DevelopSettings {
             ),
             (
                 StageId::Tone,
-                if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
+                // Local Point Color runs inside the Tone stage in every mode
+                // (after basic tone, before B&W and the point curves), so it
+                // is part of this hash whether or not monochrome is enabled.
+                if self
+                    .locals
+                    .adjustments
+                    .iter()
+                    .any(|g| g.params.point_colors.is_some())
+                {
+                    ParamHash::chain(
+                        self.tone.param_hash(),
+                        ParamHash::of(
+                            StageId::Tone,
+                            &(&self.color_before_curves(), &self.locals.adjustments),
+                        ),
+                    )
+                } else if self.color.monochrome.as_ref().is_some_and(|m| m.enabled) {
                     ParamHash::chain(
                         self.tone.param_hash(),
                         if self.color.point_colors.is_empty() {

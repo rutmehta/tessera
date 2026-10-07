@@ -511,3 +511,42 @@ fn lr4c_nested_camera_raw_uses_cpu_fallback_with_identical_pixels() {
     )]);
     compare(&rgba, &mut renderer, &cpu, 1e-7);
 }
+
+#[test]
+fn lr11_local_operators_choose_cpu_fallback_with_identical_pixels() {
+    let gpu = GpuCompositor::new().unwrap();
+    let mut cpu = Compositor::new(1 << 20);
+    cpu.set_filter_evaluator(Arc::new(filters::CompositorFilters));
+    for params in [
+        serde_json::json!({"curves":{"rgb":[{"x":0,"y":0},{"x":1,"y":0.5}]}}),
+        serde_json::json!({"curves_extended":{"blue":[{"x":0,"y":0},{"x":2,"y":1.5}]}}),
+        serde_json::json!({"point_colors":[{"source_lch":[0.6,0.1,30],"range":100,"hue_shift":30}]}),
+        serde_json::json!({"color_overlay":[120,50]}),
+        serde_json::json!({"defringe":100}),
+        // LR-11b S9: a negative local defringe is valid and still CPU-only.
+        serde_json::json!({"defringe":-50}),
+    ] {
+        let settings = serde_json::json!({"lens":{"profile":{"kind":"none"},"remove_chromatic_aberration":false}, "locals":{"adjustments":[{"params":params,"components":[{"kind":"linear","start":[0,0],"end":[1,0]}]}]}});
+        assert!(
+            !filters::camera_raw_gpu::supports(&serde_json::json!({"settings":settings})).unwrap()
+        );
+        let doc = document_with_alpha(
+            vec![filter(
+                "camera_raw",
+                serde_json::json!({"settings":settings}),
+            )],
+            true,
+        );
+        let mut renderer = ResidentRenderer::new(&gpu).unwrap();
+        renderer
+            .set_filter_evaluator(Arc::new(filters::CompositorFilters))
+            .unwrap();
+        compare(&doc, &mut renderer, &cpu, 0.0);
+        assert!(renderer.filter_fallbacks() > 0);
+        let mut control = settings;
+        control["locals"]["adjustments"][0]["params"] = serde_json::json!({});
+        assert!(
+            filters::camera_raw_gpu::supports(&serde_json::json!({"settings":control})).unwrap()
+        );
+    }
+}

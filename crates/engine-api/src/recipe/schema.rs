@@ -35,6 +35,17 @@ pub type FeaturePredicate = (&'static str, fn(&Recipe) -> bool);
 /// Every schema 4 feature, by diagnostic name.
 const V4_FEATURE_PREDICATES: &[FeaturePredicate] =
     &[
+        ("local_curves", |r| local_feature(r, |p| p.curves.is_some())),
+        ("local_curves_extended", |r| {
+            local_feature(r, |p| p.curves_extended.is_some())
+        }),
+        ("local_point_colors", |r| {
+            local_feature(r, |p| p.point_colors.is_some())
+        }),
+        ("local_color_overlay", |r| {
+            local_feature(r, |p| p.color_overlay.is_some())
+        }),
+        ("local_defringe", |r| local_feature(r, |p| p.defringe != 0.)),
         ("retouch", |r| {
             !r.settings.locals.retouch.is_empty() || !r.history.base.locals.retouch.is_empty()
         }),
@@ -89,6 +100,12 @@ const V4_FEATURE_PREDICATES: &[FeaturePredicate] =
             mask_feature(r, |c| c.luminance_bounds.is_some())
         }),
     ];
+
+fn local_feature(recipe: &Recipe, uses: fn(&super::LocalParams) -> bool) -> bool {
+    [&recipe.settings, &recipe.history.base]
+        .into_iter()
+        .any(|s| s.locals.adjustments.iter().any(|g| uses(&g.params)))
+}
 
 fn mask_feature(recipe: &Recipe, uses: fn(&super::MaskComponent) -> bool) -> bool {
     // Include disabled subtrees and retouch areas: re-enabling them must not
@@ -222,6 +239,61 @@ mod v4_feature_predicates {
                     components: vec![component],
                     ..Default::default()
                 })
+            })
+            .unwrap();
+        });
+    }
+    #[test]
+    fn local_curves() {
+        assert_bumped_only_when_present("local_curves", |r| {
+            r.edit(EditMeta::user("Local", 2), |s| {
+                let mut g = super::super::LocalAdjustment::default();
+                g.params.curves = Some(Default::default());
+                s.locals.adjustments.push(g);
+            })
+            .unwrap();
+        });
+    }
+    #[test]
+    fn local_curves_extended() {
+        assert_bumped_only_when_present("local_curves_extended", |r| {
+            r.edit(EditMeta::user("Local", 2), |s| {
+                let mut g = super::super::LocalAdjustment::default();
+                g.params.curves_extended = Some(Default::default());
+                s.locals.adjustments.push(g);
+            })
+            .unwrap();
+        });
+    }
+    #[test]
+    fn local_point_colors() {
+        assert_bumped_only_when_present("local_point_colors", |r| {
+            r.edit(EditMeta::user("Local", 2), |s| {
+                let mut g = super::super::LocalAdjustment::default();
+                g.params.point_colors = Some(vec![]);
+                s.locals.adjustments.push(g);
+            })
+            .unwrap();
+        });
+    }
+    #[test]
+    fn local_color_overlay() {
+        assert_bumped_only_when_present("local_color_overlay", |r| {
+            r.edit(EditMeta::user("Local", 2), |s| {
+                let mut g = super::super::LocalAdjustment::default();
+                g.params.color_overlay = Some([120., 50.]);
+                s.locals.adjustments.push(g);
+            })
+            .unwrap();
+        });
+    }
+    #[test]
+    fn local_defringe() {
+        assert_bumped_only_when_present("local_defringe", |r| {
+            r.edit(EditMeta::user("Local", 2), |s| {
+                let mut g = super::super::LocalAdjustment::default();
+                g.params.defringe = 50.;
+                s.locals.adjustments.push(g);
             })
             .unwrap();
         });

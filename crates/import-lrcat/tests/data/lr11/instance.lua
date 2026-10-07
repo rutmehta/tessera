@@ -1,0 +1,1 @@
+s={Sharpness=0,ColorNoiseReduction=0,MaskGroupBasedCorrections={{LocalExposure2012=1,CorrectionMasks={{What='Mask/Image',MaskSubType=0,ReferencePoint='0.25 0.5',InstanceIDs={{InstanceID=2}},InstanceBounds={{Left=0.1,Top=0.2,Right=0.4,Bottom=0.8}}}}}}}

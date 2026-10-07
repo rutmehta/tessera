@@ -88,8 +88,8 @@ impl GpuContext {
             if values.iter().any(|v| !v.is_finite()) {
                 return Err(invalid("parameters must be finite"));
             }
-            if p.defringe != 0.0 || p.color_overlay.is_some() {
-                return Err(invalid("defringe and colour overlay are not implemented"));
+            if p.requires_cpu() {
+                return Err(invalid("local adjustment requires CPU rendering"));
             }
             let data = mask_parameters(group, extent)?;
             let mut initial = base.clone();
