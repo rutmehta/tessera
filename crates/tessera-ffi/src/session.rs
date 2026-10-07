@@ -146,6 +146,7 @@ pub struct DefectCandidate {
 pub(crate) struct Inner {
     pub(crate) core: Core,
     reader: Connection,
+    listing: crate::catalog::ListingCache,
     pub(crate) assist: crate::assist::AssistState,
     /// Suggested best per group membership, reused by `sync_changes` for groups
     /// whose members and scores did not change.
@@ -248,12 +249,21 @@ impl Engine {
         let mut core = Core::open_owned_with_previews(index, source, move |info| {
             crate::preview::cull_preview_hash(info, &support)
         })?;
+        let engine = self.this.clone();
+        core.set_preview_notifier(move || {
+            if let Some(engine) = engine.upgrade() {
+                engine.emit(crate::EngineEvent::LibraryChanged {
+                    sequence: engine.notified.load(std::sync::atomic::Ordering::Acquire),
+                });
+            }
+        });
         // The host owns cursor movement so it can follow its display order.
         core.set_auto_advance(false);
         Ok(Arc::new(CullSession {
             support_dir: self.support_dir()?.to_path_buf(),
             inner: Mutex::new(Inner {
                 core,
+                listing: Default::default(),
                 reader,
                 assist,
                 bests: HashMap::new(),
@@ -303,6 +313,7 @@ impl Engine {
             support_dir: support.clone(),
             inner: Mutex::new(Inner {
                 core,
+                listing: Default::default(),
                 reader: Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?,
                 assist: crate::assist::AssistState::new(
                     support,
@@ -403,8 +414,9 @@ impl Inner {
         self.core.current().map(|id| id.to_string())
     }
     /// Rows for `ids` (queue members), with their current group index.
-    fn session_images(&self, ids: &[ImageId]) -> Result<Vec<SessionImage>> {
-        let basket = self.basket_members()?;
+    fn session_images(&mut self, ids: &[ImageId]) -> Result<Vec<SessionImage>> {
+        self.listing.sync(self.core.index())?;
+        let basket: HashSet<_> = self.basket_members()?.into_iter().collect();
         let mut group_of = HashMap::new();
         for (n, group) in self.core.groups().iter().enumerate() {
             for id in &group.images {
@@ -424,12 +436,11 @@ impl Inner {
                     r.get::<_, String>(2)?,
                 ))
             })?;
+            let (source, lightroom_smart_preview) = self.listing.source(*id, Path::new(&path));
             out.push(SessionImage {
-                lightroom_smart_preview: crate::catalog::is_offline_proxy(Path::new(&path)),
+                lightroom_smart_preview,
                 id: key,
-                path: crate::catalog::source_path(Path::new(&path))
-                    .to_string_lossy()
-                    .into_owned(),
+                path: source,
                 capture_time,
                 orientation: orientation.parse().unwrap_or(1),
                 // Reconciled from sidecars when the session opened (or the image joined).
@@ -469,7 +480,7 @@ impl Inner {
 #[uniffi::export]
 impl CullSession {
     pub fn images(&self) -> Result<Vec<SessionImage>> {
-        let s = self.lock()?;
+        let mut s = self.lock()?;
         let ids = s.core.images().to_vec();
         s.session_images(&ids)
     }
@@ -858,7 +869,9 @@ mod offline_library_tests {
     #[test]
     fn lr13c_rows_reuse_source_projection_until_catalog_change() {
         let (_dir, engine, photos) = proxy_library(1);
-        let session = engine.open_cull_session(photos.to_string_lossy().into()).unwrap();
+        let session = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap();
         let before = session.images().unwrap();
         assert!(before[0].lightroom_smart_preview);
         let path = photos.join("proxy-0.dng");
@@ -866,18 +879,76 @@ mod offline_library_tests {
         let mut doc = sidecar::Sidecar::read_recipe(&recipe_path).unwrap();
         fs::write(&recipe_path, b"unindexed sidecar change").unwrap();
         let cached = session.images().unwrap();
-        assert!(cached[0].lightroom_smart_preview, "unchanged catalog rows must not re-read recipes");
+        assert!(
+            cached[0].lightroom_smart_preview,
+            "unchanged catalog rows must not re-read recipes"
+        );
         assert_eq!(cached[0].path, before[0].path);
         sidecar::Sidecar::write_recipe(&recipe_path, &doc).unwrap();
         // A real catalog edit invalidates only the changed row, including its
         // availability snapshot. Reconnecting the synthetic original is seen.
-        image::RgbImage::new(8, 8).save_with_format(photos.join("offline.raw"), image::ImageFormat::Png).unwrap();
-        doc.recipe.settings.tone.exposure = 1.0;
-        engine.set_recipe_json(before[0].id.clone(), serde_json::to_string(&doc.recipe).unwrap()).unwrap();
+        image::RgbImage::new(8, 8)
+            .save_with_format(photos.join("offline.raw"), image::ImageFormat::Png)
+            .unwrap();
+        doc.recipe
+            .edit(
+                engine_api::recipe::EditMeta::user("Exposure", 1),
+                |settings| {
+                    settings.tone.exposure = 1.0;
+                },
+            )
+            .unwrap();
+        engine
+            .set_recipe_json(
+                before[0].id.clone(),
+                serde_json::to_string(&doc.recipe).unwrap(),
+            )
+            .unwrap();
         session.sync_changes().unwrap();
         let updated = session.images().unwrap();
         assert!(!updated[0].lightroom_smart_preview);
-        assert_eq!(updated[0].path, photos.join("offline.raw").to_string_lossy());
+        assert_eq!(
+            updated[0].path,
+            photos.join("offline.raw").to_string_lossy()
+        );
+    }
+
+    #[test]
+    fn lr13c_ready_events_drive_incremental_groups_after_open() {
+        use std::sync::mpsc;
+        struct Listener(mpsc::Sender<()>);
+        impl crate::EngineEventListener for Listener {
+            fn on_event(&self, event: crate::EngineEvent) {
+                if matches!(event, crate::EngineEvent::LibraryChanged { .. }) {
+                    let _ = self.0.send(());
+                }
+            }
+        }
+        let (_dir, engine, photos) = proxy_library(40);
+        let (notify, ready) = mpsc::channel();
+        engine.set_event_listener(Some(Arc::new(Listener(notify))));
+        let session = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap();
+        let sequence = session.change_sequence().unwrap();
+        assert_eq!(session.groups().unwrap().len(), 40);
+        let cursor = session.current().unwrap();
+        session.sync_changes().unwrap(); // The same post-install kick as the Mac.
+        let start = std::time::Instant::now();
+        let mut regrouped = false;
+        while session.lock().unwrap().core.previews_pending() {
+            ready
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            regrouped |= session.sync_changes().unwrap().groups.is_some();
+            assert!(start.elapsed() < std::time::Duration::from_secs(5));
+        }
+        assert!(regrouped);
+        assert_eq!(session.groups().unwrap().len(), 1);
+        assert_eq!(session.groups().unwrap()[0].images.len(), 40);
+        assert_eq!(session.current().unwrap(), cursor);
+        assert_eq!(session.change_sequence().unwrap(), sequence);
+        assert!(session.preview_errors().unwrap().is_empty());
     }
 
     #[test]

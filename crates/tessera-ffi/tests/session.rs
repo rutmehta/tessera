@@ -46,6 +46,12 @@ fn names(session: &CullSession, ids: &[String]) -> Vec<String> {
 fn groups_navigation_and_keep_best_are_one_undo_step() {
     let (_dir, engine, folder) = photos();
     let session = engine.open_cull_session(folder).unwrap();
+    let start = std::time::Instant::now();
+    while session.groups().unwrap().len() != 2 {
+        session.sync_changes().unwrap();
+        assert!(start.elapsed() < std::time::Duration::from_secs(5));
+        std::thread::yield_now();
+    }
     let images = session.images().unwrap();
     assert_eq!(images.len(), 3);
     let groups = session.groups().unwrap();

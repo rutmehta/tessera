@@ -112,12 +112,31 @@ mod tests {
     fn cull_proxy_fixture() -> (tempfile::TempDir, index::ImageInfo, core::Recipe) {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("proxy.dng");
-        std::fs::write(&path, include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng")).unwrap();
+        std::fs::write(
+            &path,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
         let id = engine_api::id::ImageId(13);
         let mut recipe = core::Recipe::new(id);
-        recipe.unknown.insert("lightroom_smart_preview".into(), serde_json::json!({"original_path": dir.path().join("offline.raw")}));
-        sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&path).recipe, &sidecar::RecipeDocument { recipe: recipe.clone(), ..Default::default() }).unwrap();
-        let info = index::ImageInfo { id, path, size: 0, capture_seconds: None };
+        recipe.unknown.insert(
+            "lightroom_smart_preview".into(),
+            serde_json::json!({"original_path": dir.path().join("offline.raw")}),
+        );
+        sidecar::Sidecar::write_recipe(
+            sidecar::Sidecar::paths(&path).recipe,
+            &sidecar::RecipeDocument {
+                recipe: recipe.clone(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let info = index::ImageInfo {
+            id,
+            path,
+            size: 0,
+            capture_seconds: None,
+        };
         (dir, info, recipe)
     }
 
@@ -131,14 +150,63 @@ mod tests {
         assert_eq!(pipeline_cpu::lens_resolution_count() - lenses, 0);
 
         let store = previews::PreviewStore::new(dir.path().join("previews"), 512 << 20).unwrap();
-        let grid = image::RgbImage::from_fn(90, 80, |x, y| image::Rgb([(200 - x - y / 4) as u8; 3]));
-        let key = previews::PreviewKey::for_source(&info.path, 256, 1, recipe.recipe_hash().0.0).unwrap();
-        store.put_image_cancellable(&key, &grid, 256, &|| Ok(())).unwrap();
+        let grid =
+            image::RgbImage::from_fn(90, 80, |x, y| image::Rgb([(200 - x - y / 4) as u8; 3]));
+        let key =
+            previews::PreviewKey::for_source(&info.path, 256, 1, recipe.recipe_hash().0.0).unwrap();
+        store
+            .put_image_cancellable(&key, &grid, 256, &|| Ok(()))
+            .unwrap();
         let decodes = raw_decode::lossy_dng::pixel_decode_count();
         let expected = cull::dhash_jpeg(&store.get(&key, previews::Level::Full).unwrap()).unwrap();
-        assert_eq!(cull_preview_hash(&info, dir.path()).unwrap(), Some(expected));
+        assert_eq!(
+            cull_preview_hash(&info, dir.path()).unwrap(),
+            Some(expected)
+        );
         assert_eq!(raw_decode::lossy_dng::pixel_decode_count(), decodes);
         assert_eq!(pipeline_cpu::lens_resolution_count(), lenses);
+    }
+
+    #[test]
+    fn lr13c_cull_hash_uses_mac_cache_tiers_with_catalog_orientation() {
+        // The Mac grid is 384px; its loupe tier is 2560px. Imported catalog
+        // orientation is baked into those pixels, so their cache key is 1.
+        for max_px in [384, 2560] {
+            let (dir, info, mut recipe) = cull_proxy_fixture();
+            recipe
+                .unknown
+                .insert("lightroom_orientation".into(), serde_json::json!(6));
+            sidecar::Sidecar::write_recipe(
+                sidecar::Sidecar::paths(&info.path).recipe,
+                &sidecar::RecipeDocument {
+                    recipe: recipe.clone(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let store =
+                previews::PreviewStore::new(dir.path().join("previews"), 512 << 20).unwrap();
+            let grid =
+                image::RgbImage::from_fn(90, 80, |x, y| image::Rgb([(200 - x - y / 4) as u8; 3]));
+            let key =
+                previews::PreviewKey::for_source(&info.path, max_px, 1, recipe.recipe_hash().0.0)
+                    .unwrap();
+            store
+                .put_image_cancellable(&key, &grid, max_px, &|| Ok(()))
+                .unwrap();
+            let decodes = raw_decode::lossy_dng::pixel_decode_count();
+            let lenses = pipeline_cpu::lens_resolution_count();
+            let hash = cull_preview_hash(&info, dir.path()).unwrap();
+            assert_eq!(
+                raw_decode::lossy_dng::pixel_decode_count(),
+                decodes,
+                "warm Mac preview must avoid a proxy decode"
+            );
+            assert_eq!(pipeline_cpu::lens_resolution_count(), lenses);
+            let expected =
+                cull::dhash_jpeg(&store.get(&key, previews::Level::Full).unwrap()).unwrap();
+            assert_eq!(hash, Some(expected), "cache pixels are already oriented");
+        }
     }
 
     #[test]
@@ -456,28 +524,85 @@ impl Job for PreviewJob {
     }
 }
 
-/// Long edge rendered for the 9x8 perceptual hash; the grid's thumbnail tier.
+/// Long edge sampled for the 9x8 perceptual hash when no preview is cached.
 const CULL_HASH_PX: u32 = 256;
 
-/// Culling uses the same source and recipe route as the app's grid and analysis.
+/// Perceptual hashes do not need a Develop render. Prefer a grid cache hit;
+/// otherwise sample the immutable proxy's camera channels at 256px, without
+/// building RawImage/CameraLinearProxy or resolving any lens/CA correction.
+/// Keeping the proxy as the hash source also avoids waking an offline original.
 pub(crate) fn cull_preview_hash(
     info: &index::ImageInfo,
     support: &Path,
 ) -> engine_api::EngineResult<Option<u64>> {
-    if catalog::lightroom_proxy(&info.path).is_none()
-        && catalog::catalog_orientation(&info.path).is_none()
-    {
+    let recipe = catalog::document(&info.path, info.id)?.recipe;
+    let proxy = recipe.unknown.contains_key("lightroom_smart_preview");
+    let orientation = recipe
+        .unknown
+        .get("lightroom_orientation")
+        .and_then(serde_json::Value::as_u64)
+        .filter(|value| (1..=8).contains(value))
+        .map(|value| value as u16);
+    if !proxy && orientation.is_none() {
         return cull::preview_hash(info);
     }
-    let recipe = catalog::document(&info.path, info.id)?.recipe;
-    let (rgb, orientation) = render_imported(&info.path, info.id, &recipe, support, CULL_HASH_PX)
-        .map_err(|e| engine_api::EngineError::Unsupported {
-        what: e.to_string(),
-    })?;
-    Ok(Some(cull::dhash(&crate::assist::orient(
-        rgb,
-        orientation as u8,
-    ))))
+    let error = |e: String| engine_api::EngineError::Unsupported { what: e };
+    let store = previews::PreviewStore::new(support.join("previews"), 512 << 20)
+        .map_err(|e| error(e.to_string()))?;
+    // Mac grid/loupe tiers, plus legacy tiers, cheapest first. Catalog
+    // orientation is already baked into rendered frames, whose key is 1.
+    // Otherwise try the bounded EXIF variants without opening a RAW header.
+    for max_px in [CULL_HASH_PX, 384, 2048, 2560] {
+        let mut key =
+            previews::PreviewKey::for_source(&info.path, max_px, 1, recipe.recipe_hash().0.0)
+                .map_err(|e| error(e.to_string()))?;
+        for value in 1..=8 {
+            if orientation.is_some() && value != 1 {
+                continue;
+            }
+            key.orientation = value;
+            if let Some(bytes) = store.get_bounded(&key, previews::Level::Full, 4 << 20) {
+                return cull::dhash_jpeg(&bytes).map(Some);
+            }
+        }
+    }
+    if proxy {
+        let mut file = std::fs::File::open(&info.path)?;
+        if let Some(thumbnail) = raw_decode::lossy_dng::read_thumbnail(&mut file, CULL_HASH_PX)? {
+            let rgb = image::RgbImage::from_fn(thumbnail.width, thumbnail.height, |x, y| {
+                let pixel = thumbnail.pixels[(y * thumbnail.width + x) as usize];
+                // A monotonic transfer preserves edges without color/lens work.
+                image::Rgb(pixel.map(|v| (v.max(0.).sqrt() * 255.).clamp(0., 255.) as u8))
+            });
+            return Ok(Some(cull::dhash(&crate::assist::orient(
+                rgb,
+                orientation.unwrap_or(thumbnail.orientation) as u8,
+            ))));
+        }
+    }
+    // Imported ordinary originals still use their embedded JPEG, never a full
+    // render. Missing embedded pixels remain a nonfatal absent hash.
+    let bytes = if info
+        .path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg") || ext.eq_ignore_ascii_case("jpeg"))
+    {
+        Some(std::fs::read(&info.path)?)
+    } else {
+        raw_decode::RawSource::open(&info.path)?.embedded_preview()
+    };
+    bytes
+        .map(|bytes| {
+            use previews::Codec;
+            let rgb = previews::Jpeg
+                .decode(&bytes)
+                .map_err(|e| error(e.to_string()))?;
+            Ok(cull::dhash(&crate::assist::orient(
+                rgb,
+                orientation.unwrap_or(1) as u8,
+            )))
+        })
+        .transpose()
 }
 
 /// Coarsest engine level whose long edge still covers `max_px`: a request is

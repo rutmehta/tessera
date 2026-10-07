@@ -80,9 +80,21 @@ final class BridgeTests: XCTestCase {
         return (folder, temp.appendingPathComponent("support"))
     }
 
+    /// A host displays the metadata queue before starting the lazy hash worker.
+    private func finishGroupedFolder(_ library: EngineLibrary) throws {
+        let deadline = Date().addingTimeInterval(5)
+        while library.groups.map(\.count).sorted() != [1, 2, 3], Date() < deadline {
+            _ = try XCTUnwrap(library.apply(try library.session.syncChanges()))
+            Thread.sleep(forTimeInterval: 0.001)
+        }
+        XCTAssertEqual(library.groups.map(\.count).sorted(), [1, 2, 3])
+    }
+
     func testGroupNavigationComesFromTheSession() throws {
         let (folder, support) = try makeGroupedFolder()
         let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        XCTAssertEqual(library.groups.map(\.count), [1, 1, 1, 1, 1, 1])
+        try finishGroupedFolder(library)
         let cull = library.makeCullController()
         XCTAssertEqual(library.items.count, 6)
         XCTAssertEqual(library.groups.map(\.count).sorted(), [1, 2, 3])
@@ -123,6 +135,7 @@ final class BridgeTests: XCTestCase {
     func testKeepBestRejectRestIsOneUndoableStepThatPersists() throws {
         let (folder, support) = try makeGroupedFolder()
         let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        try finishGroupedFolder(library)
         let cull = library.makeCullController()
         let a = try XCTUnwrap(library.groups.firstIndex { $0.count == 3 })
         XCTAssertFalse(cull.canUndo)

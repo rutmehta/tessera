@@ -438,12 +438,11 @@ impl Engine {
                 "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1'),COALESCE(h.hash,'') FROM image i JOIN file f ON f.id=i.file_id LEFT JOIN recipe_hash h ON h.image_id=i.id WHERE i.id=?",
                 [&id_string], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?)))?;
 
+            let (source, lightroom_smart_preview) = catalog::source_projection(Path::new(&path));
             result.push(ImageSummary {
-                lightroom_smart_preview: catalog::is_offline_proxy(Path::new(&path)),
+                lightroom_smart_preview,
                 id: id_string,
-                path: catalog::source_path(Path::new(&path))
-                    .to_string_lossy()
-                    .into_owned(),
+                path: source.to_string_lossy().into_owned(),
                 capture_time,
                 orientation: orientation.parse().unwrap_or(1),
                 selection: c.index.selection(id)?.unwrap_or_default().into(),

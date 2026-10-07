@@ -1,3 +1,4 @@
+mod common;
 use cull::{CullSession, Decision};
 use index::{Index, NoopMetadataProvider, NoopSidecarReader};
 use previews::{Codec, Jpeg};
@@ -16,6 +17,7 @@ fn failed_group_write_rolls_back_sidecars_index_and_history() {
         .scan(dir.path(), &NoopSidecarReader, &NoopMetadataProvider)
         .unwrap();
     let mut session = CullSession::open(&index, dir.path()).unwrap();
+    common::finish_previews(&mut session);
     assert_eq!(session.groups()[0].images.len(), 3);
     let ids = session.images().to_vec();
     // Fail the last index write after earlier image writes have succeeded.

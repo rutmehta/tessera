@@ -1,3 +1,4 @@
+mod common;
 use cull::{CullSession, GroupingOptions, GroupingStrategy};
 use engine_api::EngineResult;
 use image::{Rgb, RgbImage};
@@ -131,9 +132,11 @@ fn embedding_strategy_gates_real_jpeg_edges_and_falls_back_conservatively() {
         [(ids[0], [1., 0.]), (ids[2], [0., 1.])].into(),
     )));
     session.regroup(GroupingOptions::default()).unwrap();
+    common::finish_previews(&mut session);
     assert_eq!(session.groups().len(), 3);
     session.set_grouping_strategy(Box::new(EmbeddingPolicy(Default::default())));
     session.regroup(GroupingOptions::default()).unwrap();
+    common::finish_previews(&mut session);
     assert_eq!(session.groups()[0].images, [ids[0], ids[2]]);
     assert_eq!(session.groups()[1].images, [ids[1]]);
     for id in ids {
@@ -211,6 +214,7 @@ fn strategy_retains_preview_errors_and_option_validation() {
     std::fs::write(index.image_info(ids[1]).unwrap().path, b"broken JPEG").unwrap();
     session.set_grouping_strategy(Box::new(MissingHash(ids[1])));
     session.regroup(GroupingOptions::default()).unwrap();
+    common::finish_previews(&mut session);
     assert_eq!(session.groups()[0].images, ids);
     assert_eq!(session.preview_errors().len(), 1);
     assert_eq!(session.preview_errors()[0].0, ids[1]);
@@ -263,6 +267,7 @@ fn strategy_replaces_time_only_edges_instead_of_augmenting_them() {
     // Installing a strategy is inert until explicit regrouping.
     assert_eq!(session.groups().len(), 1);
     session.regroup(GroupingOptions::default()).unwrap();
+    common::finish_previews(&mut session);
     assert_eq!(session.groups().len(), 2);
     assert!(session.preview_errors().is_empty());
 }

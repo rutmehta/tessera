@@ -44,7 +44,11 @@ impl<I: Deref<Target = Index>> CullSession<I> {
     /// Applies every catalog change committed since the last sync (or open).
     pub fn sync_catalog(&mut self) -> EngineResult<QueueChange> {
         let batch = self.index.changes_since(self.change_seq)?;
-        self.apply_changes(&batch)
+        let mut change = self.apply_changes(&batch)?;
+        if !change.reset {
+            change.regrouped |= self.poll_previews()?;
+        }
+        Ok(change)
     }
 
     /// Applies a batch from `Index::changes_since`. `batch.from` must not be
@@ -85,7 +89,12 @@ impl<I: Deref<Target = Index>> CullSession<I> {
                         remove.push(change.id);
                         continue;
                     }
-                    if fields.intersects(ChangeFields::FILE | ChangeFields::CAPTURE_TIME) {
+                    if fields.intersects(
+                        ChangeFields::FILE
+                            | ChangeFields::CAPTURE_TIME
+                            | ChangeFields::RECIPE
+                            | ChangeFields::METADATA,
+                    ) {
                         regroup.push(change.id);
                     }
                     updated.push((change.id, fields));
@@ -225,6 +234,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         }
         self.groups.retain(|g| !g.images.is_empty());
         for id in &doomed {
+            self.previews.remove(*id);
             self.infos.remove(id);
             self.hashes.remove(id);
             self.keys.remove(id);

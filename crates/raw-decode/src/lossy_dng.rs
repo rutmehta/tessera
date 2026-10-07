@@ -242,18 +242,53 @@ pub fn pixel_decode_count() -> u64 {
 /// Malformed identified LinearRaw containers fail closed.
 pub fn read<R: Read + Seek>(input: &mut R) -> io::Result<Option<LossyDng>> {
     PIXEL_DECODES.set(PIXEL_DECODES.get() + 1);
-    read_impl(input, true)
+    read_impl(input, true, None)
 }
 
 /// Bounded header projection for indexing. This never reads compressed tiles
 /// and is not a promise that their pixel payload can be decoded.
 pub fn read_metadata<R: Read + Seek>(input: &mut R) -> io::Result<Option<RawMetadata>> {
-    Ok(read_impl(input, false)?.map(|dng| dng.metadata))
+    Ok(read_impl(input, false, None)?.map(|dng| dng.metadata))
 }
 
-fn read_impl<R: Read + Seek>(input: &mut R, decode_pixels: bool) -> io::Result<Option<LossyDng>> {
+/// Reduced camera-channel samples for perceptual hashing. No lens resolution,
+/// CA estimation, color profile, or recipe rendering is performed. Codec tiles
+/// retain their existing allocation limits; only the small sampled image is
+/// assembled, avoiding full-frame f32 planes. Every codec header and sample is
+/// still validated, including samples outside the thumbnail grid.
+#[derive(Debug)]
+pub struct LinearThumbnail {
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<[f32; 3]>,
+    pub orientation: u16,
+}
+
+pub fn read_thumbnail<R: Read + Seek>(
+    input: &mut R,
+    max_edge: u32,
+) -> io::Result<Option<LinearThumbnail>> {
+    if max_edge == 0 {
+        return Err(invalid("thumbnail edge must be positive"));
+    }
+    PIXEL_DECODES.set(PIXEL_DECODES.get() + 1);
+    Ok(
+        read_impl(input, true, Some(max_edge as usize))?.map(|dng| LinearThumbnail {
+            width: dng.width as u32,
+            height: dng.height as u32,
+            pixels: dng.pixels,
+            orientation: dng.metadata.orientation,
+        }),
+    )
+}
+
+fn read_impl<R: Read + Seek>(
+    input: &mut R,
+    decode_pixels: bool,
+    thumbnail_edge: Option<usize>,
+) -> io::Result<Option<LossyDng>> {
     let mut identified = false;
-    match read_identified(input, decode_pixels, &mut identified) {
+    match read_identified(input, decode_pixels, thumbnail_edge, &mut identified) {
         Err(_) if !identified => Ok(None),
         result => result,
     }
@@ -262,6 +297,7 @@ fn read_impl<R: Read + Seek>(input: &mut R, decode_pixels: bool) -> io::Result<O
 fn read_identified<R: Read + Seek>(
     input: &mut R,
     decode_pixels: bool,
+    thumbnail_edge: Option<usize>,
     identified: &mut bool,
 ) -> io::Result<Option<LossyDng>> {
     let size = input.seek(SeekFrom::End(0))?;
@@ -645,8 +681,15 @@ fn read_identified<R: Read + Seek>(
             tiles.push(bytes);
         }
     }
+    let step = thumbnail_edge.map_or(1, |edge| cw.max(ch).div_ceil(edge).max(1));
+    let (out_width, out_height) = (cw.div_ceil(step), ch.div_ceil(step));
+    let (buffer_width, buffer_height) = if thumbnail_edge.is_some() {
+        (out_width, out_height)
+    } else {
+        (width, height)
+    };
     let mut pixels = if decode_pixels {
-        vec![[0.; 3]; width * height]
+        vec![[0.; 3]; buffer_width * buffer_height]
     } else {
         Vec::new()
     };
@@ -677,8 +720,19 @@ fn read_identified<R: Read + Seek>(
                         } else {
                             lut[code.round().clamp(0., (lut.len() - 1) as f64) as usize]
                         };
-                        pixels[(oy + y) * width + ox + x][c] =
-                            ((linear - black[c]) / (white[c] - black[c])) as f32;
+                        let sample = ((linear - black[c]) / (white[c] - black[c])) as f32;
+                        let (sx, sy) = (ox + x, oy + y);
+                        if thumbnail_edge.is_none() {
+                            pixels[sy * width + sx][c] = sample;
+                        } else if sx >= left
+                            && sy >= top
+                            && sx < left + metadata.width as usize
+                            && sy < top + metadata.height as usize
+                            && (sx - left).is_multiple_of(step)
+                            && (sy - top).is_multiple_of(step)
+                        {
+                            pixels[(sy - top) / step * out_width + (sx - left) / step][c] = sample;
+                        }
                     }
                 }
             }
@@ -687,13 +741,20 @@ fn read_identified<R: Read + Seek>(
             for (i, pixel) in pixels.iter_mut().enumerate() {
                 for (c, v) in pixel.iter_mut().enumerate() {
                     for op in ops {
-                        *v = op.map(f64::from(*v), i % width, i / width, c, 1.) as f32;
+                        let (x, y) = if thumbnail_edge.is_some() {
+                            (left + (i % out_width) * step, top + (i / out_width) * step)
+                        } else {
+                            (i % width, i / width)
+                        };
+                        *v = op.map(f64::from(*v), x, y, c, 1.) as f32;
                     }
                 }
             }
         }
     }
-    let pixels = if decode_pixels {
+    let pixels = if thumbnail_edge.is_some() {
+        pixels
+    } else if decode_pixels {
         (top..top + ch)
             .flat_map(|y| {
                 pixels[y * width + left..y * width + left + cw]
@@ -705,8 +766,8 @@ fn read_identified<R: Read + Seek>(
         Vec::new()
     };
     Ok(Some(LossyDng {
-        width: cw,
-        height: ch,
+        width: out_width,
+        height: out_height,
         pixels,
         metadata,
         color_matrices,
