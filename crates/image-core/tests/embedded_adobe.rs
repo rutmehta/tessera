@@ -18,36 +18,90 @@ fn pixels(renderer: &Renderer, image: &RawImage, settings: &DevelopSettings) -> 
         .collect()
 }
 
+fn proxy(bytes: &[u8]) -> RawImage {
+    let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(bytes))
+        .unwrap()
+        .unwrap();
+    let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng)
+        .unwrap()
+        .with_embedded_profile(Some(bytes.to_vec()));
+    RawImage::from_camera_linear_proxy(ImageId(810), ImageId(899), std::sync::Arc::new(proxy))
+        .unwrap()
+}
+
 #[test]
-fn lr10_embedded_linear_raw_matches_explicit_profile_and_named_adobe_dispatch() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("synthetic.dng");
-    let bytes = support::lossy_dng(false, false);
-    std::fs::write(&path, &bytes).unwrap();
-    let image = RawImage::open(ImageId(810), &path).unwrap();
+fn native_adobe_named_recipe_does_not_switch_pipeline() {
+    let image = proxy(&support::lossy_dng(false, false));
     let mut settings = DevelopSettings::default();
-    settings.detail.sharpening.amount = 0.;
-    settings.detail.noise_reduction.color = 0.;
-    let config = RendererConfig {
+    let renderer = Renderer::new(Default::default());
+    let expected = pixels(&renderer, &image, &settings);
+    settings.camera_profile.profile.name = "Adobe Color".into();
+    assert_eq!(pixels(&renderer, &image, &settings), expected);
+}
+
+#[test]
+fn only_adobe_named_proxy_recipes_use_embedded_profile() {
+    let bytes = support::lossy_dng(false, false);
+    let image = proxy(&bytes);
+    let bare = {
+        let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes))
+            .unwrap()
+            .unwrap();
+        RawImage::from_camera_linear_proxy(
+            ImageId(812),
+            ImageId(899),
+            std::sync::Arc::new(pipeline_cpu::CameraLinearProxy::from_dng(dng).unwrap()),
+        )
+        .unwrap()
+    };
+    let renderer = Renderer::new(RendererConfig {
         process_version: ProcessVersion::adobe(6),
         ..Default::default()
-    };
-    let explicit = Renderer::new(config.clone())
-        .with_dcp_profile(&bytes)
+    });
+    let mut settings = DevelopSettings::default();
+    for name in ["", "Camera Standard"] {
+        settings.camera_profile.profile.name = name.into();
+        assert_eq!(
+            pixels(&renderer, &image, &settings),
+            pixels(&renderer, &bare, &settings)
+        );
+    }
+    settings.camera_profile.profile.name = "Adobe Color".into();
+    assert_ne!(
+        pixels(&renderer, &image, &settings),
+        pixels(&renderer, &bare, &settings)
+    );
+}
+
+#[test]
+fn malformed_embedded_profile_does_not_fail_a_proxy_render() {
+    let bytes = support::lossy_dng(false, false);
+    let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(&bytes))
+        .unwrap()
         .unwrap();
-    let expected = pixels(&explicit, &image, &settings);
-    assert_eq!(pixels(&Renderer::new(config), &image, &settings), expected);
+    let bare = pipeline_cpu::CameraLinearProxy::from_dng(dng).unwrap();
+    let invalid = bare
+        .clone()
+        .with_embedded_profile(Some(b"invalid profile".to_vec()));
+    let a =
+        RawImage::from_camera_linear_proxy(ImageId(813), ImageId(899), std::sync::Arc::new(bare))
+            .unwrap();
+    let b = RawImage::from_camera_linear_proxy(
+        ImageId(814),
+        ImageId(899),
+        std::sync::Arc::new(invalid),
+    )
+    .unwrap();
+    let renderer = Renderer::new(RendererConfig {
+        process_version: ProcessVersion::adobe(6),
+        ..Default::default()
+    });
+    let mut settings = DevelopSettings::default();
     settings.camera_profile.profile.name = "Adobe Color".into();
     assert_eq!(
-        pixels(&Renderer::new(Default::default()), &image, &settings),
-        expected
+        pixels(&renderer, &a, &settings),
+        pixels(&renderer, &b, &settings)
     );
-    settings.camera_profile.profile.name.0.clear();
-    let native = Renderer::new(Default::default());
-    let before = pixels(&native, &image, &settings);
-    let supplied = native.with_dcp_profile(&bytes).unwrap();
-    assert_eq!(pixels(&supplied, &image, &settings), before);
-    assert_ne!(before, expected);
 }
 
 fn cfa_dng() -> Vec<u8> {
@@ -121,25 +175,35 @@ fn cfa_dng() -> Vec<u8> {
 }
 
 #[test]
-fn lr10_cfa_dng_original_uses_its_embedded_profile() {
+fn ordinary_cfa_dng_does_not_use_embedded_fallback() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("original.dng");
-    let bytes = cfa_dng();
-    std::fs::write(&path, &bytes).unwrap();
+    std::fs::write(&path, cfa_dng()).unwrap();
     let image = RawImage::open(ImageId(811), &path).unwrap();
     assert!(image.camera_linear_proxy().is_none());
-    let settings = DevelopSettings::default();
-    let config = RendererConfig {
-        process_version: ProcessVersion::adobe(6),
-        ..Default::default()
-    };
-    let explicit = Renderer::new(config.clone())
-        .with_dcp_profile(&bytes)
-        .unwrap();
-    let expected = pixels(&explicit, &image, &settings);
-    assert_eq!(pixels(&Renderer::new(config), &image, &settings), expected);
-    assert_ne!(
-        pixels(&Renderer::new(Default::default()), &image, &settings),
-        expected
-    );
+    let bare = RawImage::new(
+        ImageId(812),
+        std::sync::Arc::new(
+            raw_decode::RawSource::open(&path)
+                .unwrap()
+                .decode_cfa()
+                .unwrap(),
+        ),
+        std::sync::Arc::new(image.metadata().clone()),
+    )
+    .unwrap();
+    for version in [ProcessVersion::NATIVE_CURRENT, ProcessVersion::adobe(6)] {
+        for name in ["", "Adobe Color"] {
+            let mut settings = DevelopSettings::default();
+            settings.camera_profile.profile.name = name.into();
+            let renderer = Renderer::new(RendererConfig {
+                process_version: version,
+                ..Default::default()
+            });
+            assert_eq!(
+                pixels(&renderer, &image, &settings),
+                pixels(&renderer, &bare, &settings)
+            );
+        }
+    }
 }
