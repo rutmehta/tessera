@@ -126,10 +126,13 @@ impl RawImage {
         )
     }
 
-    /// Open with the catalog's absolute orientation. RGB sources consume it in
-    /// their decoder, as ordinary RGB imports consume EXIF. RAW sources and
-    /// LinearRaw Smart Previews stay in the sensor frame and report it as
-    /// their display orientation, as ordinary RAW imports report EXIF.
+    /// Open with the catalog's absolute orientation. Every source stays in
+    /// its stored (pre-orientation) frame and reports the catalog orientation
+    /// as its display orientation, as ordinary RAW imports report EXIF: RAW
+    /// sources and LinearRaw Smart Previews in the sensor frame (LR-8m), RGB
+    /// originals (JPEG/TIFF/HEIC/PNG, working-space DNG) as their pixels are
+    /// stored, with any file EXIF ignored (LR-8n). Lightroom normalizes crop
+    /// and local masks in that frame for every format.
     pub fn open_with_catalog_orientation(
         id: ImageId,
         path: impl AsRef<Path>,
@@ -142,22 +145,18 @@ impl RawImage {
             return Err(EngineError::invalid("catalog orientation", "expected 1..8"));
         }
         let path = path.as_ref();
-        if crate::RgbSource::recognizes(path) {
-            return Self::from_rgb(
-                id,
-                crate::RgbSource::open_with_orientation(path, Some(orientation))?,
-            );
-        }
-        let mut image = Self::open(id, path)?;
-        if image.rgb.is_some() {
-            // Working-space linear DNGs also consume orientation in their decoder.
-            return Self::from_rgb(
-                id,
-                crate::RgbSource::open_with_orientation(path, Some(orientation))?,
-            );
-        }
+        let mut image = if crate::RgbSource::recognizes(path) {
+            Self::stored_rgb(id, path)?
+        } else {
+            let image = Self::open(id, path)?;
+            if image.rgb.is_some() {
+                Self::stored_rgb(id, path)?
+            } else {
+                image
+            }
+        };
         // The catalog orientation replaces EXIF as the display orientation;
-        // edits stay in the sensor frame, as for an ordinary import (LR-8m).
+        // edits stay in the stored frame, as for an ordinary RAW import.
         let metadata = Arc::make_mut(&mut image.metadata);
         metadata.catalog_orientation = Some(orientation);
         metadata.orientation = orientation;
@@ -170,6 +169,12 @@ impl RawImage {
             );
         }
         Ok(image)
+    }
+
+    /// An RGB source decoded in its stored frame: orientation 1 replaces the
+    /// file's EXIF, so the decoder rotates nothing (LR-8n).
+    fn stored_rgb(id: ImageId, path: &Path) -> EngineResult<Self> {
+        Self::from_rgb(id, crate::RgbSource::open_with_orientation(path, Some(1))?)
     }
 
     /// The same shared samples under another identity and metadata (for

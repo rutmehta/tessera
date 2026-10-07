@@ -81,7 +81,10 @@ pub fn export_batch_with_jobs(
             return Err(EngineError::invalid("naming", "duplicate output names"));
         }
         let (w, h) = match &item.image.source {
-            pipeline_cpu::RenderSource::Rgb(image) => (image.width(), image.height()),
+            pipeline_cpu::RenderSource::Rgb(image)
+            | pipeline_cpu::RenderSource::StoredRgb { image, .. } => {
+                (image.width(), image.height())
+            }
             pipeline_cpu::RenderSource::Cfa { metadata, .. } => (metadata.width, metadata.height),
             pipeline_cpu::RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
                 (proxy.pixels().width(), proxy.pixels().height())

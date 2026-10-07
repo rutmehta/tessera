@@ -96,7 +96,7 @@ pub(crate) fn render_with_hooks(
     // warp. Reject that combination instead of applying sensor-space masks to
     // already warped pixels. Ordinary (non-AI) exports retain the full path.
     let metadata = match source {
-        RenderSource::Rgb(_) => None,
+        RenderSource::Rgb(_) | RenderSource::StoredRgb { .. } => None,
         RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
             Some(proxy.original_metadata())
         }
@@ -180,7 +180,9 @@ fn ready_masks(
     mask_support: Option<&std::path::Path>,
 ) -> EngineResult<MaskRasterCache> {
     let (w, h, metadata) = match source {
-        RenderSource::Rgb(i) => (i.width(), i.height(), None),
+        RenderSource::Rgb(i) | RenderSource::StoredRgb { image: i, .. } => {
+            (i.width(), i.height(), None)
+        }
         RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => (
             proxy.pixels().width(),
             proxy.pixels().height(),
@@ -193,9 +195,13 @@ fn ready_masks(
             Some(*metadata),
         ),
     };
-    // Rasters live in the sensor frame for RAW and Smart Preview sources
-    // alike (LR-8m); segmentation sees the displayed orientation.
-    let orientation = metadata.map_or(1, |m| m.orientation);
+    // Rasters live in the stored (sensor) frame for RAW, Smart Preview and
+    // catalog-oriented RGB sources alike (LR-8m, LR-8n); segmentation sees
+    // the displayed orientation.
+    let orientation = match source {
+        RenderSource::StoredRgb { orientation, .. } => *orientation,
+        _ => metadata.map_or(1, |m| m.orientation),
+    };
     // Validate all requests before loading (or downloading) any weights.
     let mut requests = Vec::new();
     for group in settings
