@@ -425,7 +425,7 @@ impl Renderer {
             next.ops = Arc::new(crate::AdobeStageOp::with_baseline(
                 self.native_ops.clone(),
                 image.metadata().baseline_exposure,
-            ));
+            )?);
         }
         next.dcp_resolved = true;
         Ok(Some(next))
