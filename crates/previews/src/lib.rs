@@ -35,6 +35,14 @@ pub struct PreviewKey {
     pub orientation: u8,
     pub recipe_hash: [u8; 32],
 }
+/// Bumped when the renderer's output for an unchanged recipe changes, so disk
+/// previews rendered by an older engine are never served. Epoch 1 used
+/// unprefixed directories. Epoch 2 (ENG-7/7b): the default lens mode no
+/// longer applies image-estimated distortion, built-in DNG opcode corrections
+/// apply in every profile mode, and automatic CA is off by default. Stale
+/// directories are left to LRU eviction.
+pub const RENDER_EPOCH: u32 = 2;
+
 impl PreviewKey {
     pub fn new(bytes: &[u8], orientation: u8, recipe_hash: [u8; 32]) -> Self {
         Self {
@@ -43,9 +51,11 @@ impl PreviewKey {
             recipe_hash,
         }
     }
+    /// On-disk location. The render epoch is part of the path only, so key
+    /// equality and every key constructor stay unchanged.
     fn directory(&self) -> String {
         format!(
-            "{}-{}-{}",
+            "e{RENDER_EPOCH}-{}-{}-{}",
             hex(&self.file_hash),
             self.orientation,
             hex(&self.recipe_hash)
@@ -306,7 +316,7 @@ mod tests {
                 .directory()
                 .starts_with(&format!("e{RENDER_EPOCH}-"))
         );
-        assert_eq!(REVISION_DOMAIN, b"tessera-preview-revision-v2\0");
+        assert_eq!(revision::REVISION_DOMAIN, b"tessera-preview-revision-v2\0");
     }
     #[test]
     fn restart_recovers_cap_and_abandoned_writes() {

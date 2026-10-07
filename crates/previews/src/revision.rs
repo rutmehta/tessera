@@ -2,6 +2,9 @@
 use super::*;
 use std::sync::atomic::Ordering;
 
+/// Domain tag of source-revision keys; v2 since render epoch 2 (ENG-7b).
+pub(crate) const REVISION_DOMAIN: &[u8] = b"tessera-preview-revision-v2\0";
+
 impl PreviewKey {
     /// No source open/read. On Unix, inode/device + nanosecond mtime/ctime +
     /// length catch replacement and in-place edits, including restored mtime.
@@ -15,7 +18,7 @@ impl PreviewKey {
     ) -> Result<Self> {
         let metadata = fs::metadata(path)?;
         let mut hash = blake3::Hasher::new();
-        hash.update(b"tessera-preview-revision-v1\0");
+        hash.update(REVISION_DOMAIN);
         hash.update(path.as_os_str().as_encoded_bytes());
         hash.update(&max_px.to_le_bytes());
         hash.update(&metadata.len().to_le_bytes());
