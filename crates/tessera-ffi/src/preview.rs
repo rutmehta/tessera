@@ -611,6 +611,67 @@ mod tests {
         );
     }
 
+    /// REV-SP-A S4: repeated thumbnail requests (the grid re-polls pending
+    /// cells) must not re-read the owner recipe while its hash is unchanged,
+    /// for imported proxies and ordinary photos alike.
+    #[test]
+    fn sp_int2_repeated_thumbnail_requests_do_not_reread_recipes() {
+        let root = tempfile::tempdir().unwrap();
+        let support = root.path().join("support");
+        let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+        let proxy = root.path().join("proxy.dng");
+        std::fs::write(
+            &proxy,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
+        let id = engine_api::id::ImageId(1320);
+        let mut recipe = core::Recipe::new(id);
+        recipe.unknown.insert(
+            "lightroom_smart_preview".into(),
+            serde_json::json!({"original_path": root.path().join("offline.raw")}),
+        );
+        sidecar::Sidecar::write_recipe(
+            sidecar::Sidecar::paths(&proxy).recipe,
+            &sidecar::RecipeDocument {
+                recipe: recipe.clone(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let ordinary = root.path().join("ordinary.dng");
+        std::fs::write(&ordinary, support_dng()).unwrap();
+        for (path, hash) in [
+            (&proxy, recipe.recipe_hash().to_string()),
+            (&ordinary, String::new()),
+        ] {
+            // Pending, ready or failed: only the recipe I/O is measured.
+            let request = || {
+                let _ = engine.request_raw(
+                    id.to_string(),
+                    path.to_string_lossy().into_owned(),
+                    64,
+                    hash.clone(),
+                );
+            };
+            request();
+            let before = catalog::proxy_recipe_reads();
+            for _ in 0..3 {
+                request();
+            }
+            assert_eq!(
+                catalog::proxy_recipe_reads(),
+                before,
+                "re-polling {} read the recipe again",
+                path.file_name().unwrap().to_string_lossy()
+            );
+        }
+    }
+
+    fn support_dng() -> Vec<u8> {
+        include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng").to_vec()
+    }
+
     /// REV-SP-A S6: a Lens Blur thumbnail that failed for lack of depth must
     /// re-render once its imported depth or the depth model becomes available.
     #[test]
@@ -861,6 +922,8 @@ pub(crate) fn render_identity(recipe: &core::Recipe, support: &Path, version: u3
 /// The owner's recipe when `path` is an imported (proxy or catalog-oriented)
 /// source, read once. Ordinary originals return None.
 fn imported_recipe(path: &Path) -> Option<core::Recipe> {
+    #[cfg(test)]
+    catalog::note_recipe_read();
     let recipe = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(path).recipe)
         .ok()?
         .recipe;

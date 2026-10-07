@@ -267,6 +267,12 @@ pub(crate) fn proxy_recipe_reads() -> usize {
     PROXY_RECIPE_READS.with(std::cell::Cell::get)
 }
 
+/// Count one owner-recipe read on this thread (tests only).
+#[cfg(test)]
+pub(crate) fn note_recipe_read() {
+    PROXY_RECIPE_READS.with(|reads| reads.set(reads.get() + 1));
+}
+
 /// Stable recipe owner stays at the proxy path; only the pixel source switches.
 /// No index migration, sidecar move, or copy into Lightroom is involved.
 pub(crate) fn lightroom_proxy(path: &Path) -> Option<serde_json::Value> {
