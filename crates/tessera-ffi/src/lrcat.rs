@@ -565,7 +565,7 @@ const REKEY_RESERVED: (&str, &str) = (
 );
 const REKEY_RECOVERED: (&str, &str) = (
     "Edits recovered",
-    "an interrupted earlier import left two versions of these edits; the newer is used and the other is kept as a backup",
+    "an interrupted earlier import left two versions of these edits; the one with the newer recorded edit time is used. The other is kept, never deleted: renamed to a <key>.backup-<time>.json file in Tessera's edit store (Application Support, .edits/lightroom/objects), or left in place while other photos still use it",
 );
 
 fn note_rekey(issues: &mut Vec<LrcatIssue>, (category, reason): (&str, &str), path: &Path) {

@@ -314,6 +314,46 @@ fn same_bytes(a: &Path, b: &Path) -> bool {
     }
 }
 
+/// The recorded write stamp of a recipe document, when it has one.
+fn recorded(path: &Path) -> Option<(i64, u64, String)> {
+    let doc: super::RecipeDocument = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
+    (doc.last_writer.timestamp_ms > 0).then(|| {
+        (
+            doc.last_writer.timestamp_ms,
+            doc.last_writer.counter,
+            doc.last_writer.machine_id,
+        )
+    })
+}
+
+/// Whether `a` holds the newer edit: recorded edit time when both documents
+/// have one (as the sidecar merge decides), file mtime otherwise.
+fn newer(a: &Path, b: &Path) -> bool {
+    match (recorded(a), recorded(b)) {
+        (Some(a), Some(b)) => a > b,
+        _ => {
+            let modified = |p: &Path| fs::metadata(p).and_then(|m| m.modified()).ok();
+            modified(a) > modified(b)
+        }
+    }
+}
+
+/// Move a recipe object (and its XMP) to `<key>.backup-<ns>.json` beside it.
+/// Lookups only ever resolve `<key>.json`, so nothing reads or overwrites it.
+fn backup(object: &Path, key: &str) -> EngineResult<()> {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    for extension in ["json", "xmp"] {
+        let from = object.with_extension(extension);
+        if from.is_file() {
+            let to = object.with_file_name(format!("{key}.backup-{stamp}.{extension}"));
+            fs::rename(&from, &to).map_err(|e| engine_api::EngineError::io_at(&from, &e))?;
+        }
+    }
+    Ok(())
+}
+
 fn alias_key_of(path: &Path) -> Option<String> {
     path.file_stem()?.to_str().map(str::to_owned)
 }
@@ -406,6 +446,7 @@ impl PinBatch {
             .pinned
             .get(key)
             .map_or(0, |set| set.iter().filter(|n| **n != path_key).count());
+        let mut recovered: Option<bool> = None;
         let outcome = if current == destination {
             // Found through a content alias already pointing at the key: the
             // same photo another source (catalog) is pinned to.
@@ -439,24 +480,31 @@ impl PinBatch {
             // leave this source on its own recipe, report it.
             return Ok(PinOutcome::Conflict);
         } else {
-            // A copy no source references diverged from its legacy object:
-            // an interrupted migration. The newer wins; the other is a backup.
-            let modified = |p: &Path| fs::metadata(p).and_then(|m| m.modified()).ok();
-            if !self.dry_run && modified(&current) > modified(&destination) {
-                let stamp = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map_or(0, |d| d.as_nanos());
-                for (from, extension) in [("json", "json"), ("xmp", "xmp")] {
-                    let object = destination.with_extension(from);
-                    if object.is_file() {
-                        let backup =
-                            destination.with_file_name(format!("{key}.backup-{stamp}.{extension}"));
-                        fs::rename(&object, &backup)
-                            .map_err(|e| engine_api::EngineError::io_at(&object, &e))?;
-                    }
+            // A copy no source references diverged from its legacy object: an
+            // interrupted migration (REV4-SP S1). The edit recorded as newer
+            // wins (file mtime only when a document has no recorded time); the
+            // loser is moved to a labelled backup no lookup resolves to.
+            let legacy_newer = newer(&current, &destination);
+            let legacy_shared = self
+                .refs(&store)
+                .legacy
+                .get(&legacy_key)
+                .copied()
+                .unwrap_or(0)
+                > usize::from(
+                    matches!(&previous, Some(a) if !matches!(a, Alias::Pinned { .. })
+                    && a.recipe_key() == legacy_key && fs::metadata(&alias).is_ok()),
+                );
+            if !self.dry_run {
+                if legacy_newer {
+                    backup(&destination, key)?;
+                    Self::copy_object(&current, &destination)?;
+                } else if !legacy_shared {
+                    // Only this photo used the legacy object: label it.
+                    backup(&current, &legacy_key)?;
                 }
-                Self::copy_object(&current, &destination)?;
             }
+            recovered = Some(legacy_shared);
             PinOutcome::Recovered
         };
         if self.dry_run {
@@ -481,7 +529,12 @@ impl PinBatch {
             .entry(key.to_owned())
             .or_default()
             .insert(path_key);
-        if current != destination && current.is_file() && same_bytes(&current, &destination) {
+        if recovered == Some(false)
+            || (recovered.is_none()
+                && current != destination
+                && current.is_file()
+                && same_bytes(&current, &destination))
+        {
             // Unmigrated sources with these bytes now find the identical copy.
             if let Some(content) = content_key(&image) {
                 let content_alias = content_alias(&store, &content);
@@ -494,8 +547,10 @@ impl PinBatch {
                     }
                 }
             }
-            self.candidates
-                .push((current, destination, store, legacy_key));
+            if current.is_file() && same_bytes(&current, &destination) {
+                self.candidates
+                    .push((current, destination, store, legacy_key));
+            }
         }
         Ok(outcome)
     }
