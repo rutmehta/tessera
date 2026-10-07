@@ -551,6 +551,13 @@ fn on_disk_sibling(path: &Path, stem: &str) -> Option<String> {
 }
 
 /// Existing `.edits/<stem>.json` that the import must not replace.
+// Test hook: cancel the import after this many photos were re-keyed.
+#[cfg(test)]
+thread_local! {
+    pub(crate) static CANCEL_REKEY_AFTER: std::cell::Cell<Option<usize>> =
+        const { std::cell::Cell::new(None) };
+}
+
 const REKEY_CONFLICT: (&str, &str) = (
     "Edits conflict",
     "edits conflict: kept separate. Another catalog's photo with the same Lightroom file id already has different Tessera edits; this photo keeps its own edits and nothing was merged or deleted",

@@ -376,11 +376,54 @@ fn sp_int4_photo_open_in_develop_is_not_rekeyed_under_it() {
         .unwrap();
     let report = import.apply(s.options.clone(), None).unwrap();
     drop(held);
+    let reserved = issue(&report.unsupported, "Edit key not updated").expect("reported");
+    // REV4-SP N10: the actual reason, not a guess.
     assert!(
-        issue(&report.unsupported, "Edit key not updated").is_some(),
-        "{:?}",
-        report.unsupported
+        reserved
+            .examples
+            .iter()
+            .any(|e| e.contains("another import or export is writing its edits")),
+        "{reserved:?}"
+    );
+    assert!(
+        !reserved
+            .reason
+            .contains("open in Develop or being exported")
     );
     assert_eq!(Sidecar::paths(&s.proxies[0]).recipe, legacy_recipe);
     assert_eq!(exposure(&s.proxies[0]), EDITED);
+}
+
+/// REV4-SP N11: cancelling part-way through the re-key pass and importing
+/// again loses no edits.
+#[test]
+fn sp_int5_cancel_during_rekey_then_rerun_keeps_every_edit() {
+    let s = legacy(true);
+    let import = s
+        .engine
+        .clone()
+        .open_lrcat(s.fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    CANCEL_REKEY_AFTER.with(|c| c.set(Some(1)));
+    let report = import.apply(s.options.clone(), None).unwrap();
+    CANCEL_REKEY_AFTER.with(|c| c.set(None));
+    assert!(report.cancelled, "cancelled during the re-key pass");
+    for path in &s.proxies {
+        assert_eq!(exposure(path), EDITED, "after cancel");
+    }
+    let import = s
+        .engine
+        .clone()
+        .open_lrcat(s.fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let report = import.apply(s.options.clone(), None).unwrap();
+    assert!(!report.cancelled);
+    for path in &s.proxies {
+        assert!(kept(&report.skipped, path), "{:?}", report.skipped);
+        assert_eq!(exposure(path), EDITED, "after the re-run");
+    }
+    assert_ne!(
+        Sidecar::paths(&s.proxies[0]).recipe,
+        Sidecar::paths(&s.proxies[1]).recipe
+    );
 }
