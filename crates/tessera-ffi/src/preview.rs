@@ -628,6 +628,113 @@ mod tests {
     /// REV-SP-A S4: repeated thumbnail requests (the grid re-polls pending
     /// cells) must not re-read the owner recipe while its hash is unchanged,
     /// for imported proxies and ordinary photos alike.
+    /// REV2-SP NS2: the thumbnail-request cache keeps only what the identity
+    /// needs, never whole recipes (history, Lightroom source data).
+    #[test]
+    fn sp_int3_request_cache_holds_a_small_projection_not_the_recipe() {
+        let root = tempfile::tempdir().unwrap();
+        let proxy = root.path().join("proxy.dng");
+        std::fs::write(&proxy, support_dng()).unwrap();
+        let id = engine_api::id::ImageId(1321);
+        let mut recipe = core::Recipe::new(id);
+        recipe.unknown.insert(
+            "lightroom_smart_preview".into(),
+            serde_json::json!({"original_path": root.path().join("offline.raw")}),
+        );
+        // A large retained Lightroom source payload, as real imports carry.
+        recipe.unknown.insert(
+            "lightroom_source".into(),
+            serde_json::json!("x".repeat(1 << 20)),
+        );
+        sidecar::Sidecar::write_recipe(
+            sidecar::Sidecar::paths(&proxy).recipe,
+            &sidecar::RecipeDocument {
+                recipe: recipe.clone(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let mut sources = PreviewSources::default();
+        assert!(
+            sources
+                .get(&proxy, &recipe.recipe_hash().to_string())
+                .is_some()
+        );
+        assert!(
+            sources.retained_bytes() < 4096,
+            "cache retains {} bytes for one proxy",
+            sources.retained_bytes()
+        );
+    }
+
+    /// REV2-SP N1: a change to only the stored original path or the catalog
+    /// orientation (same settings, same recipe hash) changes the request key,
+    /// so a Ready thumbnail rendered before is not served again.
+    #[test]
+    fn sp_int3_request_key_tracks_stored_original_and_catalog_orientation() {
+        let root = tempfile::tempdir().unwrap();
+        let support = root.path().join("support");
+        let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+        let proxy = root.path().join("proxy.dng");
+        std::fs::write(&proxy, support_dng()).unwrap();
+        let id = engine_api::id::ImageId(1322);
+        let write = |original: &str, orientation: u64| {
+            let mut recipe = core::Recipe::new(id);
+            recipe.unknown.insert(
+                "lightroom_smart_preview".into(),
+                serde_json::json!({"original_path": root.path().join(original)}),
+            );
+            recipe.unknown.insert(
+                "lightroom_orientation".into(),
+                serde_json::json!(orientation),
+            );
+            sidecar::Sidecar::write_recipe(
+                sidecar::Sidecar::paths(&proxy).recipe,
+                &sidecar::RecipeDocument {
+                    recipe: recipe.clone(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            recipe.recipe_hash().to_string()
+        };
+        let request = |hash: &str| {
+            engine
+                .request_raw(
+                    id.to_string(),
+                    proxy.to_string_lossy().into_owned(),
+                    64,
+                    hash.to_owned(),
+                )
+                .unwrap()
+        };
+        let settle = || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+            while engine
+                .preview_states
+                .lock()
+                .unwrap()
+                .values()
+                .any(|state| matches!(state, State::Pending))
+            {
+                assert!(std::time::Instant::now() < deadline);
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        };
+        let hash = write("a.raw", 1);
+        request(&hash);
+        settle();
+        assert!(request(&hash).bytes.is_some());
+        assert_eq!(write("b.raw", 1), hash, "settings unchanged");
+        assert!(request(&hash).pending, "a new stored original re-renders");
+        settle();
+        assert_eq!(write("b.raw", 6), hash);
+        assert!(
+            request(&hash).pending,
+            "a new catalog orientation re-renders"
+        );
+    }
+
     #[test]
     fn sp_int2_repeated_thumbnail_requests_do_not_reread_recipes() {
         let root = tempfile::tempdir().unwrap();
@@ -948,6 +1055,15 @@ pub(super) struct PreviewSources(
 );
 impl PreviewSources {
     const MAX_ENTRIES: usize = 200_000;
+    /// Approximate heap bytes retained by cached entries (tests only).
+    #[cfg(test)]
+    fn retained_bytes(&self) -> usize {
+        self.0
+            .values()
+            .filter_map(|(_, i)| i.as_ref())
+            .map(|i| serde_json::to_vec(&*i.recipe).map_or(0, |v| v.len()))
+            .sum()
+    }
     fn get(&mut self, path: &Path, recipe_hash: &str) -> Option<ImportedSource> {
         if let Some((hash, imported)) = self.0.get(path)
             && hash == recipe_hash
