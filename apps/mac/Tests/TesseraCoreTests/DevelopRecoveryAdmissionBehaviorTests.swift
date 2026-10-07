@@ -733,6 +733,56 @@ final class DevelopRecoveryAdmissionBehaviorTests: XCTestCase {
         if let close = model.closeDevelop() { _ = await close.value }
     }
 
+    func testProxyRenderNoticeOwnsOnlyItsPhotoAndPreservesNewerStatus() async throws {
+        let fixture = try makeFixture(photoCount: 1)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let model = fixture.model
+        let note = "Synthetic optional correction is unavailable."
+        fixture.closePlan.setRenderNotices([note])
+        model.openDevelop(for: try XCTUnwrap(fixture.library.items.first))
+        guard await waitUntil({ model.develop != nil }) else { return }
+        let controller = try XCTUnwrap(model.develop)
+        XCTAssertEqual(model.statusMessage, "Develop: " + note)
+        let item = try XCTUnwrap(fixture.library.items.first)
+        XCTAssertEqual(model.developRenderNotices(for: item), [note],
+                       "The loupe notice lists the open photo's omitted settings")
+        XCTAssertEqual(model.developRenderNotices(for: nil), [])
+        controller.set(.exposure, 0.25, interactive: false)
+        guard await waitUntil({ controller.lastFrame != nil }) else { return }
+        let frame = try XCTUnwrap(controller.lastFrame)
+        let callback = try XCTUnwrap(controller.onFrame)
+
+        model.statusMessage = "A newer operation failed"
+        let callsBeforeFrames = fixture.closePlan.renderNoticeCalls
+        for _ in 0..<5 { callback(frame) }
+        XCTAssertEqual(fixture.closePlan.renderNoticeCalls, callsBeforeFrames,
+                       "Frame delivery reads cached notices, never the locked session call")
+        XCTAssertEqual(model.statusMessage, "A newer operation failed")
+        XCTAssertEqual(model.developRenderNotices(for: item), [note],
+                       "A newer status line never hides the persistent loupe notice")
+
+        // Notices change only with settings/masks; refresh models such a change.
+        model.statusMessage = "Develop: " + note
+        fixture.closePlan.setRenderNotices([])
+        controller.refreshRenderNotices()
+        callback(frame)
+        XCTAssertNil(model.statusMessage, "Removing an omitted setting clears its own note")
+        XCTAssertEqual(model.developRenderNotices(for: item), [])
+
+        fixture.closePlan.setRenderNotices([note])
+        controller.refreshRenderNotices()
+        callback(frame)
+        XCTAssertEqual(model.statusMessage, "Develop: " + note)
+        XCTAssertEqual(model.developRenderNotices(for: item), [note])
+        if let close = model.closeDevelop() { _ = await close.value }
+        XCTAssertNil(model.statusMessage, "Closing the photo clears its own note")
+        XCTAssertEqual(model.developRenderNotices(for: item), [])
+        model.statusMessage = "Status for the next photo"
+        callback(frame)
+        XCTAssertEqual(model.statusMessage, "Status for the next photo",
+                       "A late callback from the closed controller cannot publish its old note")
+    }
+
     private func makeFixture(photoCount: Int) throws -> Fixture {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("develop-recovery-appmodel-\(UUID().uuidString)")
@@ -832,6 +882,12 @@ private final class ClosePlan: @unchecked Sendable {
     private var failureCountStorage = 0
     private var nextHold: Hold?
     private var closeCountStorage = 0
+    private var renderNoticesStorage: [String]?
+    private var renderNoticeCallsStorage = 0
+    var renderNotices: [String]? { lock.withLock { renderNoticesStorage } }
+    var renderNoticeCalls: Int { lock.withLock { renderNoticeCallsStorage } }
+    func recordRenderNoticeCall() { lock.withLock { renderNoticeCallsStorage += 1 } }
+    func setRenderNotices(_ notices: [String]) { lock.withLock { renderNoticesStorage = notices } }
     var failureCount: Int { lock.withLock { failureCountStorage } }
     var closeCount: Int { lock.withLock { closeCountStorage } }
 
@@ -878,6 +934,11 @@ private final class ClosePlanSession: DevelopSession, @unchecked Sendable {
     override func getSettingsJson() throws -> String { try wrapped.getSettingsJson() }
     override func getHistogram() throws -> Histogram { try wrapped.getHistogram() }
     override func ignoredSettings() throws -> [String] { try wrapped.ignoredSettings() }
+    override func renderNotices() throws -> [String] {
+        plan.recordRenderNoticeCall()
+        if let notices = plan.renderNotices { return notices }
+        return try wrapped.renderNotices()
+    }
     override func setListener(listener: DevelopListener?) { wrapped.setListener(listener: listener) }
     override func setMaskListener(listener: MaskListener?) { wrapped.setMaskListener(listener: listener) }
     override func setSettings(jsonPatch: String, interactive: Bool) throws {

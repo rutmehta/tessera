@@ -294,9 +294,13 @@ impl Engine {
         ids.iter().map(|id| {
             let canonical = parse_id(id)?.to_string();
             if !seen.insert(canonical.clone()) { return Err(failure("duplicate image_id")); }
-            let path = Self::path(&c, &canonical)?.into();
+            let path: PathBuf = Self::path(&c, &canonical)?.into();
             let orientation: String = c.reader.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&canonical], |r| r.get(0))?;
-            Ok(PhotoSource { id: canonical, path, orientation: orientation.parse().unwrap_or(1) })
+            // The catalog orientation replaces EXIF and wins over a stale
+            // index row, as in export's Source::open (REV-SP-B S2).
+            let orientation = crate::catalog::catalog_orientation(&path)
+                .unwrap_or_else(|| orientation.parse().unwrap_or(1));
+            Ok(PhotoSource { id: canonical, path, orientation })
         }).collect()
     }
     /// Atomic no-clobber file publication. Cancellation after this checkpoint may
@@ -362,7 +366,7 @@ impl Engine {
         // Index IDs are derived from canonical paths. Do not duplicate that algorithm.
         let indexed = c
             .index
-            .scan_file(&path, &catalog::Sidecars, &catalog::EmbeddedMetadata);
+            .scan_file(&path, &catalog::Sidecars, &catalog::IndexedMetadata);
         if let Err(e) = indexed {
             return Err(failure(format!(
                 "DNG saved at {}; catalog scan failed: {e}",
@@ -480,6 +484,30 @@ impl Engine {
 }
 
 pub(crate) fn load_linear(source: &PhotoSource) -> Result<(LinearImage, Option<hdr::Exposure>)> {
+    // Same gate as the two approved reader call sites: only a .dng is offered
+    // to the LinearRaw reader, so every other original keeps its LibRaw path.
+    if source
+        .path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
+        && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(&source.path)?)?
+    {
+        // Merge consumes unbalanced camera RGB. The Smart Preview is already
+        // normalized and demosaiced; sending it to LibRaw loses JXL support.
+        let wb = dng.metadata.as_shot_wb;
+        let image = LinearImage {
+            width: dng.width,
+            height: dng.height,
+            pixels: dng.pixels,
+            color_matrix: std::array::from_fn(|i| dng.metadata.cam_xyz[i].map(f64::from)),
+            as_shot_neutral: std::array::from_fn(|i| f64::from(wb[1] / wb[i])),
+        };
+        image.validate().map_err(failure)?;
+        return Ok((
+            orient_linear(image, source.orientation)?,
+            Some(hdr::Exposure::from_metadata(&dng.metadata)),
+        ));
+    }
     if let Ok(dng) = raw_decode::linear_dng::read(&mut std::fs::File::open(&source.path)?) {
         return Ok((
             orient_linear(
@@ -720,4 +748,71 @@ fn merge_images(
         image = thumbnail(&image, 512);
     }
     Ok((image, recipe, warnings))
+}
+
+#[cfg(test)]
+mod proxy_source_tests {
+    #[test]
+    fn lr13_merge_input_accepts_jxl_linearraw_and_catalog_orientation() {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../raw-decode/tests/fixtures/linear-gradient-jxl.dng");
+        let base = super::PhotoSource {
+            id: String::new(),
+            path: path.clone(),
+            orientation: 1,
+        };
+        let (a, _) = super::load_linear(&base).unwrap();
+        let rotated = super::PhotoSource {
+            id: String::new(),
+            path,
+            orientation: 6,
+        };
+        let (b, _) = super::load_linear(&rotated).unwrap();
+        assert_eq!((a.width, a.height), (b.height, b.width));
+        assert_eq!(a.pixels.len(), b.pixels.len());
+        a.validate().unwrap();
+        b.validate().unwrap();
+    }
+
+    /// REV-SP-B S2: libraries indexed before LR-8m hold orientation 1 for
+    /// catalog-oriented proxies; merges must use the catalog orientation, as
+    /// export's Source::open does, not the stale index row.
+    #[test]
+    fn sp_int2_merge_sources_prefer_the_catalog_orientation_over_the_index() {
+        let root = tempfile::tempdir().unwrap();
+        let photos = root.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        let path = photos.join("proxy.dng");
+        std::fs::write(
+            &path,
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
+        let engine =
+            crate::Engine::open(root.path().join("support").to_string_lossy().into_owned())
+                .unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine.list_images(Default::default()).unwrap()[0]
+            .id
+            .clone();
+        let indexed = engine.photo_sources(std::slice::from_ref(&id)).unwrap()[0].orientation;
+        let catalog = if indexed == 8 { 5 } else { 8 };
+        // The recipe gains a catalog orientation after indexing (an INT-era
+        // library): the index row is now stale.
+        let mut recipe = engine_api::recipe::Recipe::new(id.parse().unwrap());
+        recipe
+            .unknown
+            .insert("lightroom_orientation".into(), serde_json::json!(catalog));
+        sidecar::Sidecar::write_recipe(
+            sidecar::Sidecar::paths(&path).recipe,
+            &sidecar::RecipeDocument {
+                recipe,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(engine.photo_sources(&[id]).unwrap()[0].orientation, catalog);
+    }
 }

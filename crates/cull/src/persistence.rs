@@ -45,8 +45,9 @@ pub(crate) fn restore(path: &Path, bytes: &Option<Vec<u8>>) -> EngineResult<()> 
 pub(crate) fn load(index: &Index, id: ImageId) -> EngineResult<RecipeDocument> {
     let info = index.image_info(id)?;
     let paths = Sidecar::paths(&info.path);
-    if optional_bytes(&paths.recipe)?.is_some() {
-        let mut document = Sidecar::read_recipe(&paths.recipe)?;
+    if let Some(bytes) = optional_bytes(&paths.recipe)? {
+        let mut document: RecipeDocument = serde_json::from_slice(&bytes)?;
+        document.recipe.validate()?;
         if Sidecar::is_lightroom_owned(&info.path) {
             document.recipe.image_id = Some(id);
         }

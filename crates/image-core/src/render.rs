@@ -274,6 +274,8 @@ pub struct Renderer {
     native_ops: Arc<dyn StageOp>,
     dcp: Option<(Arc<pipeline_adobe::dcp::DcpProfile>, ParamHash)>,
     dcp_resolved: bool,
+    /// Host lists non-approximable Adobe identities as ignored in Native.
+    host_ignores_native_profiles: bool,
     retouch: Option<Arc<dyn pipeline_cpu::RetouchRenderer>>,
     denoiser: Option<Arc<dyn pipeline_cpu::PostDemosaicDenoise>>,
     cfa_denoiser: Option<Arc<dyn crate::cfa::CfaDenoise>>,
@@ -287,6 +289,8 @@ pub struct Renderer {
 /// Per-request parameters resolved once from the settings and metadata.
 struct Resolved<'a> {
     allow_resident: bool,
+    /// WB assembly defers Adobe exposure to the final Tone stage.
+    prefix_only: bool,
     cfa_full: std::sync::OnceLock<Arc<crate::cfa::PackedCfa>>,
     image: &'a RawImage,
     settings: &'a DevelopSettings,
@@ -336,6 +340,7 @@ impl Renderer {
             native_ops,
             dcp: None,
             dcp_resolved: false,
+            host_ignores_native_profiles: false,
             retouch: None,
             denoiser: None,
             cfa_denoiser: None,
@@ -348,6 +353,24 @@ impl Renderer {
     }
 
     /// Immutable request snapshot: shares caches, never changes in-flight jobs.
+    /// For hosts that keep imported Adobe profile identities in drawn settings
+    /// (so Adobe-process proxies can substitute their embedded profile) and
+    /// list every identity Native cannot reproduce as an ignored setting, as
+    /// main's host did. Native then draws such a recipe without the identity,
+    /// exactly as main. Without this, Native refuses those identities.
+    pub fn with_host_ignored_native_profiles(mut self) -> Self {
+        self.host_ignores_native_profiles = true;
+        self
+    }
+
+    /// True when Native draws `settings` without its (host-listed) profile.
+    pub fn native_ignores_profile(&self, settings: &DevelopSettings) -> bool {
+        !self.is_adobe()
+            && self.host_ignores_native_profiles
+            && pipeline_adobe::names_adobe_profile(settings)
+            && !pipeline_cpu::native_approximates_profile(&settings.camera_profile.profile.name.0)
+    }
+
     pub fn for_recipe(&self, recipe: &engine_api::recipe::Recipe) -> Self {
         self.for_process_version(recipe.process_version)
     }
@@ -398,18 +421,74 @@ impl Renderer {
         if !self.is_adobe() || self.dcp_resolved {
             return Ok(None);
         }
-        let Some((profile, _)) = &self.dcp else {
-            return Ok(None);
+        // Every entry point resolves profile white balance from the same planned
+        // proxy settings (Auto -> As Shot) that render_region uses.
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = self.proxy_render_plan(proxy, settings).0;
+            &planned
+        } else {
+            settings
         };
         let mut next = self.clone();
-        next.ops = Arc::new(crate::AdobeStageOp::with_profile(
-            self.native_ops.clone(),
-            profile.clone(),
-            image,
-            settings,
-        )?);
+        // Only an imported Adobe-named LinearRaw proxy can substitute its
+        // embedded profile. Originals and Native recipes keep main's dispatch.
+        if next.dcp.is_none()
+            && let Some(proxy) = image.camera_linear_proxy()
+        {
+            let bytes = image.embedded_dcp().ok().flatten();
+            let (profile, _) = pipeline_adobe::embedded_profile_fallback(proxy, settings, bytes);
+            if let Some(profile) = profile {
+                next.dcp = Some((
+                    Arc::new(profile),
+                    ParamHash(engine_api::id::Digest::derive(
+                        "tessera embedded DCP v1",
+                        bytes.expect("parsed profile bytes"),
+                    )),
+                ));
+            }
+        }
+        if let Some((profile, _)) = &next.dcp {
+            next.ops = Arc::new(crate::AdobeStageOp::with_profile(
+                self.native_ops.clone(),
+                profile.clone(),
+                image,
+                settings,
+            )?);
+        }
+        if next.dcp.is_none() && image.metadata().baseline_exposure != 0. {
+            next.ops = Arc::new(crate::AdobeStageOp::with_baseline(
+                self.native_ops.clone(),
+                image.metadata().baseline_exposure,
+            )?);
+        }
         next.dcp_resolved = true;
         Ok(Some(next))
+    }
+
+    /// Per-photo informational status for the same profile resolution as rendering.
+    /// No file paths, profile parser details, or recipe values enter the message.
+    pub fn profile_notice(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+    ) -> Option<&'static str> {
+        if !self.is_adobe() {
+            return pipeline_cpu::native_approximates_profile(
+                &settings.camera_profile.profile.name.0,
+            )
+            .then_some(pipeline_cpu::NATIVE_APPROXIMATED_PROFILE_NOTICE);
+        }
+        if self.dcp.is_some() {
+            return None;
+        }
+        let proxy = image.camera_linear_proxy()?;
+        pipeline_adobe::embedded_profile_fallback(
+            proxy,
+            settings,
+            image.embedded_dcp().ok().flatten(),
+        )
+        .1
     }
 
     fn is_adobe(&self) -> bool {
@@ -458,6 +537,10 @@ impl Renderer {
                     .unwrap_or(&settings.tone.curves),
                 settings.tone.curves_extended.is_some(),
             )
+        } else if self.native_ignores_profile(settings) {
+            let mut checked = settings.clone();
+            checked.camera_profile.profile = Default::default();
+            pipeline_cpu::validate_settings_with_retouch(&checked, self.retouch.as_deref())
         } else {
             pipeline_cpu::validate_settings_with_retouch(settings, self.retouch.as_deref())
         }
@@ -493,7 +576,7 @@ impl Renderer {
         let seed = if self.is_adobe() {
             ParamHash::chain(
                 seed,
-                ParamHash::of(StageId::CameraProfile, &"adobe-compat-v1"),
+                ParamHash::of(StageId::CameraProfile, &"adobe-compat-lr8e2-v1"),
             )
         } else {
             seed
@@ -572,6 +655,23 @@ impl Renderer {
         rect: PixelRect,
         output: RenderOutput,
     ) -> EngineResult<Vec<Tile>> {
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = proxy
+                .render_plan_with_resources(
+                    settings,
+                    self.mask_cache.has_hooks(),
+                    self.depth.is_some(),
+                    self.retouch.is_some(),
+                )
+                .0;
+            &planned
+        } else {
+            settings
+        };
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.render_region_as(image, settings, level, rect, output);
+        }
         if image.camera_linear_proxy().is_some() {
             self.validate_camera_linear_proxy(image, settings)?;
         }
@@ -602,6 +702,16 @@ impl Renderer {
         sink: &mut dyn FnMut(Tile),
     ) -> EngineResult<()> {
         cancel.check()?;
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = self.proxy_render_plan(proxy, settings).0;
+            &planned
+        } else {
+            settings
+        };
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.render_tiles(image, settings, coords, output, cancel, sink);
+        }
         if image.camera_linear_proxy().is_some() {
             return self.run_camera_linear_proxy(image, settings, coords, output, cancel, sink);
         }
@@ -614,9 +724,7 @@ impl Renderer {
         r.lens = lens.as_ref();
         r.cache_lens = true;
         let level = coords.first().map(|c| c.level);
-        if let Some(prepared) = self.prepare_dcp(image, settings)? {
-            return prepared.render_tiles(image, settings, coords, output, cancel, sink);
-        }
+
         if (lens.is_none() && !crate::resident_export_lens_supported(&settings.lens))
             || ((self.is_adobe() || has_m2_settings(settings) || self.depth_visualisation)
                 && !self.supports_resident(&r, level))
@@ -645,9 +753,19 @@ impl Renderer {
                 format!("need finest <= coarsest <= {MAX_LEVEL}"),
             ));
         }
+        let planned;
+        let settings = if let Some(proxy) = image.camera_linear_proxy() {
+            planned = self.proxy_render_plan(proxy, settings).0;
+            &planned
+        } else {
+            settings
+        };
+        if let Some(prepared) = self.prepare_dcp(image, settings)? {
+            return prepared.render_progressive(image, settings, viewport, output, cancel, sink);
+        }
         if image.camera_linear_proxy().is_some() {
             cancel.check()?;
-            self.validate_camera_linear_proxy(image, settings)?;
+
             for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
                 let extent = Self::output_extent(image, settings, level)?;
                 let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
@@ -668,9 +786,7 @@ impl Renderer {
         let mut r = self.resolve(image, settings)?;
         r.lens = lens.as_ref();
         r.cache_lens = true;
-        if let Some(prepared) = self.prepare_dcp(image, settings)? {
-            return prepared.render_progressive(image, settings, viewport, output, cancel, sink);
-        }
+
         for level in (viewport.finest_level..=viewport.coarsest_level).rev() {
             let extent = Self::output_extent(image, settings, level)?;
             let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
@@ -736,6 +852,9 @@ impl Renderer {
         base.locals = Default::default();
         base.effects = Default::default();
         base.geometry = Default::default();
+        if self.native_ignores_profile(&base) {
+            base.camera_profile.profile = Default::default();
+        }
         let mut lens = self
             .resolve_interactive_lens(image, &base)?
             .plan(&base, image.metadata())?;
@@ -744,6 +863,7 @@ impl Renderer {
             plan.map = None;
         }
         let mut r = self.resolve(image, &base)?;
+        r.prefix_only = self.is_adobe();
         r.lens = lens.as_ref();
         r.cache_lens = true;
         // Local EV can amplify resident f16 checkpoints beyond the linear
@@ -1026,7 +1146,7 @@ impl Renderer {
             ));
         }
         let m = image.metadata();
-        let (period, dem_halo) = if image.rgb().is_some() {
+        let (period, dem_halo) = if image.rgb().is_some() || image.camera_linear_proxy().is_some() {
             (1, 0)
         } else {
             match m.cfa_layout {
@@ -1061,6 +1181,7 @@ impl Renderer {
         };
         let highlights = settings.linearize.highlight_reconstruction;
         Ok(Resolved {
+            prefix_only: false,
             cfa_full: std::sync::OnceLock::new(),
             allow_resident: image.rgb().is_some()
                 || !pipeline_cpu::denoise_active(&settings.denoise)
@@ -1354,7 +1475,11 @@ impl Renderer {
 
             // F. Tone → Output.
             let tone = Op::Tone(&r.settings.tone);
-            let mut chain = vec![(StageId::Tone, tone)];
+            let mut chain = if r.prefix_only {
+                Vec::new()
+            } else {
+                vec![(StageId::Tone, tone)]
+            };
             if let Some(display) = output.display_op(r.settings.output.gamut_mapping) {
                 chain.push((StageId::Output, display));
             }

@@ -1213,3 +1213,57 @@ fn export_batch_does_not_starve_slider_drag() {
         p(&render, 0.9)
     );
 }
+
+/// LR-8e3: Native draws Adobe Standard/Color with the plain matrix and a
+/// visible note; other Adobe identities stay ignored (listed), as on main.
+/// Every frame is byte-identical to the default-profile frame.
+#[test]
+fn native_adobe_profile_identities_render_like_main_and_are_visible() {
+    let Some(h) = harness("nef") else {
+        return;
+    };
+    let mut open = Open::new(&h.engine, &h.image_id);
+    let (plan, _ids) = open.attach((640, 480), 2);
+    let pixels = |frame: &FrameInfo| {
+        Surface::lookup(frame.surface_id, plan.width, plan.height)
+            .unwrap()
+            .with_pixels(|px, stride| {
+                (0..plan.height as usize)
+                    .flat_map(|y| px[y * stride..y * stride + plan.width as usize * 4].to_vec())
+                    .collect::<Vec<u8>>()
+            })
+            .unwrap()
+    };
+    let plain = pixels(&open.next_final());
+    assert!(open.session.render_notices().unwrap().is_empty());
+    for (name, note) in [
+        ("Adobe Monochrome", false),
+        ("Adobe Standard", true),
+        ("Adobe Vivid", false),
+        ("Adobe Color", true),
+    ] {
+        open.session
+            .set_settings(
+                serde_json::json!({"camera_profile": {"profile": name}}).to_string(),
+                false,
+            )
+            .unwrap();
+        let frame = open.next_final();
+        assert_eq!(pixels(&frame), plain, "{name}");
+        let ignored = open.session.ignored_settings().unwrap();
+        assert_eq!(
+            ignored.iter().any(|p| p == "/camera_profile/profile"),
+            !note,
+            "{name}: {ignored:?}"
+        );
+        let notices = open.session.render_notices().unwrap();
+        assert_eq!(
+            notices
+                .iter()
+                .any(|n| n == pipeline_cpu::NATIVE_APPROXIMATED_PROFILE_NOTICE),
+            note,
+            "{name}: {notices:?}"
+        );
+    }
+    open.session.close().unwrap();
+}

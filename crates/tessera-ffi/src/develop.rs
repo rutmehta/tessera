@@ -67,7 +67,7 @@
 use crate::{BridgeError, Engine, Result, catalog, failure, now_ms, parse_id, surface::Surface};
 
 #[path = "masks.rs"]
-mod masks;
+pub(crate) mod masks;
 use engine_api::{
     color::ColorMatrix3,
     id::{HistoryEntryId, HistoryGroupId, ImageId},
@@ -639,6 +639,23 @@ pub(crate) struct Shared {
     masks: Arc<masks::MaskShared>,
 }
 
+impl Shared {
+    /// Proxy settings this session cannot draw, judged with the resources its
+    /// renders actually use (including the session depth provider, which every
+    /// render snapshot installs), so notices match what the frame shows.
+    fn proxy_plan_fields(
+        &self,
+        proxy: &pipeline_cpu::CameraLinearProxy,
+        settings: &DevelopSettings,
+    ) -> Vec<&'static str> {
+        (*self.renderer)
+            .clone()
+            .with_depth(self.depth_provider.clone())
+            .proxy_render_plan(proxy, settings)
+            .1
+    }
+}
+
 /// Renderer and model dependencies shared by visible Develop and read-only
 /// saved-recipe consumers. This deliberately contains no session state or
 /// save-worker lifecycle.
@@ -713,7 +730,12 @@ enum ClosePhase {
 
 // ─────────────────────────── settings helpers ───────────────────────────
 
-fn session_renderable(
+/// One plain sentence per omitted proxy setting class. Never names a value.
+pub(crate) fn proxy_notice_text(field: &str) -> &'static str {
+    export::proxy_notice_text(field)
+}
+
+pub(crate) fn session_renderable(
     s: &DevelopSettings,
     geometry: bool,
     _denoiser_configured: bool,
@@ -743,6 +765,9 @@ pub fn renderable(s: &DevelopSettings) -> DevelopSettings {
 /// whole, unrotated frame and draws the crop over it).
 pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
     let mut r = DevelopSettings::default();
+    if image_core::pipeline_adobe::names_adobe_profile(s) {
+        r.camera_profile.profile = s.camera_profile.profile.clone();
+    }
     r.linearize.highlight_reconstruction = match s.linearize.highlight_reconstruction {
         m @ (HighlightReconstruction::Clip | HighlightReconstruction::ReconstructColor) => m,
         _ => r.linearize.highlight_reconstruction,
@@ -852,6 +877,16 @@ pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
     // into the sanitized interactive recipe.
     let mut optics = r.clone();
     optics.lens = s.lens.clone();
+    // The viewport has no external LCP/database resolver. Keep the identity in
+    // the saved recipe and expose it through ignored_settings, but do not let
+    // an unavailable named profile block all other imported edits. In particular,
+    // do not silently substitute Auto (a different calibration).
+    if matches!(
+        optics.lens.profile,
+        engine_api::recipe::settings::LensProfileSource::Database { .. }
+    ) {
+        optics.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+    }
     if pipeline_cpu::validate_settings(&optics).is_ok() {
         r.lens = optics.lens;
     }
@@ -991,7 +1026,7 @@ impl Engine {
     /// without opening an editable Develop session.
     pub fn depth_histogram(self: Arc<Self>, image_id: String) -> Result<Vec<u64>> {
         let snapshot = self.develop_disk_snapshot(&image_id, false)?;
-        let image = RawImage::open(snapshot.image_id, &snapshot.path)?;
+        let image = catalog::open_image(snapshot.image_id, &snapshot.path)?;
         let mut recipe = snapshot.recipe;
         recipe.source_kind = if image.source_kind() == "rgb" {
             engine_api::recipe::SourceKind::Rgb
@@ -1065,7 +1100,7 @@ impl Engine {
         } else {
             self.require_smart_preview_synced(id)?;
             let snapshot = self.develop_disk_snapshot(&image_id, true)?;
-            let image = RawImage::open(id, &snapshot.path)?;
+            let image = catalog::open_image(id, &snapshot.path)?;
             let persistence = DevelopPersistence::Original(
                 snapshot.lease.as_ref().expect("original lease").authority(),
             );
@@ -1305,7 +1340,7 @@ impl Engine {
                     SaveFailure::after_recipe(failure("image has no folder"), &published)
                 })?,
                 &catalog::Sidecars,
-                &catalog::EmbeddedMetadata,
+                &catalog::IndexedMetadata,
             )
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
         Ok((doc.recipe.recipe_hash().to_string(), published))
@@ -1336,7 +1371,7 @@ impl Engine {
             path.parent()
                 .ok_or_else(|| failure("image has no folder"))?,
             &catalog::Sidecars,
-            &catalog::EmbeddedMetadata,
+            &catalog::IndexedMetadata,
         )?;
         Ok(doc.recipe)
     }
@@ -2781,11 +2816,66 @@ impl DevelopSession {
     pub fn ignored_settings(&self) -> Result<Vec<String>> {
         let st = self.shared.lock()?;
         let mut ignored = ignored_settings(&st.live);
+        // Native draws only the default Adobe identities (with a note); the
+        // rest stay undrawn and listed, as on main.
+        if self
+            .shared
+            .renderer
+            .for_process_version(st.recipe.process_version)
+            .native_ignores_profile(&st.live)
+        {
+            ignored.push("/camera_profile/profile".to_owned());
+            ignored.sort();
+            ignored.dedup();
+        }
         ignored.retain(|path| !path.starts_with("/effects/lens_blur"));
         if pipeline_cpu::validate_denoise(&st.live.denoise).is_ok() {
             ignored.retain(|path| !path.starts_with("/denoise"));
         }
+        if let Some(proxy) = self.shared.image.camera_linear_proxy() {
+            ignored.extend(
+                self.shared
+                    .proxy_plan_fields(proxy, &st.live)
+                    .into_iter()
+                    .map(str::to_owned),
+            );
+            ignored.sort();
+            ignored.dedup();
+        }
         Ok(ignored)
+    }
+
+    /// Informational per-photo omissions; no saved setting is changed.
+    pub fn render_notices(&self) -> Result<Vec<String>> {
+        let st = self.shared.lock()?;
+        let mut notes: Vec<String> = Vec::new();
+        if let Some(proxy) = self
+            .shared
+            .image
+            .camera_linear_proxy()
+            .filter(|p| p.is_external_dng())
+        {
+            let mut fields = self.shared.proxy_plan_fields(proxy, &st.live);
+            if self.shared.masks.unavailable(&st.live) {
+                fields.push("/locals/adjustments");
+            }
+            notes.extend(
+                fields
+                    .into_iter()
+                    .map(|field| proxy_notice_text(field).to_owned()),
+            );
+        }
+        if let Some(note) = self
+            .shared
+            .renderer
+            .for_process_version(st.recipe.process_version)
+            .profile_notice(&self.shared.image, &st.live)
+        {
+            notes.push(note.to_owned());
+        }
+        notes.sort();
+        notes.dedup();
+        Ok(notes)
     }
 
     /// Histogram of the last completed frame (empty before the first one).
@@ -3809,6 +3899,44 @@ impl DevelopSession {
             moved
         };
         Ok(moved)
+    }
+}
+
+#[cfg(test)]
+mod proxy_notice_tests {
+    use super::proxy_notice_text;
+
+    /// Machine A ruling: lens blur and retouch are not blocked by the missing
+    /// original; they need a depth map / retouch renderer the proxy route lacks.
+    #[test]
+    fn lr13_lens_blur_and_retouch_notices_do_not_blame_the_original() {
+        assert_eq!(
+            proxy_notice_text("/effects/lens_blur"),
+            "Lens Blur is not rendered on Smart Preview yet."
+        );
+        assert_eq!(
+            proxy_notice_text("/locals/retouch"),
+            "Retouch is not rendered on Smart Preview yet."
+        );
+        for field in [
+            "/decode",
+            "/linearize",
+            "/demosaic",
+            "/denoise",
+            "/white_balance/mode",
+            "/camera_profile/look",
+            "/lens/profile",
+            "/effects/lens_blur",
+            "/locals/retouch",
+            "/locals/adjustments",
+            "/output/hdr",
+            "/anything/else",
+        ] {
+            assert!(
+                !proxy_notice_text(field).contains("needs the original"),
+                "{field}"
+            );
+        }
     }
 }
 
@@ -6315,3 +6443,20 @@ mod depth_histogram_read_only_contract_tests {
 
 #[cfg(all(test, target_os = "macos"))]
 pub(crate) mod preview_qualification;
+
+#[cfg(test)]
+mod lr10_profile_tests {
+    #[test]
+    fn lr10_adobe_profile_name_survives_develop_admission() {
+        for name in ["Adobe Color", "Adobe Standard", "Adobe Portrait"] {
+            let mut settings = engine_api::recipe::DevelopSettings::default();
+            settings.camera_profile.profile.name = name.into();
+            assert_eq!(
+                super::session_renderable(&settings, true, false)
+                    .camera_profile
+                    .profile,
+                settings.camera_profile.profile
+            );
+        }
+    }
+}

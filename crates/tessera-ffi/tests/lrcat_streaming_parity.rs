@@ -65,9 +65,11 @@ fn ffi_streaming_summary_and_bundle_match_crate() {
             .sum::<usize>()
     );
     let mut options = import.default_options().unwrap();
+    // Not the catalog's own folder: library.json never lands beside the
+    // .lrcat (A-LR8 minor, enforced by apply since LR-13b).
     options.library_folder = temp
         .path()
-        .join("comparison")
+        .join("comparison-library")
         .to_string_lossy()
         .into_owned();
     let report = import.apply(options, None).unwrap();

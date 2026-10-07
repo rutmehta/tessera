@@ -476,6 +476,16 @@ impl Engine {
             )?;
             (path, orientation.parse::<u8>().unwrap_or(1))
         };
+        if crate::catalog::lightroom_proxy(Path::new(&path)).is_some()
+            || crate::catalog::catalog_orientation(Path::new(&path)).is_some()
+        {
+            let key = self.indexed_preview(image_id, &path, max_px)?;
+            let bytes = self
+                .previews
+                .get(&key, previews::Level::Full)
+                .ok_or_else(|| failure("preview was evicted"))?;
+            return previews::Jpeg.decode(&bytes).map_err(failure);
+        }
         let ext = Path::new(&path)
             .extension()
             .unwrap_or_default()
@@ -676,7 +686,7 @@ impl Engine {
 }
 
 /// EXIF orientation as the preview store applies it (so face boxes match the display).
-fn orient(img: image::RgbImage, orientation: u8) -> image::RgbImage {
+pub(crate) fn orient(img: image::RgbImage, orientation: u8) -> image::RgbImage {
     use image::imageops::{flip_horizontal, flip_vertical, rotate90, rotate180, rotate270};
     match orientation {
         2 => flip_horizontal(&img),

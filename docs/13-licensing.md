@@ -39,8 +39,9 @@ only by export's development tests for independent decoding.
 
 Developed DNG original-file embedding uses `flate2` (MIT OR Apache-2.0)
 for independent 64 KiB zlib blocks. This is an existing transitive dependency,
-now also a direct export dependency. No Adobe SDK or ExifTool code is linked
-or redistributed. ExifTool, when installed, is invoked only as an independent
+now also a direct export dependency. This DNG export path does not link Adobe
+SDK or ExifTool code. The separate Adobe-compatible renderer includes the ACR3
+table noted below. ExifTool, when installed, is invoked only as an independent
 test reader. LibRaw RGB comparison tests use the existing CDDL-licensed build.
 
 Narrow exception: `libfuzzer-sys` 0.4.13, referenced only by rav1e under
@@ -51,6 +52,17 @@ requiring retained notices/disclaimers and non-endorsement, like BSD-3.
 The version-specific exception does not allow NCSA globally, disable license
 checks, or permit GPL. See https://spdx.org/licenses/NCSA.html. Preserve these
 notices if distributing a fuzzing build that actually includes that runtime.
+
+## Adobe DNG SDK tone table
+
+The Adobe-compatible renderer includes the 1025 ACR3 default tone samples from
+Adobe DNG SDK `dng_render.cpp`, revision
+`de700ad461e35af50b28b861943a0b0753b10929`, adapted to Rust. Copyright 2006–2023
+Adobe Systems Incorporated. This source portion is covered by the accompanying
+DNG SDK License Agreement, not Tessera's Apache-2.0 license. The complete
+agreement, attribution, source link, and modification notice are in
+[`NOTICE`](../NOTICE); retain that notice in source and binary distributions.
+No Adobe binary camera profile is bundled.
 
 ## Optional Lensfun data pack
 

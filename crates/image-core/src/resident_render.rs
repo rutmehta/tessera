@@ -488,7 +488,7 @@ impl Renderer {
             return false;
         }
         if (r.image.rgb().is_none() && pipeline_cpu::denoise_active(&s.denoise) && !self.cfa_supported(r.cfa, s))
-            || (r.image.rgb().is_none() && !matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_)))
+            || (r.image.rgb().is_none() && r.image.camera_linear_proxy().is_none() && !matches!(r.cfa, CfaLayout::Bayer(_) | CfaLayout::XTrans(_)))
             // Local adjustment operators/rasterization use the whole-image
             // nonresident path until all local kernels are resident-capable.
             || !s.locals.adjustments.is_empty()

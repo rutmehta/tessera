@@ -1229,6 +1229,11 @@ void uniffi_tessera_ffi_fn_method_developsession_refresh(uint64_t ptr, RustCallS
 RustBuffer uniffi_tessera_ffi_fn_method_developsession_render_detail_preview(uint64_t ptr, uint32_t iosurface_id, uint32_t width, uint32_t height, float center_x, float center_y, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RENDER_NOTICES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RENDER_NOTICES
+RustBuffer uniffi_tessera_ffi_fn_method_developsession_render_notices(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESET
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_DEVELOPSESSION_RESET
 int8_t uniffi_tessera_ffi_fn_method_developsession_reset(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -3005,6 +3010,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_cullsession_prev_in_group(uint64_t ptr, 
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_preview_errors(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PREVIEWS_PENDING
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PREVIEWS_PENDING
+int8_t uniffi_tessera_ffi_fn_method_cullsession_previews_pending(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_REDO
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_REDO
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_redo(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -3048,6 +3058,11 @@ void uniffi_tessera_ffi_fn_method_cullsession_set_library(uint64_t ptr, RustBuff
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SET_POSITION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SET_POSITION
 void uniffi_tessera_ffi_fn_method_cullsession_set_position(uint64_t ptr, uint32_t position, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SHUTDOWN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SHUTDOWN
+void uniffi_tessera_ffi_fn_method_cullsession_shutdown(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_SYNC_CHANGES
@@ -4398,6 +4413,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_developsession_refresh(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_DETAIL_PREVIEW
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_DETAIL_PREVIEW
 uint16_t uniffi_tessera_ffi_checksum_method_developsession_render_detail_preview(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_NOTICES
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_DEVELOPSESSION_RENDER_NOTICES
+uint16_t uniffi_tessera_ffi_checksum_method_developsession_render_notices(void
     
 );
 #endif
@@ -6261,6 +6282,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_preview_errors(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PREVIEWS_PENDING
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PREVIEWS_PENDING
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_previews_pending(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_REDO
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_REDO
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_redo(void
@@ -6312,6 +6339,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_set_library(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SET_POSITION
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SET_POSITION
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_set_position(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SHUTDOWN
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_SHUTDOWN
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_shutdown(void
     
 );
 #endif

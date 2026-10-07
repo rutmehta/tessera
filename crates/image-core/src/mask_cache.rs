@@ -62,6 +62,13 @@ impl MaskRasterCache {
     pub fn set_hooks(&self, hooks: Option<Arc<dyn MaskHooks>>) {
         *self.hooks.write().unwrap_or_else(|e| e.into_inner()) = hooks;
     }
+    /// Whether the host can supply and observe external masks.
+    pub fn has_hooks(&self) -> bool {
+        self.hooks
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
+    }
     /// Retained payload bytes.
     pub fn bytes(&self) -> usize {
         self.inner.lock().unwrap().bytes

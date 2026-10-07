@@ -18,8 +18,12 @@ fn main() {
         let mut source = RawSource::open(&path).unwrap();
         let image = source.decode_cfa().unwrap();
         let metadata = source.metadata();
+        // Match the immutable Native goldens: no BaselineExposure gain, optics off.
+        let mut settings = DevelopSettings::default();
+        settings.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+        settings.lens.remove_chromatic_aberration = false;
         let rgb = render_scaled(
-            &DevelopSettings::default(),
+            &settings,
             &RenderSource::Cfa {
                 image: &image,
                 metadata: &metadata,

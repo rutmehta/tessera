@@ -45,13 +45,15 @@ struct EngineThumbnailAPI: Sendable {
 public final class EngineImageReference: Sendable, Hashable {
     public let engine: Engine
     public let imageID: String
+    public let lightroomSmartPreview: Bool
     public let previewSource: EnginePreviewSource
     let previewEvents: PreviewEvents
     private let thumbnailAPI: EngineThumbnailAPI
     init(engine: Engine, imageID: String, previewEvents: PreviewEvents,
-         previewSource: EnginePreviewSource = .original, thumbnailAPI: EngineThumbnailAPI? = nil) {
+         previewSource: EnginePreviewSource = .original, lightroomSmartPreview: Bool = false, thumbnailAPI: EngineThumbnailAPI? = nil) {
         self.engine = engine; self.imageID = imageID; self.previewEvents = previewEvents
         self.previewSource = previewSource
+        self.lightroomSmartPreview = lightroomSmartPreview
         self.thumbnailAPI = thumbnailAPI ?? .live(engine: engine)
     }
     func thumbnail(maxPx: UInt32) throws -> PreviewResponse {
@@ -239,13 +241,15 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
                         ?? formatter.date(from: String(value.prefix(19)))
                 } ?? Date(timeIntervalSince1970: 0)
                 if imageID == group.best { best.append(newItems.count) }
-                let reference = references[imageID] ?? {
+                let reference = references[imageID].flatMap { $0.lightroomSmartPreview == row.lightroomSmartPreview ? $0 : nil } ?? {
                     let r = EngineImageReference(engine: engine, imageID: imageID, previewEvents: previewEvents,
-                                                 previewSource: isReadOnly ? .smartPreview : .original)
+                                                 previewSource: isReadOnly ? .smartPreview : .original, lightroomSmartPreview: row.lightroomSmartPreview)
                     references[imageID] = r
                     return r
                 }()
-                newItems.append(PhotoItem(id: newItems.count, url: url, name: url.lastPathComponent,
+                // Imported Smart Previews show the catalog's file name, not their UUID
+                // (user data: shown and used in labels, never in identifiers).
+                newItems.append(PhotoItem(id: newItems.count, url: url, name: row.displayName ?? url.lastPathComponent,
                                           kind: StubLibrary.kind(forExtension: url.pathExtension) ?? .raw,
                                           captureDate: date, pixelWidth: 0, pixelHeight: 0, groupID: g,
                                           engineImage: reference))

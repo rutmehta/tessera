@@ -4104,9 +4104,11 @@ dependencies = [
  "blake3",
  "criterion",
  "engine-api",
+ "jxl-oxide",
  "libc",
  "libraw-ffi",
  "tempfile",
+ "zune-jpeg 0.5.15",
 ]
 
 [[package]]

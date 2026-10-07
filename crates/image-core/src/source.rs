@@ -8,6 +8,10 @@ use engine_api::tile::{Extent, Pyramid};
 use engine_api::{EngineError, EngineResult};
 use raw_decode::{CfaImage, RawMetadata, RawSource};
 
+struct EmbeddedProfile {
+    bytes: Result<Option<Vec<u8>>, String>,
+}
+
 /// Shared decoded source. The historical name is retained for callers, but
 /// this may contain a CFA plane or upright working-space RGB. RGB has no
 /// camera calibration; its metadata describes a D65 working-space identity.
@@ -19,6 +23,7 @@ pub struct RawImage {
     cfa: Option<Arc<CfaImage>>,
     rgb: Option<Arc<crate::RgbSource>>,
     metadata: Arc<RawMetadata>,
+    embedded_profile: Option<Arc<EmbeddedProfile>>,
 }
 
 impl RawImage {
@@ -46,6 +51,7 @@ impl RawImage {
         Ok(Self {
             id,
             recipe_owner: id,
+            embedded_profile: None,
             camera_linear_proxy: None,
             cfa: Some(cfa),
             rgb: None,
@@ -57,10 +63,36 @@ impl RawImage {
     pub fn open(id: ImageId, path: impl AsRef<Path>) -> EngineResult<Self> {
         let path = path.as_ref();
         let mut file = std::fs::File::open(path).map_err(|e| EngineError::io_at(path, &e))?;
+        let embedded_profile = path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
+            .then(|| {
+                Arc::new(EmbeddedProfile {
+                    // Keep a snapshot alongside decoded pixels. Bad profile metadata
+                    // becomes a non-fatal substitution note, never a decode failure.
+                    bytes: pipeline_adobe::dcp::read_embedded_profile(&mut file),
+                })
+            });
         let decode_error = |e: std::io::Error| EngineError::Decode {
             format: "LinearRaw DNG".into(),
             message: e.to_string(),
         };
+        if path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
+            && let Some(dng) = raw_decode::lossy_dng::read(&mut file).map_err(decode_error)?
+        {
+            let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng)?;
+            return Ok(Self {
+                id,
+                recipe_owner: id,
+                embedded_profile,
+                metadata: Arc::new(proxy.original_metadata().clone()),
+                camera_linear_proxy: Some(Arc::new(proxy)),
+                cfa: None,
+                rgb: None,
+            });
+        }
         if raw_decode::linear_dng::is_linear_dng(&mut file).map_err(decode_error)? {
             let dng = raw_decode::linear_dng::read(&mut file).map_err(decode_error)?;
             return Self::from_rgb(id, crate::RgbSource::from_linear_dng(dng)?);
@@ -71,7 +103,73 @@ impl RawImage {
         let mut source = RawSource::open(path)?;
         let cfa = source.decode_cfa()?;
         let metadata = source.metadata();
-        Self::new(id, Arc::new(cfa), Arc::new(metadata))
+        let mut image = Self::new(id, Arc::new(cfa), Arc::new(metadata))?;
+        image.embedded_profile = embedded_profile;
+        Ok(image)
+    }
+
+    pub(crate) fn embedded_dcp(&self) -> EngineResult<Option<&[u8]>> {
+        self.embedded_profile.as_ref().map_or_else(
+            || {
+                Ok(self
+                    .camera_linear_proxy
+                    .as_ref()
+                    .and_then(|p| p.embedded_profile()))
+            },
+            |profile| {
+                profile
+                    .bytes
+                    .as_ref()
+                    .map(|bytes| bytes.as_deref())
+                    .map_err(|error| EngineError::invalid("embedded DNG profile", error.clone()))
+            },
+        )
+    }
+
+    /// Open with the catalog's absolute orientation. RGB sources consume it in
+    /// their decoder, as ordinary RGB imports consume EXIF. RAW sources and
+    /// LinearRaw Smart Previews stay in the sensor frame and report it as
+    /// their display orientation, as ordinary RAW imports report EXIF.
+    pub fn open_with_catalog_orientation(
+        id: ImageId,
+        path: impl AsRef<Path>,
+        orientation: Option<u16>,
+    ) -> EngineResult<Self> {
+        let Some(orientation) = orientation else {
+            return Self::open(id, path);
+        };
+        if !(1..=8).contains(&orientation) {
+            return Err(EngineError::invalid("catalog orientation", "expected 1..8"));
+        }
+        let path = path.as_ref();
+        if crate::RgbSource::recognizes(path) {
+            return Self::from_rgb(
+                id,
+                crate::RgbSource::open_with_orientation(path, Some(orientation))?,
+            );
+        }
+        let mut image = Self::open(id, path)?;
+        if image.rgb.is_some() {
+            // Working-space linear DNGs also consume orientation in their decoder.
+            return Self::from_rgb(
+                id,
+                crate::RgbSource::open_with_orientation(path, Some(orientation))?,
+            );
+        }
+        // The catalog orientation replaces EXIF as the display orientation;
+        // edits stay in the sensor frame, as for an ordinary import (LR-8m).
+        let metadata = Arc::make_mut(&mut image.metadata);
+        metadata.catalog_orientation = Some(orientation);
+        metadata.orientation = orientation;
+        if let Some(proxy) = &mut image.camera_linear_proxy {
+            *proxy = Arc::new(
+                proxy
+                    .as_ref()
+                    .clone()
+                    .with_catalog_orientation(orientation)?,
+            );
+        }
+        Ok(image)
     }
 
     /// The same shared samples under another identity and metadata (for
@@ -82,7 +180,9 @@ impl RawImage {
             .cfa
             .clone()
             .ok_or_else(|| EngineError::invalid("source", "RGB sources have no camera metadata"))?;
-        Self::new(id, cfa, metadata)
+        let mut image = Self::new(id, cfa, metadata)?;
+        image.embedded_profile = self.embedded_profile.clone();
+        Ok(image)
     }
 
     /// Wrap upright working-space RGB without allocating a synthetic CFA plane.
@@ -99,6 +199,8 @@ impl RawImage {
             aperture: 0.,
             focal_mm: 0.,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width,
             height,
@@ -123,6 +225,7 @@ impl RawImage {
         Ok(Self {
             id,
             recipe_owner: id,
+            embedded_profile: None,
             camera_linear_proxy: None,
             cfa: None,
             rgb: Some(Arc::new(rgb)),
@@ -148,6 +251,7 @@ impl RawImage {
         Ok(Self {
             id: render_id,
             recipe_owner,
+            embedded_profile: None,
             metadata: Arc::new(proxy.original_metadata().clone()),
             camera_linear_proxy: Some(proxy),
             cfa: None,
@@ -157,6 +261,13 @@ impl RawImage {
 
     pub fn camera_linear_proxy(&self) -> Option<&pipeline_cpu::CameraLinearProxy> {
         self.camera_linear_proxy.as_deref()
+    }
+
+    /// Keep a stable recipe identity while a relinked source uses its own render
+    /// identity. Render caches must never alias proxy and original payloads.
+    pub fn with_recipe_owner(mut self, owner: ImageId) -> Self {
+        self.recipe_owner = owner;
+        self
     }
 
     /// Catalog/recipe identity, independent of the decoded representation.
@@ -197,10 +308,12 @@ impl RawImage {
 
     /// Active-area (default crop) extent: level 0 of the output pyramid.
     pub fn active_extent(&self) -> Extent {
-        if let Some(proxy) = self.camera_linear_proxy() {
-            return Extent::new(proxy.pixels().width(), proxy.pixels().height());
-        }
-        let [_, _, w, h] = self.metadata.default_crop;
+        let (w, h) = if let Some(proxy) = self.camera_linear_proxy() {
+            (proxy.pixels().width(), proxy.pixels().height())
+        } else {
+            let [_, _, w, h] = self.metadata.default_crop;
+            (w, h)
+        };
         Extent::new(w, h)
     }
 

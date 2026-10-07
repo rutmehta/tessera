@@ -1263,3 +1263,35 @@ fn compact_scale_three_codec_reopen_keeps_captured_geometry_on_cpu() {
         }
     }
 }
+
+#[test]
+fn lr13_external_linearraw_identity_orientation_can_use_resident_rgb_tail() {
+    let context = metal_context();
+    let gpu = Arc::new(GpuStageOp::with_cache_budget(context, 64 << 20));
+    let renderer = Renderer::with_ops(
+        gpu.clone(),
+        Arc::new(TileCache::new(64 << 20)),
+        Default::default(),
+    );
+    let dng = raw_decode::lossy_dng::read(&mut std::io::Cursor::new(include_bytes!(
+        "../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"
+    )))
+    .unwrap()
+    .unwrap();
+    let proxy = CameraLinearProxy::from_dng(dng)
+        .unwrap()
+        .with_catalog_orientation(1)
+        .unwrap();
+    let raw =
+        RawImage::from_camera_linear_proxy(ImageId(1001), ImageId(1002), Arc::new(proxy)).unwrap();
+    let s = DevelopSettings::default();
+    assert!(renderer.can_render_resident(&raw, &s).unwrap());
+    let rect = PixelRect::full(Renderer::output_extent(&raw, &s, 0).unwrap());
+    let expected = Renderer::new(Default::default())
+        .render_region(&raw, &s, 0, rect)
+        .unwrap();
+    let before = gpu.stats().submissions;
+    let actual = renderer.render_region(&raw, &s, 0, rect).unwrap();
+    assert!(gpu.stats().submissions > before);
+    compare(&actual, &expected, true);
+}

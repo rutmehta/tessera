@@ -14,6 +14,7 @@ use std::{
 /// One image of the review queue, in queue order.
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct SessionImage {
+    pub lightroom_smart_preview: bool,
     pub id: String,
     pub path: String,
     /// As stored by the index (see `ImageSummary::capture_time`).
@@ -23,6 +24,10 @@ pub struct SessionImage {
     pub in_basket: bool,
     /// Index into `CullSession::groups`.
     pub group: u32,
+    /// Catalog file name of an imported Smart Preview (user data: show it,
+    /// never put it in accessibility identifiers). None for ordinary files.
+    #[uniffi(default = None)]
+    pub display_name: Option<String>,
 }
 
 /// Burst / near-duplicate group. Members follow queue order.
@@ -145,6 +150,7 @@ pub struct DefectCandidate {
 pub(crate) struct Inner {
     pub(crate) core: Core,
     reader: Connection,
+    listing: crate::catalog::ListingCache,
     pub(crate) assist: crate::assist::AssistState,
     /// Suggested best per group membership, reused by `sync_changes` for groups
     /// whose members and scores did not change.
@@ -243,13 +249,36 @@ impl Engine {
         );
         let index = index::Index::open(&self.db)?;
         let reader = Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-        let mut core = Core::open_owned(index, source)?;
+        let support = self.support_dir()?.to_path_buf();
+        let policy = cull::HashCachePolicy::application_support(
+            support.clone(),
+            "tessera-source-samples",
+            1,
+            &folder.iter().cloned().collect::<Vec<_>>(),
+        )
+        .ok();
+        let preview =
+            move |info: &index::ImageInfo| crate::preview::cull_preview_hash(info, &support);
+        let mut core = if let Some(policy) = policy {
+            Core::open_owned_with_cached_previews(index, source, policy, preview)?
+        } else {
+            Core::open_owned_with_previews(index, source, preview)?
+        };
+        let engine = self.this.clone();
+        core.set_preview_notifier(move || {
+            if let Some(engine) = engine.upgrade() {
+                engine.emit(crate::EngineEvent::LibraryChanged {
+                    sequence: engine.notified.load(std::sync::atomic::Ordering::Acquire),
+                });
+            }
+        });
         // The host owns cursor movement so it can follow its display order.
         core.set_auto_advance(false);
         Ok(Arc::new(CullSession {
             support_dir: self.support_dir()?.to_path_buf(),
             inner: Mutex::new(Inner {
                 core,
+                listing: Default::default(),
                 reader,
                 assist,
                 bests: HashMap::new(),
@@ -299,6 +328,7 @@ impl Engine {
             support_dir: support.clone(),
             inner: Mutex::new(Inner {
                 core,
+                listing: Default::default(),
                 reader: Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?,
                 assist: crate::assist::AssistState::new(
                     support,
@@ -399,8 +429,9 @@ impl Inner {
         self.core.current().map(|id| id.to_string())
     }
     /// Rows for `ids` (queue members), with their current group index.
-    fn session_images(&self, ids: &[ImageId]) -> Result<Vec<SessionImage>> {
-        let basket = self.basket_members()?;
+    fn session_images(&mut self, ids: &[ImageId]) -> Result<Vec<SessionImage>> {
+        self.listing.sync(self.core.index())?;
+        let basket: HashSet<_> = self.basket_members()?.into_iter().collect();
         let mut group_of = HashMap::new();
         for (n, group) in self.core.groups().iter().enumerate() {
             for id in &group.images {
@@ -408,21 +439,36 @@ impl Inner {
             }
         }
         let mut stmt = self.reader.prepare_cached(
-            "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1') FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
+            "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1'),(SELECT value FROM metadata WHERE image_id=i.id AND key=?2),(SELECT value FROM metadata WHERE image_id=i.id AND key=?3),COALESCE((SELECT hash FROM recipe_hash WHERE image_id=i.id),'') FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?1",
         )?;
         let mut out = Vec::with_capacity(ids.len());
         for id in ids {
             let key = id.to_string();
-            let (path, capture_time, orientation) = stmt.query_row([&key], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, Option<String>>(1)?,
-                    r.get::<_, String>(2)?,
-                ))
-            })?;
+            let (path, capture_time, orientation, facts) = stmt.query_row(
+                [
+                    key.as_str(),
+                    crate::catalog::LISTING_RECIPE_KEY,
+                    crate::catalog::LISTING_ORIGINAL_KEY,
+                ],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                        r.get::<_, String>(2)?,
+                        crate::catalog::ScanFacts {
+                            recipe: r.get(3)?,
+                            original: r.get(4)?,
+                            current: r.get(5)?,
+                        },
+                    ))
+                },
+            )?;
+            let row = self.listing.source(*id, Path::new(&path), Some(&facts));
             out.push(SessionImage {
+                lightroom_smart_preview: row.offline,
+                display_name: row.display_name,
                 id: key,
-                path,
+                path: row.source,
                 capture_time,
                 orientation: orientation.parse().unwrap_or(1),
                 // Reconciled from sidecars when the session opened (or the image joined).
@@ -461,8 +507,23 @@ impl Inner {
 
 #[uniffi::export]
 impl CullSession {
+    /// True while deferred near-duplicate hashing or regrouping remains; each
+    /// `sync_changes` advances it.
+    pub fn previews_pending(&self) -> Result<bool> {
+        Ok(self.lock()?.core.previews_pending())
+    }
+
+    /// Cancel preview work and wait until its worker and callbacks have retired.
+    /// The host must call this off the main thread. The session lock is released
+    /// before waiting, so provider completion never blocks UI access to it.
+    pub fn shutdown(&self) -> Result<()> {
+        let completion = self.lock()?.core.retire_previews();
+        completion.wait();
+        Ok(())
+    }
+
     pub fn images(&self) -> Result<Vec<SessionImage>> {
-        let s = self.lock()?;
+        let mut s = self.lock()?;
         let ids = s.core.images().to_vec();
         s.session_images(&ids)
     }
@@ -812,6 +873,214 @@ mod offline_library_tests {
     use crate::smart_preview_store::SmartPreviewJournal;
     use std::fs;
 
+    fn proxy_library(count: usize) -> (tempfile::TempDir, Arc<Engine>, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        fs::create_dir(&photos).unwrap();
+        let photos = photos.canonicalize().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let mut index = index::Index::open(&engine.db).unwrap();
+        for n in 0..count {
+            let path = photos.join(format!("proxy-{n}.dng"));
+            fs::write(
+                &path,
+                include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+            )
+            .unwrap();
+            index
+                .scan_file(
+                    &path,
+                    &index::NoopSidecarReader,
+                    &index::NoopMetadataProvider,
+                )
+                .unwrap();
+            let id = index.image_at(&path).unwrap().unwrap();
+            let mut document = sidecar::RecipeDocument {
+                recipe: engine_api::recipe::Recipe::new(id),
+                ..Default::default()
+            };
+            document.recipe.unknown.insert(
+                "lightroom_smart_preview".into(),
+                serde_json::json!({"original_path": photos.join("offline.raw")}),
+            );
+            sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&path).recipe, &document)
+                .unwrap();
+        }
+        (dir, engine, photos)
+    }
+
+    #[test]
+    fn lr13e_shutdown_releases_session_lock_before_waiting() {
+        use std::sync::mpsc;
+        let (_dir, engine, photos) = proxy_library(1);
+        let (entered, started) = mpsc::channel();
+        let (release, blocked) = mpsc::channel::<()>();
+        let blocked = Mutex::new(blocked);
+        let mut core = Core::open_owned_with_previews(
+            index::Index::open(&engine.db).unwrap(),
+            cull::Source::from(photos.clone()),
+            move |_| {
+                entered.send(()).unwrap();
+                blocked.lock().unwrap().recv().unwrap();
+                Ok(Some(0))
+            },
+        )
+        .unwrap();
+        core.poll_previews().unwrap();
+        started
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let support = engine.support_dir().unwrap().to_path_buf();
+        let session = Arc::new(CullSession {
+            support_dir: support.clone(),
+            inner: Mutex::new(Inner {
+                core,
+                reader: Connection::open_with_flags(&engine.db, OpenFlags::SQLITE_OPEN_READ_ONLY)
+                    .unwrap(),
+                listing: Default::default(),
+                assist: crate::assist::AssistState::new(
+                    support,
+                    crate::assist::library_key(Some(&photos)),
+                ),
+                bests: HashMap::new(),
+            }),
+        });
+        let (done, finished) = mpsc::channel();
+        let closing = session.clone();
+        let shutdown = std::thread::spawn(move || {
+            closing.shutdown().unwrap();
+            done.send(()).unwrap();
+        });
+        // Retirement clears pending work before the blocking wait begins.
+        let start = std::time::Instant::now();
+        while session.lock().unwrap().core.previews_pending() {
+            assert!(start.elapsed() < std::time::Duration::from_secs(5));
+            std::thread::yield_now();
+        }
+        // The provider is still blocked, yet UI calls take the session lock.
+        assert_eq!(session.images().unwrap().len(), 1);
+        assert_eq!(
+            finished.recv_timeout(std::time::Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout),
+            "shutdown must wait for the blocked provider"
+        );
+        release.send(()).unwrap();
+        finished
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        shutdown.join().unwrap();
+    }
+
+    #[test]
+    fn lr13c_rows_reuse_source_projection_until_catalog_change() {
+        let (_dir, engine, photos) = proxy_library(1);
+        let session = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap();
+        let before = session.images().unwrap();
+        assert!(before[0].lightroom_smart_preview);
+        let path = photos.join("proxy-0.dng");
+        let recipe_path = sidecar::Sidecar::paths(&path).recipe;
+        let mut doc = sidecar::Sidecar::read_recipe(&recipe_path).unwrap();
+        fs::write(&recipe_path, b"unindexed sidecar change").unwrap();
+        let cached = session.images().unwrap();
+        assert!(
+            cached[0].lightroom_smart_preview,
+            "unchanged catalog rows must not re-read recipes"
+        );
+        assert_eq!(cached[0].path, before[0].path);
+        sidecar::Sidecar::write_recipe(&recipe_path, &doc).unwrap();
+        // A real catalog edit invalidates only the changed row, including its
+        // availability snapshot. Reconnecting the synthetic original is seen.
+        image::RgbImage::new(8, 8)
+            .save_with_format(photos.join("offline.raw"), image::ImageFormat::Png)
+            .unwrap();
+        doc.recipe
+            .edit(
+                engine_api::recipe::EditMeta::user("Exposure", 1),
+                |settings| {
+                    settings.tone.exposure = 1.0;
+                },
+            )
+            .unwrap();
+        engine
+            .set_recipe_json(
+                before[0].id.clone(),
+                serde_json::to_string(&doc.recipe).unwrap(),
+            )
+            .unwrap();
+        session.sync_changes().unwrap();
+        let updated = session.images().unwrap();
+        assert!(!updated[0].lightroom_smart_preview);
+        assert_eq!(
+            updated[0].path,
+            photos.join("offline.raw").to_string_lossy()
+        );
+    }
+
+    #[test]
+    fn lr13c_ready_events_drive_incremental_groups_after_open() {
+        use std::sync::mpsc;
+        struct Listener(mpsc::Sender<()>);
+        impl crate::EngineEventListener for Listener {
+            fn on_event(&self, event: crate::EngineEvent) {
+                if matches!(event, crate::EngineEvent::LibraryChanged { .. }) {
+                    let _ = self.0.send(());
+                }
+            }
+        }
+        let (_dir, engine, photos) = proxy_library(40);
+        let (notify, ready) = mpsc::channel();
+        engine.set_event_listener(Some(Arc::new(Listener(notify))));
+        let session = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap();
+        let sequence = session.change_sequence().unwrap();
+        assert_eq!(session.groups().unwrap().len(), 40);
+        let cursor = session.current().unwrap();
+        session.sync_changes().unwrap(); // The same post-install kick as the Mac.
+        let start = std::time::Instant::now();
+        let mut regrouped = false;
+        while session.lock().unwrap().core.previews_pending() {
+            ready
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            regrouped |= session.sync_changes().unwrap().groups.is_some();
+            assert!(start.elapsed() < std::time::Duration::from_secs(5));
+        }
+        assert!(regrouped);
+        assert_eq!(session.groups().unwrap().len(), 1);
+        assert_eq!(session.groups().unwrap()[0].images.len(), 40);
+        assert_eq!(session.current().unwrap(), cursor);
+        assert_eq!(session.change_sequence().unwrap(), sequence);
+        assert!(session.preview_errors().unwrap().is_empty());
+    }
+
+    #[test]
+    fn lr13c_library_open_has_zero_proxy_decodes_and_lens_resolutions() {
+        let (_dir, engine, photos) = proxy_library(8);
+        let decodes = raw_decode::lossy_dng::pixel_decode_count();
+        let lenses = pipeline_cpu::lens_resolution_count();
+        let start = std::time::Instant::now();
+        let session = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap();
+        let rows = session.images().unwrap();
+        assert_eq!(rows.len(), 8);
+        let groups = session.groups().unwrap();
+        session
+            .derived_statuses(rows.iter().map(|r| r.id.clone()).collect())
+            .unwrap();
+        let decoded = raw_decode::lossy_dng::pixel_decode_count() - decodes;
+        let resolved = pipeline_cpu::lens_resolution_count() - lenses;
+        eprintln!(
+            "LR-13c: 8 proxies open={:?}, proxy_decodes={decoded}, lens_resolutions={resolved}",
+            start.elapsed()
+        );
+        assert_eq!((decoded, resolved), (0, 0));
+        assert_eq!(groups.len(), 8);
+    }
+
     #[test]
     fn offline_library_uses_declarations_and_catalog_without_recreating_folder() {
         let dir = tempfile::tempdir().unwrap();
@@ -940,5 +1209,113 @@ mod offline_library_tests {
                 .is_empty()
         );
         assert!(!photos.exists());
+    }
+
+    /// A-LR8 M5: listing facts are captured when a file is indexed, so opening
+    /// a library of imported proxies reads no recipe per row. Only rows whose
+    /// recipe changed since indexing fall back to one recipe read each.
+    #[test]
+    fn lr13b_cold_library_open_reads_no_proxy_recipes() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        let originals = dir.path().join("originals");
+        fs::create_dir(&photos).unwrap();
+        fs::create_dir(&originals).unwrap();
+        let photos = photos.canonicalize().unwrap();
+        let originals = originals.canonicalize().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let mut index = index::Index::open(&engine.db).unwrap();
+        let mut ids = Vec::new();
+        for n in 0..4 {
+            let path = photos.join(format!("proxy-{n}.dng"));
+            fs::write(
+                &path,
+                include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+            )
+            .unwrap();
+            let id = crate::lrcat::app_image_id(&path).unwrap();
+            let mut document = sidecar::RecipeDocument {
+                recipe: engine_api::recipe::Recipe::new(id),
+                ..Default::default()
+            };
+            document.recipe.unknown.insert(
+                "lightroom_smart_preview".into(),
+                serde_json::json!({"original_path": originals.join(format!("synthetic-{n}.raw"))}),
+            );
+            sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&path).recipe, &document)
+                .unwrap();
+            index
+                .scan_file(
+                    &path,
+                    &crate::catalog::Sidecars,
+                    &crate::catalog::IndexedMetadata,
+                )
+                .unwrap();
+            ids.push(index.image_at(&path).unwrap().unwrap());
+        }
+        // proxy-0's original is back online (relinked).
+        image::RgbImage::new(8, 8)
+            .save_with_format(originals.join("synthetic-0.raw"), image::ImageFormat::Png)
+            .unwrap();
+        let reads = crate::catalog::proxy_recipe_reads();
+        let session = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap();
+        let mut rows = session.images().unwrap();
+        assert_eq!(
+            crate::catalog::proxy_recipe_reads() - reads,
+            0,
+            "a cold listing must not read recipes"
+        );
+        rows.sort_by_key(|r| r.display_name.clone());
+        assert_eq!(rows.len(), 4);
+        for (n, row) in rows.iter().enumerate() {
+            assert_eq!(
+                row.display_name.as_deref(),
+                Some(format!("synthetic-{n}.raw").as_str())
+            );
+            assert_eq!(row.lightroom_smart_preview, n != 0);
+            let expected = if n == 0 {
+                originals.join("synthetic-0.raw")
+            } else {
+                photos.join(format!("proxy-{n}.dng"))
+            };
+            assert_eq!(row.path, expected.to_string_lossy());
+        }
+        // An engine edit re-indexes the file, refreshing its facts: still no
+        // recipe reads on the next listing.
+        let edited = ids[1].to_string();
+        let mut recipe: engine_api::recipe::Recipe =
+            serde_json::from_str(&engine.get_recipe(edited.clone()).unwrap()).unwrap();
+        recipe
+            .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+                s.tone.exposure = 0.5;
+            })
+            .unwrap();
+        engine
+            .set_recipe_json(edited, serde_json::to_string(&recipe).unwrap())
+            .unwrap();
+        session.sync_changes().unwrap();
+        let reads = crate::catalog::proxy_recipe_reads();
+        let again = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap()
+            .images()
+            .unwrap();
+        assert_eq!(again.len(), 4);
+        assert_eq!(crate::catalog::proxy_recipe_reads() - reads, 0);
+        // Facts recorded for another recipe hash are stale: that row falls
+        // back to exactly one recipe read and still projects correctly.
+        let path = photos.join("proxy-2.dng");
+        let stale = crate::catalog::ScanFacts {
+            recipe: Some("0".repeat(64)),
+            original: Some(String::new()),
+            current: recipe.recipe_hash().to_string(),
+        };
+        let reads = crate::catalog::proxy_recipe_reads();
+        let row = crate::catalog::project(&path, Some(&stale));
+        assert_eq!(crate::catalog::proxy_recipe_reads() - reads, 1);
+        assert!(row.offline);
+        assert_eq!(row.display_name.as_deref(), Some("synthetic-2.raw"));
     }
 }

@@ -30,6 +30,8 @@ fn synthetic_output() -> (CfaU16, RawMetadata) {
             aperture: 2.0,
             focal_mm: 50.0,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width: 2,
             height: 2,

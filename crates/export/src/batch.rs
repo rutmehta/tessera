@@ -83,6 +83,9 @@ pub fn export_batch_with_jobs(
         let (w, h) = match &item.image.source {
             pipeline_cpu::RenderSource::Rgb(image) => (image.width(), image.height()),
             pipeline_cpu::RenderSource::Cfa { metadata, .. } => (metadata.width, metadata.height),
+            pipeline_cpu::RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
+                (proxy.pixels().width(), proxy.pixels().height())
+            }
             pipeline_cpu::RenderSource::CameraLinear(_) => return Err(crate::original_required()),
         };
         let (ow, oh) = settings.resize.dimensions(w, h)?;

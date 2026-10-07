@@ -83,6 +83,10 @@ struct Metadata {
     focal_mm: f32,
     capture_time: i64,
     orientation: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    catalog_orientation: Option<u16>,
+    #[serde(default)]
+    baseline_exposure: f32,
     width: u32,
     height: u32,
     black_levels: [f32; 4],
@@ -123,6 +127,8 @@ impl Metadata {
             focal_mm: m.focal_mm,
             capture_time: m.capture_time,
             orientation: m.orientation,
+            catalog_orientation: m.catalog_orientation,
+            baseline_exposure: m.baseline_exposure,
             width: m.width,
             height: m.height,
             black_levels: m.black_levels,
@@ -152,7 +158,11 @@ impl Metadata {
             aperture: self.aperture,
             focal_mm: self.focal_mm,
             capture_time: self.capture_time,
-            orientation: self.orientation,
+            catalog_orientation: self.catalog_orientation,
+            baseline_exposure: self.baseline_exposure,
+            // A catalog orientation is the display orientation (LR-8m); entries
+            // written before that rule stored 1 beside it.
+            orientation: self.catalog_orientation.unwrap_or(self.orientation),
             width: self.width,
             height: self.height,
             black_levels: self.black_levels,
@@ -175,7 +185,10 @@ impl Metadata {
             || h == 0
             || x.checked_add(w).is_none_or(|v| v > m.width)
             || y.checked_add(h).is_none_or(|v| v > m.height)
+            || !m.baseline_exposure.is_finite()
             || !(1..=8).contains(&m.orientation)
+            || m.catalog_orientation
+                .is_some_and(|o| !(1..=8).contains(&o) || m.orientation != o)
             || m.white_level == 0
             || ![m.iso, m.shutter_s, m.aperture, m.focal_mm]
                 .iter()
@@ -336,6 +349,9 @@ impl CameraLinearProxy {
     /// Encode a bounded snapshot. Original length/digest are assertions made by the caller.
     /// F16 is selected only if every sample meets |error| <= 0.0005*|value| + 3e-8.
     pub fn encode_persistent(&self, original_byte_length: u64) -> EngineResult<Vec<u8>> {
+        if self.is_external_dng() {
+            return Err(invalid("external DNG must remain a DNG source"));
+        }
         let half_ok = self.pixels.planes().iter().flatten().all(|v| {
             let h = half::f16::from_f32(*v).to_f32();
             v.is_finite()
@@ -569,6 +585,8 @@ impl CameraLinearProxy {
             container_digest,
             encoding: s.encoding,
             proxy: Self {
+                external_dng: false,
+                external_profile: None,
                 pixels,
                 metadata,
                 correction,
@@ -598,6 +616,8 @@ mod tests {
             aperture: 4.,
             focal_mm: 50.,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width: 2,
             height: 2,
@@ -615,6 +635,8 @@ mod tests {
         };
         let s = DevelopSettings::default();
         CameraLinearProxy {
+            external_dng: false,
+            external_profile: None,
             pixels: Image::new(2, 2, vec![values.to_vec(); 3]).unwrap(),
             metadata,
             correction: ResolvedLens {

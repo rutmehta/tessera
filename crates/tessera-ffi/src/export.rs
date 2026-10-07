@@ -863,20 +863,61 @@ impl Engine {
 
 /// Decoded pixels for the renderer (RAW CFA or linear Rec.2020 from RGB files).
 pub(crate) enum Source {
+    LinearDng(Box<pipeline_cpu::CameraLinearProxy>),
     Rgb(pipeline_cpu::Image),
     Raw(Box<(raw_decode::CfaImage, raw_decode::RawMetadata)>),
 }
 impl Source {
-    pub(crate) fn open(path: &Path, _orientation: u16) -> Result<Self> {
+    pub(crate) fn open(
+        path: &Path,
+        _orientation: u16,
+        process: engine_api::recipe::ProcessVersion,
+    ) -> Result<Self> {
+        let orientation = catalog::catalog_orientation(path);
+        let source = catalog::source_path(path);
+        let path = source.as_path();
+        if path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("dng"))
+            && let Some(dng) = raw_decode::lossy_dng::read(&mut std::fs::File::open(path)?)?
+        {
+            // Profile metadata belongs to the Adobe path (LR-13b): Native
+            // rendering never reads those optional tags. On the Adobe path a
+            // malformed profile falls back to the unprofiled render (LR-8d).
+            let profile = if process.family == engine_api::recipe::ProcessFamily::Adobe {
+                image_core::pipeline_adobe::dcp::read_embedded_profile(&mut std::fs::File::open(
+                    path,
+                )?)
+                .ok()
+                .flatten()
+            } else {
+                None
+            };
+            let mut proxy =
+                pipeline_cpu::CameraLinearProxy::from_dng(dng)?.with_embedded_profile(profile);
+            if let Some(orientation) = orientation {
+                proxy = proxy.with_catalog_orientation(orientation)?;
+            }
+            return Ok(Self::LinearDng(Box::new(proxy)));
+        }
         if !image_core::RgbSource::recognizes(path) {
             let mut raw = raw_decode::RawSource::open(path)?;
             let cfa = raw.decode_cfa()?;
-            return Ok(Self::Raw(Box::new((cfa, raw.metadata()))));
+            let mut metadata = raw.metadata();
+            if let Some(orientation) = orientation {
+                // Display orientation, applied after sensor-frame edits (LR-8m).
+                metadata.catalog_orientation = Some(orientation);
+                metadata.orientation = orientation;
+            }
+            return Ok(Self::Raw(Box::new((cfa, metadata))));
         }
-        Ok(Self::Rgb(image_core::RgbSource::open(path)?.into_pixels()))
+        Ok(Self::Rgb(
+            image_core::RgbSource::open_with_orientation(path, orientation)?.into_pixels(),
+        ))
     }
     pub(crate) fn render_source(&self) -> pipeline_cpu::RenderSource<'_> {
         match self {
+            Self::LinearDng(proxy) => pipeline_cpu::RenderSource::CameraLinear(proxy),
             Self::Rgb(image) => pipeline_cpu::RenderSource::Rgb(image),
             Self::Raw(raw) => pipeline_cpu::RenderSource::Cfa {
                 image: &raw.0,
@@ -887,6 +928,14 @@ impl Source {
     /// Displayed size before crop (after orientation).
     fn display_size(&self) -> (u32, u32) {
         match self {
+            Self::LinearDng(proxy) => {
+                let p = proxy.pixels();
+                if proxy.original_metadata().orientation >= 5 {
+                    (p.height(), p.width())
+                } else {
+                    (p.width(), p.height())
+                }
+            }
             Self::Rgb(image) => (image.width(), image.height()),
             Self::Raw(raw) => {
                 let [_, _, w, h] = raw.1.default_crop;
@@ -1078,7 +1127,12 @@ impl Engine {
         let mut taken = HashSet::new();
         let mut plans = Vec::with_capacity(pending.len());
         for (i, item) in pending.iter().enumerate() {
-            let name = stem(&item.path)?;
+            // Imported Smart Previews export under the catalog's file name
+            // (A-LR8 M6), never their UUID or copy name.
+            let name = match catalog::proxy_display_name(&item.path) {
+                Some(original) => stem(Path::new(&original))?,
+                None => stem(&item.path)?,
+            };
             let extension = if options.format == FileFormat::Original {
                 item.path
                     .extension()
@@ -1211,7 +1265,7 @@ impl Engine {
             }
             let result = plan.map_err(failure).and_then(|naming| {
                 let (recipe, packet) = self.recipe_and_xmp(item)?;
-                let source = Source::open(&item.path, item.orientation)?;
+                let source = Source::open(&item.path, item.orientation, recipe.process_version)?;
                 let image = export::ExportImage {
                     source: source.render_source(),
                     name: &name,
@@ -1394,6 +1448,10 @@ pub struct PrintImage {
     pub channels: u32,
     pub data: Vec<u8>,
     pub icc: Vec<u8>,
+    /// What a Smart Preview could not reproduce, as sentences (empty for
+    /// originals), the same notes a file export records beside its output.
+    #[uniffi(default = [])]
+    pub notes: Vec<String>,
 }
 
 /// Largest power-of-two binning (≤ 8) that still leaves ≥ the requested box.
@@ -1450,7 +1508,7 @@ impl Engine {
             .pop()
             .ok_or_else(|| failure("image not found"))?;
         let (recipe, _) = self.recipe_and_xmp(&item)?;
-        let source = Source::open(&item.path, item.orientation)?;
+        let source = Source::open(&item.path, item.orientation, recipe.process_version)?;
         let crop = recipe.settings.geometry.crop.rect;
         let mut segmenter = if export::needs_segmenter(&recipe) {
             Some(
@@ -1470,7 +1528,7 @@ impl Engine {
         } else {
             export::ColorSpace::DisplayP3
         };
-        let rgb = export::render_pixels_with_resources(
+        let (rgb, notes) = export::render_pixels_with_notes(
             &export::ExportImage {
                 source: source.render_source(),
                 name: "print",
@@ -1531,6 +1589,7 @@ impl Engine {
                     channels: device.channels as u32,
                     data: device.data,
                     icc: printer.icc_bytes().to_vec(),
+                    notes,
                 })
             }
             None => Ok(PrintImage {
@@ -1542,6 +1601,7 @@ impl Engine {
                     .flat_map(|p| p.map(|v| (v * 255.0).round() as u8))
                     .collect(),
                 icc: export::color_space_icc(export::ColorSpace::DisplayP3)?,
+                notes,
             }),
         }
     }

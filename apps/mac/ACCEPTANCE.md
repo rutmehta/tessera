@@ -447,6 +447,9 @@ renders, so the ΔE values below only show that the comparison works.
     `4 Keep · 1 Reject · 1 Undecided · 3 marked`. **Colour labels → marks** lists `Client 1 photo` and `Red 2 photos`, both
     `Keep “…”`. **Keyword hierarchy** shows Places ▸ NYC (New York) 2, Paris 0; People ▸ Alice 1; Trips ▸ Paris 1 with an
     amber `merged` tag.
+    The Smart Preview toggles expose `library.import.smartPreviews` (**Import offline photos using Lightroom Smart
+    Previews**) and `library.import.copyProxies` (**Copy Smart Previews into Tessera storage**). The copy toggle is
+    disabled when Smart Preview import is off. Both identifiers are fixed literals and contain no catalog/user data.
 66. **Relocate the moved drive.** Click **Locate…**, press ⇧⌘G, paste `$SCR/lr/Photos` (expanded), **Return**, **Locate**.
     📸 Expect: a green check, `→ …/lr/Photos`, `5/6 found`, **Change…** and **Reset**; the library folder follows to
     `…/lr/Photos`; the folder table shows `Photos/2026` (0), `Photos/2026/portraits` (3 photos, Missing 1 in red) and

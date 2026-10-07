@@ -90,6 +90,18 @@ struct ContentView: View {
                             .allowsHitTesting(model.viewMode == .loupe)
                         if model.viewMode == .loupe {
                             LoupeOverlay(model: model)
+                            if model.focusedItem?.engineImage?.lightroomSmartPreview == true {
+                                VStack {
+                                    HStack {
+                                        SmartPreviewLoupeBadge(
+                                            notices: model.developRenderNotices(for: model.focusedItem))
+                                        Spacer()
+                                    }
+                                    Spacer()
+                                }
+                                .padding(Theme.Space.m)
+                                .allowsHitTesting(false)
+                            }
                             if model.isPhotoEditing { MaskToolbar(model: model, masks: .shared) }
                         }
                         if model.viewMode == .compare, model.compare != nil {

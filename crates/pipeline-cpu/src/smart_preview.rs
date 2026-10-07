@@ -45,6 +45,8 @@ impl SmartPreviewTier {
 /// with payload/container digests and an explicit original-source assertion.
 #[derive(Clone, Debug)]
 pub struct CameraLinearProxy {
+    external_dng: bool,
+    external_profile: Option<std::sync::Arc<[u8]>>,
     pixels: Image,
     metadata: RawMetadata,
     correction: ResolvedLens,
@@ -58,7 +60,68 @@ pub struct CameraLinearProxy {
     tier: SmartPreviewTier,
 }
 impl CameraLinearProxy {
-    pub const GENERATOR_REVISION: u32 = 2;
+    /// DNG camera channels are a source, not a cached Tessera RAW prefix.
+    /// They may use either process family and remain exportable at their own size.
+    pub fn from_dng(mut dng: raw_decode::lossy_dng::LossyDng) -> EngineResult<Self> {
+        if dng.metadata.opcode_lists.iter().any(Option::is_some) {
+            return Err(EngineError::Unsupported {
+                what: "LinearRaw DNG contains unconsumed correction opcodes".into(),
+            });
+        }
+        dng.metadata.baseline_exposure = dng.baseline_exposure;
+        let planes = (0..3)
+            .map(|c| dng.pixels.iter().map(|p| p[c]).collect())
+            .collect();
+        let pixels = Image::new(dng.width as u32, dng.height as u32, planes)?;
+        let s = DevelopSettings::default();
+        let correction = crate::resolve_lens(
+            &pixels,
+            &s.lens,
+            Some(&dng.metadata),
+            &LensContext::default(),
+        )?;
+        Ok(Self {
+            external_dng: true,
+            external_profile: None,
+            pixels,
+            metadata: dng.metadata,
+            correction,
+            decode: s.decode,
+            linearize: s.linearize,
+            demosaic: s.demosaic,
+            denoise: s.denoise,
+            lens: s.lens,
+            original_content_digest: [0; 32],
+            scale: 1,
+            tier: SmartPreviewTier::Detail2560,
+        })
+    }
+    /// Use an absolute catalog orientation as the display orientation,
+    /// replacing (never composing with) EXIF. Edits stay in the sensor frame
+    /// and callers orient output exactly as for an ordinary RAW (LR-8m).
+    pub fn with_catalog_orientation(mut self, orientation: u16) -> EngineResult<Self> {
+        if !(1..=8).contains(&orientation) {
+            return Err(EngineError::invalid("catalog orientation", "expected 1..8"));
+        }
+        self.metadata.catalog_orientation = Some(orientation);
+        self.metadata.orientation = orientation;
+        Ok(self)
+    }
+    /// Bounded profile metadata captured with an external DNG's decoded pixels.
+    /// Native generated previews never carry this external camera profile.
+    pub fn with_embedded_profile(mut self, bytes: Option<Vec<u8>>) -> Self {
+        if self.external_dng {
+            self.external_profile = bytes.map(Into::into);
+        }
+        self
+    }
+    pub fn embedded_profile(&self) -> Option<&[u8]> {
+        self.external_profile.as_deref()
+    }
+    pub fn is_external_dng(&self) -> bool {
+        self.external_dng
+    }
+    pub const GENERATOR_REVISION: u32 = 3;
     pub const MAX_EDGE: u32 = 2560;
     /// Caller supplies the verified original byte digest, not a path identity.
     /// Only Native revision 2 and raw denoise Off are admitted. A downstream
@@ -129,6 +192,8 @@ impl CameraLinearProxy {
         // overflowed; retain signed/HDR values rather than clamp/quantize them.
         let pixels = Image::new(pixels.width(), pixels.height(), pixels.planes().to_vec())?;
         Ok(Self {
+            external_dng: false,
+            external_profile: None,
             pixels,
             metadata: metadata.clone(),
             correction,
@@ -150,12 +215,58 @@ impl CameraLinearProxy {
         settings: &DevelopSettings,
     ) -> EngineResult<Option<crate::LensPlan>> {
         self.validate_prefix(settings)?;
-        self.correction.camera_linear_tail_plan(
-            settings,
+        // These operators need caller-owned scalar resources; never admit a
+        // tail that silently plans them away before checking GPU capability.
+        if settings.effects.lens_blur.is_some() || !settings.locals.retouch.is_empty() {
+            return Ok(None);
+        }
+        // Not needed for correctness since LR-8m (orientation is display-only);
+        // kept until the rotated-proxy GPU tail is admitted in a performance
+        // follow-up (export/tests/lrcat_jxl.rs pins the decline).
+        if self.metadata.catalog_orientation.is_some_and(|o| o != 1) {
+            return Ok(None);
+        }
+        let planned = self.render_plan(settings, false).0;
+        let correction = if self.external_dng {
+            crate::resolve_lens(
+                &self.working_rgb(&planned)?,
+                &planned.lens,
+                Some(&self.metadata),
+                &LensContext::default(),
+            )?
+        } else {
+            self.correction.clone()
+        };
+        correction.camera_linear_tail_plan(
+            &planned,
             &self.metadata,
             [self.pixels.width(), self.pixels.height()],
         )
     }
+    pub(crate) fn working_rgb(&self, settings: &DevelopSettings) -> EngineResult<Image> {
+        let camera_xyz =
+            crate::camera_to_xyz(engine_api::color::ColorMatrix3(std::array::from_fn(|r| {
+                self.metadata.cam_xyz[r].map(f64::from)
+            })))?;
+        let profile = engine_api::color::WorkingSpace::LinearRec2020
+            .to_xyz()
+            .inverse()?
+            * camera_xyz;
+        let wb = crate::white_balance_matrix(
+            &settings.white_balance,
+            camera_xyz,
+            self.metadata.as_shot_wb,
+        )?;
+        let mut out = self.pixels.clone();
+        for coord in out.coords() {
+            let mut tile = out.tile(coord, 0, 1)?;
+            crate::apply_matrix(&mut tile, profile)?;
+            crate::apply_matrix(&mut tile, wb)?;
+            out.put(&tile)?;
+        }
+        Ok(out)
+    }
+
     pub fn pixels(&self) -> &Image {
         &self.pixels
     }
@@ -174,7 +285,102 @@ impl CameraLinearProxy {
     pub(crate) fn correction(&self) -> &ResolvedLens {
         &self.correction
     }
+    /// Render-only adaptation for external mosaic-free Lightroom sources.
+    /// The persisted recipe is never changed. Notes contain field names only.
+    pub fn render_plan(
+        &self,
+        settings: &DevelopSettings,
+        mask_hooks: bool,
+    ) -> (DevelopSettings, Vec<&'static str>) {
+        self.render_plan_with_resources(settings, mask_hooks, false, false)
+    }
+
+    /// Keep dependency-backed operators when the caller can actually execute
+    /// them. Providers must validate their depth extent and renderer results;
+    /// this planning step never infers availability from the proxy's format.
+    pub fn render_plan_with_resources(
+        &self,
+        settings: &DevelopSettings,
+        mask_hooks: bool,
+        depth: bool,
+        retouch: bool,
+    ) -> (DevelopSettings, Vec<&'static str>) {
+        let mut drawn = settings.clone();
+        let mut notes = Vec::new();
+        if !self.external_dng {
+            return (drawn, notes);
+        }
+        let defaults = DevelopSettings::default();
+        if drawn.white_balance.mode == engine_api::recipe::settings::WhiteBalanceMode::Auto {
+            drawn.white_balance.mode = engine_api::recipe::settings::WhiteBalanceMode::AsShot;
+            notes.push("/white_balance/mode");
+        }
+        macro_rules! omit {
+            ($field:ident, $name:literal) => {
+                if drawn.$field != defaults.$field {
+                    notes.push($name);
+                    drawn.$field = defaults.$field.clone();
+                }
+            };
+        }
+        omit!(decode, "/decode");
+        omit!(linearize, "/linearize");
+        omit!(demosaic, "/demosaic");
+        omit!(denoise, "/denoise");
+        if drawn.camera_profile.look != defaults.camera_profile.look {
+            notes.push("/camera_profile/look");
+            drawn.camera_profile.look = defaults.camera_profile.look;
+        }
+        // Headroom only parameterizes HDR presentation. With HDR output off it
+        // changes nothing the user sees, so it is dropped without a note.
+        if drawn.output.hdr {
+            notes.push("/output/hdr");
+        }
+        drawn.output.hdr = false;
+        drawn.output.hdr_headroom_stops = 0.;
+        if matches!(drawn.lens.profile, LensProfileSource::Database { .. }) {
+            notes.push("/lens/profile");
+            drawn.lens.profile = LensProfileSource::None;
+        }
+        if drawn.effects.lens_blur.is_some() && !depth {
+            notes.push("/effects/lens_blur");
+            drawn.effects.lens_blur = None;
+        }
+        if !drawn.locals.retouch.is_empty() && !retouch {
+            notes.push("/locals/retouch");
+            drawn.locals.retouch.clear();
+        }
+        for group in &mut drawn.locals.adjustments {
+            if group.enabled
+                && group
+                    .components
+                    .iter()
+                    .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+                    .any(|c| {
+                        use engine_api::recipe::MaskKind;
+                        !matches!(
+                            c.kind,
+                            MaskKind::Linear { .. }
+                                | MaskKind::Radial { .. }
+                                | MaskKind::Brush { .. }
+                                | MaskKind::LuminanceRange { .. }
+                                | MaskKind::ColorRange { .. }
+                        ) && !(mask_hooks && c.kind.is_ai())
+                    })
+            {
+                group.enabled = false;
+                if !notes.contains(&"/locals/adjustments") {
+                    notes.push("/locals/adjustments");
+                }
+            }
+        }
+        (drawn, notes)
+    }
+
     pub fn validate_prefix(&self, s: &DevelopSettings) -> EngineResult<()> {
+        if self.external_dng {
+            return Ok(());
+        }
         if self.decode != s.decode
             || self.linearize != s.linearize
             || self.demosaic != s.demosaic

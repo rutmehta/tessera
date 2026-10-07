@@ -85,6 +85,9 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
         let (recipe, warnings) = import_lrcat::develop(catalog_id, SOURCE, "15.4").unwrap();
         assert!(warnings.is_empty(), "{warnings:?}");
         image.recipe = recipe;
+        // LR-8c: an online original keeps main's unrotated resource extent.
+        // Catalog orientation is a proxy-only override, not an original edit.
+        image.orientation = Some("BC".into());
         let mut spool = import.spool.reopen().unwrap();
         let bytes = serde_json::to_vec(&image).unwrap();
         let offset = spool.seek(SeekFrom::End(0)).unwrap();
@@ -92,6 +95,7 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
         import.records[row.index] = (offset, bytes.len());
     }
     let (w, h) = image::image_dimensions(&row.path).unwrap();
+    assert_ne!(w, h, "non-square extent must detect an accidental swap");
     let mut png = Cursor::new(Vec::new());
     image::GrayImage::from_pixel(w, h, image::Luma([128]))
         .write_to(&mut png, image::ImageFormat::Png)
@@ -363,4 +367,267 @@ fn lr6f_all_lanes_one_apply_both_resources_and_both_absent() {
         )
         .is_none()
     );
+}
+
+/// INT-1: the proxy admission, LR-11 schema, and LR-10 CPU dispatch coexist.
+#[test]
+fn int1_offline_proxy_nested_locals_adobe_render_and_orientation() {
+    use engine_api::recipe::{Author, ProcessFamily, required_schema_version};
+    use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RendererConfig};
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = import_lrcat::fixture::write(&temp.path().join("fixture")).unwrap();
+    import_lrcat::fixture::write_smart_previews(&fixture).unwrap();
+    let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    let row = r#"s={CameraProfile='Adobe Color',Sharpness=0,ColorNoiseReduction=0,ConvertToGrayscale=false,
+        PerspectiveUpright=1,UprightTransform_1='1,0,0,0,1,0,0.02,0,1',
+        MaskGroupBasedCorrections={{MainCurve={0,0,255,127.5},
+          LocalPointColors={'0,0.5,0.5,0.5,0,0,0.5,0,0.25,0.75,1,0,0.25,0.75,1,0,0.25,0.75,1'},
+          CorrectionMasks={{What='Mask/Group',Masks={{What='Mask/Gradient',
+            FullX=0,FullY=0,ZeroX=1,ZeroY=0}}}}}}}"#;
+    db.execute(
+        "INSERT INTO Adobe_imageDevelopSettings(image,text,processVersion) VALUES(35,?1,'15.4')",
+        [row],
+    )
+    .unwrap();
+    db.execute(
+        "UPDATE Adobe_images SET orientation='BC' WHERE id_local=35",
+        [],
+    )
+    .unwrap();
+    drop(db);
+    let engine = Engine::open(temp.path().join("support").to_string_lossy().into_owned()).unwrap();
+    let import = engine
+        .clone()
+        .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let mut options = import.default_options().unwrap();
+    options.relocations[0].to = fixture.photos.to_string_lossy().into_owned();
+    options.library_folder = fixture.photos.to_string_lossy().into_owned();
+    options.import_smart_previews = true;
+    options.copy_proxies = true;
+    let resolved = resolve(&import.plan, &options).unwrap();
+    assert_eq!(
+        resolved
+            .iter()
+            .filter(|r| r.outcome == Outcome::OfflineProxy)
+            .count(),
+        1
+    );
+    assert_eq!(
+        import
+            .plan(options.clone())
+            .unwrap()
+            .offline_with_smart_preview,
+        1
+    );
+    let report = import.apply(options, None).unwrap();
+    assert_eq!((report.imported, report.indexed), (6, 6));
+    let images = engine.list_images(crate::ImageQuery::default()).unwrap();
+    let proxy = images.iter().find(|r| r.lightroom_smart_preview).unwrap();
+    let recipe: Recipe =
+        serde_json::from_str(&engine.get_recipe(proxy.id.clone()).unwrap()).unwrap();
+    recipe.validate().unwrap();
+    assert_eq!(recipe.history.entries.len(), 1);
+    assert!(matches!(
+        recipe.history.entries[0].meta.author,
+        Author::Import { .. }
+    ));
+    assert_eq!(required_schema_version(&recipe), 4);
+    let json = serde_json::to_value(&recipe).unwrap();
+    assert_eq!(json["schema_version"], 4);
+    assert_eq!(recipe.process_version.family, ProcessFamily::Adobe);
+    assert!(
+        !recipe
+            .settings
+            .color
+            .monochrome
+            .as_ref()
+            .is_some_and(|m| m.enabled)
+    );
+    assert!(recipe.settings.geometry.upright.homography.is_some());
+    let group = &recipe.settings.locals.adjustments[0];
+    assert!(group.params.curves.is_some());
+    assert_eq!(group.params.point_colors.as_ref().unwrap().len(), 1);
+    assert_eq!(group.components[0].group.as_ref().unwrap().len(), 1);
+    let notes = import_lrcat::diagnostics::entries(&recipe);
+    for lane in ["LR-4", "LR-7", "LR-11"] {
+        assert!(
+            notes.values().flatten().any(|n| n.lane == lane),
+            "{notes:?}"
+        );
+    }
+    for note in notes.values().flatten() {
+        if let Some(field) = &note.field {
+            assert!(json.pointer(field).is_some(), "{note:?}");
+        }
+    }
+    assert_eq!(recipe.unknown["lightroom_orientation"], 6);
+    let path = Path::new(&proxy.path);
+    let id = recipe.image_id.unwrap();
+    let source = crate::catalog::open_image(id, path).unwrap();
+    assert!(source.camera_linear_proxy().is_some());
+    assert_eq!(source.metadata().catalog_orientation, Some(6));
+    // LR-8m (A-LR8 M8): the catalog orientation is the display orientation
+    // and the edit frame is the sensor frame, as for an ordinary RAW.
+    assert_eq!(source.metadata().orientation, 6);
+    let unrotated = RawImage::open(id, path).unwrap();
+    let extent = source.active_extent();
+    let raw_extent = unrotated.active_extent();
+    assert_ne!(raw_extent.width, raw_extent.height);
+    assert_eq!(
+        (extent.width, extent.height),
+        (raw_extent.width, raw_extent.height)
+    );
+    let config = RendererConfig {
+        process_version: recipe.process_version,
+        ..Default::default()
+    };
+    let render = |renderer: &Renderer, settings: &engine_api::recipe::DevelopSettings| {
+        let extent = Renderer::output_extent(&source, settings, 0).unwrap();
+        renderer
+            .render_region_as(
+                &source,
+                settings,
+                0,
+                PixelRect::full(extent),
+                RenderOutput::SceneLinear,
+            )
+            .unwrap()
+            .iter()
+            .flat_map(|t| t.samples::<f32>().unwrap().to_vec())
+            .collect::<Vec<_>>()
+    };
+    let renderer = Renderer::new(config.clone());
+    let pixels = render(&renderer, &recipe.settings);
+    assert!(pixels.iter().all(|v| v.is_finite()));
+    assert!(pixels.iter().any(|v| *v > 0.));
+    // Compare the eligible embedded substitution with an explicitly parsed
+    // embedded profile. Installed DCPs retain their separate main behaviour.
+    let embedded =
+        image_core::pipeline_adobe::dcp::DcpProfile::parse_embedded(&std::fs::read(path).unwrap())
+            .unwrap();
+    let explicit = image_core::pipeline_adobe::render_linear_scaled_with_profile(
+        &recipe.settings,
+        &pipeline_cpu::RenderSource::CameraLinear(source.camera_linear_proxy().unwrap()),
+        1,
+        Some(&embedded),
+    )
+    .unwrap();
+    assert_eq!(
+        pixels,
+        explicit
+            .planes()
+            .iter()
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>()
+    );
+    for remove_curve in [false, true] {
+        let mut settings = recipe.settings.clone();
+        if remove_curve {
+            settings.locals.adjustments[0].params.curves = None;
+        } else {
+            settings.locals.adjustments[0].params.point_colors = None;
+        }
+        let without = render(&renderer, &settings);
+        assert!(
+            pixels
+                .iter()
+                .zip(without)
+                .any(|(a, b)| (a - b).abs() > 1e-6),
+            "local operator must affect pixels: curve={remove_curve}"
+        );
+    }
+    let mut without_upright = recipe.settings.clone();
+    without_upright.geometry.upright = Default::default();
+    assert_ne!(pixels, render(&renderer, &without_upright));
+    // REV-SP-B N2: orientation is display-only (LR-8m). The same proxy with
+    // catalog orientation 1 renders exactly the same sensor-frame pixels.
+    let upright = RawImage::open_with_catalog_orientation(id, path, Some(1)).unwrap();
+    let extent = Renderer::output_extent(&upright, &recipe.settings, 0).unwrap();
+    let upright_pixels: Vec<f32> = renderer
+        .render_region_as(
+            &upright,
+            &recipe.settings,
+            0,
+            PixelRect::full(extent),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap()
+        .iter()
+        .flat_map(|t| t.samples::<f32>().unwrap().to_vec())
+        .collect();
+    assert_eq!(upright.metadata().orientation, 1);
+    assert_eq!(
+        pixels, upright_pixels,
+        "orientation 6 renders as orientation 1"
+    );
+}
+
+/// LR-8R: LR-5b validates injected masks in the proxy's active frame, which is
+/// the sensor frame for every catalog orientation (LR-8m, A-LR8 M8).
+#[test]
+fn lr8r_oriented_offline_proxy_accepts_matching_imported_ai_raster() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = import_lrcat::fixture::write(&temp.path().join("fixture")).unwrap();
+    import_lrcat::fixture::write_smart_previews(&fixture).unwrap();
+    let db = rusqlite::Connection::open(&fixture.catalog).unwrap();
+    db.execute(
+        "INSERT INTO Adobe_imageDevelopSettings(image,text,processVersion) VALUES(35,?1,'15.4')",
+        ["s={MaskGroupBasedCorrections={{LocalExposure2012=1,CorrectionMasks={{What='Mask/Image',MaskSubType=1,MaskDigest='mask'}}}}}"],
+    ).unwrap();
+    db.execute(
+        "UPDATE Adobe_images SET orientation='BC' WHERE id_local=35",
+        [],
+    )
+    .unwrap();
+    drop(db);
+    let support = temp.path().join("support");
+    let engine = Engine::open(support.to_string_lossy().into_owned()).unwrap();
+    let import = engine
+        .clone()
+        .open_lrcat(fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    let mut options = import.default_options().unwrap();
+    options.relocations[0].to = fixture.photos.to_string_lossy().into_owned();
+    options.library_folder = fixture.photos.to_string_lossy().into_owned();
+    options.copy_proxies = true;
+    let resolved = resolve(&import.plan, &options).unwrap();
+    let row = resolved
+        .iter()
+        .find(|r| r.outcome == Outcome::OfflineProxy)
+        .unwrap();
+    let metadata =
+        raw_decode::lossy_dng::read_metadata(&mut std::fs::File::open(&row.path).unwrap())
+            .unwrap()
+            .unwrap();
+    assert_eq!(metadata.default_crop[2..], [12, 10]);
+    // Orientation 'BC' (6) no longer swaps the raster extent (was 10x12).
+    let (w, h) = (12, 10);
+    let mut png = Cursor::new(Vec::new());
+    image::GrayImage::from_pixel(w, h, image::Luma([128]))
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+    let resource = Arc::new(Resource {
+        id: 35,
+        bytes: png.into_inner(),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let report = import
+        .apply_with_resolvers(options, None, Some(resource.clone()), None)
+        .unwrap();
+    assert_eq!((report.imported, report.indexed), (6, 6));
+    assert_eq!(resource.calls.load(Ordering::SeqCst), 1);
+    let images = engine.list_images(crate::ImageQuery::default()).unwrap();
+    let proxy = images.iter().find(|r| r.lightroom_smart_preview).unwrap();
+    let recipe: Recipe =
+        serde_json::from_str(&engine.get_recipe(proxy.id.clone()).unwrap()).unwrap();
+    let key = recipe.settings.locals.adjustments[0].components[0]
+        .adobe_ai
+        .as_ref()
+        .unwrap()
+        .mask_key
+        .expect("matching oriented proxy mask must remain available under LR-5b");
+    let plane = export::mask_ai::imported_plane(&support, &key).unwrap();
+    assert_eq!((plane.width, plane.height), (w, h));
 }

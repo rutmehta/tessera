@@ -133,9 +133,9 @@ public struct FolderMappingTable: Equatable, Sendable {
 
     public func isRelocated(_ root: Root) -> Bool { Self.trimmed(root.path) != Self.trimmed(root.catalogPath) }
 
-    public func options(marks: [LrcatMarkMapping], overwrite: Bool) -> LrcatOptions {
+    public func options(marks: [LrcatMarkMapping], overwrite: Bool, importSmartPreviews: Bool = true, copyProxies: Bool = false) -> LrcatOptions {
         LrcatOptions(libraryFolder: libraryFolder, relocations: relocations, marks: marks,
-                     overwriteExistingEdits: overwrite)
+                     overwriteExistingEdits: overwrite, importSmartPreviews: importSmartPreviews, copyProxies: copyProxies)
     }
 
     static func trimmed(_ p: String) -> String {

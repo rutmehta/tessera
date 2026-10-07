@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 pub mod capture;
 pub mod dng;
 pub mod linear_dng;
+pub mod lossy_dng;
 
 use engine_api::{
     EngineError, EngineResult,
@@ -27,6 +28,11 @@ pub struct RawMetadata {
     pub capture_time: i64,
     /// EXIF orientation 1–8. The raw plane itself is never rotated.
     pub orientation: u16,
+    /// Absolute catalog orientation, consumed before normalized edits.
+    /// When present, `orientation` is 1: presentation must not rotate again.
+    pub catalog_orientation: Option<u16>,
+    /// DNG default EV adjustment, applied once by CameraProfile, never during decode.
+    pub baseline_exposure: f32,
     /// Full sensor dimensions, including masked margins.
     pub width: u32,
     pub height: u32,
@@ -62,6 +68,8 @@ impl From<FfiMetadata> for RawMetadata {
             aperture: m.aperture,
             focal_mm: m.focal,
             capture_time: m.timestamp,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: if (1..=8).contains(&m.orientation) {
                 m.orientation
             } else {
@@ -203,6 +211,7 @@ impl RawSource {
         metadata.cam_xyz = image.cam_xyz;
         metadata.rgb_cam = image.rgb_cam;
         metadata.default_crop = image.crop;
+        metadata.baseline_exposure = self.raw.baseline_exposure();
         metadata
     }
 

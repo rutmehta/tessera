@@ -307,7 +307,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model.mainWindow?.makeKeyAndOrderFront(nil)
             return .terminateCancel
         }
-        return .terminateNow
+        // Join cull workers for at most a few seconds, then quit regardless: a provider
+        // stuck on a stalled volume must not turn Quit into Force Quit.
+        Task { @MainActor in
+            _ = await model.shutdownCullSessions(timeout: .seconds(3))
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

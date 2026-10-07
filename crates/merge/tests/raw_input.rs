@@ -22,6 +22,8 @@ fn demosaic_preserves_camera_space_and_crops_active_area() {
         aperture: 2.,
         focal_mm: 35.,
         capture_time: 0,
+        catalog_orientation: None,
+        baseline_exposure: 0.,
         orientation: 1,
         width: 8,
         height: 8,

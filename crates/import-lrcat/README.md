@@ -411,3 +411,23 @@ functions and f32 depth representation remain unchanged.
 
 All committed fixtures and mask pixels are synthetic. No Lightroom-managed storage
 is written, no Adobe helper codec is claimed, and no import golden is re-pinned.
+
+## Smart Previews and catalog orientation (LR-8m, SP-INT2)
+
+Imported Smart Previews and relinked RAW originals use the ordinary RAW
+convention: crop, CropAngle, local masks, Upright and lens corrections are
+normalized in the stored (sensor, pre-orientation) frame, and the absolute
+catalog orientation replaces EXIF as the display orientation, applied once by
+the loupe, thumbnails, export, print and merge. In-place Smart Previews keep
+one recipe per catalog image, even when two previews are byte-identical.
+
+Known limits:
+- Relinked **RGB** originals (JPEG, TIFF, HEIC, working-space DNG) still have
+  the catalog orientation consumed by their decoder, so they are read in the
+  rotated frame while their Smart Preview is sensor-frame. Imported crops and
+  masks can therefore move when such a photo is relinked. Follow-up lane LR-8n
+  (pinned by the ignored test `lr8n_relinked_rgb_original_uses_the_stored_frame_like_its_smart_preview`).
+- Transform (Vertical, Horizontal, Aspect, X/Y offsets) and Upright analysis
+  act along the stored axes on rotated photos, as for ordinary RAW imports.
+  Adobe's convention for `PerspectiveVertical`, `UprightTransform_*` and the
+  Upright mode on rotated photos is unverified.

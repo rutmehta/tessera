@@ -1,11 +1,14 @@
 //! Sidecar-backed, keyboard-oriented culling. No AI signal applies a decision.
+mod background;
 mod defects;
 mod grouping;
+mod hash_cache;
 mod incremental;
 pub mod learning;
 mod library;
 pub mod people;
 mod persistence;
+pub use background::PreviewShutdown;
 pub use defects::{DefectReason, Direction, Threshold};
 use engine_api::{EngineError, EngineResult};
 pub use engine_api::{
@@ -13,8 +16,9 @@ pub use engine_api::{
     recipe::{Decision, Grade, Mark, Selection},
 };
 pub use grouping::{
-    Group, GroupingOptions, GroupingStrategy, LargestFile, Scorer, dhash, dhash_jpeg,
+    Group, GroupingOptions, GroupingStrategy, LargestFile, Scorer, dhash, dhash_jpeg, preview_hash,
 };
+pub use hash_cache::HashCachePolicy;
 pub use incremental::QueueChange;
 use index::{ImageInfo, Index, Query};
 pub use library::{Album, DerivedStatus, Library, Status};
@@ -84,6 +88,9 @@ enum Targets<'t> {
     Images(&'t [ImageId]),
 }
 
+type PreviewProvider =
+    std::sync::Arc<dyn Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync>;
+
 /// A fixed review queue. Changes do not remove images from the active query.
 /// `I` is how the session holds its index: borrowed (`&Index`, see `open`) or
 /// owned (`Box<Index>`, see `open_owned`) for hosts that cannot keep a borrow
@@ -99,6 +106,14 @@ pub struct CullSession<I> {
     preview_errors: Vec<(ImageId, EngineError)>,
     scorer: Option<Box<dyn Scorer>>,
     grouping_strategy: Option<Box<dyn GroupingStrategy>>,
+    preview_hash: PreviewProvider,
+    previews: background::BackgroundPreviews,
+    preview_notify: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
+    /// Hash snapshot has changes not yet applied to a custom policy.
+    custom_hashes_dirty: bool,
+    rebuild: Option<grouping::DefaultRebuild>,
+    /// Grouping pair checks performed (a work counter for regression tests).
+    pair_checks: u64,
     library: Option<PathBuf>,
     basket_target: Option<String>,
     /// The source, kept so incremental inserts apply the same membership rules.
@@ -143,22 +158,56 @@ impl OwnedCullSession {
                 "expected absolute catalog folder without ..",
             ));
         }
-        Self::open_with_policy(Box::new(index), Source::Folder(folder), Some(ids))
+        Self::open_with_policy(
+            Box::new(index),
+            Source::Folder(folder),
+            Some(ids),
+            std::sync::Arc::new(preview_hash),
+        )
     }
     /// Open a second connection to the same SQLite file for this; WAL lets it
     /// coexist with the host's own connection.
+    /// Host rendering policy for displayed-image grouping, including imported proxies.
+    pub fn open_owned_with_previews(
+        index: Index,
+        source: impl Into<Source>,
+        preview: impl Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync + 'static,
+    ) -> EngineResult<Self> {
+        Self::open_with_policy(
+            Box::new(index),
+            source.into(),
+            None,
+            std::sync::Arc::new(preview),
+        )
+    }
+    /// Opt in to persistent hashes using an approved host cache root and stable
+    /// provider/pixel-policy identity. Other constructors never persist hashes.
+    pub fn open_owned_with_cached_previews(
+        index: Index,
+        source: impl Into<Source>,
+        policy: HashCachePolicy,
+        preview: impl Fn(&ImageInfo) -> EngineResult<Option<u64>> + Send + Sync + 'static,
+    ) -> EngineResult<Self> {
+        Self::open_with_policy(
+            Box::new(index),
+            source.into(),
+            None,
+            hash_cache::persistent(Some(policy), std::sync::Arc::new(preview)),
+        )
+    }
     pub fn open_owned(index: Index, source: impl Into<Source>) -> EngineResult<Self> {
         Self::open_with(Box::new(index), source.into())
     }
 }
 impl<I: Deref<Target = Index>> CullSession<I> {
     fn open_with(index: I, source: Source) -> EngineResult<Self> {
-        Self::open_with_policy(index, source, None)
+        Self::open_with_policy(index, source, None, std::sync::Arc::new(preview_hash))
     }
     fn open_with_policy(
         index: I,
         source: Source,
         declared: Option<HashSet<ImageId>>,
+        preview_hash: PreviewProvider,
     ) -> EngineResult<Self> {
         // Read first: changes committed while the queue is built are re-applied (idempotently).
         let change_seq = index.change_head()?;
@@ -210,6 +259,12 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             preview_errors: Vec::new(),
             scorer: None,
             grouping_strategy: None,
+            preview_hash,
+            previews: Default::default(),
+            preview_notify: None,
+            custom_hashes_dirty: false,
+            rebuild: None,
+            pair_checks: 0,
             library: if declared.is_none() {
                 folder.as_ref().map(|p| p.join("library.json"))
             } else {
@@ -439,10 +494,16 @@ fn admit(
     declared: Option<&HashSet<ImageId>>,
 ) -> EngineResult<Vec<ImageId>> {
     // Folder matching uses Path components rather than SQLite glob metacharacters.
+    let imported = folder
+        .and_then(|p| Library::read(p.join("library.json")).ok())
+        .and_then(|library| library.unknown.get("lightroom_proxy_members").cloned());
     let mut images = Vec::new();
     for id in ids {
         let info = index.image_info(id)?;
-        if folder.is_some_and(|p| !info.path.starts_with(p)) {
+        let external_member = imported
+            .as_ref()
+            .is_some_and(|v| v.get(id.to_string()).is_some());
+        if folder.is_some_and(|p| !info.path.starts_with(p)) && !external_member {
             continue;
         }
         if let Some(declared) = declared {

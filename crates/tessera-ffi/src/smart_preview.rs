@@ -250,7 +250,7 @@ impl Engine {
         let staging = tempfile::tempdir_in(destination.parent().unwrap())?;
         let (copy, digest, len) = pinned_original(&path, staging.path())?;
         let image = RawImage::open(id, copy.path())?;
-        if image.source_kind() != "raw" {
+        if image.source_kind() != "raw" || image.camera_linear_proxy().is_some() {
             return Err(failure("Smart Preview requires a mosaic RAW original"));
         }
         let proxy = CameraLinearProxy::generate_with_tier(
@@ -442,7 +442,7 @@ impl Engine {
                 path.parent()
                     .ok_or_else(|| failure("original has no folder"))?,
                 &catalog::Sidecars,
-                &catalog::EmbeddedMetadata,
+                &catalog::IndexedMetadata,
             )?;
             journal
                 .mark_synced(

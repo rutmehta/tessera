@@ -13,6 +13,8 @@ fn metadata(orientation: u16) -> raw_decode::RawMetadata {
         aperture: 4.,
         focal_mm: 50.,
         capture_time: 0,
+        catalog_orientation: None,
+        baseline_exposure: 0.,
         orientation,
         width: 32,
         height: 24,

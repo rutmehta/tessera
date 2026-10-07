@@ -940,3 +940,378 @@ fn streaming_resume_rejects_protected_publication_symlinks() {
         assert_eq!(snapshot(&protected), before);
     }
 }
+
+#[test]
+fn offline_proxy_import_develop_copy_and_relink_preserve_lightroom() {
+    for copy in [false, true] {
+        let s = setup();
+        fixture::write_smart_previews(&s.fixture).unwrap();
+        let before = snapshot(s.fixture.catalog.parent().unwrap());
+        let importer = s
+            .engine
+            .clone()
+            .open_lrcat(s.fixture.catalog.to_string_lossy().into())
+            .unwrap();
+        let mut options = relocated(&s);
+        options.copy_proxies = copy;
+        options.import_smart_previews = true;
+        let plan = importer.plan(options.clone()).unwrap();
+        assert_eq!(
+            (
+                plan.online_originals,
+                plan.offline_with_smart_preview,
+                plan.offline_without_smart_preview
+            ),
+            (5, 1, 0)
+        );
+        assert_eq!(plan.to_import, 6);
+        options.import_smart_previews = false;
+        assert_eq!(importer.plan(options.clone()).unwrap().missing, 1);
+        options.import_smart_previews = true;
+        let report = importer.apply(options.clone(), None).unwrap();
+        assert_eq!((report.imported, report.indexed), (6, 6));
+        let rows = s.engine.list_images(ImageQuery::default()).unwrap();
+        let proxy = rows.iter().find(|r| r.lightroom_smart_preview).unwrap();
+        assert_eq!(
+            Path::new(&proxy.path)
+                .starts_with(s._temp.path().join("support").canonicalize().unwrap()),
+            copy
+        );
+        let session = s
+            .engine
+            .open_cull_session(options.library_folder.clone())
+            .unwrap();
+        assert_eq!(session.images().unwrap().len(), 6);
+        let develop = s
+            .engine
+            .clone()
+            .open_develop_session(proxy.id.clone())
+            .unwrap();
+        develop
+            .set_settings(r#"{"tone":{"exposure":0.7}}"#.into(), false)
+            .unwrap();
+        develop.flush().unwrap();
+        drop(develop);
+        let recipe_json = s.engine.get_recipe(proxy.id.clone()).unwrap();
+        let recipe: engine_api::recipe::Recipe = serde_json::from_str(&recipe_json).unwrap();
+        assert_eq!(recipe.settings.tone.exposure, 0.7);
+        let exported = s.engine.export_batch(ExportTarget::Images { image_ids: vec![proxy.id.clone()] }, serde_json::json!({"destination":s._temp.path().join("export"), "format":"png", "metadata":"none"}).to_string(), None, None).unwrap();
+        assert_eq!((exported.exported, exported.failed), (1, 0), "{exported:?}");
+
+        assert_eq!(snapshot(s.fixture.catalog.parent().unwrap()), before);
+        let original = recipe.unknown["lightroom_smart_preview"]["original_path"]
+            .as_str()
+            .unwrap();
+        std::fs::create_dir_all(Path::new(original).parent().unwrap()).unwrap();
+        // The original is a valid synthetic JPEG; source admission must switch codecs too.
+        let jpeg = rows
+            .iter()
+            .find(|r| r.path.ends_with("ceremony-01.jpg"))
+            .unwrap();
+        std::fs::copy(&jpeg.path, original).unwrap();
+        let rows = s.engine.list_images(ImageQuery::default()).unwrap();
+        let relinked = rows.iter().find(|r| r.id == proxy.id).unwrap();
+        assert!(!relinked.lightroom_smart_preview);
+        assert_eq!(relinked.path, original);
+        assert_eq!(s.engine.get_recipe(proxy.id.clone()).unwrap(), recipe_json);
+        s.engine
+            .clone()
+            .open_develop_session(proxy.id.clone())
+            .unwrap();
+        assert_eq!(snapshot(s.fixture.catalog.parent().unwrap()), before);
+        if copy {
+            std::fs::remove_file(original).unwrap();
+            std::fs::rename(
+                s.fixture.catalog.parent().unwrap(),
+                s._temp.path().join("moved-catalog"),
+            )
+            .unwrap();
+            let reopened =
+                Engine::open(s._temp.path().join("support").to_string_lossy().into()).unwrap();
+            let copied = reopened.list_images(ImageQuery::default()).unwrap();
+            assert!(
+                copied
+                    .iter()
+                    .find(|r| r.id == proxy.id)
+                    .unwrap()
+                    .lightroom_smart_preview
+            );
+            reopened.open_develop_session(proxy.id.clone()).unwrap();
+        }
+    }
+}
+
+#[test]
+fn lr12_split_previews_are_counted_and_sampled_by_import_sheet() {
+    let mut s = setup();
+    let index = import_lrcat::previews::PreviewIndex::open(&s.fixture.catalog)
+        .unwrap()
+        .unwrap();
+    let mut pending = vec![index.dir.clone()];
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            if path.extension().is_some_and(|e| e == "lrprev") {
+                let sections =
+                    import_lrcat::previews::parse_lrprev(&std::fs::read(&path).unwrap()).unwrap();
+                for (level, section) in sections
+                    .iter()
+                    .filter(|s| s.data.starts_with(&[0xff, 0xd8]))
+                    .enumerate()
+                {
+                    let name = format!("{}_{}", path.file_stem().unwrap().to_str().unwrap(), level);
+                    std::fs::write(path.with_file_name(name), &section.data).unwrap();
+                }
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+    s.import = s
+        .engine
+        .clone()
+        .open_lrcat(s.fixture.catalog.to_string_lossy().into_owned())
+        .unwrap();
+    assert_eq!(s.import.summary().previews, 6);
+    let fidelity = s.import.fidelity_sample(relocated(&s), 3, 128).unwrap();
+    assert_eq!(fidelity.samples.len(), 3);
+    assert!(
+        fidelity
+            .samples
+            .iter()
+            .all(|sample| sample.status == LrcatFidelityStatus::Compared)
+    );
+}
+
+struct ProxyFrames(std::sync::mpsc::Sender<bool>);
+impl DevelopListener for ProxyFrames {
+    fn frame_ready(&self, frame: FrameInfo) {
+        if frame.is_final {
+            let _ = self.0.send(true);
+        }
+    }
+    fn render_failed(&self, _: String) {
+        let _ = self.0.send(false);
+    }
+    fn saved(&self, _: String) {}
+}
+
+#[test]
+fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
+    let s = setup();
+    fixture::write_smart_previews(&s.fixture).unwrap();
+    let index = import_lrcat::smart_previews::SmartPreviewIndex::new(&s.fixture.catalog);
+    let db = rusqlite::Connection::open(&s.fixture.catalog).unwrap();
+    db.execute("UPDATE Adobe_images SET orientation = 'BC'", [])
+        .unwrap();
+    let uuids: Vec<String> = db
+        .prepare("SELECT id_global FROM AgLibraryFile")
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    for uuid in uuids {
+        std::fs::write(
+            index.find(&uuid).unwrap(),
+            include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+        )
+        .unwrap();
+    }
+    let importer = s
+        .engine
+        .clone()
+        .open_lrcat(s.fixture.catalog.to_string_lossy().into())
+        .unwrap();
+    let mut options = relocated(&s);
+    options.import_smart_previews = true;
+    let folder = options.library_folder.clone();
+    importer.apply(options, None).unwrap();
+    let row = s
+        .engine
+        .list_images(ImageQuery::default())
+        .unwrap()
+        .into_iter()
+        .find(|r| r.lightroom_smart_preview)
+        .unwrap();
+    let mut recipe: engine_api::recipe::Recipe =
+        serde_json::from_str(&s.engine.get_recipe(row.id.clone()).unwrap()).unwrap();
+    recipe.process_version = engine_api::recipe::ProcessVersion::adobe(6);
+    recipe
+        .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+            s.tone.exposure = 0.7;
+            s.camera_profile.profile.name = "Adobe Color".into();
+            s.white_balance.mode = engine_api::recipe::settings::WhiteBalanceMode::Auto;
+            s.output.gamut_mapping = engine_api::recipe::settings::GamutMapping::Clip;
+        })
+        .unwrap();
+    s.engine
+        .set_recipe_json(row.id.clone(), serde_json::to_string(&recipe).unwrap())
+        .unwrap();
+    let mut failures = Vec::new();
+    let mut develop_mean = 0.;
+    let mut develop_dimensions = (0, 0);
+    let cull = s.engine.open_cull_session(folder).unwrap();
+    if !cull.preview_errors().unwrap().is_empty() {
+        failures.push("culling proxy preview failed".into());
+    }
+    for max_px in [256, 2048] {
+        let start = std::time::Instant::now();
+        loop {
+            match s.engine.clone().embedded_preview(row.id.clone(), max_px) {
+                Ok(p) if p.pending && start.elapsed().as_secs() < 30 => {
+                    std::thread::sleep(std::time::Duration::from_millis(10))
+                }
+                Ok(p) if p.bytes.is_some() => {
+                    use previews::Codec;
+                    let actual = previews::Jpeg.decode(&p.bytes.unwrap()).unwrap();
+                    let raw = image_core::RawImage::open_with_catalog_orientation(
+                        engine_api::id::ImageId(9),
+                        &row.path,
+                        Some(6),
+                    )
+                    .unwrap();
+                    let renderer =
+                        image_core::Renderer::new(Default::default()).for_recipe(&recipe);
+                    let extent =
+                        image_core::Renderer::output_extent(&raw, &recipe.settings, 0).unwrap();
+                    // LR-8m (A-LR8 M8): Develop renders the sensor frame and the
+                    // host orients it by the catalog orientation, exactly as for
+                    // an ordinary RAW; thumbnails and exports are displayed
+                    // pixels, oriented once.
+                    assert_eq!(raw.metadata().orientation, 6);
+                    develop_dimensions = (extent.height, extent.width);
+                    assert_eq!(
+                        actual.dimensions(),
+                        develop_dimensions,
+                        "catalog orientation is consumed exactly once"
+                    );
+                    let tiles = renderer
+                        .render_region(
+                            &raw,
+                            &recipe.settings,
+                            0,
+                            image_core::PixelRect::full(extent),
+                        )
+                        .unwrap();
+                    let tile = &tiles[0];
+                    let data = tile.samples::<u8>().unwrap();
+                    // JPEG error is bounded; missing DCP's base curve is much larger.
+                    let expected_mean =
+                        data.iter().map(|v| f64::from(*v)).sum::<f64>() / data.len() as f64;
+                    develop_mean = expected_mean;
+                    let actual_mean = actual.as_raw().iter().map(|v| f64::from(*v)).sum::<f64>()
+                        / actual.as_raw().len() as f64;
+                    if (expected_mean - actual_mean).abs() > 3.0 {
+                        failures.push(format!(
+                            "preview Adobe mean: {actual_mean} vs Develop {expected_mean}"
+                        ));
+                    }
+                    break;
+                }
+                other => {
+                    failures.push(format!("preview {max_px}: {other:?}"));
+                    break;
+                }
+            }
+        }
+    }
+    let export = s.engine.export_batch(ExportTarget::Images { image_ids: vec![row.id.clone()] }, serde_json::json!({"destination":s._temp.path().join("lr13-export"), "format":"png", "metadata":"none"}).to_string(), None, None).unwrap();
+    if export.failed != 0 {
+        failures.push("proxy export failed".into());
+    }
+    if let Some(path) = &export.items[0].output_path {
+        let pixels = image::open(path).unwrap().into_rgb8();
+        assert_eq!(
+            pixels.dimensions(),
+            develop_dimensions,
+            "export shares Develop orientation"
+        );
+        let mean = pixels.as_raw().iter().map(|v| f64::from(*v)).sum::<f64>()
+            / pixels.as_raw().len() as f64;
+        if (mean - develop_mean).abs() > 3.0 {
+            failures.push(format!(
+                "export Adobe mean: {mean} vs Develop {develop_mean}"
+            ));
+        }
+    }
+    if let Err(e) = s.engine.analyze_image(
+        row.id.clone(),
+        AnalysisOptions {
+            quality: true,
+            faces: false,
+            force: true,
+        },
+    ) {
+        failures.push(format!("analysis: {e}"));
+    }
+    match s.engine.clone().open_develop_session(row.id) {
+        Ok(session) => {
+            let (send, receive) = std::sync::mpsc::channel();
+            session.set_listener(Some(Arc::new(ProxyFrames(send))));
+            session.refresh().unwrap();
+            if receive
+                .recv_timeout(std::time::Duration::from_secs(30))
+                .ok()
+                != Some(true)
+            {
+                failures.push("Develop frame failed".into());
+            }
+            assert!(session.get_histogram().unwrap().red.iter().any(|v| *v != 0));
+            session.set_settings(serde_json::json!({"camera_profile":{"look":{"style":"unavailable","amount":100.0}},"lens":{"profile":{"kind":"database","profile":{"name":"unavailable"}}},"output":{"hdr":true,"hdr_headroom_stops":2.0}}).to_string(), false).unwrap();
+            if receive
+                .recv_timeout(std::time::Duration::from_secs(30))
+                .ok()
+                != Some(true)
+            {
+                failures.push("Develop optional settings failed".into());
+            }
+            // The minimum visible notice: the existing Develop status line is
+            // driven by ignored_settings; render_notices names what was omitted.
+            let ignored = session.ignored_settings().unwrap();
+            for field in ["/camera_profile/look", "/lens/profile", "/output/hdr"] {
+                assert!(ignored.iter().any(|f| f == field), "{field}: {ignored:?}");
+            }
+            let notices = session.render_notices().unwrap();
+            for sentence in [
+                "profile substituted (embedded DNG profile)",
+                "Creative look unavailable; shown without it.",
+                "Lens profile unavailable; shown without it.",
+                "Rendered using the available Smart Preview dynamic range.",
+            ] {
+                assert!(
+                    notices.iter().any(|n| n == sentence),
+                    "{sentence}: {notices:?}"
+                );
+            }
+            // A-LR13 item 2: Lens Blur is no longer a blanket "not rendered"
+            // shortcut on proxies. Develop keeps it and renders it through its
+            // depth provider exactly as for originals (pixel coverage with a
+            // real depth map: tests/lr13b_proxy_effects.rs), so it is neither
+            // ignored nor announced as omitted.
+            session
+                .set_settings(
+                    serde_json::json!({"effects":{"lens_blur":{}}}).to_string(),
+                    false,
+                )
+                .unwrap();
+            let ignored = session.ignored_settings().unwrap();
+            assert!(
+                !ignored.iter().any(|f| f == "/effects/lens_blur"),
+                "{ignored:?}"
+            );
+            let notices = session.render_notices().unwrap();
+            assert!(
+                !notices.iter().any(|n| n.contains("Lens Blur")),
+                "{notices:?}"
+            );
+            session.set_listener(None);
+            session.close().unwrap();
+        }
+        Err(e) => failures.push(format!("Develop: {e}")),
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
+}

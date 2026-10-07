@@ -8,6 +8,7 @@ mod store;
 pub use develop::{ImportedRecipe, assign_mask_group_ids};
 pub use export_policy::ExportMetadataPolicy;
 pub use faces::FaceRegion;
+pub use store::PinOutcome;
 mod xml;
 mod xmp;
 use engine_api::error::{EngineError, EngineResult};
@@ -179,6 +180,42 @@ impl Sidecar {
         store::register(source, support);
     }
 
+    /// Opt in to app-owned edits for a read-only source outside Lightroom bundles.
+    /// Re-register when reopening the source; this does not change source permissions.
+    pub fn register_read_only_store(source: &Path, support: &Path) {
+        store::register_read_only(source, support);
+    }
+
+    /// Start re-keying protected (Lightroom-owned or read-only) sources'
+    /// recipes by owner identity instead of content, e.g. in-place Smart
+    /// Previews by their Lightroom file id. See [`ProtectedPinBatch`].
+    pub fn protected_pin_batch() -> ProtectedPinBatch {
+        ProtectedPinBatch(store::PinBatch::default())
+    }
+
+    /// Protected-source content hashes computed so far (cache tests).
+    #[doc(hidden)]
+    pub fn content_hashes() -> u64 {
+        store::CONTENT_HASHES.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Alias files read from disk so far in this process (linearity tests).
+    #[doc(hidden)]
+    pub fn alias_reads() -> u64 {
+        store::ALIAS_READS.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// [`Self::protected_pin_batch`] that only classifies (a plan preview):
+    /// it reports the outcome each photo would get and writes nothing.
+    pub fn protected_pin_preview() -> ProtectedPinBatch {
+        ProtectedPinBatch(store::PinBatch::preview())
+    }
+
+    /// The recipe object a protected source would use under `identity`.
+    pub fn protected_identity_recipe(image_path: impl AsRef<Path>, identity: &[u8]) -> PathBuf {
+        store::keyed_recipe(image_path.as_ref(), &identity_key(identity))
+    }
+
     /// Lightroom bundle components are immutable source locations.
     pub fn is_lightroom_owned(path: impl AsRef<Path>) -> bool {
         lightroom_root(path.as_ref()).is_some()
@@ -214,7 +251,7 @@ impl Sidecar {
     /// canonical-path alias for offline lookup. Ordinary edits remain adjacent.
     pub fn paths(image_path: impl AsRef<Path>) -> SidecarPaths {
         let image = image_path.as_ref();
-        if Self::is_lightroom_owned(image) {
+        if Self::is_lightroom_owned(image) || store::is_read_only(image) {
             return store::paths(image);
         }
         let mut xmp = image.as_os_str().to_os_string();
@@ -411,5 +448,33 @@ impl XmpPacket {
         Self {
             xml: xml::packet(&xmp::metadata_body(selection, &Metadata::default(), preset)),
         }
+    }
+}
+
+fn identity_key(identity: &[u8]) -> String {
+    let key = blake3::derive_key("tessera protected recipe identity v1", identity);
+    blake3::Hash::from_bytes(key).to_hex().to_string()
+}
+
+/// A re-keying pass over protected sources (SP-INT4). Each photo's recipe is
+/// migrated to its identity key; a recipe is deleted only when nothing
+/// references it and the destination holds identical bytes; differing edits
+/// already on a key are never merged ([`PinOutcome::Conflict`]). The new key
+/// is published durably per photo, so an interrupted pass loses nothing.
+pub struct ProtectedPinBatch(store::PinBatch);
+impl ProtectedPinBatch {
+    pub fn pin(
+        &mut self,
+        image_path: impl AsRef<Path>,
+        identity: &[u8],
+    ) -> EngineResult<PinOutcome> {
+        let image = image_path.as_ref();
+        if !(Sidecar::is_lightroom_owned(image) || store::is_read_only(image)) {
+            return Ok(PinOutcome::Unprotected);
+        }
+        self.0.pin(image, &identity_key(identity))
+    }
+    pub fn finish(self) -> EngineResult<()> {
+        self.0.finish()
     }
 }

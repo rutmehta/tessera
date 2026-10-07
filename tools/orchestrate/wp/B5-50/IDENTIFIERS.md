@@ -304,6 +304,7 @@ system menus or transient popovers. UUID rows below are represented as `<opaqueI
 | `library.import.chooseCatalog` | Choose Catalog… |
 | `library.import.chooseLibraryFolder` | Choose… |
 | `library.import.continue` | Continue |
+| `library.import.copyProxies` | Copy Smart Previews into Tessera storage |
 | `library.import.done` | Done |
 | `library.import.fidelitySort` | Fidelity sort order |
 | `library.import.overwrite` | Replace edits already made in Tessera |
@@ -312,6 +313,7 @@ system menus or transient popovers. UUID rows below are represented as `<opaqueI
 | `library.import.resetRoot.0` | Reset |
 | `library.import.resume` | Resume Import |
 | `library.import.showReport` | Show Report in Finder |
+| `library.import.smartPreviews` | Import offline photos using Lightroom Smart Previews |
 | `library.import.start` | Import 0 Photos |
 | `library.inspector.editPhoto` | Edit photo |
 | `library.keywords.new` | New… |

@@ -44,7 +44,11 @@ impl<I: Deref<Target = Index>> CullSession<I> {
     /// Applies every catalog change committed since the last sync (or open).
     pub fn sync_catalog(&mut self) -> EngineResult<QueueChange> {
         let batch = self.index.changes_since(self.change_seq)?;
-        self.apply_changes(&batch)
+        let mut change = self.apply_changes(&batch)?;
+        if !change.reset {
+            change.regrouped |= self.poll_previews()?;
+        }
+        Ok(change)
     }
 
     /// Applies a batch from `Index::changes_since`. `batch.from` must not be
@@ -85,7 +89,9 @@ impl<I: Deref<Target = Index>> CullSession<I> {
                         remove.push(change.id);
                         continue;
                     }
-                    if fields.intersects(ChangeFields::FILE | ChangeFields::CAPTURE_TIME) {
+                    if fields.intersects(
+                        ChangeFields::FILE | ChangeFields::CAPTURE_TIME | ChangeFields::RECIPE,
+                    ) {
                         regroup.push(change.id);
                     }
                     updated.push((change.id, fields));
@@ -99,12 +105,18 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         }
         out.removed = self.remove_images(&remove)?;
         out.inserted = self.insert_images(&insert)?;
+        // The default policy regroups re-timed images now; a changed hash
+        // regroups when it arrives, and only if it differs. Custom strategies
+        // may read any image field, so they always regroup edited images.
+        let mut retimed = Vec::new();
         for id in &regroup {
-            self.refresh_grouping_inputs(*id)?;
+            if self.refresh_grouping_inputs(*id)? || self.grouping_strategy.is_some() {
+                retimed.push(*id);
+            }
             self.keys.remove(id);
         }
         out.regrouped = !out.removed.is_empty() || !out.inserted.is_empty();
-        out.regrouped |= self.regroup_images(&regroup)?;
+        out.regrouped |= self.regroup_images(&retimed)?;
         out.updated = updated;
         self.change_seq = out.sequence;
         Ok(out)
@@ -225,6 +237,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         }
         self.groups.retain(|g| !g.images.is_empty());
         for id in &doomed {
+            self.previews.remove(*id);
             self.infos.remove(id);
             self.hashes.remove(id);
             self.keys.remove(id);
@@ -244,6 +257,9 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             .collect();
         if seeds.is_empty() {
             return Ok(false);
+        }
+        if self.grouping_strategy.is_none() {
+            return self.schedule_default(&seeds, &[]);
         }
         let position: HashMap<ImageId, usize> = self
             .images
@@ -369,5 +385,334 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             self.keys.extend(missing.into_iter().zip(keys));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod lr13e_tests {
+    //! Default-policy regrouping after edits, inserts and removals starts from
+    //! the published groups, checks only pairs that can have changed, keeps
+    //! the last complete groups published until it finishes, and is measured
+    //! in pair checks rather than wall-clock time.
+    use super::*;
+    use index::ImageInfo;
+    use std::collections::{BTreeMap, HashSet};
+
+    fn splitmix(n: u64) -> u64 {
+        let mut z = n.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+    fn session<'a>(
+        index: &'a Index,
+        hashes: &[Option<u64>],
+        time: impl Fn(usize) -> Option<f64>,
+    ) -> CullSession<&'a Index> {
+        let mut session = CullSession::open(index, index::Query::default()).unwrap();
+        session.images = (0..hashes.len() as u128).map(ImageId).collect();
+        for (n, id) in session.images.clone().into_iter().enumerate() {
+            session.infos.insert(
+                id,
+                ImageInfo {
+                    id,
+                    path: "synthetic.jpg".into(),
+                    size: 1,
+                    capture_seconds: time(n),
+                },
+            );
+            session.hashes.insert(id, hashes[n]);
+        }
+        session
+    }
+    /// All-pairs reference: connected components of `related` in queue order.
+    fn reference<I: Deref<Target = Index>>(session: &CullSession<I>) -> Vec<Group> {
+        let mut parents: Vec<_> = (0..session.images.len()).collect();
+        for n in 0..session.images.len() {
+            for m in 0..n {
+                if session.related(session.images[m], session.images[n]) {
+                    grouping::join(&mut parents, m, n);
+                }
+            }
+        }
+        let mut groups: BTreeMap<usize, Group> = BTreeMap::new();
+        for (n, id) in session.images.iter().enumerate() {
+            groups
+                .entry(grouping::root(&mut parents, n))
+                .or_insert_with(|| Group { images: Vec::new() })
+                .images
+                .push(*id);
+        }
+        groups.into_values().collect()
+    }
+    fn ids(ids: &[u128]) -> Vec<ImageId> {
+        ids.iter().copied().map(ImageId).collect()
+    }
+    /// 19,700 images in 9,850 near-duplicate pairs with distinct hashes.
+    fn pairs(index: &Index) -> (CullSession<&Index>, Vec<u64>) {
+        let hashes: Vec<u64> = (0..19_700u64).map(|n| splitmix(n / 2) ^ (n % 2)).collect();
+        let mut session = session(
+            index,
+            &hashes.iter().copied().map(Some).collect::<Vec<_>>(),
+            |_| None,
+        );
+        session.groups = (0..9_850u128)
+            .map(|k| Group {
+                images: ids(&[2 * k, 2 * k + 1]),
+            })
+            .collect();
+        (session, hashes)
+    }
+    /// Polls until grouping settles, asserting after every step that groups
+    /// untouched by the change stay published (never split mid-update).
+    fn settle<I: Deref<Target = Index>>(
+        session: &mut CullSession<I>,
+        stable: &[Vec<ImageId>],
+        max_polls: usize,
+    ) -> usize {
+        let mut polls = 0;
+        loop {
+            let published: HashSet<&Vec<ImageId>> =
+                session.groups.iter().map(|g| &g.images).collect();
+            for group in stable {
+                assert!(
+                    published.contains(group),
+                    "valid group {group:?} split while regrouping (poll {polls})"
+                );
+            }
+            if !session.previews_pending() {
+                return polls;
+            }
+            session.poll_previews().unwrap();
+            polls += 1;
+            assert!(
+                polls <= max_polls,
+                "regroup did not converge in {max_polls} polls"
+            );
+        }
+    }
+
+    #[test]
+    fn lr13e_edit_in_distinct_near_duplicate_library_is_local_and_counted() {
+        let index = Index::open(":memory:").unwrap();
+        let (mut session, hashes) = pairs(&index);
+        let stable: Vec<Vec<ImageId>> = (1..9_850u128)
+            .filter(|k| *k != 5)
+            .map(|k| ids(&[2 * k, 2 * k + 1]))
+            .collect();
+        let before = session.pair_checks;
+        // An edit's re-hash moves image 0 next to pair 5 and away from image 1.
+        session
+            .apply_hash_results(vec![(ImageId(0), Ok(Some(hashes[10] ^ 2)))])
+            .unwrap();
+        let polls = settle(&mut session, &stable, 2);
+        let checks = session.pair_checks - before;
+        assert!(
+            checks <= 19_701,
+            "one changed hash needs at most one check per distinct hash, did {checks}"
+        );
+        assert!(polls <= 2);
+        assert_eq!(session.groups.len(), 9_850);
+        assert!(session.groups.iter().any(|g| g.images == ids(&[0, 10, 11])));
+        assert!(session.groups.iter().any(|g| g.images == ids(&[1])));
+        session.retire_previews().wait();
+    }
+
+    #[test]
+    fn lr13e_unchanged_rehash_does_no_grouping_work() {
+        let index = Index::open(":memory:").unwrap();
+        let (mut session, hashes) = pairs(&index);
+        let groups = session.groups.clone();
+        let before = session.pair_checks;
+        // A Develop edit leaves source-sample hashes unchanged.
+        let changed = session
+            .apply_hash_results(vec![(ImageId(0), Ok(Some(hashes[0])))])
+            .unwrap();
+        assert!(!changed);
+        assert!(!session.previews_pending());
+        assert_eq!(
+            session.pair_checks, before,
+            "unchanged hash must not regroup"
+        );
+        assert_eq!(session.groups, groups);
+    }
+
+    #[test]
+    fn lr13e_removal_keeps_unrelated_groups_and_is_counted() {
+        let index = Index::open(":memory:").unwrap();
+        let (mut session, _) = pairs(&index);
+        let stable: Vec<Vec<ImageId>> = (1..9_850u128).map(|k| ids(&[2 * k, 2 * k + 1])).collect();
+        let before = session.pair_checks;
+        session.remove_images(&[ImageId(1)]).unwrap();
+        settle(&mut session, &stable, 2);
+        assert!(session.pair_checks - before <= 19_700);
+        assert_eq!(session.groups.len(), 9_850);
+        assert_eq!(session.groups[0].images, ids(&[0]));
+        session.retire_previews().wait();
+    }
+
+    #[test]
+    fn lr13e_identical_hash_component_edit_is_counted() {
+        // Replaces LR-13d's debug-build wall-clock check with counted work.
+        let index = Index::open(":memory:").unwrap();
+        let mut session = session(&index, &vec![Some(0); 19_700], |_| None);
+        session.groups = vec![Group {
+            images: session.images.clone(),
+        }];
+        let before = session.pair_checks;
+        assert!(
+            session
+                .apply_hash_results(vec![(ImageId(0), Ok(Some(u64::MAX)))])
+                .unwrap()
+        );
+        assert!(
+            !session.previews_pending(),
+            "small damage completes at once"
+        );
+        assert!(session.pair_checks - before <= 64);
+        assert_eq!(session.groups.len(), 2);
+        assert_eq!(session.groups[0].images, ids(&[0]));
+        assert_eq!(session.groups[1].images.len(), 19_699);
+    }
+
+    /// A 400-image near-duplicate chain (consecutive hashes four bits apart)
+    /// with small bursts. Removing from its middle needs more than one poll.
+    fn chain(index: &Index) -> CullSession<&Index> {
+        let mut hash = splitmix(7);
+        let mut hashes = Vec::new();
+        for n in 0..400u64 {
+            hashes.push(Some(hash));
+            let mut bits = HashSet::new();
+            let mut k = 0;
+            while bits.len() < 4 {
+                bits.insert(splitmix(n * 16 + k) % 64);
+                k += 1;
+            }
+            hash = bits.iter().fold(hash, |h, b| h ^ (1 << b));
+        }
+        // A far, untimed singleton after the chain.
+        hashes.push(Some(splitmix(424_242)));
+        let mut session = session(index, &hashes, |n| {
+            (n < 400 && n % 50 < 3).then_some((n / 50) as f64 * 100.0 + n as f64)
+        });
+        session.groups = reference(&session);
+        session
+    }
+    fn stripped(groups: &[Group], removed: ImageId) -> Vec<Vec<ImageId>> {
+        groups
+            .iter()
+            .map(|g| {
+                g.images
+                    .iter()
+                    .copied()
+                    .filter(|id| *id != removed)
+                    .collect()
+            })
+            .filter(|g: &Vec<ImageId>| !g.is_empty())
+            .collect()
+    }
+
+    #[test]
+    fn lr13e_published_groups_between_polls_are_the_last_complete_result() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = chain(&index);
+        let previous = stripped(&session.groups, ImageId(200));
+        session.remove_images(&[ImageId(200)]).unwrap();
+        assert!(
+            session.previews_pending(),
+            "fixture must need more than one poll"
+        );
+        let mut polls = 0;
+        while session.previews_pending() {
+            polls += 1;
+            assert!(polls <= 3, "a 399-member component settles in a few polls");
+            let published: Vec<Vec<ImageId>> =
+                session.groups.iter().map(|g| g.images.clone()).collect();
+            assert_eq!(published, previous, "partial groups were published");
+            session.poll_previews().unwrap();
+        }
+        assert_eq!(session.groups, reference(&session));
+        session.retire_previews().wait();
+    }
+
+    #[test]
+    fn lr13e_hash_changes_losses_and_gains_match_all_pairs_reference() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = chain(&index);
+        let original = session.hashes[&ImageId(300)];
+        let steps: Vec<Vec<(ImageId, EngineResult<Option<u64>>)>> = vec![
+            vec![(ImageId(100), Ok(Some(splitmix(99))))],
+            vec![(ImageId(300), Ok(None))],
+            vec![(ImageId(300), Ok(original))],
+            vec![
+                (ImageId(10), Ok(session.hashes[&ImageId(390)])),
+                (
+                    ImageId(11),
+                    Err(EngineError::invalid("synthetic", "unreadable")),
+                ),
+            ],
+        ];
+        for step in steps {
+            session.apply_hash_results(step).unwrap();
+            settle(&mut session, &[], 8);
+            assert_eq!(session.groups, reference(&session));
+        }
+        session.retire_previews().wait();
+    }
+
+    #[test]
+    fn lr13e_reorder_and_removal_during_pending_regroup_match_reference() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = chain(&index);
+        session.remove_images(&[ImageId(200)]).unwrap();
+        assert!(session.previews_pending());
+        // Same queue permutation performed by reorder_review.
+        session.images.reverse();
+        session.groups.reverse();
+        for group in &mut session.groups {
+            group.images.reverse();
+        }
+        session.poll_previews().unwrap();
+        session.remove_images(&[ImageId(399)]).unwrap();
+        settle(&mut session, &[], 8);
+        assert_eq!(session.groups, reference(&session));
+        assert_eq!(session.images.len(), 399);
+        session.retire_previews().wait();
+    }
+
+    #[test]
+    fn lr13f_singleton_removal_during_pending_regroup_matches_reference() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = chain(&index);
+        assert!(session.groups.iter().any(|g| g.images == ids(&[400])));
+        session.remove_images(&[ImageId(200)]).unwrap();
+        assert!(session.previews_pending());
+        session.remove_images(&[ImageId(400)]).unwrap();
+        settle(&mut session, &[], 8);
+        assert_eq!(session.groups, reference(&session));
+        session.retire_previews().wait();
+    }
+
+    #[test]
+    fn lr13f_hash_gained_during_pending_regroup_matches_reference() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = chain(&index);
+        let original = session.hashes[&ImageId(300)];
+        session
+            .apply_hash_results(vec![(ImageId(300), Ok(None))])
+            .unwrap();
+        settle(&mut session, &[], 8);
+        assert_eq!(session.groups, reference(&session));
+        // Image 300 split the chain: damage both halves so the job spans polls.
+        session
+            .remove_images(&[ImageId(200), ImageId(350)])
+            .unwrap();
+        assert!(session.previews_pending(), "the gain must arrive mid-job");
+        session
+            .apply_hash_results(vec![(ImageId(300), Ok(original))])
+            .unwrap();
+        settle(&mut session, &[], 8);
+        assert_eq!(session.groups, reference(&session));
+        session.retire_previews().wait();
     }
 }

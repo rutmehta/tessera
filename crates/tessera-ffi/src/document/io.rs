@@ -266,7 +266,7 @@ pub(crate) fn open_image(
     } else {
         engine_api::recipe::Recipe::new(id)
     };
-    let source = crate::export::Source::open(&path, orientation)?;
+    let source = crate::export::Source::open(&path, orientation, recipe.process_version)?;
     let name = stem(&path);
     let image = export::ExportImage {
         source: source.render_source(),
@@ -283,7 +283,7 @@ pub(crate) fn open_image(
     } else {
         None
     };
-    let rgb = export::render_pixels_with_mask_support(
+    let rgb = export::render_pixels_with_resources(
         &image,
         &recipe,
         &export::RenderRequest {
@@ -299,6 +299,9 @@ pub(crate) fn open_image(
         },
         // Imported rasters live under this engine's explicit app directory.
         Some(engine.support_dir()?),
+        // Retouch renders as in Develop and print (REV-SP-A S2); a proxy
+        // never plans it away silently.
+        Some(Arc::new(brush::render_retouch)),
     )?;
     let extent = Extent::new(rgb.width(), rgb.height());
     let mut rgba = Vec::with_capacity(extent.area() as usize * 4);

@@ -95,14 +95,13 @@ pub(crate) fn render_with_hooks(
     // The public reference API has no mask callback before its private lens
     // warp. Reject that combination instead of applying sensor-space masks to
     // already warped pixels. Ordinary (non-AI) exports retain the full path.
-    let (w, h, metadata) = match source {
-        RenderSource::Rgb(i) => (i.width(), i.height(), None),
+    let metadata = match source {
+        RenderSource::Rgb(_) => None,
+        RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
+            Some(proxy.original_metadata())
+        }
         RenderSource::CameraLinear(_) => return Err(crate::original_required()),
-        RenderSource::Cfa { metadata, .. } => (
-            metadata.default_crop[2],
-            metadata.default_crop[3],
-            Some(*metadata),
-        ),
+        RenderSource::Cfa { metadata, .. } => Some(*metadata),
     };
     let input = pipeline_cpu::render_linear_before_geometry(&pre, source, denoiser)?;
     let lens = pipeline_cpu::resolve_lens(&input, &pre.lens, metadata, &Default::default())?;
@@ -114,102 +113,7 @@ pub(crate) fn render_with_hooks(
             "AI masks with lens warps require a hook-aware lens renderer",
         ));
     }
-    let orientation = metadata.map_or(1, |m| m.orientation);
-    // Validate all requests before loading (or downloading) any weights.
-    let mut requests = Vec::new();
-    for group in settings
-        .locals
-        .adjustments
-        .iter()
-        .filter(|g| g.enabled && g.amount != 0.0)
-    {
-        for c in group
-            .components
-            .iter()
-            .flat_map(|c| c.active_leaves())
-            .filter(|c| c.kind.is_ai())
-        {
-            if !requests.iter().any(|(component, _)| component == c) {
-                let request = if c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_some() {
-                    None
-                } else {
-                    Some(mask_ai::request(&c.kind, orientation).map_err(error)?)
-                };
-                requests.push((c.clone(), request));
-            }
-        }
-    }
-    // Stable as-shot segmentation input; it is independent of local/global edits.
-    let scale = w.max(h).div_ceil(2048).max(1);
-    let rgb = pipeline_cpu::render_scaled(&DevelopSettings::default(), source, scale)?;
-    let (sw, sh) = rgb.dimensions();
-    let (dw, dh) = if orientation >= 5 { (sh, sw) } else { (sw, sh) };
-    let pixels: Vec<[u8; 3]> = rgb.pixels().map(|p| p.0).collect();
-    let shown = mask_ai::reorient(&pixels, sw, sh, dw, dh, |p| mask_ai::orient(p, orientation));
-    let shown = image::RgbImage::from_raw(dw, dh, shown.into_iter().flatten().collect())
-        .ok_or_else(|| error("segmentation input"))?;
-    let support = || -> EngineResult<std::path::PathBuf> {
-        mask_support
-            .map(|root| Ok(root.to_path_buf()))
-            .unwrap_or_else(crate::depth::support)
-    };
-    let mut loaded = None;
-    let mut supplied = segmenter;
-    let mut rasters = Vec::new();
-    for (component, request) in requests {
-        let request = match request {
-            Some(request) => request,
-            None => {
-                let key = component
-                    .adobe_ai
-                    .as_ref()
-                    .and_then(|s| s.mask_key)
-                    .expect("imported reference");
-                match mask_ai::imported_plane(&support()?, &key) {
-                    Ok(plane) if (plane.width, plane.height) == (w, h) => {
-                        rasters.push((component, plane));
-                        continue;
-                    }
-                    _ => warnings.push(
-                        "regenerating AI mask: stored raster missing, corrupt or wrong extent"
-                            .into(),
-                    ),
-                }
-                mask_ai::request(&component.kind, orientation).map_err(error)?
-            }
-        };
-        // Export never renders a different image than the one the user sees
-        // once the mask exists: a model that cannot be loaded, a backend that
-        // fails and an invalid raster are all errors, and nothing is published.
-        // The model is loaded only when a component actually needs inference.
-        if supplied.is_none() && loaded.is_none() {
-            loaded = Some(mask_ai::load_segmenter(&support()?).map_err(error)?);
-        }
-        let segmenter = match (supplied.as_deref_mut(), loaded.as_mut()) {
-            (Some(segmenter), _) => segmenter,
-            (None, Some(segmenter)) => segmenter.as_mut(),
-            (None, None) => unreachable!("loaded above"),
-        };
-        let alpha = segmenter.segment(&shown, &request).map_err(error)?;
-        if alpha.len() != dw as usize * dh as usize
-            || alpha.iter().any(|v| !(0.0..=1.0).contains(v))
-        {
-            return Err(error("invalid segmentation raster"));
-        }
-        let data = mask_ai::reorient(&alpha, dw, dh, sw, sh, |p| {
-            mask_ai::unorient(p, orientation)
-        });
-        rasters.push((
-            component,
-            AlphaPlane {
-                width: sw,
-                height: sh,
-                data,
-            },
-        ));
-    }
-    let cache = MaskRasterCache::new(0);
-    cache.set_hooks(Some(Arc::new(ReadyMasks(rasters))));
+    let cache = ready_masks(source, settings, segmenter, warnings, mask_support)?;
     let mut planes = input.planes().to_vec();
     for group in settings
         .locals
@@ -263,6 +167,281 @@ pub(crate) fn render_with_hooks(
             })
         },
     ))
+}
+
+/// Materialize every requested external component before rendering. A missing
+/// imported plane can regenerate, but a missing model or invalid raster is an
+/// export error. The cache and inference context belong only to this export.
+fn ready_masks(
+    source: &RenderSource<'_>,
+    settings: &DevelopSettings,
+    segmenter: Option<&mut dyn MaskSegmenter>,
+    warnings: &mut Vec<String>,
+    mask_support: Option<&std::path::Path>,
+) -> EngineResult<MaskRasterCache> {
+    let (w, h, metadata) = match source {
+        RenderSource::Rgb(i) => (i.width(), i.height(), None),
+        RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => (
+            proxy.pixels().width(),
+            proxy.pixels().height(),
+            Some(proxy.original_metadata()),
+        ),
+        RenderSource::CameraLinear(_) => return Err(crate::original_required()),
+        RenderSource::Cfa { metadata, .. } => (
+            metadata.default_crop[2],
+            metadata.default_crop[3],
+            Some(*metadata),
+        ),
+    };
+    // Rasters live in the sensor frame for RAW and Smart Preview sources
+    // alike (LR-8m); segmentation sees the displayed orientation.
+    let orientation = metadata.map_or(1, |m| m.orientation);
+    // Validate all requests before loading (or downloading) any weights.
+    let mut requests = Vec::new();
+    for group in settings
+        .locals
+        .adjustments
+        .iter()
+        .filter(|g| g.enabled && g.amount != 0.0)
+    {
+        for c in group
+            .components
+            .iter()
+            .flat_map(|c| c.active_leaves())
+            .filter(|c| c.kind.is_ai())
+        {
+            if !requests.iter().any(|(component, _)| component == c) {
+                let request = if matches!(c.kind, engine_api::recipe::MaskKind::Depth { .. })
+                    || c.adobe_ai.as_ref().and_then(|s| s.mask_key).is_some()
+                {
+                    None
+                } else {
+                    Some(mask_ai::request(&c.kind, orientation).map_err(error)?)
+                };
+                requests.push((c.clone(), request));
+            }
+        }
+    }
+    if requests.is_empty() {
+        return Ok(MaskRasterCache::new(0));
+    }
+    // Stable as-shot segmentation input; it is independent of local/global edits.
+    let scale = w.max(h).div_ceil(2048).max(1);
+    let rgb = pipeline_cpu::render_scaled(&DevelopSettings::default(), source, scale)?;
+    let (sw, sh) = rgb.dimensions();
+    let (dw, dh) = if orientation >= 5 { (sh, sw) } else { (sw, sh) };
+    let pixels: Vec<[u8; 3]> = rgb.pixels().map(|p| p.0).collect();
+    let shown = mask_ai::reorient(&pixels, sw, sh, dw, dh, |p| mask_ai::orient(p, orientation));
+    let shown = image::RgbImage::from_raw(dw, dh, shown.into_iter().flatten().collect())
+        .ok_or_else(|| error("segmentation input"))?;
+    let support = || -> EngineResult<std::path::PathBuf> {
+        mask_support
+            .map(|root| Ok(root.to_path_buf()))
+            .unwrap_or_else(crate::depth::support)
+    };
+    let mut loaded = None;
+    let mut supplied = segmenter;
+    let mut rasters = Vec::new();
+    let mut ready_depth = None;
+    for (component, request) in requests {
+        if let engine_api::recipe::MaskKind::Depth { model, .. } = &component.kind {
+            if model.as_ref().is_some_and(|model| {
+                model.id.as_str() != image_core::ml_depth::MODEL_ID
+                    || model.version != image_core::ml_depth::MODEL_VERSION
+            }) {
+                return Err(error("unsupported depth-mask model provenance"));
+            }
+            if ready_depth.is_none() {
+                let input = pipeline_cpu::render_linear_before_geometry(
+                    &DevelopSettings::default(),
+                    source,
+                    None,
+                )?;
+                let shown = image_core::depth::model_input(&input)?;
+                let root = support()?;
+                let store = image_core::ml_depth::DepthStore::new(
+                    root.join("previews/depth-cache"),
+                    256 << 20,
+                )
+                .map_err(error)?;
+                let key =
+                    image_core::ml_depth::cache_key(&shown, image_core::ml_depth::MODEL_VERSION);
+                let depth = match image_core::ml_depth::DepthMap::cached(&store, &key)
+                    .filter(|d| (d.width(), d.height()) == (input.width(), input.height()))
+                {
+                    Some(depth) => depth,
+                    None => {
+                        image_core::depth::DepthProvider::from_support(&root)?.estimate(&input)?
+                    }
+                };
+                ready_depth = Some((input, depth.near_to_far()));
+            }
+            let (input, plane) = ready_depth.as_ref().expect("resolved above");
+            let group = LocalAdjustment {
+                components: vec![MaskComponent::new(component.kind.clone())],
+                ..Default::default()
+            };
+            let alpha = pipeline_cpu::masks::rasterize(
+                input,
+                &group,
+                pipeline_cpu::masks::MaskOptions {
+                    depth: Some(plane),
+                    ..Default::default()
+                },
+            )?;
+            rasters.push((
+                component,
+                AlphaPlane {
+                    width: input.width(),
+                    height: input.height(),
+                    data: alpha,
+                },
+            ));
+            continue;
+        }
+        let request = match request {
+            Some(request) => request,
+            None => {
+                let key = component
+                    .adobe_ai
+                    .as_ref()
+                    .and_then(|s| s.mask_key)
+                    .expect("imported reference");
+                match mask_ai::imported_plane(&support()?, &key) {
+                    Ok(plane) if (plane.width, plane.height) == (w, h) => {
+                        rasters.push((component, plane));
+                        continue;
+                    }
+                    _ => warnings.push(
+                        "regenerating AI mask: stored raster missing, corrupt or wrong extent"
+                            .into(),
+                    ),
+                }
+                mask_ai::request(&component.kind, orientation).map_err(error)?
+            }
+        };
+        // Export never renders a different image than the one the user sees
+        // once the mask exists: a model that cannot be loaded, a backend that
+        // fails and an invalid raster are all errors, and nothing is published.
+        // The model is loaded only when a component actually needs inference.
+        if supplied.is_none() && loaded.is_none() {
+            loaded = Some(mask_ai::load_segmenter(&support()?).map_err(error)?);
+        }
+        let segmenter = match (supplied.as_deref_mut(), loaded.as_mut()) {
+            (Some(segmenter), _) => segmenter,
+            (None, Some(segmenter)) => segmenter.as_mut(),
+            (None, None) => unreachable!("loaded above"),
+        };
+        let alpha = segmenter.segment(&shown, &request).map_err(error)?;
+        if alpha.len() != dw as usize * dh as usize
+            || alpha.iter().any(|v| !(0.0..=1.0).contains(v))
+        {
+            return Err(error("invalid segmentation raster"));
+        }
+        let data = mask_ai::reorient(&alpha, dw, dh, sw, sh, |p| {
+            mask_ai::unorient(p, orientation)
+        });
+        rasters.push((
+            component,
+            AlphaPlane {
+                width: sw,
+                height: sh,
+                data,
+            },
+        ));
+    }
+    let cache = MaskRasterCache::new(0);
+    cache.set_hooks(Some(Arc::new(ReadyMasks(rasters))));
+    Ok(cache)
+}
+
+/// External proxy exports use the same local-adjustment barrier and process
+/// family as Develop. In particular, Adobe pixels never receive a Native
+/// sigmoid merely because the recipe contains an imported mask.
+pub(crate) fn render_proxy(
+    source: &RenderSource<'_>,
+    recipe: &engine_api::recipe::Recipe,
+    scale: u32,
+    segmenter: Option<&mut dyn MaskSegmenter>,
+    warnings: &mut Vec<String>,
+    support: Option<&std::path::Path>,
+    retouch: Option<Arc<dyn pipeline_cpu::RetouchRenderer>>,
+) -> EngineResult<image::Rgb32FImage> {
+    let mut settings = recipe.settings.clone();
+    settings.output.proof_profile = None;
+    let cache = ready_masks(source, &settings, segmenter, warnings, support)?;
+    let locals = |input: &Image, groups: &[LocalAdjustment]| {
+        let mut planes = input.planes().to_vec();
+        for group in groups
+            .iter()
+            .filter(|g| g.enabled && g.amount != 0. && !g.components.is_empty())
+        {
+            let mask = cache.rasterize(
+                input,
+                group,
+                0,
+                ParamHash::of(StageId::Color, &0u8),
+                Default::default(),
+            )?;
+            let adjusted = pipeline_cpu::adjust_local(input, &group.params, group.amount)?;
+            let blended = pipeline_cpu::blend_local(input, &adjusted, &mask)?;
+            for ((out, original), changed) in
+                planes.iter_mut().zip(input.planes()).zip(blended.planes())
+            {
+                for ((out, original), changed) in out.iter_mut().zip(original).zip(changed) {
+                    *out += changed - original;
+                }
+            }
+        }
+        Image::new(input.width(), input.height(), planes)
+    };
+    let depth_renderer = if settings.effects.lens_blur.is_some() {
+        support
+            .map(|root| {
+                image_core::depth::DepthProvider::from_support(root).map(|provider| {
+                    image_core::Renderer::new(Default::default()).with_depth(Arc::new(provider))
+                })
+            })
+            .transpose()?
+    } else {
+        None
+    };
+    let depth_effects = |input: &Image| {
+        depth_renderer
+            .as_ref()
+            .expect("installed hook")
+            .apply_depth_effects(input, &settings)
+    };
+    let context = pipeline_cpu::LensContext {
+        retouch,
+        depth_effects: depth_renderer
+            .as_ref()
+            .map(|_| &depth_effects as &pipeline_cpu::DepthEffectHook<'_>),
+        ..Default::default()
+    };
+    if recipe.process_version.family == engine_api::recipe::ProcessFamily::Adobe {
+        let rgb = image_core::pipeline_adobe::render_linear_scaled_with_resources(
+            &settings,
+            source,
+            scale,
+            None,
+            Some(&locals),
+            &context,
+        )?;
+        Ok(image::Rgb32FImage::from_fn(
+            rgb.width(),
+            rgb.height(),
+            |x, y| {
+                let i = (y * rgb.width() + x) as usize;
+                image::Rgb(std::array::from_fn(|c| rgb.planes()[c][i]))
+            },
+        ))
+    } else {
+        let rgb = pipeline_cpu::render_linear_scaled_with_local_hook(
+            &settings, source, scale, &context, None, None, &locals,
+        )?;
+        Ok(crate::depth::tone_map(rgb))
+    }
 }
 
 #[cfg(test)]

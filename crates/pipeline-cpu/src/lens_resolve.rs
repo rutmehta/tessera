@@ -45,9 +45,15 @@ impl ManualCaSettings {
         Ok(())
     }
 }
+/// Resolve and apply a real depth map at the full-resolution, pre-geometry
+/// effects barrier. Missing/invalid resources are returned to the caller.
+pub type DepthEffectHook<'a> = dyn Fn(&Image) -> EngineResult<Image> + 'a;
+
 /// Caller-owned profiles, including profiles loaded by `lens::load_user_profile`.
 #[derive(Default)]
 pub struct LensContext<'a> {
+    /// Caller-owned depth effect; invoked after local adjustments, before geometry.
+    pub depth_effects: Option<&'a DepthEffectHook<'a>>,
     /// Caller-owned retouch implementation, shared by render requests.
     pub retouch: Option<std::sync::Arc<dyn crate::RetouchRenderer>>,
     /// Additive manual lateral CA, independent of profile/automatic CA toggles.
@@ -164,12 +170,22 @@ impl ResolvedLens {
         self.sample.as_ref()
     }
 }
+thread_local! {
+    static LENS_RESOLUTIONS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Lens resolution boundary entries on this thread, for performance diagnostics.
+pub fn lens_resolution_count() -> u64 {
+    LENS_RESOLUTIONS.get()
+}
+
 pub fn resolve_lens(
     image: &Image,
     s: &LensSettings,
     metadata: Option<&RawMetadata>,
     context: &LensContext<'_>,
 ) -> EngineResult<ResolvedLens> {
+    LENS_RESOLUTIONS.set(LENS_RESOLUTIONS.get() + 1);
     if image.planes().len() != 3 {
         return Err(EngineError::invalid("lens", "RGB analysis required"));
     }
@@ -566,6 +582,8 @@ mod tests {
             aperture: 4.,
             focal_mm: 50.,
             capture_time: 0,
+            catalog_orientation: None,
+            baseline_exposure: 0.,
             orientation: 1,
             width,
             height,

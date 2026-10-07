@@ -1,14 +1,31 @@
 //! Independent, approximate Adobe PV1–PV6 rendering. See ADOBE_COMPAT.md.
 pub mod curves;
 pub mod dcp;
+mod embedded_profile;
 pub mod fidelity;
+pub use embedded_profile::{
+    SUBSTITUTED_PROFILE_NOTICE, UNAVAILABLE_PROFILE_NOTICE, embedded_profile_fallback,
+};
 mod render;
 use engine_api::recipe::settings::ToneSettings;
 pub use pipeline_cpu::{Image, RenderSource, Rgb8Image};
 pub use render::{
-    render_linear_scaled, render_linear_scaled_with_profile, render_scaled,
-    render_scaled_with_profile,
+    render_linear_scaled, render_linear_scaled_with_profile,
+    render_linear_scaled_with_profile_and_locals, render_linear_scaled_with_resources,
+    render_scaled, render_scaled_with_profile,
 };
+
+/// Recognize imported Adobe profile identities; this never selects a process family.
+pub fn names_adobe_profile(settings: &engine_api::recipe::DevelopSettings) -> bool {
+    settings
+        .camera_profile
+        .profile
+        .name
+        .0
+        .split_whitespace()
+        .next()
+        .is_some_and(|word| word.eq_ignore_ascii_case("Adobe"))
+}
 
 /// Scene-linear basic tone operator, before profile/user curves.
 pub fn basic_tone(rgb: [f32; 3], s: &ToneSettings) -> [f32; 3] {
@@ -45,6 +62,19 @@ pub fn basic_tone(rgb: [f32; 3], s: &ToneSettings) -> [f32; 3] {
 
 fn luminance(rgb: [f32; 3]) -> f32 {
     0.2627 * rgb[0] + 0.6780 * rgb[1] + 0.0593 * rgb[2]
+}
+
+/// Validate source BaselineExposure only at the Adobe boundary. Native retains
+/// the metadata as data and never applies or validates an exposure gain.
+pub fn validate_baseline_exposure(baseline_exposure: f32) -> engine_api::EngineResult<()> {
+    let gain = baseline_exposure.exp2();
+    if !baseline_exposure.is_finite() || !gain.is_finite() || gain <= 0. {
+        return Err(engine_api::EngineError::invalid(
+            "BaselineExposure",
+            "finite positive gain required",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

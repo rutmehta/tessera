@@ -121,3 +121,20 @@ fn lr6f_active_blur_and_inactive_depth_catalog_golden() {
         "141018bf3d1b53071354c60090993dc0799d7f7fa35c0c8685cbbb55349ef6e0"
     );
 }
+
+/// A neighboring bundle must not change an ordinary import's serialized bytes.
+#[test]
+fn ordinary_import_golden_is_identical_with_smart_preview_bundle_present() {
+    let dir = tempfile::tempdir().unwrap();
+    let catalog = common::write(dir.path(), N);
+    let before = import_lrcat::import(&catalog).unwrap();
+    let index = import_lrcat::smart_previews::SmartPreviewIndex::new(&catalog);
+    std::fs::create_dir_all(index.root()).unwrap();
+    let after = import_lrcat::import(&catalog).unwrap();
+    assert_eq!(
+        serde_json::to_vec(&before).unwrap(),
+        serde_json::to_vec(&after).unwrap()
+    );
+    assert_eq!(digest(before.images), GOLDEN);
+    assert_eq!(digest(after.images), GOLDEN);
+}

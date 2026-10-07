@@ -108,8 +108,31 @@ pub(crate) fn selection_packet(path: &Path, doc: &RecipeDocument) -> EngineResul
 
 pub(crate) struct EmbeddedMetadata;
 
+/// The index's metadata provider: embedded metadata plus listing facts.
+pub(crate) struct IndexedMetadata;
+
+impl MetadataProvider for IndexedMetadata {
+    fn read(&self, path: &Path) -> EngineResult<Metadata> {
+        let mut metadata = EmbeddedMetadata.read(path)?;
+        // An unreadable recipe records no facts: listing then reads it as before.
+        let recipe = Sidecar::paths(path).recipe;
+        if !recipe.exists() {
+            metadata.values.extend(listing_facts(None));
+        } else if let Ok(document) = Sidecar::read_recipe(recipe) {
+            metadata
+                .values
+                .extend(listing_facts(Some(&document.recipe)));
+        }
+        Ok(metadata)
+    }
+}
+
 impl MetadataProvider for EmbeddedMetadata {
     fn read(&self, path: &Path) -> EngineResult<Metadata> {
+        // The catalog orientation replaces EXIF as the display orientation,
+        // exactly as EXIF is for an ordinary import (LR-8m).
+        let catalog = catalog_orientation(path);
+        let presentation_orientation = |value: u16| catalog.unwrap_or(value);
         if !image_core::RgbSource::recognizes(path) {
             // Native float LinearRaw is mosaic-free and cannot use decode_cfa.
             if path
@@ -122,13 +145,43 @@ impl MetadataProvider for EmbeddedMetadata {
                     ..Default::default()
                 });
             }
+            if let Ok(source) = raw_decode::RawSource::open(path) {
+                let m = source.metadata();
+                return Ok(Metadata {
+                    capture_time: Some(m.capture_time.to_string()),
+                    camera: Some(m.model),
+                    lens: m.lens,
+                    values: vec![(
+                        "orientation".into(),
+                        presentation_orientation(m.orientation).to_string(),
+                    )],
+                    ..Default::default()
+                });
+            }
+            if path
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("dng"))
+                && let Some(metadata) =
+                    raw_decode::lossy_dng::read_metadata(&mut std::fs::File::open(path)?)?
+            {
+                return Ok(Metadata {
+                    values: vec![(
+                        "orientation".into(),
+                        presentation_orientation(metadata.orientation).to_string(),
+                    )],
+                    ..Default::default()
+                });
+            }
             let source = raw_decode::RawSource::open(path)?;
             let m = source.metadata();
             return Ok(Metadata {
                 capture_time: Some(m.capture_time.to_string()),
                 camera: Some(m.model),
                 lens: m.lens,
-                values: vec![("orientation".into(), m.orientation.to_string())],
+                values: vec![(
+                    "orientation".into(),
+                    presentation_orientation(m.orientation).to_string(),
+                )],
                 ..Default::default()
             });
         }
@@ -142,7 +195,10 @@ impl MetadataProvider for EmbeddedMetadata {
             })
             .unwrap_or(1);
         Ok(Metadata {
-            values: vec![("orientation".into(), orientation.to_string())],
+            values: vec![(
+                "orientation".into(),
+                presentation_orientation(orientation as u16).to_string(),
+            )],
             ..Default::default()
         })
     }
@@ -202,6 +258,180 @@ pub(crate) fn photo_stack(db: &Path, id: &str) -> crate::Result<Vec<String>> {
 }
 
 #[cfg(test)]
+thread_local! {
+    static PROXY_RECIPE_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+/// Recipe reads made by listing projections on this thread (tests only).
+#[cfg(test)]
+pub(crate) fn proxy_recipe_reads() -> usize {
+    PROXY_RECIPE_READS.with(std::cell::Cell::get)
+}
+
+/// Count one owner-recipe read on this thread (tests only).
+#[cfg(test)]
+pub(crate) fn note_recipe_read() {
+    PROXY_RECIPE_READS.with(|reads| reads.set(reads.get() + 1));
+}
+
+/// Stable recipe owner stays at the proxy path; only the pixel source switches.
+/// No index migration, sidecar move, or copy into Lightroom is involved.
+pub(crate) fn lightroom_proxy(path: &Path) -> Option<serde_json::Value> {
+    #[cfg(test)]
+    PROXY_RECIPE_READS.with(|reads| reads.set(reads.get() + 1));
+    let document = Sidecar::read_recipe(Sidecar::paths(path).recipe).ok()?;
+    document
+        .recipe
+        .unknown
+        .get("lightroom_smart_preview")
+        .cloned()
+}
+/// Index metadata recorded when a file is indexed (A-LR8 M5): the recipe hash
+/// the facts were derived from, and for imported Smart Previews the catalog's
+/// original path (empty when the catalog had none). Listing uses them instead
+/// of reading every recipe while that hash is still the image's current one.
+pub(crate) const LISTING_RECIPE_KEY: &str = "tessera.listing.recipe";
+pub(crate) const LISTING_ORIGINAL_KEY: &str = "tessera.listing.original";
+
+/// Scan-time listing facts of one row, with the image's current recipe hash.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ScanFacts {
+    pub recipe: Option<String>,
+    pub original: Option<String>,
+    pub current: String,
+}
+
+/// One listing row: the pixel source, whether it is an offline Smart Preview,
+/// and the catalog file name of an imported proxy (user data: display and
+/// export names only, never identifiers).
+#[derive(Clone, Debug)]
+pub(crate) struct ListingRow {
+    pub source: String,
+    pub offline: bool,
+    pub display_name: Option<String>,
+}
+
+fn listing_facts(recipe: Option<&Recipe>) -> Vec<(String, String)> {
+    let hash = recipe.map_or_else(
+        || Recipe::default().recipe_hash(),
+        |recipe| recipe.recipe_hash(),
+    );
+    let mut values = vec![(LISTING_RECIPE_KEY.into(), hash.to_string())];
+    if let Some(proxy) = recipe.and_then(|r| r.unknown.get("lightroom_smart_preview")) {
+        let original = proxy
+            .get("original_path")
+            .and_then(|p| p.as_str())
+            .unwrap_or_default();
+        values.push((LISTING_ORIGINAL_KEY.into(), original.into()));
+    }
+    values
+}
+
+/// Listing projection. With current scan-time facts no recipe is read; the
+/// candidate original is still checked once, so a relinked original shows.
+/// Pixel requests resolve independently so their source is never a stale snapshot.
+pub(crate) fn project(path: &Path, facts: Option<&ScanFacts>) -> ListingRow {
+    let proxy: Option<Option<PathBuf>> =
+        match facts.filter(|f| f.recipe.as_deref() == Some(f.current.as_str())) {
+            Some(facts) => facts
+                .original
+                .as_ref()
+                .map(|o| (!o.is_empty()).then(|| PathBuf::from(o))),
+            None => lightroom_proxy(path).map(|v| {
+                v.get("original_path")
+                    .and_then(|p| p.as_str())
+                    .map(PathBuf::from)
+            }),
+        };
+    let original = proxy.clone().flatten();
+    let source = original
+        .clone()
+        .filter(|p| p.is_file())
+        .unwrap_or_else(|| path.to_path_buf());
+    ListingRow {
+        offline: proxy.is_some() && source == path,
+        display_name: original
+            .as_deref()
+            .and_then(Path::file_name)
+            .map(|n| n.to_string_lossy().into_owned()),
+        source: source.to_string_lossy().into_owned(),
+    }
+}
+
+/// Catalog file name of an imported proxy, for export names (reads the recipe).
+pub(crate) fn proxy_display_name(path: &Path) -> Option<String> {
+    project(path, None).display_name
+}
+
+pub(crate) fn source_projection(path: &Path) -> (PathBuf, bool) {
+    let row = project(path, None);
+    (PathBuf::from(row.source), row.offline)
+}
+pub(crate) fn source_path(path: &Path) -> PathBuf {
+    source_projection(path).0
+}
+#[cfg(test)]
+pub(crate) fn is_offline_proxy(path: &Path) -> bool {
+    source_projection(path).1
+}
+
+/// Catalog-change invalidated listing facts. A warm refresh performs no recipe
+/// reads or original stats for unchanged rows; reopen takes a fresh snapshot.
+#[derive(Default)]
+pub(crate) struct ListingCache {
+    sequence: u64,
+    sources: std::collections::HashMap<ImageId, ListingRow>,
+}
+impl ListingCache {
+    pub fn sync(&mut self, index: &index::Index) -> EngineResult<()> {
+        let changes = index.changes_since(self.sequence)?;
+        if changes.reset {
+            self.sources.clear();
+        }
+        for change in changes.changes {
+            if !matches!(change.kind, index::ChangeKind::Updated(fields)
+                if !fields.intersects(index::ChangeFields::FILE | index::ChangeFields::RECIPE | index::ChangeFields::METADATA))
+            {
+                self.sources.remove(&change.id);
+            }
+        }
+        self.sequence = changes.to;
+        Ok(())
+    }
+    pub fn source(&mut self, id: ImageId, path: &Path, facts: Option<&ScanFacts>) -> ListingRow {
+        self.sources
+            .entry(id)
+            .or_insert_with(|| project(path, facts))
+            .clone()
+    }
+}
+
+pub(crate) fn catalog_orientation(path: &Path) -> Option<u16> {
+    Sidecar::read_recipe(Sidecar::paths(path).recipe)
+        .ok()?
+        .recipe
+        .unknown
+        .get("lightroom_orientation")?
+        .as_u64()
+        .filter(|o| (1..=8).contains(o))
+        .map(|o| o as u16)
+}
+
+pub(crate) fn open_image(id: ImageId, owner_path: &Path) -> EngineResult<image_core::RawImage> {
+    let source = source_path(owner_path);
+    let render_id = if source != owner_path {
+        crate::lrcat::app_image_id(&source).unwrap_or(id)
+    } else {
+        id
+    };
+    Ok(image_core::RawImage::open_with_catalog_orientation(
+        render_id,
+        source,
+        catalog_orientation(owner_path),
+    )?
+    .with_recipe_owner(id))
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -229,3 +459,7 @@ mod tests {
         assert!(metadata.camera.is_none());
     }
 }
+
+#[cfg(test)]
+#[path = "lrcat_orientation_tests.rs"]
+mod lrcat_orientation_tests;

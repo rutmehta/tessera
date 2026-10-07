@@ -749,6 +749,111 @@ impl MaskShared {
         })
     }
 
+    pub(crate) fn unavailable(&self, settings: &DevelopSettings) -> bool {
+        let entries = self.ai.lock().unwrap_or_else(|e| e.into_inner());
+        settings
+            .locals
+            .adjustments
+            .iter()
+            .filter(|g| g.enabled && g.amount != 0.)
+            .flat_map(|g| &g.components)
+            .flat_map(MaskComponent::active_leaves)
+            .any(|c| {
+                let Some(key) = component_raster_key(c) else {
+                    return false;
+                };
+                if c.adobe_ai.as_ref().and_then(|a| a.mask_key).is_some() {
+                    !matches!(entries.get(&key), Some(AiEntry::Ready(_)))
+                } else {
+                    matches!(entries.get(&key), Some(AiEntry::Failed(_)))
+                }
+            })
+    }
+
+    /// After [`Self::load_available_imported`]: an enabled imported raster that
+    /// is stored but could not be used (corrupt, wrong extent) or whose entry
+    /// failed. A raster that is merely absent (pending regeneration) is not
+    /// invalid: previews skip its adjustment, as Develop does (A-ROUND2).
+    pub(crate) fn invalid_imported(
+        &self,
+        support: &std::path::Path,
+        settings: &DevelopSettings,
+    ) -> Option<String> {
+        let root = support.join("imported-masks");
+        // Not MaskStore::new: a preview must not create directories.
+        let store = root
+            .is_dir()
+            .then(|| ml_segment::MaskStore::new(&root, 0).ok())
+            .flatten();
+        let entries = self.ai.lock().unwrap_or_else(|e| e.into_inner());
+        settings
+            .locals
+            .adjustments
+            .iter()
+            .filter(|g| g.enabled && g.amount != 0.)
+            .flat_map(|g| &g.components)
+            .flat_map(MaskComponent::active_leaves)
+            .find_map(|c| {
+                let imported = c.adobe_ai.as_ref().and_then(|a| a.mask_key)?;
+                let key = component_raster_key(c)?;
+                match entries.get(&key) {
+                    Some(AiEntry::Ready(_)) => None,
+                    Some(AiEntry::Failed(reason)) => Some(reason.clone()),
+                    _ => match store.as_ref().map(|s| s.pinned_revision(&imported)) {
+                        None => None,
+                        Some(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => None,
+                        Some(_) => Some(
+                            "stored imported mask raster is corrupt or has the wrong extent".into(),
+                        ),
+                    },
+                }
+            })
+    }
+
+    /// Keep every available imported raster; missing optional rasters are skipped
+    /// by the external-proxy renderer without preventing the other local edits.
+    pub(crate) fn load_available_imported(
+        &self,
+        support: &std::path::Path,
+        settings: &DevelopSettings,
+    ) {
+        for component in settings
+            .locals
+            .adjustments
+            .iter()
+            .flat_map(|g| &g.components)
+            .flat_map(MaskComponent::active_leaves)
+        {
+            if let Some(imported) = component.adobe_ai.as_ref().and_then(|s| s.mask_key)
+                && let Some(key) = component_raster_key(component)
+            {
+                let _ = self.refresh_imported(support, &key, &imported);
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn load_imported(
+        &self,
+        support: &std::path::Path,
+        settings: &DevelopSettings,
+    ) -> anyhow::Result<()> {
+        for component in settings
+            .locals
+            .adjustments
+            .iter()
+            .flat_map(|g| &g.components)
+            .flat_map(MaskComponent::active_leaves)
+        {
+            if let Some(imported) = component.adobe_ai.as_ref().and_then(|s| s.mask_key)
+                && let Some(key) = component_raster_key(component)
+            {
+                self.refresh_imported(support, &key, &imported)?;
+            }
+        }
+        Ok(())
+    }
+
     fn refresh_imported(
         &self,
         support: &std::path::Path,
@@ -2842,6 +2947,12 @@ mod lr5b_unavailable_tests {
             components: vec![c],
             ..Default::default()
         };
+        let mut settings = DevelopSettings::default();
+        settings.locals.adjustments.push(group.clone());
+        assert!(
+            !shared.unavailable(&settings),
+            "LR-8R: a regenerated mask that renders must not be reported unavailable"
+        );
         let image = pipeline_cpu::Image::new(4, 2, vec![vec![0.18; 8]; 3]).unwrap();
         assert_eq!(
             Hooks(shared).rasterize(&image, &group, 0).unwrap(),

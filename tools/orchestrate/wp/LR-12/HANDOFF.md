@@ -1,0 +1,673 @@
+# LR-13 (was LR-12): Smart Preview proxy thumbnails, analysis and renderability
+
+Machine B, branch `local/rut-build`, pushed to `wp/INT-1-rut-build`. Commits sit
+on top of `6682ca82`; nothing was rebased or force-pushed and no pushed commit
+was changed. This file stays at the historical LR-12 path by coordination request.
+
+**Combined tip for install** = integration `6682ca82` + LR-13 + hotfix LR-8e..8h
++ the Machine A approval conditions. See "Hotfix LR-8e..8h integrated" and
+"Machine A approval conditions" below for what changed after `95cb645c`.
+
+The lane was started by a Codex worker (commits up to `d986db0d` plus a large
+uncommitted diff) and finished by Claude Opus 5.5. Commits that mainly carry the
+Codex worker's uncommitted work say so in their body.
+
+## Review map for Machine A
+
+### LR-13a — minimal, contiguous, gated and pushed first (`a6b8ab39..df72fcb7`)
+
+Thumbnails and analysis through the Smart Preview decoder at thumbnail size, and
+the proxy CPU-reference rejection fix. 20 files, +867 / -63 for `bd4c71c7..df72fcb7`;
+no Swift, no FFI surface change, no Cargo.lock change.
+
+| Commit | What | Files |
+| --- | --- | --- |
+| `a6b8ab39` test | Synthetic JPEG XL LinearRaw fixture; reproduces LibRaw `-2` in analysis | `raw-decode/tests/fixtures/{README.md,linear-gradient-jxl.dng}`, `tessera-ffi/tests/lrcat.rs` |
+| `a1c269df` fix | Analysis and assist share the imported preview route | `tessera-ffi/src/{assist.rs,preview.rs}` |
+| `d986db0d` test | RED: culling, Adobe preview parity, proxy export warning | `export/tests/smart_preview_admission.rs`, `tessera-ffi/tests/lrcat.rs` |
+| `7907804b` fix | **Proxy CPU-reference rejection fix**: `CameraLinearProxy::render_plan`, applied at the pipeline-cpu, pipeline-adobe and image-core camera-linear entry points; embedded DCP for the Adobe renderer; no second Native tone curve on Adobe display output | `pipeline-cpu/src/{render.rs,smart_preview.rs,smart_preview_codec.rs}`, `pipeline-adobe/src/render.rs`, `image-core/src/{render.rs,smart_preview_render.rs,source.rs}`, `image-core/tests/lrcat_linear.rs` |
+| `9fb8b532` fix | Export from an external proxy uses the same plan, with a quality warning (required by the committed RED test in `d986db0d`) | `export/src/lib.rs`, `export/tests/smart_preview_admission.rs` |
+| `e4fadad9` fix | **Thumbnail, loupe, analysis and culling routing** through `catalog::open_image` and the viewport settings filter | `tessera-ffi/src/{preview.rs,assist.rs,session.rs,export.rs,masks.rs}`, `cull/src/{lib.rs,grouping.rs}`, `tessera-ffi/tests/lrcat.rs` |
+| `2aaf1283` test | RED: thumbnail request returns the level-0 frame (M3) | `tessera-ffi/src/preview.rs` |
+| `df72fcb7` fix | **Thumbnail size** (M3): render the coarsest level that covers `max_px` | `tessera-ffi/src/preview.rs` |
+
+Moved into LR-13a by Machine A's ruling that the visible notice must ship with
+it. These are not contiguous with the range above (they follow the first three
+broader commits in history) but depend only on `7907804b`:
+
+| Commit | What | Files |
+| --- | --- | --- |
+| `cca99b5b` feat | **Visible notice**: `ignored_settings` lists the omitted proxy fields (drives the existing Develop status line); `DevelopSession.render_notices` FFI; Mac status-line sentence per omitted setting; regenerated bindings | `tessera-ffi/src/{develop.rs,masks.rs}`, `tessera-ffi/tests/lrcat.rs`, `apps/mac/**` (13 files) |
+| `e2438c72` refactor | Notice sentences in one function, no text change | `tessera-ffi/src/develop.rs` |
+| `7df6f558` test | RED: lens blur / retouch wording; HDR note fired on headroom alone | `tessera-ffi/src/develop.rs`, `pipeline-cpu/tests/lrcat_dng.rs` |
+| `348b74f7` fix | Wording fixed; HDR note only when HDR output is on | `tessera-ffi/src/develop.rs`, `pipeline-cpu/src/smart_preview.rs` |
+| `e07fe9bc` test | Minimum notice covered through the FFI Develop session | `tessera-ffi/tests/lrcat.rs` |
+
+The Rust-only minimum (if the Swift half of `cca99b5b` were dropped) is its
+`develop.rs` + `masks.rs` hunks: the existing status line then reads
+"Develop: N imported setting(s) are kept but not rendered yet".
+
+The four RED tests of `07337d42` (`pipeline-cpu/tests/lrcat_dng.rs`, `lr12_*`)
+turn green at `7907804b`.
+
+### Broader — each independently droppable
+
+| Commit | What | Files |
+| --- | --- | --- |
+| `ab924590` feat | Identity-oriented, Native-process external LinearRaw may use the resident GPU tail. **Changes an existing admission assertion** in `export/tests/lrcat_jxl.rs` (was: every external DNG declines the resident tail) | `pipeline-cpu/src/smart_preview.rs`, `image-core/src/{render.rs,resident_render.rs,smart_preview_render.rs}`, `pipeline-gpu/tests/smart_preview.rs`, `export/tests/lrcat_jxl.rs` |
+| `8c2b8e10` fix | Merge input adapter reads JPEG XL LinearRaw | `tessera-ffi/src/merge.rs` |
+| `70921d37` fix | Merge adapter offers only `.dng` files to the LinearRaw reader (hotfix integration) | `tessera-ffi/src/merge.rs` |
+| `87e70eec` fix | Import-time mask extent from the LinearRaw header, LibRaw fallback kept | `tessera-ffi/src/lrcat.rs` |
+| `c5132de6` test | Opt-in `#[ignore]` measurement harness | `tessera-ffi/src/lrcat_profile.rs` |
+| `95cb645c`, `5d5be036`, final commit | HANDOFF and fixture README | `tools/orchestrate/wp/LR-12/HANDOFF.md`, `raw-decode/tests/fixtures/README.md` |
+| `1f64ff6f` + `33e56d7d` | A RED Swift test for a persistent loupe notice and its revert; net zero (see "Deferred to LR-13b") | `apps/mac/Tests/**` |
+
+Broader commits that precede LR-13a in history (already on the branch before
+this continuation): `c5f6ae92` + `b47a482b` (per-level Lightroom preview index
+in the import sheet), the recipe-audit half of `07337d42`
+(`tessera-ffi/src/lrcat_profile.rs`; its `pipeline-cpu/tests/lrcat_dng.rs` half
+is the LR-13a RED set), `bd4c71c7` (docs).
+
+### Deliberately not carried over from the Codex worker's diff
+
+`tessera-ffi/src/catalog.rs` reordered `EmbeddedMetadata::read` so the lossy-DNG
+header reader ran before LibRaw for every `.dng` and propagated its I/O errors.
+That conflicts with ruling B1 (ordinary DNGs must fall through to LibRaw
+silently) and drops capture time, camera and lens for any DNG LibRaw can open.
+No test needs it, so it was left at `HEAD`.
+
+## What was broken at each entry point
+
+| App entry point | State at `6682ca82` | Fix |
+| --- | --- | --- |
+| `Engine.embedded_preview` (grid thumbnail, loupe) | Decoded correctly, then passed the full recipe to the CPU/Adobe renderer at scale 1: rejected for 19,655 of 19,727 proxies ("non-default operator not implemented by CPU reference renderer"), so the grid was blank | `e4fadad9` route + filter, `7907804b` plan, `df72fcb7` size |
+| `Engine.analyze_image`, assist, quality, faces, embeddings (`analysis_rgb`) | Ordinary LibRaw preview decode: `LibRaw error -2` for every JPEG XL LinearRaw proxy | `a1c269df` |
+| Cull session near-duplicate grouping | LibRaw embedded-preview hash: error per proxy | `e4fadad9` (host preview provider) |
+| `Engine.open_develop_session`, refresh, attached surface | Smart Preview decoder was already used; 702 proxies failed admission on one optional setting | `7907804b` |
+| `DevelopSession.get_histogram` | Reads the completed Develop frame, so it had nothing to read when the frame was rejected | `7907804b` |
+| `Engine.export_batch`, print render | Decoder already used; 19,655 rejected by the settings validator; no proxy warning; Adobe recipes exported through the Native tone path | `9fb8b532`, `e4fadad9` (embedded DCP, no segmenter load) |
+| Merge input | LibRaw `-2` | `8c2b8e10` (broader) |
+| Import mask extent | LibRaw could not size the proxy | `87e70eec` (broader) |
+
+## M3 answer (thumbnails)
+
+- Settings: `render_imported` renders `develop::session_renderable(...)`, the
+  filter the Develop viewport draws, not the full recipe.
+- Size: it renders the coarsest engine level whose long edge still covers the
+  request. 256 px on a 2560 px proxy is level 3 (320 px); the 2048 px loupe tier
+  is level 0. Culling hashes the 256 px tier.
+- Residual, stated plainly: on the scalar camera-linear route the engine still
+  develops the 2560 px proxy once on the CPU and then reduces, which is the
+  Develop coarse-level contract (it keeps imported mask rasters and Adobe parity
+  identical to the viewport). Tiles, display encoding and stitching are
+  thumbnail-sized. Pre-reducing the camera-linear pixels would be faster but
+  changes mask-raster extents and pixel-radius operators; that belongs in LR-8.
+- Not done: imported previews are not looked up in the preview store before
+  rendering, so analysis re-renders a proxy even when the grid already has it.
+- Test: `preview::tests::lr13_imported_proxy_thumbnail_renders_at_thumbnail_level`.
+  Its first version (`2aaf1283`) also compared 8-bit means of the level-0 frame
+  and the thumbnail within 3 codes. That oracle was wrong for a steep gradient
+  because the viewport reduces in linear light before the display transform; the
+  fix commit replaces it with a per-sample check that each thumbnail value lies
+  inside its source bin, and keeps the dimension assertions unchanged.
+
+## Render plan (proxy CPU-reference rejection fix)
+
+`CameraLinearProxy::render_plan(settings, mask_hooks)` returns a render-only
+copy of the settings and the list of omitted field names. It is the identity
+for generated (non-external) Smart Previews, so their immutable prefix contract
+and the original-required export rule are unchanged. For external LinearRaw:
+
+| Field | Plan |
+| --- | --- |
+| `/decode`, `/linearize`, `/demosaic`, `/denoise` | ignored: no mosaic |
+| `/white_balance/mode` = Auto | As Shot |
+| `/camera_profile/look` | default look |
+| `/output/hdr`, `hdr_headroom_stops` | SDR |
+| `/lens/profile` = database profile | none (kept when the caller supplies a profile or database) |
+| `/effects/lens_blur`, `/locals/retouch` | omitted |
+| `/locals/adjustments` groups needing depth or unavailable AI rasters | that group disabled |
+
+The saved recipe is never modified; export writes metadata from the saved recipe.
+
+## Measurement before the hotfix (aggregate only; nothing private is committed)
+
+First measurement, at `c5132de6`. The before → after comparison stands; the
+"after" figures and the note table are superseded by "Re-measurement on the
+merged decoder" below (same admission counts, HDR note 16,658 → 366).
+
+Source: the scratch catalog copy and read-only access to the Smart Previews
+bundle. Offline is forced for every image that has a Smart Preview. Originals
+that resolve now: 21,643 catalog masters (count only).
+
+Admission audit, `lr13_proxy_admission_from_env`, 19,727 proxies:
+
+| App route | Before | After |
+| --- | ---: | ---: |
+| Thumbnail / loupe preview | 72 | 19,727 |
+| Develop (mask hooks, CPU fallback) | 19,025 | 19,727 |
+| Export from proxy | 72 | 19,727 |
+
+"After" was re-run on the final code in this continuation. "Before" is the
+Codex worker's recorded run of the same audit against the `bd4c71c7` validators
+(same code as `6682ca82` for these paths); it was not re-run here. The preview
+"before" counts validator admission only: analysis additionally failed for all
+19,727 at `6682ca82` in the LibRaw decode, which a validator cannot see and the
+synthetic regression reproduces.
+
+Residual failures after: none (0 in each route). Settings degraded with an info
+note, by field (counts overlap, they are not failing images):
+
+| Field | Proxies |
+| --- | ---: |
+| `output/hdr` (flag or headroom; headroom alone 16,658, flag 366) | 16,658 |
+| `camera_profile/look` | 15,543 |
+| `lens/profile` | 11,978 |
+| `locals/adjustments` | 625 |
+| `effects/lens_blur` | 417 |
+| `locals/retouch` | 285 |
+| `white_balance/mode` | 52 |
+
+The audit is an admission count: it reads real proxy and embedded-profile
+headers, supplies synthetic 2x2 pixels and calls renderer admission.
+
+Full renders, `lr13_app_develop_sample_from_env`, final code, four workers,
+1,535 s: a deterministic every-98th sample of 200 proxies plus the 12
+reference pairs (211 distinct photos) through the real FFI calls.
+
+| Route | Rendered | Failed |
+| --- | ---: | ---: |
+| Develop session frame to an IOSurface + nonempty histogram | 211 | 0 |
+| Grid thumbnail (256) | 200 | 0 |
+| Loupe (2048) | 200 | 0 |
+| Analysis (quality) | 200 | 0 |
+| PNG export from proxy, at proxy resolution, with warnings file | 200 | 0 |
+
+The validators predicted success for all 211 and all 211 rendered. Outputs are
+only in the scratch `lr13-out/contact` directory; the scratch app directory was
+removed by the harness. The live Tessera library, application-support directory
+and the live catalog were never opened; nothing was written under
+`~/Pictures/Lightroom`; no GUI was launched.
+
+## Hotfix LR-8e..8h integrated
+
+`git cherry-pick afe97d4c..38817f56` onto `95cb645c`: twelve separate commits
+(`e9925602..e4372184`), original subjects, bodies and trailers byte-identical,
+no `-x`.
+
+- Conflict: one, in `crates/raw-decode/tests/fixtures/README.md` while applying
+  `46965d1c` (LR-8f fix). Both texts kept: the LR-13 `linear-gradient-jxl.dng`
+  paragraph, then the LR-8f APP14 / 16-bit JPEG XL paragraphs. No code conflict.
+- `lossy_dng.rs`, `lr8e_safety.rs`, `lr8f_safety.rs`, `lossy_dng.rs` tests, the
+  LR-8 HANDOFF and every hotfix fixture are byte-identical to `38817f56`
+  (verified per blob). The LR-8f regenerated `linear-gradient.jpg` /
+  `linear-gradient.dng` (Adobe APP14 transform 0) landed. The only differences
+  in the hotfix's file set are the LR-13 fixture and README paragraphs.
+- The hotfix's admission and validation rules are untouched. The two approved
+  call sites (`image-core/src/source.rs`, `tessera-ffi/src/export.rs`) have no
+  net change in the hotfix range and keep their LR-13 form.
+
+Audit of every LR-13 use of the LinearRaw readers under the hotfix semantics
+(None when not claimed, error when claimed but invalid):
+
+| Caller | Reached by | Behaviour |
+| --- | --- | --- |
+| `image-core/src/source.rs` (`.dng` gate, approved site) | thumbnail, loupe, analysis, assist, culling, Develop via `catalog::open_image` | proxy claimed and decoded; ordinary DNG returns None and continues to LibRaw; other extensions never parsed |
+| `tessera-ffi/src/export.rs` `Source::open` (`.dng` gate, approved site) | export, print | same |
+| `tessera-ffi/src/merge.rs` `load_linear` | merge input | `70921d37` adds the same `.dng` gate; previously every input was offered to the reader (which returned None) |
+| `tessera-ffi/src/lrcat.rs` import mask extent | import | errors and None both fall through to the previous LibRaw probe |
+| `tessera-ffi/src/catalog.rs` metadata | index | unchanged from `6682ca82`: LibRaw first |
+| `tessera-ffi/src/lrcat_profile.rs` | opt-in audit only | reports unclaimed headers as their own class (none found) |
+
+The synthetic `linear-gradient-jxl.dng` (PhotometricInterpretation 34892,
+Compression 52546, three channels) is still claimed; all LR-13 tests that use it
+pass unchanged.
+
+Ordinary originals, tests that pin "exactly as before" (all in the final gate):
+
+- `pipeline-cpu/tests/golden.rs::raw_fixture_goldens`: pixel goldens for
+  `fixtures/raw` CR3, ARW, NEF, RAF and the CFA `sample.dng`, files untouched.
+- `image-core/tests/linear_dng.rs::cfa_dng_stays_raw_and_corrupt_linear_dng_does_not_fall_back`:
+  `sample.dng` through `RawImage::open` stays a LibRaw CFA source.
+- `raw-decode/tests/lr8e_safety.rs::ordinary_cfa_with_exotic_ifd_still_decodes_through_libraw`.
+- `raw-decode/tests/baseline.rs::ordinary_dng_retains_default_baseline_exposure`.
+- `tessera-ffi/tests/develop.rs` (Develop sessions on `sample.dng` and
+  `nikon-nef.NEF`) and `pipeline-gpu/tests/resident.rs` (NEF resident parity).
+
+## Machine A approval conditions (A-LR13-REVIEW, top section)
+
+| # | Condition | Answer |
+| --- | --- | --- |
+| 1 | Ship the minimal notice; fix the lens blur / retouch texts | `cca99b5b` stays in the tip (Rust `ignored_settings` + status line). Texts are now "Lens Blur is not rendered on Smart Preview yet." and "Retouch is not rendered on Smart Preview yet." RED `7df6f558` (`proxy_notice_tests::lr13_lens_blur_and_retouch_notices_do_not_blame_the_original`), fix `348b74f7`, FFI coverage `e07fe9bc`; Swift `testProxyRenderNoticeOwnsOnlyItsPhotoAndPreservesNewerStatus` covers the status line |
+| 2 | HDR note only when HDR output is on | RED `7df6f558` (`lr13_hdr_note_only_when_hdr_output_is_on`), fix `348b74f7`. Proxies with an HDR note: 16,658 before, **366** after |
+| 3 | LR-8f fixtures come along; re-run audit and sample on the merged decoder | Fixtures verified byte-identical to `38817f56`; README kept both texts plus a provenance note for the JPEG XL fixture (`5d5be036`). Numbers in the next section |
+
+## Re-measurement on the merged decoder (LR-8e..8h + conditions 1 and 2)
+
+Run at `5d5be036` (later commits change one integration-test file and docs).
+
+Admission audit, 19,727 proxies, real headers read by the hotfix reader:
+
+| App route | Admitted | Rejected |
+| --- | ---: | ---: |
+| Thumbnail / loupe preview | 19,727 | 0 |
+| Develop | 19,727 | 0 |
+| Export from proxy | 19,727 | 0 |
+
+No proxy header was left unclaimed or rejected by the hotfix reader (the audit
+counts those classes separately; both are absent). Originals resolving: 21,643.
+
+Settings degraded with an info note (counts overlap):
+
+| Field | Proxies |
+| --- | ---: |
+| `camera_profile/look` | 15,543 |
+| `lens/profile` | 11,978 |
+| `locals/adjustments` | 625 |
+| `effects/lens_blur` | 417 |
+| `output/hdr` (HDR output on) | 366 |
+| `locals/retouch` | 285 |
+| `white_balance/mode` | 52 |
+
+16,658 proxies carry non-default presentation headroom; it is reset for the SDR
+proxy render without a note.
+
+Full renders through the real FFI calls, fresh scratch import of all 19,727
+proxies, same deterministic 200 sample + 12 reference pairs (211 photos), four
+workers, 2,193 s including the import:
+
+| Route | Rendered | Failed |
+| --- | ---: | ---: |
+| Develop session frame to an IOSurface + nonempty histogram | 211 | 0 |
+| Grid thumbnail (256) | 200 | 0 |
+| Loupe (2048) | 200 | 0 |
+| Analysis (quality) | 200 | 0 |
+| PNG export from proxy | 200 | 0 |
+
+Decoder parity against the pre-hotfix run of the same sample: all 211 Develop
+frames are byte-identical PNGs, and all 200 exports have identical decoded pixel
+data (the files differ only in the embedded ICC chunk). 165 of the 200 export
+warning files lost exactly their HDR line (condition 2); no other warning line
+changed. Outputs are only in scratch `lr13-out/contact2`; the scratch app
+directory was removed by the harness.
+
+## Deferred to LR-13b (not started, per Machine A)
+
+Everything under "Next lane LR-13b" in A-LR13-REVIEW. One item was begun before
+that ruling arrived and withdrawn: a persistent loupe notice with
+`loupe.smart-preview-notice`. Its RED test was committed as `1f64ff6f` and
+reverted by `33e56d7d`; the tip contains neither. The grid/loupe badge is
+unchanged. Known limits of the shipped minimum, all LR-13b items: the notice is
+the shared one-line status message (a newer status replaces it, long lists
+truncate with the full text in the tooltip, no dedicated accessibility
+identifier), and it is refreshed per frame through an FFI call.
+
+## Gates
+
+LR-13a at `df72fcb7` (release artifacts of the touched crates cleaned first;
+5 Cargo jobs, 5 Rayon threads, LR-8 target directory):
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release` raw-decode, pipeline-adobe, pipeline-cpu, pipeline-gpu, image-core, import-lrcat, engine-api, previews, export, cull, tessera-ffi, tessera-mcp | PASS: 1,993 passed, 0 failed, 70 ignored, one attempt, no exclusions |
+| Workspace clippy, all targets, `-D warnings` | PASS |
+| `cargo fmt --all --check` | PASS |
+| `apps/mac/build-ffi.sh` | PASS; bindings differed from the tracked file only by 10 trailing-whitespace lines, restored |
+| `tools/orchestrate/swift-gate.sh` | SWIFT GATE OK: 920 tests, 3 skipped, 0 failures |
+| Strict release `Tessera` build | PASS |
+
+Gates at `c5132de6` (all LR-13 code before the hotfix; release and dev
+artifacts of the touched crates cleaned first):
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release`, same twelve crates | PASS: 1,995 passed, 0 failed, 72 ignored, one attempt, no exclusions |
+| Workspace clippy, all targets, `-D warnings` | PASS |
+| `cargo fmt --all --check` | PASS |
+| `apps/mac/build-ffi.sh` | PASS; tracked bindings unchanged afterwards (worktree clean) |
+| `tools/orchestrate/swift-gate.sh` | SWIFT GATE OK: 921 tests, 3 skipped, 0 failures |
+| Strict release `Tessera` build | PASS |
+
+No wall-clock test needed a rerun in either gate run.
+
+Final gates on the combined tip (hotfix + conditions; raw-decode, image-core,
+tessera-ffi and the other touched crates cleaned first):
+
+Code tip `e07fe9bc`; only this HANDOFF commit follows. Release and dev
+artifacts of raw-decode, pipeline-cpu, pipeline-adobe, pipeline-gpu, image-core,
+export, cull and tessera-ffi cleaned first.
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release`, same twelve crates | PASS: 2,026 passed, 0 failed, 72 ignored, one attempt, no exclusions |
+| Workspace clippy, all targets, `-D warnings` | PASS |
+| `cargo fmt --all --check` | PASS |
+| `apps/mac/build-ffi.sh` | PASS; tracked bindings unchanged afterwards |
+| `tools/orchestrate/swift-gate.sh` | SWIFT GATE OK: 921 tests, 3 skipped, 0 failures |
+| Strict release `Tessera` build | PASS |
+
+Confirmed in that run: `raw_fixture_goldens`,
+`cfa_dng_stays_raw_and_corrupt_linear_dng_does_not_fall_back`,
+`ordinary_cfa_with_exotic_ifd_still_decodes_through_libraw`,
+`ordinary_dng_retains_default_baseline_exposure`, `lr8e_safety` (14) and
+`lr8f_safety` (14), `tessera-ffi/tests/develop.rs` (9), `pipeline-gpu/tests/resident.rs` (6),
+and every `lr12_*` / `lr13_*` test.
+
+Cargo.lock, dependency manifests, board.json and existing goldens are unchanged.
+No private pixel, path, file name or catalog-derived string is committed.
+
+## LR-13c — library-open performance regression
+
+Machine B; base `124c03bc`, branch `local/rut-build`. Synthetic fixtures only.
+No foreground app launch and no access to the protected user libraries.
+
+### Cause and changed contract
+
+`CullSession::open_with_policy` called `regroup` with near-duplicates enabled.
+That synchronously invoked the preview provider for every image. LR-13's
+`e4fadad9` made imported proxies render through `catalog::open_image`; selecting
+a thumbnail render level did not avoid the full proxy decode and lens/CA work
+upstream. Ordinary originals also synchronously opened their embedded previews.
+
+Open now builds the metadata queue and capture-time bursts without invoking a
+pixel provider. The existing Mac post-install `syncLibrary` call starts lazy
+work through `sync_changes`; results wake that same change-feed path. Hashes
+arrive incrementally and produce group deltas without replacing the session,
+its cursor or its undo history. Direct Rust hosts can use `poll_previews` and
+`previews_pending`. Merely reading initial rows/groups never starts a worker.
+
+One process-wide hash decode is allowed at a time; a session has at most 16
+outstanding requests/results. Drop cancels queued work without waiting. The
+currently running image may finish its codec call, after which its result is
+discarded. Callbacks keep only a weak engine reference and run outside session locks.
+Default grouping merges new hash edges in bounded batches instead of repeatedly
+rebuilding all pairs in growing components. Custom grouping policies receive a
+complete hash snapshot.
+
+Hashes are persisted beside the index in `cull-hashes-v1`, one record per image
+ID. Fingerprints include the source path digest, length, device/inode,
+nanosecond mtime/ctime and recipe revision. Fingerprints are checked again after
+cold computation. Same-size replacement invalidates the result; unreadable or
+malformed cache records are misses. The cache contains no literal source paths.
+Cache write failure does not block culling. No schema or dependency change.
+
+Proxy hashing first checks existing JPEG tiers (256, 384, 2048 and 2560px),
+cheapest first, for the source and recipe. Catalog orientation is already baked
+into Mac cache frames and is not applied twice. A miss uses `lossy_dng::read_thumbnail`, assembling at most 256px
+camera-channel samples without `RawImage`, lens resolution, CA estimation,
+profile loading, masks or recipe rendering. Existing codec/tile validation and
+allocation limits are retained. JPEG/JXL tiles still require codec decoding;
+this is a reduced assembled image, not a promise of reduced entropy decoding.
+Ordinary originals use embedded previews on the same lazy/cache path.
+
+### Measurements and regression coverage
+
+The live-library symptom (>10 minutes in “Reading folder…” at 100–150% CPU)
+is the user's profiler report, not a new measurement on private photos.
+Synthetic fixtures are deliberately small; their times must not be extrapolated
+to full-sized user proxies.
+
+| Check | Before | After |
+| --- | ---: | ---: |
+| 32-proxy open, pixel-provider calls | 32 (RED) | 0 |
+| Eight imported proxies, FFI open + rows + groups + statuses | 21.143 ms; 8 decodes, 24 lens resolutions (RED) | 5.925 ms; 0 decodes, 0 lens resolutions |
+| Hash one uncached imported proxy, lens resolutions | 3 (RED) | 0; cached grid hit also performs 0 proxy decodes |
+| Reopen 40 sources after hashing, cumulative provider calls | 80 (RED) | 40; one same-size source replacement increases it to 41 |
+| 5,000 imported proxies, release session open | Not timed on baseline | 1.562 s; fixed bound <5 s |
+| 5,000-proxy open, pixel operations / metadata lookups | Eager per-image pixel work | 0 / 15,000; asserted lookup bound 3N |
+
+Scale command: `cargo test --release -p cull --test lazy_previews
+lr13c_open_5000 -- --ignored --nocapture`. Fixture construction is outside the
+open timer. Tests include cache reuse/invalidation, cancellation, incremental
+grouping, Mac grid/loupe cache preference with catalog orientation, reduced
+sample equivalence and malformed
+LinearRaw rejection. Existing grouping assertions and decoder safety bounds
+are not relaxed; asynchronous tests wait before checking their original
+results.
+
+### M5 audit: other open/refresh work
+
+| Operation | Disposition |
+| --- | --- |
+| Core open/regroup/incremental insert/update pixel hashes | Deferred; no pixel-provider invocation on these paths |
+| Repeated FFI session row source/Smart Preview projection | Cached per session, invalidated by catalog file/recipe/metadata changes; unchanged refreshes do not re-read recipes or stat originals |
+| One source projection | Reads its recipe once and checks the candidate original once, replacing repeated helper reads |
+| Selection reconciliation recipe read | Removed the duplicate byte read before parsing; sidecar authority and validation retained |
+| Basket membership in row materialization | Hash-set lookup instead of scanning the basket vector per row |
+| `Engine::open` source/store registration | Still walks catalog paths once; metadata-only, no rendering |
+| `index_folder` explicit scan | Still walks/stats source and sidecar paths; broader M5 work requires scan/watch invalidation policy |
+| Core initial admission | Still checks existence and reconciles each sidecar before selection filtering; required by existing recovery/sidecar-authority tests |
+| Initial derived statuses | Still reads requested recipes/history and export status; incremental refresh requests only changed IDs |
+| Initial best-per-group | Still consults catalog scores/size; no pixel rendering |
+| Protected-source `Sidecar::paths` | May hash content for alias discovery; its 8,192-entry hash registry can churn on large libraries. Separate M5 follow-up; changing recipe identity/alias semantics is outside this fix |
+| Explicit `Engine::list_images` | Retains live relink/availability semantics; consolidated projection, but still per-row source checks |
+| Group-only Mac sync | Still may collect the active search and remap display IDs; broader M5 follow-up |
+| General SQL batching / album membership projection | Deferred; queue construction is bounded to 3N `image_info` lookups plus search/selection queries |
+
+The listing cache is a catalog snapshot: an unindexed external sidecar or
+availability change is reflected after a corresponding catalog change or
+session reopen. Pixel requests continue resolving their actual source at use.
+
+### LR-13c gates
+
+Implementation: `5610c642` (preceded by two RED-test commits).
+
+- Workspace Clippy: `cargo clippy --locked --workspace --all-targets -- -D warnings` passed.
+- Formatting: `cargo fmt --all -- --check` passed.
+- `apps/mac/build-ffi.sh` passed; generated Swift/header/modulemap diff is empty.
+- `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK**; 921 XCTest tests,
+  3 skipped, 0 failures, plus 5 Swift Testing tests passed.
+- Final nine-crate release suite: **1,489 passed, 0 failed, 61 ignored**:
+  `cargo test --locked --release -p cull -p previews -p image-core -p pipeline-cpu
+  -p raw-decode -p export -p tessera-ffi -p tessera-mcp -p index --no-fail-fast`.
+  Both earlier load-sensitive failures pass in this final complete run.
+- Opt-in 5,000-proxy release scale test passed separately with its fixed 5-second
+  bound, zero provider calls and at most 3N metadata lookups (numbers above).
+- Strict release: `swift build -c release --product Tessera -Xswiftc
+  -strict-concurrency=complete -Xswiftc -warnings-as-errors` passed. The linker
+  emitted a native BLAKE3 object deployment-target warning (26.2 versus 15.0);
+  there were no Swift compiler warnings/errors.
+
+The earlier nine-crate runs exposed two load-sensitive existing tests: the
+preview render exceeded its unchanged 3-second local budget while other builds
+were active, and the export helper did not create its marker inside its
+unchanged 1-second timeout. The preview passed in the next full run; all three
+export workflow tests passed unchanged on an isolated rerun. No timing bounds,
+assertions or CI-environment bypasses were changed.
+
+Cargo.lock and board.json are unchanged. Added-line checks found no absolute
+home paths or usernames, and all commits omit co-author trailers.
+
+## LR-13d
+
+Follow-up to the LR-13c independent review. All fixtures added here are synthetic;
+no GUI or private library was opened. The comparison policy is source-based:
+proxy camera-channel samples (with catalog orientation), or embedded JPEGs for
+ordinary originals. Develop crop/exposure and rendered preview warmth do not
+change the comparison pixels. This deliberately replaces LR-13c's rendered-cache
+preference, which could persist different hashes depending on preview warmth.
+
+### Review items
+
+- **Blocker: deferred custom completion.** Track unapplied hash changes across
+  polls. When pixel work empties, apply the complete custom-strategy snapshot
+  even if the final reply was stale/discarded. Channel-controlled removal and
+  replacement tests assert the group delta and exact surviving membership.
+- **Blocker: joined shutdown.** A lifecycle owner retains worker handles; retire
+  cancels/disconnects work, and a background join owner completes explicit
+  barriers only after providers, cache writes, and admitted callbacks retire.
+  Barriers include still-retiring workers from earlier explicit regroups, even
+  when the current generation has not started a worker. Completed generation
+  flags are pruned rather than retained across repeated regroups.
+  Session generations reject new notifications after retirement. An admitted
+  callback may finish during shutdown; none runs after its barrier completes.
+  The FFI releases the session lock before waiting. Swift retains shutdown tasks,
+  ignores callbacks from retired installations, and asynchronously drains session
+  shutdown before termination. Waiting from the worker's own callback/provider
+  is unsupported because that would wait for itself.
+- **Regroup cost / irrelevant metadata.** Metadata-only, selection, keyword and
+  score changes leave hashes and grouping alone. File, capture-time and recipe
+  changes still refresh inputs (arbitrary Rust providers may depend on recipes).
+  Default reconstruction collapses equal hashes and sorts adjacent burst times;
+  it visits at most 4,096 distinct-hash pairs per poll with O(N) retained state.
+  A lifecycle-owned wake command requests remaining polls. Worst-case total
+  comparisons can still be quadratic across polls, but there is no unbounded
+  pair loop under the FFI session lock. Queue snapshots are checked before
+  applying reconstruction after removal/reordering. Custom Rust strategies
+  retain their documented pairwise contract; FFI uses the default strategy.
+- **Persistent policy identity.** `cull-hashes-v2/<provider>-v<version>` isolates
+  provider/pixel policies. Reopen tests exercise persisted sessions, edited and
+  cropped proxies, warm rendered previews, fresh-policy recomputation, and
+  provider/version separation. Source/sidecar revision invalidation remains.
+- **Explicit approved placement.** Generic constructors do not persist hashes.
+  Hosts opt in with `HashCachePolicy::application_support`; approval rejects
+  protected catalog/library roots and unapproved paths. Worker-time checks also
+  reject source-parent placement and symlink redirection, including redirection
+  during a provider invocation (checked again immediately before writing). FFI explicitly supplies
+  its support root and disables persistence when it cannot be approved.
+- **Coalesced metadata.** Pending metadata retains one latest version per image
+  ID: O(distinct images), at most 16 hash tickets/results, one coalesced wake
+  command, and one process-wide provider invocation. Decoder tiles and codec
+  allocations remain additional to the reduced assembled thumbnail.
+- **Nits.** Module bounds now distinguish metadata from tickets/results. The
+  zero-open-decode test uses a shared injected-provider counter and joins
+  retirement before its final zero assertion, covering calls on other threads.
+
+### Regression evidence
+
+Before fixes, the custom final-discard test failed its required group delta,
+metadata-only refresh split the component, unapproved placement created a cache
+beside the index, and the warm hash differed from the cold hash. Ten thousand
+refreshes retained ten thousand queue entries instead of one. A synthetic
+19,700-image component edit took **8.580 seconds** in release before the fix;
+the regression requires **less than 250 ms** and exact resulting membership.
+A separate 300-distinct-hash test checks the 4,096-pair poll budget and compares
+final components with an all-pairs reference. Integration review added a
+singleton-removal-during-rebuild regression after reproducing stale queue indices.
+Blocked-provider and blocked-callback tests prove that shutdown cannot complete
+early, and Swift queue tests verify detached execution and draining retirements.
+
+### Finding to code to test
+
+| Finding | Code | Test |
+| --- | --- | --- |
+| B1 custom final regroup lost | `grouping.rs` `custom_hashes_dirty` | `deferred_regroup.rs` `lr13d_custom_final_discard_*`, `lr13d_custom_replacement_*` |
+| B2 detached workers / retired notify | `background.rs` lifecycle owner, generation, `PreviewShutdown`; FFI `CullSession.shutdown`; Swift `CullShutdownQueue` | `background.rs` `lr13d_shutdown_*` (3); `CullShutdownQueueTests` (3) |
+| S1 quadratic regroup under lock | `incremental.rs` (no METADATA invalidation), `grouping.rs` `DefaultRebuild` | `lr13d_irrelevant_metadata_*`, 19,700-image edit (< 250 ms), `bounded_rebuild_tests` (3) |
+| S2 cache namespace identity | `hash_cache.rs` `cull-hashes-v2/<provider>-v<version>` | `lr13d_provider_identity_*`, FFI `lr13d_persisted_grouping_is_stable_*` |
+| S3 explicit approved root | `HashCachePolicy::application_support`, FFI support root | `hash_cache.rs` tests (3), `lr13d_unapproved_index_parent_*`, `lr13d_approved_root_inside_photo_*`, `lr13d_catalog_and_protected_library_*` |
+| S4 metadata coalescing | `background.rs` `queued` map | `lr13d_refresh_metadata_is_coalesced_by_image` |
+| Nits | module doc; shared provider counter + joined retirement | `lr13c_open_never_calls_pixel_provider` |
+
+The Codex worker wrote the RED commit and most of the fix; Claude Opus 5.5
+verified it, committed it and ran the gates.
+
+### Gate results
+
+- `cargo test --release` for cull, previews, image-core, pipeline-cpu,
+  raw-decode, export, tessera-ffi, tessera-mcp and index, after
+  `cargo clean -p cull -p tessera-ffi`: **1506 passed, 2 failed, 61 ignored**
+  with load average 53. Both failures were wall-clock checks in code this lane
+  did not touch: `previews` `raw_without_jpeg_is_rendered` (3.14 s against its
+  3.0 s budget) and `tessera-ffi` `develop` `export_batch_does_not_starve_slider_drag`.
+  Serialized reruns: `develop` **9 passed** (load 30); `previews` failed once
+  more at 4.08 s (load 19), then passed alone three times (2.21 to 2.32 s, load
+  about 30) and as a full serialized suite, **28 passed** (load 27). No bound
+  was changed.
+- Earlier cull + tessera-ffi release run: **730 passed, 0 failed, 38 ignored**.
+- `cargo clippy --release --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --all -- --check`: clean.
+- `apps/mac/build-ffi.sh`: succeeded with no bindings drift.
+- `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK** (924 XCTest executed,
+  3 skipped, 0 failures; 5 Swift Testing tests passed).
+- Strict release build (`-strict-concurrency=complete -warnings-as-errors`):
+  complete.
+
+## LR-13e
+
+Follow-up to the independent LR-13d re-review (CHANGES-REQUIRED): both LR-13d
+blockers and S2-S4 were confirmed fixed. It found one new blocker (NB1), three
+should-fix items and nits. All fixtures are synthetic. No GUI or private
+library was opened. The work was done by Claude Opus 5.5.
+
+### Review items
+
+| Finding | Code | Test |
+| --- | --- | --- |
+| NB1: every default-policy edit, insert or removal rebuilt the whole library, published partial groups after each 4,096-pair poll, and restarted on each new hash (reviewer: 9,850 to 19,655 groups, 47,372 polls for one edit) | `grouping.rs` `DefaultRebuild` and `schedule_default`. A job starts from the published groups; groups without a damaged member stay joined. Damaged components are recomputed from sorted burst edges, equal-hash joins, distinct-hash pairs inside the damaged set, and changed hashes against every distinct queue hash: O(\|damaged\|^2 + \|changed\| * N) checks, at most 65,536 per poll. Only complete results are published. A changed queue restarts from the published groups and keeps the damaged set. Edits keep the known hash while re-hashing (`refresh_grouping_inputs`). An unchanged hash does nothing, a changed or lost hash damages its component, and an appeared hash only adds edges (also fed to a running job). Only re-timed images regroup immediately; custom strategies still regroup every edited image. | `incremental.rs` `lr13e_tests`: 19,700 images in 9,850 distinct near-duplicate pairs. One edit leaves all unrelated pairs published after every poll, converges in at most 2 polls, and uses at most 19,701 pair checks. A removal uses at most 19,700. An unchanged re-hash does 0 checks. On a 400-image chain, a removal that needs more than one poll publishes exactly the previous groups between polls (at most 3 polls). Hash change, loss, gain and error sequences, and reorder or removal during a pending job, all match the all-pairs reference. |
+| S1: unbounded quit wait | `CullShutdownQueue.drain(timeout:)`; `AppModel.shutdownCullSessions(timeout:)`. `applicationShouldTerminate` waits at most 3 s, then quits regardless (hash cache writes are atomic). | `testBoundedDrainReturnsWhileNativeShutdownIsStuck` |
+| S2: a failed shutdown poisoned later quits | The queue records each failure once and releases failed entries. AppModel resets `isShuttingDownCull` on a failed or timed-out shutdown. | `testFailedShutdownDoesNotPoisonLaterDrains`, `testAppQuitAfterFailedShutdownResetsStateAndCanQuitAgain` |
+| S3: FIFO process-wide joiner | `background.rs` `join_retired`: one short-lived join thread per retired worker. A shared fallback joiner is used only if a thread cannot start. | `lr13e_retirements_join_independently` (blocked provider in one session, prompt barrier in the other) |
+| Nit: singleton assertion ran before hashing finished | New FFI `CullSession.previews_pending`; the Swift test syncs until it is false | `IncrementalLibraryTests` |
+| Nit: wake ticket latency | A pending wake is answered after the current image | covered by existing event-driven FFI test |
+| Nit: `wake_pending` stuck after failed send | reset on send failure | (trivial; worker already dead) |
+| Nit: old `cull-hashes-v1` left behind | `HashCachePolicy::remove_legacy`, once per session on the worker, inside the approved root only, never following symlinks | `lr13e_removes_v1_cache_inside_approved_root_only` |
+| Nit: no FFI test that shutdown releases the lock | n/a (code was already correct) | `lr13e_shutdown_releases_session_lock_before_waiting` |
+| Nit: empty LR-13d "Gates" heading | removed | n/a |
+| Workspace regression reported by LR-13b: three ml tests saw groups before deferred hashing | the tests poll until hashing settles; assertions unchanged | ml-embed `grouping` (2), ml-quality `culling` (1) |
+
+The LR-13d `lr13d_large_component_edit_rebuild_is_bounded` test (debug-build
+250 ms wall-clock check on identical hashes) is replaced by
+`lr13e_identical_hash_component_edit_is_counted` (at most 64 pair checks,
+completes without a poll), as the review suggested. The three LR-13d
+`bounded_rebuild_tests` assumed a full rebuild from empty groups, which NB1
+removes. Their removal, reorder and reference cases are covered by the LR-13e
+tests above.
+
+Worst case that remains: removing an image from one huge component of distinct
+hashes still needs O(K^2) checks for K members (for example about 3,000 polls
+at K = 19,700). During that time the previous groups stay published, minus the
+removed image. No intermediate split is ever shown.
+
+### Gate results
+
+After `cargo clean -p cull -p tessera-ffi`, with load averages of 19 to 37:
+
+- `cargo test --release` for cull, previews, image-core, pipeline-cpu,
+  raw-decode, export, tessera-ffi, tessera-mcp and index: **1514 passed,
+  0 failed, 61 ignored**.
+- `cargo test --release --workspace --no-fail-fast` (after the ml test fix):
+  **3304 passed, 0 failed, 107 ignored**.
+- `cargo clippy --release --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --all -- --check`: clean.
+- `apps/mac/build-ffi.sh`: succeeded with no drift (bindings for
+  `previews_pending` are committed).
+- `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK** (927 XCTest executed,
+  3 skipped, 0 failures; 5 Swift Testing tests passed).
+- Strict release build (`-strict-concurrency=complete -warnings-as-errors`):
+  complete.
+
+## LR-13f
+
+Follow-up to the third review (LR-13e). NB1, S1 to S3 and the nits were
+confirmed fixed. It found one new blocker (NB2), introduced by the LR-13e
+wake-latency nit. All fixtures are synthetic. The work was done by
+Claude Opus 5.5.
+
+### Review items
+
+| Finding | Code | Test |
+| --- | --- | --- |
+| NB2: the worker cleared `wake_pending` after every hashed image, so `Wake` tickets piled up in the 17-slot ticket channel during a multi-poll regroup job while hashing ran. `poll_previews` then blocked on `send` under the FFI session lock (reviewer: 200 ms per poll with a 40 ms provider). | `background.rs` worker: `wake_pending.load` instead of `swap(false)`. Only the queued `Wake` ticket clears the flag, so at most one Wake is queued; 16 hash tickets plus it fit the `WINDOW + 1` channel and sends never block. Early notification after each image is kept. Chosen over `try_send` with Full treated as success because it restores the invariant instead of masking a full channel. | `lr13f_poll_and_wake_never_block_while_provider_is_busy`: 40 images, provider blocked between images. Each round releases one image, then the host poll plus the job's wake must return while the provider is busy. Before the fix it stalled in round 2. |
+| Nit: singleton removal during a pending job | n/a | `lr13f_singleton_removal_during_pending_regroup_matches_reference` (the chain fixture gains one far, untimed singleton) |
+| Nit: hash gained while a job is pending (`add_source`) | n/a | `lr13f_hash_gained_during_pending_regroup_matches_reference` (removals in both halves keep the job multi-poll; the gain arrives mid-job; result matches the all-pairs reference) |
+
+Addition to the LR-13e worst-case note: new damage arriving while a job runs
+(another removal, or a changed hash) restarts the job from scratch
+(`schedule_default` resets its cursors). Steady removals from one huge
+component of distinct hashes can therefore keep a job running. The published
+groups stay the last complete result throughout.
+
+### Gate results
+
+After `cargo clean -p cull -p tessera-ffi`, with load averages of 11 to 62:
+
+- `cargo test --release` for cull, tessera-ffi, ml-embed and ml-quality:
+  **775 passed, 0 failed, 38 ignored**.
+- `cargo clippy --release --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --all -- --check`: clean.
+- `apps/mac/build-ffi.sh`: succeeded with no drift.
+- `tools/orchestrate/swift-gate.sh`: **SWIFT GATE OK** (927 XCTest executed,
+  3 skipped, 0 failures; 5 Swift Testing tests passed).
+- Strict release build (`-strict-concurrency=complete -warnings-as-errors`):
+  complete.

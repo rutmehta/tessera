@@ -465,6 +465,10 @@ final class AppModel {
     private(set) var smartPreviewBatchActive = false
     private(set) var smartPreviewCancelRequested = false
     var statusMessage: String?
+    @ObservationIgnored private var developRenderNotice: String?
+    /// The open photo's omitted-setting notices, shown persistently in the loupe.
+    /// Independent of `statusMessage`, so a newer status never hides them.
+    private(set) var developRenderNoticeList: [String] = []
     /// Set by the loupe view: colour space and EDR headroom of the current screen.
     var loupeInfo = ""
     /// A Loupe disclosure owns workspace keys while open; Escape dismisses the active disclosure.
@@ -511,6 +515,10 @@ final class AppModel {
     @ObservationIgnored private var selfTestFrames: [DevelopFrame]?
     @ObservationIgnored private var readoutTask: Task<Void, Never>?
     @ObservationIgnored private var loadGeneration = 0
+    @ObservationIgnored private var catalogGeneration = 0
+    /// True while quitting retires cull sessions; reset if that shutdown does not join.
+    @ObservationIgnored private(set) var isShuttingDownCull = false
+    @ObservationIgnored let cullShutdowns = CullShutdownQueue()
     @ObservationIgnored private var modeBeforeCompare: ViewMode = .grid
     /// In-place library updates (M2-28): one catalog pull at a time, coalesced.
     @ObservationIgnored private var syncInFlight = false
@@ -657,6 +665,9 @@ final class AppModel {
             await MainActor.run {
                 guard generation == self.loadGeneration,
                       self.currentFolderRequestID == requestID else {
+                    if case .success(let (lib, _)) = result, let retired = lib as? EngineLibrary {
+                        self.retireCull(retired)
+                    }
                     self.finishFolderRequest(requestID, loaded: false)
                     return
                 }
@@ -712,7 +723,35 @@ final class AppModel {
         defaults.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
     }
 
+    /// Retire a library immediately at the host boundary; join its native worker off-main.
+    private func retireCull(_ lib: EngineLibrary) {
+        lib.onCatalogChange(nil)
+        let session = lib.session
+        cullShutdowns.enqueue { try session.shutdown() }
+    }
+
+    /// App termination waits here, at most `timeout`, without blocking the main actor's
+    /// event loop. Quitting proceeds whatever the outcome: hash cache writes are atomic,
+    /// so exiting while a stuck provider runs loses at most one cached hash. A failed or
+    /// timed-out shutdown resets the shutdown state so the model is never left disabled.
+    func shutdownCullSessions(timeout: Duration = .seconds(3)) async -> CullShutdownQueue.DrainOutcome {
+        isShuttingDownCull = true
+        loadGeneration += 1
+        catalogGeneration += 1
+        syncWaiters.removeAll()
+        syncRequested = false
+        if let lib = engineLibrary { retireCull(lib) }
+        let outcome = await cullShutdowns.drain(timeout: timeout)
+        if outcome != .joined { isShuttingDownCull = false }
+        return outcome
+    }
+
     func install(_ lib: any PhotoLibrary, snapshot: CullController.InitialSnapshot? = nil) {
+        guard !isShuttingDownCull else {
+            if let engine = lib as? EngineLibrary { retireCull(engine) }
+            return
+        }
+        catalogGeneration += 1
         if photoEditing { liveObservers.forEach { $0.workspaceWillLeavePhotoEdit() } }
         if let saved = libraryReturnState {
             documents.columnVisibility = saved.sidebarVisibility
@@ -730,7 +769,9 @@ final class AppModel {
             workspaceTransition = false
         }
         loader.removeAll()
-        (library as? EngineLibrary)?.onCatalogChange(nil)
+        if let retired = library as? EngineLibrary, retired !== (lib as? EngineLibrary) {
+            retireCull(retired)
+        }
         syncWaiters.removeAll()
         syncRequested = false
         smartPreviews.cancel() // any captured old native operation still drains on its owner
@@ -770,8 +811,13 @@ final class AppModel {
         liveObservers.forEach { $0.libraryDidReload() }
         notifySelection(scroll: true)
         if let engine = lib as? EngineLibrary, !engine.isReadOnly {
-            engine.onCatalogChange { [weak self] _ in
-                Task { @MainActor in self?.syncLibrary() }
+            let generation = catalogGeneration
+            engine.onCatalogChange { [weak self, weak engine] _ in
+                Task { @MainActor in
+                    guard let self, let engine, self.engineLibrary === engine,
+                          self.catalogGeneration == generation, !self.isShuttingDownCull else { return }
+                    self.syncLibrary()
+                }
             }
             // Changes committed between the scan and now (a tether frame in flight).
             syncLibrary()
@@ -968,7 +1014,7 @@ final class AppModel {
     /// and other writers. One pull at a time; calls during a pull are coalesced into one more.
     /// `then` runs after a pull that started after this call.
     func syncLibrary(then: (@MainActor @Sendable () -> Void)? = nil) {
-        guard let lib = engineLibrary, !lib.isReadOnly else { then?(); return }
+        guard !isShuttingDownCull, let lib = engineLibrary, !lib.isReadOnly else { then?(); return }
         if let then { syncWaiters.append(then) }
         guard !syncInFlight else { syncRequested = true; return }
         syncInFlight = true
@@ -977,12 +1023,12 @@ final class AppModel {
         syncWaiters = []
         let search = collections.updateSearch()
         Task.detached(priority: .userInitiated) {
-            // Blocking: grouping a new frame reads its preview for near-duplicates.
+            // Pull metadata changes and ready background hashes; pixel work never runs on this call.
             let result = Result { try lib.session.syncChanges() }
             let matches = try? search?.collect()
             await MainActor.run {
                 self.syncInFlight = false
-                if self.engineLibrary === lib {
+                if !self.isShuttingDownCull, self.engineLibrary === lib {
                     switch result {
                     case .success(let delta): self.apply(delta, to: lib, search: search, matches: matches)
                     case .failure(let error): self.statusMessage = "Library update failed: \(error.localizedDescription)"
@@ -1018,6 +1064,9 @@ final class AppModel {
             await MainActor.run {
                 guard self.engineLibrary === lib,
                       requestID == nil || self.currentFolderRequestID == requestID else {
+                    if case .success(let (_, replacement)) = result, let replacement {
+                        self.retireCull(replacement)
+                    }
                     then?(self, false)
                     return
                 }
@@ -1166,7 +1215,11 @@ final class AppModel {
         Task.detached(priority: .userInitiated) {
             let result = Result { try EngineLibrary.open(folder: folder, basketTarget: target) }
             await MainActor.run {
-                guard generation == self.loadGeneration, case .success(let lib) = result else { return }
+                guard case .success(let lib) = result else { return }
+                guard generation == self.loadGeneration, !self.isShuttingDownCull else {
+                    self.retireCull(lib)
+                    return
+                }
                 let source = self.source
                 self.rememberOpenedFolder(lib, replacing: folder)
                 self.install(lib)
@@ -2220,6 +2273,7 @@ final class AppModel {
 
     func smartPreviewBadge(for item: PhotoItem) -> String? {
         guard let ref = item.engineImage else { return nil }
+        if ref.lightroomSmartPreview { return "Smart Preview" }
         return smartPreviews.libraryBadge(imageID: ref.imageID)
     }
 
@@ -2362,7 +2416,7 @@ final class AppModel {
                       self.engineLibrary === owner,
                       self.focusedItem?.engineImage?.imageID == ref.imageID else {
                     let id = recovery.register(owner: owner, controller: controller,
-                                               displayName: item.url?.lastPathComponent ?? ref.imageID)
+                                               displayName: item.name)
                     recovery.transferOpen(token: token, to: id)
                     _ = await recovery.requestClose(id).value
                     return
@@ -2399,7 +2453,7 @@ final class AppModel {
         developTask = nil
         activeDevelopOpen = nil
         let sessionID = developRecovery.register(owner: owner, controller: controller,
-            displayName: focusedItem?.url?.lastPathComponent ?? controller.imageID,
+            displayName: focusedItem?.name ?? controller.imageID,
             onClose: { [weak self] id, outcome in
                 self?.publishDevelopClose(outcome, sessionID: id)
             })
@@ -2413,6 +2467,7 @@ final class AppModel {
         controller.onFrame = { [weak self, weak controller] frame in
             guard let self, let controller else { return }
             self.developDidRender(frame, controller)
+            self.updateDevelopRenderNotice(controller)
         }
         // The item id can change while the session is open (in-place library updates).
         controller.onSaved = { [weak self, weak controller, weak owner] _ in
@@ -2430,11 +2485,35 @@ final class AppModel {
             enterPhotoEdit()
             runHDRSelfTest(controller)
         }
-        if !controller.ignoredSettings.isEmpty {
+        updateDevelopRenderNotice(controller, initial: true)
+        if developRenderNotice == nil && !controller.ignoredSettings.isEmpty {
             statusMessage = "Develop: \(controller.ignoredSettings.count) imported setting(s) are kept but not rendered yet"
         }
         liveObservers.forEach { $0.developDidChange() }
         return sessionID
+    }
+
+    /// Notices for `item` only while it is the photo open in Develop.
+    func developRenderNotices(for item: PhotoItem?) -> [String] {
+        guard let develop, let imageID = item?.engineImage?.imageID,
+              imageID == develop.imageID else { return [] }
+        return developRenderNoticeList
+    }
+
+    /// A late frame cannot publish another photo's note or replace a newer error.
+    /// Reads the controller's cached notices: no FFI call or session lock per frame.
+    private func updateDevelopRenderNotice(_ controller: DevelopController, initial: Bool = false) {
+        guard develop === controller else { return }
+        let previous = developRenderNotice
+        let notices = controller.renderNotices
+        if developRenderNoticeList != notices { developRenderNoticeList = notices }
+        let message = notices.isEmpty ? nil : "Develop: " + notices.joined(separator: " ")
+        developRenderNotice = message
+        if let message {
+            if initial || statusMessage == previous || statusMessage == nil { statusMessage = message }
+        } else if statusMessage == previous {
+            statusMessage = nil
+        }
     }
 
     /// Starts one shared close. A failure retains the editor and its callbacks.
@@ -2443,6 +2522,9 @@ final class AppModel {
         guard developSessionID == sessionID else { return }
         switch outcome {
         case .saved:
+            if statusMessage == developRenderNotice { statusMessage = nil }
+            developRenderNotice = nil
+            developRenderNoticeList = []
             develop = nil
             developSourceRoute = nil
             developLibrary = nil

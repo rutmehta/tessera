@@ -106,6 +106,7 @@ pub fn render_linear_scaled_with_depth(
         None,
         None,
         false,
+        None,
     )
 }
 
@@ -116,7 +117,9 @@ pub fn render_linear_scaled_with_lens(
     scale: u32,
     context: &crate::LensContext<'_>,
 ) -> EngineResult<Image> {
-    render_linear_impl(settings, source, scale, context, None, None, None, false)
+    render_linear_impl(
+        settings, source, scale, context, None, None, None, false, None,
+    )
 }
 
 /// The reference render with an already-resolved lens correction (for
@@ -140,6 +143,7 @@ pub fn render_linear_scaled_resolved(
         None,
         Some(resolved),
         false,
+        None,
     )
 }
 
@@ -152,7 +156,7 @@ pub fn render_linear_scaled_with_denoise(
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
 ) -> EngineResult<Image> {
     render_linear_impl(
-        settings, source, scale, context, None, denoiser, None, false,
+        settings, source, scale, context, None, denoiser, None, false, None,
     )
 }
 
@@ -166,7 +170,7 @@ pub fn render_linear_scaled_with_hooks(
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
 ) -> EngineResult<Image> {
     render_linear_impl(
-        settings, source, scale, context, depth, denoiser, None, false,
+        settings, source, scale, context, depth, denoiser, None, false, None,
     )
 }
 
@@ -186,6 +190,34 @@ pub fn render_linear_before_geometry(
         denoiser,
         None,
         true,
+        None,
+    )
+}
+
+/// Host mask composition at the common pre-geometry local-adjustment stage.
+pub type LocalAdjustmentHook<'a> =
+    dyn Fn(&Image, &[engine_api::recipe::LocalAdjustment]) -> EngineResult<Image> + 'a;
+
+/// Full CPU path with the same externally supplied mask rasters as Develop.
+pub fn render_linear_scaled_with_local_hook(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    context: &crate::LensContext<'_>,
+    depth: Option<(&[f32], crate::LensBlurOptions)>,
+    denoiser: Option<&dyn crate::PostDemosaicDenoise>,
+    locals: &LocalAdjustmentHook<'_>,
+) -> EngineResult<Image> {
+    render_linear_impl(
+        settings,
+        source,
+        scale,
+        context,
+        depth,
+        denoiser,
+        None,
+        false,
+        Some(locals),
     )
 }
 
@@ -199,8 +231,29 @@ fn render_linear_impl(
     denoiser: Option<&dyn crate::PostDemosaicDenoise>,
     resolved: Option<&crate::ResolvedLens>,
     before_geometry: bool,
+    locals: Option<&LocalAdjustmentHook<'_>>,
 ) -> EngineResult<Image> {
-    if depth.is_some() {
+    let planned;
+    let settings = if let RenderSource::CameraLinear(proxy) = source {
+        let mut plan = proxy
+            .render_plan_with_resources(
+                settings,
+                locals.is_some(),
+                depth.is_some() || context.depth_effects.is_some(),
+                context.retouch.is_some(),
+            )
+            .0;
+        if proxy.is_external_dng()
+            && (context.profile.is_some() || context.database.is_some() || resolved.is_some())
+        {
+            plan.lens = settings.lens.clone();
+        }
+        planned = plan;
+        &planned
+    } else {
+        settings
+    };
+    if depth.is_some() || context.depth_effects.is_some() {
         let mut without_blur = settings.clone();
         without_blur.effects.lens_blur = None;
         crate::validate_settings_with_retouch(&without_blur, context.retouch.as_deref())?;
@@ -239,11 +292,12 @@ fn render_linear_impl(
         }
         RenderSource::CameraLinear(proxy) => {
             proxy.validate_prefix(settings)?;
-            if resolved.is_some()
-                || context.profile.is_some()
-                || context.database.is_some()
-                || context.capture.is_some()
-                || !context.manual_ca.is_identity()
+            if !proxy.is_external_dng()
+                && (resolved.is_some()
+                    || context.profile.is_some()
+                    || context.database.is_some()
+                    || context.capture.is_some()
+                    || !context.manual_ca.is_identity())
             {
                 return Err(EngineError::Unsupported {
                     what: "smart preview: original required to replace captured lens dependencies"
@@ -251,24 +305,17 @@ fn render_linear_impl(
                 });
             }
             let metadata = proxy.original_metadata();
-            let camera_xyz = crate::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
-                metadata.cam_xyz[r].map(f64::from)
-            })))?;
-            let profile = WorkingSpace::LinearRec2020.to_xyz().inverse()? * camera_xyz;
-            let wb = crate::white_balance_matrix(
-                &settings.white_balance,
-                camera_xyz,
-                metadata.as_shot_wb,
-            )?;
-            let mut out = proxy.pixels().clone();
-            for coord in out.coords() {
-                let mut tile = out.tile(coord, 0, 1)?;
-                crate::apply_matrix(&mut tile, profile)?;
-                crate::apply_matrix(&mut tile, wb)?;
-                out.put(&tile)?;
-            }
+            let out = proxy.working_rgb(settings)?;
             let crop = [0, 0, out.width(), out.height()];
-            (out, crop, proxy.correction().clone())
+            let correction = if proxy.is_external_dng() {
+                match resolved {
+                    Some(lens) => lens.clone(),
+                    None => crate::resolve_lens(&out, &settings.lens, Some(metadata), context)?,
+                }
+            } else {
+                proxy.correction().clone()
+            };
+            (out, crop, correction)
         }
         RenderSource::Cfa { image, metadata } => {
             let (mut out, correction, embedded, use_embedded) =
@@ -301,6 +348,9 @@ fn render_linear_impl(
             (out, metadata.default_crop, correction)
         }
     };
+    // Edits (crop, masks, Upright, lens) are normalized in the sensor active
+    // frame for every source, as for an ordinary RAW (LR-8m, A-LR8 M8). A
+    // catalog orientation is a display orientation: the caller applies it.
     // All channel alignment is complete before matrices/detail/tone.
     let analysis = rgb.downsample_crop(crop, 1)?;
     if let Some((plane, _)) = depth
@@ -348,14 +398,18 @@ fn render_linear_impl(
         let (point_groups, remaining_groups) =
             crate::split_local_point_colors(&settings.locals.adjustments);
         if !point_groups.is_empty() {
-            rgb = crate::locals_image(
-                &rgb,
-                &point_groups,
-                crate::masks::MaskOptions {
-                    depth: depth.map(|(plane, _)| plane),
-                    ..Default::default()
-                },
-            )?;
+            rgb = if let Some(locals) = locals {
+                locals(&rgb, &point_groups)?
+            } else {
+                crate::locals_image(
+                    &rgb,
+                    &point_groups,
+                    crate::masks::MaskOptions {
+                        depth: depth.map(|(plane, _)| plane),
+                        ..Default::default()
+                    },
+                )?
+            };
         }
         let pre_curve = settings.color_before_curves();
         let post_curve = settings.color_after_curves();
@@ -372,18 +426,26 @@ fn render_linear_impl(
             crate::color(&mut tile, &post_curve)?;
             rgb.put(&tile)?;
         }
-        rgb = crate::locals_image(
-            &rgb,
-            &remaining_groups,
-            crate::masks::MaskOptions {
-                depth: depth.map(|(plane, _)| plane),
-                ..Default::default()
-            },
-        )?;
+        rgb = if let Some(locals) = locals {
+            locals(&rgb, &remaining_groups)?
+        } else {
+            crate::locals_image(
+                &rgb,
+                &remaining_groups,
+                crate::masks::MaskOptions {
+                    depth: depth.map(|(plane, _)| plane),
+                    ..Default::default()
+                },
+            )?
+        };
         if let Some(blur) = &settings.effects.lens_blur {
-            let (plane, options) =
-                depth.ok_or_else(|| EngineError::invalid("depth", "lens blur requires depth"))?;
-            rgb = crate::lens_blur(&rgb, plane, blur, options)?;
+            rgb = if let Some(apply) = context.depth_effects {
+                apply(&rgb)?
+            } else {
+                let (plane, options) = depth
+                    .ok_or_else(|| EngineError::invalid("depth", "lens blur requires depth"))?;
+                crate::lens_blur(&rgb, plane, blur, options)?
+            };
         }
         let mut point_effects = settings.effects.clone();
         point_effects.lens_blur = None;
@@ -468,6 +530,18 @@ pub fn has_m2_settings(s: &DevelopSettings) -> bool {
 
 /// Reject changed out-of-scope controls instead of silently ignoring them.
 /// Public so tiled renderers built on these operators apply the same scope.
+/// Per-photo note when Native draws an Adobe default profile identity.
+pub const NATIVE_APPROXIMATED_PROFILE_NOTICE: &str =
+    "Adobe profile approximated with the camera matrix in Native.";
+
+/// "Adobe Standard" and "Adobe Color" (any ASCII case) are the only
+/// non-default identities Native draws, approximated by the metadata matrix.
+pub fn native_approximates_profile(name: &str) -> bool {
+    ["Adobe Standard", "Adobe Color"]
+        .iter()
+        .any(|known| name.eq_ignore_ascii_case(known))
+}
+
 pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     if !s.locals.retouch.is_empty() {
         return Err(EngineError::invalid(
@@ -494,6 +568,13 @@ pub fn validate_settings(s: &DevelopSettings) -> EngineResult<()> {
     supported.denoise = s.denoise.clone();
     supported.linearize = s.linearize.clone();
     supported.demosaic.method = s.demosaic.method;
+    // Only the two default Adobe identities are approximated in Native, by the
+    // plain metadata matrix (the host shows NATIVE_APPROXIMATED_PROFILE_NOTICE).
+    // Every other non-default profile, including Adobe Monochrome and the
+    // creative profiles, stays unsupported exactly as on main.
+    if native_approximates_profile(&s.camera_profile.profile.name.0) {
+        supported.camera_profile.profile = s.camera_profile.profile.clone();
+    }
     supported.white_balance = s.white_balance.clone();
     supported.tone = s.tone.clone();
     supported.detail = s.detail.clone();

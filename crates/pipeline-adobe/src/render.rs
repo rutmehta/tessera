@@ -2,10 +2,7 @@ use crate::{Image, RenderSource, Rgb8Image, basic_tone, dcp::DcpProfile};
 use engine_api::{
     EngineError, EngineResult,
     color::{ChromaticAdaptation, ColorMatrix3, WorkingSpace},
-    recipe::{
-        DevelopSettings,
-        settings::{DisplayTransform, WhiteBalanceMode},
-    },
+    recipe::{DevelopSettings, settings::DisplayTransform},
 };
 
 /// Full-resolution compatibility operators followed by linear-light area reduction.
@@ -25,7 +22,65 @@ pub fn render_linear_scaled_with_profile(
     scale: u32,
     profile: Option<&DcpProfile>,
 ) -> EngineResult<Image> {
-    if matches!(source, RenderSource::CameraLinear(_)) {
+    render_linear_scaled_with_profile_and_locals(settings, source, scale, profile, None)
+}
+
+/// Compatibility tone/profile with host-supplied pre-geometry local masks.
+pub fn render_linear_scaled_with_profile_and_locals(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    profile: Option<&DcpProfile>,
+    locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
+) -> EngineResult<Image> {
+    render_linear_scaled_with_resources(
+        settings,
+        source,
+        scale,
+        profile,
+        locals,
+        &Default::default(),
+    )
+}
+
+/// Compatibility rendering with caller-owned retouch and pre-geometry depth.
+/// Profile/exposure behavior is unchanged; resources participate only at their
+/// existing operator barriers.
+pub fn render_linear_scaled_with_resources(
+    settings: &DevelopSettings,
+    source: &RenderSource<'_>,
+    scale: u32,
+    profile: Option<&DcpProfile>,
+    locals: Option<&pipeline_cpu::LocalAdjustmentHook<'_>>,
+    context: &pipeline_cpu::LensContext<'_>,
+) -> EngineResult<Image> {
+    let embedded;
+    let profile = if profile.is_none() {
+        embedded = match source {
+            RenderSource::CameraLinear(proxy) => {
+                crate::embedded_profile_fallback(proxy, settings, proxy.embedded_profile()).0
+            }
+            _ => None,
+        };
+        embedded.as_ref()
+    } else {
+        profile
+    };
+    let planned;
+    let settings = if let RenderSource::CameraLinear(proxy) = source {
+        planned = proxy
+            .render_plan_with_resources(
+                settings,
+                locals.is_some(),
+                context.depth_effects.is_some(),
+                context.retouch.is_some(),
+            )
+            .0;
+        &planned
+    } else {
+        settings
+    };
+    if matches!(source, RenderSource::CameraLinear(proxy) if !proxy.is_external_dng()) {
         return Err(EngineError::Unsupported {
             what: "Adobe rendering: original required; camera-linear Smart Previews use Native revision 2".into(),
         });
@@ -43,7 +98,11 @@ pub fn render_linear_scaled_with_profile(
     checked.tone.display_transform = DisplayTransform::Native;
     // Profile names are identities, not paths. See ADOBE_COMPAT.md for resolution.
     checked.camera_profile.profile = Default::default();
-    pipeline_cpu::validate_settings(&checked)?;
+    let mut validation = checked.clone();
+    if context.depth_effects.is_some() {
+        validation.effects.lens_blur = None;
+    }
+    pipeline_cpu::validate_settings_with_retouch(&validation, context.retouch.as_deref())?;
     let curves = settings
         .tone
         .curves_extended
@@ -68,6 +127,7 @@ pub fn render_linear_scaled_with_profile(
     base.tone = Default::default();
     base.color = Default::default();
     base.locals = Default::default();
+    base.locals.retouch = settings.locals.retouch.clone();
     base.effects = Default::default();
     base.geometry = Default::default();
     if profile.is_some() {
@@ -75,8 +135,16 @@ pub fn render_linear_scaled_with_profile(
         base.detail.noise_reduction.luminance = 0.;
         base.detail.noise_reduction.color = 0.;
     }
-    let mut rgb = pipeline_cpu::render_linear_scaled(&base, source, 1)?;
-    if let (Some(profile), RenderSource::Cfa { metadata, .. }) = (profile, source) {
+    let camera_metadata = match source {
+        RenderSource::Cfa { metadata, .. } => Some(*metadata),
+        RenderSource::CameraLinear(proxy) => Some(proxy.original_metadata()),
+        RenderSource::Rgb(_) => None,
+    };
+    if let Some(metadata) = camera_metadata {
+        crate::validate_baseline_exposure(metadata.baseline_exposure)?;
+    }
+    let mut rgb = pipeline_cpu::render_linear_scaled_with_lens(&base, source, 1, context)?;
+    if let (Some(profile), Some(metadata)) = (profile, camera_metadata) {
         let camera_xyz = pipeline_cpu::camera_to_xyz(ColorMatrix3(std::array::from_fn(|r| {
             metadata.cam_xyz[r].map(f64::from)
         })))?;
@@ -91,47 +159,12 @@ pub fn render_linear_scaled_with_profile(
         // This assumes point optics are channel-neutral and no clipping occurs;
         // spatial resampling remains in native preprocessing (an approximation).
         let undo = (native_wb * native_profile).inverse()?;
-        let (temperature, tint) = match settings.white_balance.mode {
-            WhiteBalanceMode::AsShot => {
-                pipeline_cpu::as_shot_temperature_tint(camera_xyz, metadata.as_shot_wb)?
-            }
-            WhiteBalanceMode::Custom => (
-                settings.white_balance.temperature,
-                settings.white_balance.tint,
-            ),
-            WhiteBalanceMode::Daylight | WhiteBalanceMode::Flash => (5503., 0.),
-            WhiteBalanceMode::Cloudy => (6504., 0.),
-            WhiteBalanceMode::Shade => (7504., 0.),
-            WhiteBalanceMode::Tungsten => (2856., 0.),
-            WhiteBalanceMode::Fluorescent => (4230., 0.),
-            WhiteBalanceMode::Auto => {
-                return Err(EngineError::invalid(
-                    "white balance",
-                    "Auto is not implemented",
-                ));
-            }
-        };
-        // DCP's temperature path uses its own Bradford/daylight approximation.
-        // Approximate tint with the native CAT16 residual at fixed temperature,
-        // NOT the full native WB again. This is not Adobe's proprietary tint.
-        let mut tinted = settings.white_balance.clone();
-        tinted.mode = WhiteBalanceMode::Custom;
-        tinted.temperature = temperature;
-        tinted.tint = tint;
-        let mut neutral = tinted.clone();
-        neutral.tint = 0.;
-        let tint_matrix = if tint == 0. {
-            ColorMatrix3::IDENTITY
-        } else {
-            pipeline_cpu::white_balance_matrix(&tinted, camera_xyz, metadata.as_shot_wb)?
-                * pipeline_cpu::white_balance_matrix(&neutral, camera_xyz, metadata.as_shot_wb)?
-                    .inverse()?
-        };
+        let wb =
+            profile.resolve_for_camera(&settings.white_balance, camera_xyz, metadata.as_shot_wb)?;
         for coord in rgb.coords() {
             let mut tile = rgb.tile(coord, 0, 1)?;
             pipeline_cpu::apply_matrix(&mut tile, undo)?;
-            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_without_tone(p, temperature))?;
-            pipeline_cpu::apply_matrix(&mut tile, tint_matrix)?;
+            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_camera(p, &wb))?;
             rgb.put(&tile)?;
         }
         // Read every halo from the same pre-detail image, avoiding tile seams
@@ -144,12 +177,27 @@ pub fn render_linear_scaled_with_profile(
         }
         rgb = detailed;
     }
+    let mut basic = settings.tone.clone();
+    basic.exposure = 0.;
     for coord in rgb.coords() {
         let mut tile = rgb.tile(coord, 0, 1)?;
-        pipeline_cpu::map_rgb(&mut tile, |p| basic_tone(p, &settings.tone))?;
+        if let (Some(profile), Some(metadata)) = (profile, camera_metadata) {
+            pipeline_cpu::map_rgb(&mut tile, |p| {
+                profile.apply_exposure(
+                    p,
+                    metadata.baseline_exposure + settings.tone.exposure.clamp(-10., 10.),
+                )
+            })?;
+        } else {
+            let gain = (camera_metadata.map_or(0., |m| m.baseline_exposure)
+                + settings.tone.exposure.clamp(-10., 10.))
+            .exp2();
+            pipeline_cpu::map_rgb(&mut tile, |p| p.map(|v| v * gain))?;
+        }
+        pipeline_cpu::map_rgb(&mut tile, |p| basic_tone(p, &basic))?;
         // ProfileToneCurve is deferred until after exposure/basic tone, once.
         if let Some(profile) = profile {
-            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_tone(p))?;
+            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_tone(profile.apply_look(p)))?;
         }
         rgb.put(&tile)?;
     }
@@ -201,7 +249,24 @@ pub fn render_linear_scaled_with_profile(
     rest.detail.noise_reduction.color = 0.;
     rest.tone = Default::default();
     rest.color = settings.color_after_curves();
-    pipeline_cpu::render_linear_scaled(&rest, &RenderSource::Rgb(&rgb), scale)
+    rest.locals.retouch.clear();
+    let tail = pipeline_cpu::LensContext {
+        depth_effects: context.depth_effects,
+        ..Default::default()
+    };
+    if let Some(locals) = locals {
+        pipeline_cpu::render_linear_scaled_with_local_hook(
+            &rest,
+            &RenderSource::Rgb(&rgb),
+            scale,
+            &tail,
+            None,
+            None,
+            locals,
+        )
+    } else {
+        pipeline_cpu::render_linear_scaled_with_lens(&rest, &RenderSource::Rgb(&rgb), scale, &tail)
+    }
 }
 
 /// Display sRGB after the compatibility profile/user curves (no native sigmoid).
