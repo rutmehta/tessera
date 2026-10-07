@@ -1,33 +1,56 @@
 # LR-8R Smart Preview port handoff
 
-**Status: port implemented; NOT merge-ready.** The remaining Swift gate failure
-is a conflict between current-main B5-50 identifiers and the instruction to defer
-Machine A's open copy-toggle accessibility minor. A scope ruling was requested;
-no identifier change has been applied. No assertion was weakened or excluded.
+**Status: LR-8R2 compatibility fix complete; requested gates pass.** Both Smart
+Preview controls now use the required B5-50 namespace. `SWIFT GATE OK` achieved.
+No assertion was weakened or excluded. The historical gate attempts below are
+retained; inherited review items remain explicitly open.
 
 Base: `392c2156aaed72237b594fc640b4b3238d6ad2c1` (the requested gate/b51 candidate).
-Code/test tip: `63be13a6` (the final branch tip additionally includes this handoff).
+Code/test tip: `2d01aab4` (LR-8R2, on top of `94c55e95`; final branch tip also includes this handoff).
 All 88 requested source commits were ported separately, in order, with source
 messages and existing trailers unchanged byte-for-byte. No `-x` or new
 Co-Authored-By trailers were added. The approved decoder is byte-identical to
 `38817f56`. No board changes; Cargo.lock adds only the approved raw-decode edges
 `jxl-oxide` and `zune-jpeg 0.5.15`. No private inputs were used for new tests.
 
-## Remaining gate blocker and proposed resolution
+## LR-8R2 coordinator ruling and compatibility fix
 
-`LibraryDevelopAccessibilityTests.testImportStepsAndSyntheticReport` fails two
-assertions under current-main B5-50:
+The coordinator ruled both identifier changes required port compatibility.
+Commit `2d01aab4` replaces `lightroom-import.smart-previews` with
+`library.import.smartPreviews` and adds `library.import.copyProxies` to the
+copy-proxy toggle in `LightroomImportSheet.swift`. This closes Machine A's LR-8
+copy-toggle accessibility minor. Both are fixed literals with no user data;
+existing model-ID/index privacy conventions and all test assertions are unchanged.
 
-1. `lightroom-import.smart-previews` is outside the accepted identifier namespace.
-2. The copy-proxy toggle has no identifier.
+`apps/mac/ACCEPTANCE.md` and the B5-50 identifier map list both controls. The B5-42
+map covers document controls and does not list these import toggles; the historical
+`EstablishedAccessibilityIdentifiers.stems` baseline lists neither old nor new
+controls, so neither needed changes. The existing B5-50 namespace predicate accepts
+the new IDs without adding compatibility exceptions.
 
-The minimal proposed source change is `library.import.smartPreviews` and
-`library.import.copyProxies` in `LightroomImportSheet.swift`. Existing assertions
-would stay untouched. However, the binding LR-8 review explicitly lists the
-copy-toggle identifier as an open minor, while the task says not to fix open
-review items. The asynchronous ruling request asks whether these two identifiers
-may be treated as required port compatibility. Until answered, both remain
-unchanged and **SWIFT GATE OK has not been achieved**.
+## LR-8R2 gate results (2026-10-07)
+
+Validated code commit: `2d01aab4efb95a3d9e7098470bf67661f38a5efa`.
+Environment: `PATH=$HOME/.cargo/bin:$PATH`,
+`CARGO_TARGET_DIR=$HOME/.cache/tessera-target/LR-8R`, `CARGO_BUILD_JOBS=5`.
+Logs and command/exit/timing JSON records: `/tmp/LR-8R2-gates`.
+All three requested commands passed on their first LR-8R2 attempt.
+
+| Gate | Command | Result |
+|---|---|---|
+| FFI regeneration | `cd apps/mac && ./build-ffi.sh` | Exit 0; 9.50s; clean worktree immediately afterward, no generated-binding drift. `build-ffi.log` / `build-ffi.json` |
+| Swift gate | `tools/orchestrate/swift-gate.sh` | Exit 0; 542.84s total; debug build 59.17s. XCTest: 935 executed, 3 skipped, 0 failures (0 unexpected), 279.005s (279.096s suite). Swift Testing: 5 tests in 2 suites passed, 0.024s. Printed **SWIFT GATE OK**. `swift-gate.log` / `swift-gate.json` |
+| Strict release | `cd apps/mac && swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | Exit 0; 151.98s command / 148.86s build. `strict-release.log` / `strict-release.json` |
+
+The previously failing `LibraryDevelopAccessibilityTests.testImportStepsAndSyntheticReport`
+passed (0.732s), with its existing namespace, identifier coverage and privacy
+assertions unchanged. Generated Swift/C bindings also had no drift after the
+Swift gate. The strict build retains the previously recorded linker warning:
+BLAKE3 neon object built for macOS 26.2 while linking for 15.0; there was no Swift
+warnings-as-errors failure. FFI generation retains the vendor libraw warnings.
+No Rust source or generated bindings changed in LR-8R2; earlier Rust gate results
+below are historical and were not rerun for these literal AX identifier changes.
+No Co-Authored-By trailers were added to LR-8R2 commits.
 
 ## Finding → code → test
 
@@ -53,7 +76,7 @@ unchanged and **SWIFT GATE OK has not been achieved**.
 | LR-5b's original-only mask extent helper rejects matching oriented offline proxy rasters | `c77cb368`, FFI `lrcat.rs`: approved metadata reader, active crop, catalog orientation; only offline proxies with injected masks; ordinary originals keep main's helper | RED `814517fb`: synthetic 12x10 proxy, orientation 6, injected 10x12 raster. Full FFI lib 284 pass / 1 fail / 11 ignored → 285 pass / 0 fail / 11 ignored |
 | Old LR-13 notice requires L0 dimensions even after successful lower-resolution LR-5b regeneration | `bafe4684`, `masks.rs`: validated Ready entries count as available, matching main's renderer; stored-raster extent validation unchanged | RED `3aeb1d33`: additional assertion in existing `lr5b_regenerated_imported_plane_renders_at_proxy_extent`; 0/1 → 1/1, then full workspace passes it |
 | Main LR-11b synthetic fixture lacked newly introduced metadata fields | `01a0cc8a`, `tests/lr11b_local.rs`: add `baseline_exposure: 0.` and `catalog_orientation: None` | Compile E0063 observed first; all existing pixel assertions unchanged; workspace passes |
-| Main B5-50 fixture lacked new FFI options | `63be13a6`, `LibraryDevelopAccessibilityTests.swift`: normal defaults `importSmartPreviews: true`, `copyProxies: false` | Swift compile error observed first; existing AX assertions unchanged; runtime then exposes identifier blocker above |
+| Main B5-50 fixture lacked new FFI options | `63be13a6`, `LibraryDevelopAccessibilityTests.swift`: normal defaults `importSmartPreviews: true`, `copyProxies: false` | Swift compile error observed first; existing AX assertions unchanged; runtime exposed the identifier blocker resolved by LR-8R2 |
 
 No existing test assertion was changed from old LR-5-v1/old-LR-11 expectations to
 new ones. Current-main assertions were retained. The only additional assertion
@@ -146,7 +169,7 @@ exists in source `124c03bc`; retained for routing follow-up with M4.
 - M8: common orientation/geometry convention and lens resolution/order.
 - M10: normalized local edits across proxy-to-original relink.
 - M12: Adobe DNG SDK ACR3 licence attribution.
-- Minors: copy-toggle accessibility identifier, production environment override, library destination when SSD absent.
+- Minors still open: production environment override, library destination when SSD absent. Copy-toggle accessibility identifier closed by LR-8R2.
 - LR-8h: stream one compressed tile at a time and allocation evidence; approved decoder is preserved byte-for-byte.
 - LR-13b: export/print imported mask hooks; real depth/retouch support; raster errors in thumbnails/export; defer profile parse to Adobe; persistent notice without per-frame lock; mask availability/plan-version cache key; same-level thumbnail comparison; admission assertion justification for ab924590.
 
@@ -161,6 +184,7 @@ exists in source `124c03bc`; retained for routing follow-up with M4.
 | `bafe4684` | GREEN notice readiness aligned with LR-5b |
 | `1e31cd27` | Port map, integration findings and Rust gate record |
 | `63be13a6` | B5-50 fixture FFI proxy-option adaptation |
+| `2d01aab4` | LR-8R2 namespaced Smart Preview import-control identifiers and documentation |
 
 ## Source → port map
 
