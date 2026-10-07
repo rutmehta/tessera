@@ -72,6 +72,15 @@ impl Index {
     pub fn open(path: impl AsRef<Path>) -> EngineResult<Self> {
         Core::open(path).map(Self).map_err(Into::into)
     }
+    /// Backing database location, if persistent. Hosts may keep rebuildable
+    /// per-catalog caches beside it; in-memory catalogs have no disk cache.
+    pub fn database_path(&self) -> Option<&Path> {
+        self.0
+            .conn
+            .path()
+            .filter(|path| !path.is_empty())
+            .map(Path::new)
+    }
     pub fn prune_missing(&mut self, dry_run: bool) -> EngineResult<PruneCounts> {
         self.0.prune_missing(dry_run).map_err(Into::into)
     }
@@ -115,9 +124,16 @@ impl Index {
     pub fn selection(&self, id: ImageId) -> EngineResult<Option<Selection>> {
         self.0.selection(id).map_err(Into::into)
     }
+    /// Single-image metadata lookups on this connection (performance diagnostics).
+    pub fn image_info_read_count(&self) -> u64 {
+        self.0.image_info_reads.get()
+    }
     /// `capture_seconds` accepts ISO date-times and numeric Unix seconds (RAW
     /// scanners store the latter; 'auto' keeps them from parsing as Julian days).
     pub fn image_info(&self, id: ImageId) -> EngineResult<ImageInfo> {
+        self.0
+            .image_info_reads
+            .set(self.0.image_info_reads.get() + 1);
         self.0.conn.query_row(
             "SELECT f.path,f.size,unixepoch(i.capture_time,'auto','subsec') FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
             [id.to_string()],

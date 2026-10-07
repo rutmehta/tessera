@@ -978,7 +978,7 @@ final class AppModel {
         syncWaiters = []
         let search = collections.updateSearch()
         Task.detached(priority: .userInitiated) {
-            // Blocking: grouping a new frame reads its preview for near-duplicates.
+            // Pull metadata changes and ready background hashes; pixel work never runs on this call.
             let result = Result { try lib.session.syncChanges() }
             let matches = try? search?.collect()
             await MainActor.run {
