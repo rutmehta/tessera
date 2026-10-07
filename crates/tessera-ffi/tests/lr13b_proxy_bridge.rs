@@ -54,15 +54,20 @@ impl Fixture {
 fn native_proxy_print_and_export_ignore_malformed_embedded_profile_metadata() {
     let mut bytes =
         include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng").to_vec();
-    let count = u16::from_le_bytes(bytes[38..40].try_into().unwrap()) as usize;
+    let root = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
+    let count = u16::from_le_bytes(bytes[root..root + 2].try_into().unwrap()) as usize;
     let offset = (0..count)
-        .map(|i| 40 + 12 * i)
-        .find(|&p| u16::from_le_bytes(bytes[p..p + 2].try_into().unwrap()) == 50778)
+        .map(|i| root + 2 + 12 * i)
+        .find(|&p| u16::from_le_bytes(bytes[p..p + 2].try_into().unwrap()) == 254)
         .unwrap();
-    // CalibrationIlluminant is profile-only metadata. Its invalid indirect
-    // payload must not invalidate otherwise decodable Native proxy pixels.
-    bytes[offset + 4..offset + 8].copy_from_slice(&3_u32.to_le_bytes());
-    bytes[offset + 8..offset + 12].copy_from_slice(&u32::MAX.to_le_bytes());
+    // A SHORT NewSubFileType is numerically valid for the pixel reader but is
+    // rejected by the stricter embedded-profile reader. That Adobe-only parse
+    // error must not invalidate otherwise decodable Native proxy pixels.
+    assert_eq!(
+        u16::from_le_bytes(bytes[offset + 2..offset + 4].try_into().unwrap()),
+        4
+    );
+    bytes[offset + 2..offset + 4].copy_from_slice(&3_u16.to_le_bytes());
     assert!(
         image_core::pipeline_adobe::dcp::read_embedded_profile(&mut std::io::Cursor::new(&bytes))
             .is_err()
