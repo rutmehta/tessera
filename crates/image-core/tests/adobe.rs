@@ -296,8 +296,9 @@ fn eng9_adobe_display_honours_gamut_mapping_and_draws_edr() {
                     (encoded - got).abs() <= 0.5 + 1e-3,
                     "{mapping:?} EDR pixel {i}: {encoded} vs SDR {got}"
                 );
-                // The SceneLinear reference is read from the f16 tile memo
-                // (2^-11 relative), amplified at most 4x by chroma mapping.
+                // The SceneLinear reference is a separate request whose
+                // memoized stage tiles are F16 (image-core cache docs): about
+                // 1e-4 relative, amplified by the chroma ratio near the boundary.
                 assert!(
                     (edr[c][i] - expected[c]).abs() <= 2e-3,
                     "{mapping:?} EDR pixel {i}: {} vs {}",
@@ -310,4 +311,85 @@ fn eng9_adobe_display_honours_gamut_mapping_and_draws_edr() {
         shown.push(display);
     }
     assert_ne!(shown[0], shown[1], "Perceptual must differ from Clip");
+}
+
+/// ENG-9: the Adobe export path takes Develop's post-demosaic denoiser at
+/// the same point the Develop renderer applies it.
+#[test]
+fn eng9_adobe_denoise_matches_develop_renderer() {
+    struct Halve;
+    impl pipeline_cpu::PostDemosaicDenoise for Halve {
+        fn adapter_revision(&self) -> &str {
+            "eng9-halve-v1"
+        }
+        fn denoise(
+            &self,
+            input: &pipeline_cpu::Image,
+            _: f32,
+        ) -> engine_api::EngineResult<pipeline_cpu::Image> {
+            pipeline_cpu::Image::new(
+                input.width(),
+                input.height(),
+                input
+                    .planes()
+                    .iter()
+                    .map(|p| p.iter().map(|v| v * 0.5).collect())
+                    .collect(),
+            )
+        }
+    }
+    let image = synthetic(905, 40, 32, RGGB, [0, 0, 40, 32]);
+    let mut s = DevelopSettings::default();
+    s.tone.contrast = 20.;
+    s.denoise.method = engine_api::recipe::settings::DenoiseMethod::Neural {
+        model: engine_api::id::ModelRef {
+            id: pipeline_cpu::POST_DENOISE_MODEL_ID.into(),
+            version: pipeline_cpu::POST_DENOISE_VERSION.into(),
+        },
+        joint_demosaic: false,
+    };
+    let r = Renderer::new(RendererConfig {
+        process_version: ProcessVersion::adobe(6),
+        ..Default::default()
+    })
+    .with_post_demosaic_denoise(Arc::new(Halve));
+    let tiles = r
+        .render_region_as(
+            &image,
+            &s,
+            0,
+            PixelRect::full(image.level_extent(0)),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let got = assemble_f32(image.level_extent(0), &tiles);
+    let source = pipeline_cpu::RenderSource::Cfa {
+        image: image.cfa(),
+        metadata: image.metadata(),
+    };
+    let expected = pipeline_adobe::render_linear_scaled_with_denoiser(
+        &s,
+        &source,
+        1,
+        None,
+        None,
+        &Default::default(),
+        Some(&Halve),
+    )
+    .unwrap();
+    let mut off = s.clone();
+    off.denoise = Default::default();
+    let undenoised = pipeline_adobe::render_linear_scaled(&off, &source, 1).unwrap();
+    let mut changed = false;
+    for ((a, b), c) in got
+        .iter()
+        .flatten()
+        .zip(expected.planes().iter().flatten())
+        .zip(undenoised.planes().iter().flatten())
+    {
+        // Same tolerance as compat_matches_standalone_with_and_without_dcp.
+        assert!((a - b).abs() < 0.0001 * a.abs().max(1.), "{a} vs {b}");
+        changed |= (b - c).abs() > 0.01;
+    }
+    assert!(changed, "the denoiser must take effect");
 }

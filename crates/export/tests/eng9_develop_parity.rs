@@ -24,10 +24,11 @@
 //! Metal, `pipeline_cpu::display`) takes its Perceptual grey point from the
 //! 4-decimal sRGB luminance coefficients after conversion, the export from
 //! the 4-decimal Rec.2020 ones before it. The two Y differ by coefficient
-//! rounding only, which moved one saturated pixel of the RAW fixture by
-//! 0.023 level beyond the bound on main. `NATIVE_GREY_POINT` (0.03) covers
-//! saturated Perceptual Native rows. Aligning Native's Output stage would
-//! move Native Develop pixels on every backend and is left to its own lane
+//! rounding only; on these fixtures that moves saturated Perceptual pixels
+//! by at most 0.093 level beyond the quantisation bound (0.023 without
+//! local adjustments), identical on main. `NATIVE_GREY_POINT` (0.1) covers
+//! saturated Perceptual Native rows only. Aligning Native's Output stage
+//! moves Native Develop pixels on every backend and is a separate lane
 //! (ENG-9 HANDOFF); the Adobe Output stage uses the export's grey point.
 use engine_api::{
     id::ImageId,
@@ -42,7 +43,7 @@ use std::sync::Arc;
 const ADOBE_MAX: f32 = 0.53;
 const NATIVE_MAX: f32 = 1.0;
 const MEAN: f32 = 0.35;
-const NATIVE_GREY_POINT: f32 = 0.03;
+const NATIVE_GREY_POINT: f32 = 0.1;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Kind {
@@ -621,4 +622,53 @@ fn eng9_adobe_hdr_export_matches_develop_edr() {
             "{kind:?}: HDR export differs from Develop EDR by {max} codes"
         );
     }
+}
+
+/// Local adjustments and a crop take the same path as Develop for both
+/// processes: a gradient mask with exposure, on a saturated Perceptual recipe.
+#[test]
+fn eng9_local_adjustments_and_crop_export_and_print_match_develop() {
+    use engine_api::recipe::{LocalAdjustment, LocalParams, MaskComponent, MaskKind};
+    let mut failures = Vec::new();
+    for kind in [Kind::Raw, Kind::Rgb, Kind::Proxy] {
+        let fixture = fixture(kind);
+        for process in processes() {
+            let mut r = recipe(process, GamutMapping::Perceptual, 40.);
+            r.edit(EditMeta::user("eng9", 3), |s| {
+                s.locals.adjustments.push(LocalAdjustment {
+                    components: vec![MaskComponent::new(MaskKind::Linear {
+                        start: [0., 0.],
+                        end: [1., 0.],
+                    })],
+                    params: LocalParams {
+                        exposure: 0.8,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                });
+                s.geometry.crop.rect.left = 0.125;
+                s.geometry.crop.rect.right = 0.875;
+                s.geometry.crop.rect.top = 0.25;
+            })
+            .unwrap();
+            let shown = develop(&fixture.image, &r);
+            let family = format!("{:?}{}", process.family, process.revision);
+            let limit = bound(process, true);
+            check(
+                &format!("{kind:?} {family} gradient+crop export"),
+                limit,
+                &shown,
+                &export_file(&fixture, &r),
+                &mut failures,
+            );
+            check(
+                &format!("{kind:?} {family} gradient+crop print sRGB"),
+                limit,
+                &shown,
+                &print(&fixture, &r, ColorSpace::Srgb),
+                &mut failures,
+            );
+        }
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
 }
