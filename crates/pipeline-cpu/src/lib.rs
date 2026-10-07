@@ -47,12 +47,12 @@ pub use lens_resolve::{
     resolve_lens_sensor,
 };
 pub use render::{
-    LocalAdjustmentHook, RenderSource, Rgb8Image, has_m2_settings, render,
-    render_linear_before_geometry, render_linear_scaled, render_linear_scaled_resolved,
-    render_linear_scaled_with_denoise, render_linear_scaled_with_depth,
-    render_linear_scaled_with_hooks, render_linear_scaled_with_lens,
-    render_linear_scaled_with_local_hook, render_scaled, render_scaled_with_context,
-    validate_settings,
+    LocalAdjustmentHook, NATIVE_APPROXIMATED_PROFILE_NOTICE, RenderSource, Rgb8Image,
+    has_m2_settings, native_approximates_profile, render, render_linear_before_geometry,
+    render_linear_scaled, render_linear_scaled_resolved, render_linear_scaled_with_denoise,
+    render_linear_scaled_with_depth, render_linear_scaled_with_hooks,
+    render_linear_scaled_with_lens, render_linear_scaled_with_local_hook, render_scaled,
+    render_scaled_with_context, validate_settings,
 };
 mod mosaic;
 pub use color::{

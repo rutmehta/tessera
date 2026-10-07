@@ -473,7 +473,9 @@ fn render_imported(
 ) -> Result<(image::RgbImage, u16)> {
     let image = catalog::open_image(id, path)?;
     let settings = crate::develop::session_renderable(&recipe.settings, true, false);
-    let renderer = image_core::Renderer::new(Default::default()).for_recipe(recipe);
+    let renderer = image_core::Renderer::new(Default::default())
+        .with_host_ignored_native_profiles()
+        .for_recipe(recipe);
     let masks = crate::develop::masks::MaskShared::new(&image);
     masks.load_available_imported(support, &settings);
     renderer

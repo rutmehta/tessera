@@ -724,7 +724,8 @@ fn pair_pixels(path: &Path, app: &Path) -> SafeResult<(image::RgbImage, bool)> {
     let renderer = Renderer::new(RendererConfig {
         process_version: doc.recipe.process_version,
         ..Default::default()
-    });
+    })
+    .with_host_ignored_native_profiles();
     let masks = crate::develop::masks::MaskShared::new(&source);
     pair_checked(app, 3, masks.load_imported(app, &settings))?;
     renderer
@@ -1141,8 +1142,9 @@ fn lr13_proxy_admission_from_env() {
                     engine_api::id::ImageId(2),
                     Arc::new(proxy.clone()),
                 )?;
-                let renderer =
-                    image_core::Renderer::new(Default::default()).for_recipe(&image.recipe);
+                let renderer = image_core::Renderer::new(Default::default())
+                    .with_host_ignored_native_profiles()
+                    .for_recipe(&image.recipe);
                 let masks = crate::develop::masks::MaskShared::new(&raw);
                 renderer
                     .mask_cache()
@@ -1198,8 +1200,9 @@ fn lr13_proxy_admission_from_env() {
                         )
                         .map(|_| ())
                     });
-                let preview_renderer =
-                    image_core::Renderer::new(Default::default()).for_recipe(&image.recipe);
+                let preview_renderer = image_core::Renderer::new(Default::default())
+                    .with_host_ignored_native_profiles()
+                    .for_recipe(&image.recipe);
                 let preview_after = preview_renderer.render_tiles(
                     &raw,
                     &drawn,

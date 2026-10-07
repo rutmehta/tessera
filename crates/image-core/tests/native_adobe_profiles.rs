@@ -56,6 +56,7 @@ fn render(renderer: &Renderer, image: &RawImage, s: &DevelopSettings) -> Option<
     let extent = Renderer::output_extent(image, s, 0).unwrap();
     let tiles = renderer
         .render_region(image, s, 0, PixelRect::full(extent))
+        .inspect_err(|e| eprintln!("{}: {e}", s.camera_profile.profile.name.0))
         .ok()?;
     Some(common::assemble_u8(extent, &tiles))
 }
