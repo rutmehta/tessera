@@ -298,6 +298,17 @@ fn encode_output_profile(
     recipe: &Recipe,
     space: ColorSpace,
 ) -> EngineResult<image::Rgb32FImage> {
+    let started = std::time::Instant::now();
+    let rgb = encode_output_profile_untraced(rgb, recipe, space);
+    gpu::trace("output transform", started);
+    rgb
+}
+
+fn encode_output_profile_untraced(
+    rgb: image::Rgb32FImage,
+    recipe: &Recipe,
+    space: ColorSpace,
+) -> EngineResult<image::Rgb32FImage> {
     let mut registry = color_mgmt::Registry::new();
     let target = codec::profile(&mut registry, space)?;
     let mut settings = recipe.settings.clone();

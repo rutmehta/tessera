@@ -37,8 +37,10 @@ pub fn render_managed_scaled(
     scale: u32,
     context: &mut OutputContext<'_>,
 ) -> EngineResult<ManagedOutput> {
+    // Resolve (validate) before rendering, as before.
     let transform = context.resolve(settings)?;
-    render_with_transform(settings, source, scale, &transform)
+    let pixels = render_output_linear_scaled(settings, source, scale)?;
+    output_with_transforms(settings, pixels, transform, context)
 }
 
 impl OutputContext<'_> {
@@ -82,16 +84,6 @@ impl OutputContext<'_> {
     }
 }
 
-fn render_with_transform(
-    settings: &DevelopSettings,
-    source: &RenderSource<'_>,
-    scale: u32,
-    transform: &Transform,
-) -> EngineResult<ManagedOutput> {
-    let pixels = render_output_linear_scaled(settings, source, scale)?;
-    output_with_transform(settings, pixels, transform)
-}
-
 /// [`render_managed_scaled`] with an already-resolved lens correction.
 pub fn render_managed_scaled_resolved(
     settings: &DevelopSettings,
@@ -104,7 +96,7 @@ pub fn render_managed_scaled_resolved(
     let mut linear_settings = settings.clone();
     linear_settings.output.proof_profile = None;
     let rgb = crate::render_linear_scaled_resolved(&linear_settings, source, scale, resolved)?;
-    output_with_transform(settings, tone_map(rgb), &transform)
+    output_with_transforms(settings, tone_map(rgb), transform, context)
 }
 
 /// Tone-mapped linear Rec.2020 floats, before output gamut mapping or encoding.
@@ -144,17 +136,69 @@ pub fn output_managed_linear(
     context: &mut OutputContext<'_>,
 ) -> EngineResult<ManagedOutput> {
     let transform = context.resolve(settings)?;
-    output_with_transform(settings, pixels, &transform)
+    output_with_transforms(settings, pixels, transform, context)
 }
 
-fn output_with_transform(
+/// Rows per output-transform worker below which one thread does the frame.
+const ROWS_PER_WORKER: usize = 64;
+
+/// The per-pixel output transform over contiguous row bands, one band per
+/// worker thread (ENG-10). A colour transform is not shareable between
+/// threads, so every extra band resolves its own from the same context;
+/// each pixel's arithmetic, and the row-major warning order, are unchanged,
+/// so the result is identical to a single pass.
+fn output_with_transforms(
     settings: &DevelopSettings,
     mut pixels: image::Rgb32FImage,
-    transform: &Transform,
+    first: Transform,
+    context: &mut OutputContext<'_>,
 ) -> EngineResult<ManagedOutput> {
-    let mut gamut_warnings = Vec::with_capacity(pixels.as_raw().len() / 3);
-    for pixel in pixels.pixels_mut() {
-        let toned = pixel.0;
+    let width = pixels.width() as usize;
+    let rows = pixels.height() as usize;
+    let workers = std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(rows / ROWS_PER_WORKER)
+        .max(1);
+    if workers == 1 || width == 0 {
+        let gamut_warnings = output_band(settings, &mut pixels, &first);
+        return Ok(ManagedOutput {
+            pixels,
+            gamut_warnings,
+        });
+    }
+    let mut transforms = vec![first];
+    for _ in 1..workers {
+        transforms.push(context.resolve(settings)?);
+    }
+    let band = rows.div_ceil(workers) * width * 3;
+    let bands: Vec<Vec<GamutWarning>> = std::thread::scope(|scope| {
+        let handles: Vec<_> = (*pixels)
+            .chunks_mut(band)
+            .zip(transforms)
+            .map(|(samples, transform)| {
+                scope.spawn(move || output_band(settings, samples, &transform))
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|h| h.join().expect("output transform worker panicked"))
+            .collect()
+    });
+    Ok(ManagedOutput {
+        pixels,
+        gamut_warnings: bands.concat(),
+    })
+}
+
+/// Interleaved RGB samples, in place; returns their gamut warnings in order.
+fn output_band(
+    settings: &DevelopSettings,
+    samples: &mut [f32],
+    transform: &Transform,
+) -> Vec<GamutWarning> {
+    let mut gamut_warnings = Vec::with_capacity(samples.len() / 3);
+    for pixel in samples.chunks_exact_mut(3) {
+        let toned = [pixel[0], pixel[1], pixel[2]];
         gamut_warnings.push(transform.gamut_warning(toned));
         let mut encoded = transform.apply(toned);
         if settings.output.gamut_mapping == engine_api::recipe::settings::GamutMapping::Perceptual
@@ -177,14 +221,65 @@ fn output_with_transform(
                 }
             }
         }
-        *pixel = image::Rgb(encoded.map(|v| v.clamp(0.0, 1.0)));
+        pixel.copy_from_slice(&encoded.map(|v| v.clamp(0.0, 1.0)));
     }
-    Ok(ManagedOutput {
-        pixels,
-        gamut_warnings,
-    })
+    gamut_warnings
 }
 
 fn color_error(e: impl std::fmt::Display) -> EngineError {
     EngineError::invalid("output", e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use engine_api::recipe::settings::GamutMapping;
+
+    /// ENG-10: banded (multi-threaded) output equals one single-threaded
+    /// pass bit for bit, warnings included, for both gamut mappings and
+    /// colours far outside the target (the Perceptual chroma search).
+    #[test]
+    fn eng10_banded_output_transform_equals_one_pass() {
+        let (w, h) = (37u32, 5 * ROWS_PER_WORKER as u32 + 3);
+        let pixels = image::Rgb32FImage::from_fn(w, h, |x, y| {
+            let (fx, fy) = (x as f32 / w as f32, y as f32 / h as f32);
+            image::Rgb(match (x + y) % 3 {
+                0 => [1.4 * fx, 0.02, 0.3 * fy],
+                1 => [0.01, 0.9 * fy + 0.05, 0.02],
+                _ => [fx * fy, 0.5 * fx, 1.2 * fy],
+            })
+        });
+        let mut registry = Registry::new();
+        let target = registry.builtin(Builtin::Srgb).unwrap();
+        for mapping in [GamutMapping::Perceptual, GamutMapping::Clip] {
+            let mut settings = DevelopSettings::default();
+            settings.output.gamut_mapping = mapping;
+            let mut context = OutputContext {
+                registry: &mut registry,
+                target: OutputTarget::Export(&target),
+                proof: None,
+                options: TransformOptions::default(),
+            };
+            let banded = output_managed_linear(&settings, pixels.clone(), &mut context).unwrap();
+            let transform = context.resolve(&settings).unwrap();
+            let mut single = pixels.clone();
+            let warnings = output_band(&settings, &mut single, &transform);
+            assert_eq!(
+                banded
+                    .pixels
+                    .as_raw()
+                    .iter()
+                    .map(|v| v.to_bits())
+                    .collect::<Vec<_>>(),
+                single
+                    .as_raw()
+                    .iter()
+                    .map(|v| v.to_bits())
+                    .collect::<Vec<_>>(),
+                "{mapping:?}"
+            );
+            assert_eq!(banded.gamut_warnings, warnings, "{mapping:?}");
+            assert!(warnings.iter().any(|w| w.monitor), "fixture leaves sRGB");
+        }
+    }
 }

@@ -61,6 +61,7 @@ pub(crate) fn render(
 ) -> EngineResult<image::Rgb32FImage> {
     let level = level(scale)?;
     cancel.check()?;
+    let started = std::time::Instant::now();
     let image = raw_image(source)?;
     let mut renderer = Renderer::new(RendererConfig {
         process_version,
@@ -128,6 +129,7 @@ pub(crate) fn render(
     if let Some(e) = failure {
         return Err(e);
     }
+    crate::gpu::trace("Adobe Develop render", started);
     cancel.check()?;
     Ok(out)
 }
