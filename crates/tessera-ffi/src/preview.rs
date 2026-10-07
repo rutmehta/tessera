@@ -568,19 +568,27 @@ mod tests {
         };
         assert!(request().unwrap().pending);
         settle();
-        let missing = request().expect_err("missing raster must fail the thumbnail");
-        assert!(missing.to_string().contains("mask"), "{missing}");
+        // A-ROUND2 / REV-SP-A B1: a raster that is merely missing (pending
+        // regeneration) skips its adjustment, exactly as Develop does.
+        let without_mask = request()
+            .expect("a missing raster must not fail the thumbnail")
+            .bytes
+            .expect("the thumbnail renders without the pending mask");
         ml_segment::MaskStore::new(support.join("imported-masks"), 0)
             .unwrap()
             .put_content_pinned(&raster)
             .unwrap();
-        let after = request().expect("a stored raster must not be answered by the cached failure");
+        let after = request().expect("a stored raster must render");
         assert!(
             after.pending,
             "a newly available raster re-renders the thumbnail"
         );
         settle();
-        assert!(request().unwrap().bytes.is_some());
+        let with_mask = request().unwrap().bytes.unwrap();
+        assert_ne!(
+            with_mask, without_mask,
+            "the arriving raster applies its adjustment"
+        );
 
         let document = sidecar::Sidecar::read_recipe(sidecar::Sidecar::paths(&path).recipe)
             .unwrap()
@@ -604,7 +612,7 @@ mod tests {
     }
 
     #[test]
-    fn lr13b_thumbnail_reports_missing_or_corrupt_imported_mask() {
+    fn lr13b_thumbnail_reports_invalid_and_skips_missing_imported_mask() {
         use engine_api::recipe::{
             EditMeta, LocalAdjustment, LocalParams, MaskComponent, MaskKind, mask::AdobeAiMask,
         };
@@ -635,16 +643,51 @@ mod tests {
                 })
             })
             .unwrap();
-        let result = render_imported(
+        // Missing (never stored, or pending regeneration): the group is
+        // skipped, as in Develop (REV-SP-A B1).
+        let plain = {
+            let mut plain = recipe.clone();
+            plain
+                .edit(EditMeta::user("No mask", 2), |s| {
+                    s.locals = Default::default()
+                })
+                .unwrap();
+            render_imported(&path, engine_api::id::ImageId(1317), &plain, root.path(), 4).unwrap()
+        };
+        let missing = render_imported(
             &path,
             engine_api::id::ImageId(1316),
+            &recipe,
+            root.path(),
+            4,
+        )
+        .expect("a missing imported raster renders with its adjustment skipped");
+        assert_eq!(missing, plain);
+        // Invalid (stored but the wrong extent): an error, never a silent omission.
+        let wrong = ml_segment::MaskRaster::new(3, 3, vec![1.; 9]).unwrap();
+        ml_segment::MaskStore::new(root.path().join("imported-masks"), 0)
+            .unwrap()
+            .put_content_pinned(&wrong)
+            .unwrap();
+        recipe
+            .edit(EditMeta::user("Wrong extent", 3), |s| {
+                s.locals.adjustments[0].components[0]
+                    .adobe_ai
+                    .as_mut()
+                    .unwrap()
+                    .mask_key = Some(wrong.content_key());
+            })
+            .unwrap();
+        let result = render_imported(
+            &path,
+            engine_api::id::ImageId(1318),
             &recipe,
             root.path(),
             4,
         );
         assert!(
             result.is_err(),
-            "thumbnail silently discarded an unavailable imported raster"
+            "thumbnail silently discarded an invalid imported raster"
         );
         assert!(result.unwrap_err().to_string().contains("mask"));
     }
