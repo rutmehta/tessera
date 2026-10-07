@@ -294,7 +294,9 @@ pub struct DemosaicSettings {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum LensProfileSource {
-    /// No profile correction.
+    /// No profile correction. The raw's built-in correction (DNG opcode
+    /// lists) still applies, as Lightroom applies built-in corrections
+    /// whatever the profile setting (ENG-7b).
     None,
     /// The default, matching Lightroom: the camera's embedded correction
     /// (opcodes) when the raw carries one, else a supplied or database profile
@@ -308,7 +310,7 @@ pub enum LensProfileSource {
     Embedded,
     /// A named lens profile (lens database, or an Adobe LCP named by an
     /// imported recipe). When the profile is not available, no profile
-    /// correction is applied.
+    /// correction is applied; the raw's built-in correction still is.
     Database {
         /// Profile identity; round-trips the four `crs:LensProfile*` fields.
         profile: LensProfileRef,
@@ -448,7 +450,9 @@ pub struct LensSettings {
     /// Legacy Adobe blue/yellow radial alignment, with green held fixed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub legacy_ca_blue: Option<f32>,
-    /// Remove lateral chromatic aberration (auto if no profile).
+    /// Remove lateral chromatic aberration (estimated from image content when
+    /// no profile supplies it). Off by default, like Lightroom's Adobe Default
+    /// (`crs:AutoLateralCA`).
     pub remove_chromatic_aberration: bool,
     /// Manual distortion, `-100..=100`.
     pub manual_distortion: f32,
@@ -473,7 +477,10 @@ impl Default for LensSettings {
             chromatic_aberration_scale: 100.0,
             legacy_ca_red: None,
             legacy_ca_blue: None,
-            remove_chromatic_aberration: true,
+            // Off, like Lightroom's Adobe Default for most cameras (ENG-7b).
+            // Saved recipes store the field, so only new recipes and stored
+            // JSON that omits it take this default.
+            remove_chromatic_aberration: false,
             manual_distortion: 0.0,
             manual_vignetting: 0.0,
             manual_vignetting_midpoint: 50.0,

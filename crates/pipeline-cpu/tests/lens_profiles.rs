@@ -45,6 +45,8 @@ fn profile_render_applies_vignette_and_channel_maps() {
     let mut s = DevelopSettings::default();
     s.detail.sharpening.amount = 0.;
     s.detail.noise_reduction.color = 0.;
+    // Remove CA is off by default since ENG-7b; this test exercises it.
+    s.lens.remove_chromatic_aberration = true;
     let out = pipeline_cpu::render_linear_scaled_with_lens(
         &s,
         &pipeline_cpu::RenderSource::Rgb(&image),
@@ -105,6 +107,8 @@ fn postdemosaic_auto_ca_reduces_channel_edge_error() {
     let image = Image::new(n, n, planes).unwrap();
     let mut s = DevelopSettings::default();
     s.lens.profile = LensProfileSource::None;
+    // Remove CA is off by default since ENG-7b; this test exercises it.
+    s.lens.remove_chromatic_aberration = true;
     s.detail.sharpening.amount = 0.;
     s.detail.noise_reduction.color = 0.;
     let error = |im: &Image| {

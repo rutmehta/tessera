@@ -11,7 +11,10 @@ const N: i64 = 2_000;
 /// uses decoder Import XMP/xmp provenance, and writes these 200 rows as schema 4.
 /// ENG-7 (was 87d28d71…c0d5): the 1200 Lua rows with LensProfileEnable=1 gain
 /// one info note (lens profile unavailable; never estimated). Nothing else changes.
-const GOLDEN: &str = "2f065f67b60d22b8e2f8014c6fd420577c8d8770f3d8a57bd52931614604fec4";
+/// ENG-7b (was 2f065f67…fec4): "Remove Chromatic Aberration" defaults to off.
+/// Every history base flips it to false; the 600 rows without AutoLateralCA
+/// render with it off; rows with AutoLateralCA=1 record that as an edit.
+const GOLDEN: &str = "ba15b969e0d3a90e51f15baed249bbf9382bb51c92aa36ce5679f6cbf4d7d3e9";
 
 pub fn digest(images: impl IntoIterator<Item = import_lrcat::ImportedImage>) -> String {
     let mut bytes = Vec::new();
@@ -119,9 +122,10 @@ fn lr6f_active_blur_and_inactive_depth_catalog_golden() {
     let got = digest(images);
     eprintln!("LR-6f active golden digest: {got}");
     // ENG-7 (was 141018bf…f6e0): the lens-profile-unavailable info note.
+    // ENG-7b (was c375c986…942b): Remove CA defaults to off (see GOLDEN).
     assert_eq!(
         got,
-        "c375c986d2318b016a72bbbc09b3fb51ff19c904b0c3613050e854e5d120942b"
+        "1a0851f4144463d0442bc8d5cade89e2cb55146902de72cd5d72905109aab70d"
     );
 }
 

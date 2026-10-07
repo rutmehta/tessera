@@ -101,7 +101,9 @@ fn manual_gain_and_geometry_stay_resident_and_match_reference() {
 #[test]
 fn resolved_ca_and_profile_gain_match_scalar_coordinates() {
     let frame = Extent::new(19, 13);
-    let s = DevelopSettings::default();
+    let mut s = DevelopSettings::default();
+    // Image/profile CA follows Remove CA, which is off by default since ENG-7b.
+    s.lens.remove_chromatic_aberration = true;
     let sample = lens::CalibrationSample {
         ca_red: [1.012, 0.004, 0.],
         ca_blue: [0.988, -0.003, 0.],
@@ -192,6 +194,8 @@ fn unsupported_controls_and_invalid_frames_are_rejected() {
 #[test]
 fn unresolved_auto_and_ca_are_not_silently_identity() {
     let mut s = DevelopSettings::default();
+    // Automatic CA is off by default since ENG-7b; this test needs it on.
+    s.lens.remove_chromatic_aberration = true;
     let frame = Extent::new(31, 23);
     assert!(RgbOpticsPlan::new(&s, frame, None).unwrap().is_none());
     s.lens.profile = LensProfileSource::None;

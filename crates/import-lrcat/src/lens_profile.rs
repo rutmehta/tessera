@@ -15,6 +15,9 @@ const KEY: &str = "LensProfileEnable";
 const FIELD: &str = "/settings/lens/profile";
 const LANE: &str = "ENG-7";
 
+/// Whether the row explicitly enables profile corrections. A duplicated key
+/// or a string value is not a valid Lightroom row; it is treated as "not
+/// enabled" here (no note), and the decoder reports such keys itself.
 fn enabled(table: &LuaTable) -> bool {
     let mut values = table.fields.iter().filter_map(|(k, v)| match k {
         LuaKey::Str(k) if k == KEY => Some(v),
