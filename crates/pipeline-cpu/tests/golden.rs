@@ -29,13 +29,7 @@ fn raw_fixture_goldens() {
     for path in files {
         let mut source = RawSource::open(&path).unwrap();
         let cfa = source.decode_cfa().unwrap();
-        let mut metadata = source.metadata();
-        // These immutable M1/M2 goldens predate DNG BaselineExposure support.
-        // Keep their zero-baseline calibration rather than rewriting the images;
-        // lrcat_dng::baseline_exposure_is_shared_by_cfa_and_external_camera_linear_sources
-        // independently checks the new physical gain on both source kinds, and
-        // raw-decode's ordinary_dng_retains_default_baseline_exposure checks this fixture.
-        metadata.baseline_exposure = 0.;
+        let metadata = source.metadata();
         let mut settings = DevelopSettings::default();
         // Immutable M1/M2-08 goldens predate optics. Explicitly test the off path.
         settings.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
