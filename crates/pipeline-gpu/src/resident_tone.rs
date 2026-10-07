@@ -189,10 +189,10 @@ struct Bind<'b> {
 
 /// Parameter block (presence.wgsl header).
 #[derive(Clone)]
-struct Params([u32; 24]);
+struct Params([u32; 25]);
 impl Params {
     fn new(frame: Extent, mode: u32, radii: [u32; 4]) -> Self {
-        let mut p = [0; 24];
+        let mut p = [0; 25];
         p[0] = frame.width;
         p[1] = frame.height;
         p[2] = mode;
@@ -200,6 +200,7 @@ impl Params {
         p[9] = frame.width;
         p[10] = frame.height;
         p[23] = frame.width * frame.height;
+        p[24] = crate::curves::log_axis_white().to_bits();
         Self(p)
     }
     fn rect(mut self, x: u32, y: u32, extent: Extent) -> Self {
@@ -857,7 +858,11 @@ mod lr_clean_tests {
     #[test]
     fn resident_parameter_block_carries_host_log_denominator() {
         let p = Params::new(Extent::new(3, 7), 0, [INACTIVE; 4]);
-        assert_eq!(p.0.len(), 25, "presence.wgsl parameter ABI includes denominator at 24");
+        assert_eq!(
+            p.0.len(),
+            25,
+            "presence.wgsl parameter ABI includes denominator at 24"
+        );
         assert_eq!(*p.0.last().unwrap(), (1_f32 + 1_f32 / 0.18).ln().to_bits());
     }
 }

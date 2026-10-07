@@ -49,7 +49,7 @@ fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
     p[15..19].copy_from_slice(&amounts.map(|v| v.clamp(-100.0, 100.0) / 100.0));
     // The axis denominator is outside the stable helper's series branch.
     // Match CPU log_one_plus(1 / 0.18) and the WGSL presence encoders.
-    p[24] = (1.0_f32 + 1.0 / 0.18).ln();
+    p[24] = log_axis_white();
     for (index, c) in [
         &selected.rgb,
         &selected.red,
@@ -118,4 +118,9 @@ fn build_parameters(s: &ToneSettings, p: &mut Vec<f32>) -> EngineResult<()> {
         }
     }
     Ok(())
+}
+
+/// Shared host-computed white for the curve and both presence shader ABIs.
+pub(crate) fn log_axis_white() -> f32 {
+    (1.0_f32 + 1.0 / 0.18).ln()
 }

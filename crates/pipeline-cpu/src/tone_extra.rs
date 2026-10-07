@@ -165,7 +165,21 @@ fn decode(v: f32) -> f32 {
     if exponent < 80.0 {
         0.18 * crate::tone_math::exp_minus_one(exponent)
     } else {
-        finite((exponent + 0.18_f32.ln()).exp())
+        // At large exponents a rounded product becomes a relative error in
+        // the output. Recover its low part with f32 FMA; keep the common path
+        // and all storage single precision. Low constants are the residuals
+        // of ln(1 + 1/0.18) and ln(0.18) against their f32 high parts.
+        let log_white = crate::tone_math::log_one_plus(1.0 / 0.18);
+        let log_middle = 0.18_f32.ln();
+        let sum = exponent + log_middle;
+        let high = sum.exp();
+        if !high.is_finite() {
+            return f32::MAX;
+        }
+        let low =
+            v.mul_add(log_white, -exponent) + v * 6.616_209e-8 + ((exponent - sum) + log_middle)
+                - 9.683_124e-8;
+        finite(high * low.exp())
     }
 }
 
