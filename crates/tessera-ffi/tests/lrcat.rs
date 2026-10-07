@@ -1143,6 +1143,7 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
     recipe
         .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
             s.tone.exposure = 0.7;
+            s.camera_profile.profile.name = "Adobe Color".into();
             s.white_balance.mode = engine_api::recipe::settings::WhiteBalanceMode::Auto;
             s.output.gamut_mapping = engine_api::recipe::settings::GamutMapping::Clip;
         })
@@ -1276,6 +1277,7 @@ fn lr13_imported_jxl_proxy_reaches_app_preview_analysis_and_develop() {
             }
             let notices = session.render_notices().unwrap();
             for sentence in [
+                "profile substituted (embedded DNG profile)",
                 "Creative look unavailable; shown without it.",
                 "Lens profile unavailable; shown without it.",
                 "Rendered using the available Smart Preview dynamic range.",

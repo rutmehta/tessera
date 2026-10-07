@@ -9,7 +9,7 @@ use raw_decode::{CfaImage, CfaLayout, RawMetadata};
 
 // Actual little-endian TIFF IFD, not a mocked parsed profile.
 fn profile(matrix_scale: i32, tone: bool) -> DcpProfile {
-    let count = 4; // No tone in this order test means an explicit identity curve.
+    let count = if tone { 3 } else { 2 };
     let mut b = vec![0u8; 14 + count * 12];
     b[..8].copy_from_slice(&[73, 73, 82, 67, 8, 0, 0, 0]);
     b[8..10].copy_from_slice(&(count as u16).to_le_bytes());
@@ -20,33 +20,22 @@ fn profile(matrix_scale: i32, tone: bool) -> DcpProfile {
             9u32,
             (0..9)
                 .flat_map(|i| {
-                    let n = if i == 0 {
-                        matrix_scale
-                    } else if i % 4 == 0 {
-                        1
-                    } else {
-                        0
-                    };
+                    let n = if i % 4 == 0 { matrix_scale } else { 0 };
                     [n.to_le_bytes(), 1i32.to_le_bytes()].concat()
                 })
                 .collect::<Vec<_>>(),
         ),
         (50778, 3, 1, 21u16.to_le_bytes().to_vec()),
-        (51110, 4, 1, 1u32.to_le_bytes().to_vec()),
     ];
-    {
+    if tone {
         entries.push((
             50940,
             11,
-            if tone { 6 } else { 4 },
-            (if tone {
-                vec![0f32, 0., 0.5, 0.25, 1., 1.]
-            } else {
-                vec![0., 0., 1., 1.]
-            })
-            .into_iter()
-            .flat_map(f32::to_le_bytes)
-            .collect(),
+            6,
+            [0f32, 0., 0.5, 0.25, 1., 1.]
+                .into_iter()
+                .flat_map(f32::to_le_bytes)
+                .collect(),
         ));
     }
     for (i, (tag, kind, n, data)) in entries.into_iter().enumerate() {
@@ -196,8 +185,7 @@ fn tiff_profile_changes_final_cfa_render() {
     assert_eq!(first.dimensions(), (8, 8));
     assert_ne!(first.as_raw(), second.as_raw());
     let linear = render_linear_scaled_with_profile(&s, &source, 1, Some(&a)).unwrap();
-    // SDK camera-white normalization for identity CM: max(D65)=1.08905775.
-    let expected = a.apply([0.21781155; 3], 6504.);
+    let expected = a.apply([0.2; 3], 6504.);
     for (c, value) in expected.iter().enumerate() {
         assert!((linear.planes()[c][136] - value).abs() < 0.0001);
     }

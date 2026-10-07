@@ -1125,7 +1125,6 @@ mod tests {
     #[test]
     fn applies_huesat_then_look_then_tone_in_prophoto() {
         let mut e = base();
-        e.push((51110, 4, vec![1.]));
         e[1].2 = vec![23.];
         let plain = DcpProfile::parse(&fixture(false, 42, &e)).unwrap();
         e.extend([
@@ -1149,22 +1148,17 @@ mod tests {
             0.2880402 * 0.1 + 0.7118741 * 0.3 + 0.0000857 * 0.1,
             0.82521 * 0.1,
         ];
-        close(
-            p.apply(input, 5003.),
-            plain.apply_without_tone(expected, 5003.),
-            0.0002,
-        );
+        close(p.apply(input, 5003.), plain.apply(expected, 5003.), 0.0002);
     }
     #[test]
     fn deferred_tone_matches_combined_apply() {
         let mut e = base();
-        e.push((51110, 4, vec![1.]));
         let plain = DcpProfile::parse(&fixture(false, 42, &e)).unwrap();
         e.push((50940, 11, vec![0., 0., 0.5, 0.25, 1., 1.]));
         let p = DcpProfile::parse(&fixture(false, 42, &e)).unwrap();
         let camera = [0.2, 0.3, 0.1];
         let untoned = p.apply_without_tone(camera, 6504.);
-        close(untoned, plain.apply_without_tone(camera, 6504.), 0.00001);
+        close(untoned, plain.apply(camera, 6504.), 0.00001);
         close(p.apply_tone(untoned), p.apply(camera, 6504.), 0.00001);
         assert_ne!(p.apply_tone(untoned), untoned);
     }
@@ -1177,11 +1171,7 @@ mod tests {
             vec![0.96422, 0., 0., 0., 1., 0., 0., 0., 0.82521],
         ));
         let p = DcpProfile::parse(&fixture(false, 0x4352, &e)).unwrap();
-        close(
-            p.apply_without_tone([0.475235, 0.5, 0.544415], 6504.),
-            [0.5; 3],
-            0.0002,
-        );
+        close(p.apply([0.475235, 0.5, 0.544415], 6504.), [0.5; 3], 0.0002);
         // An FM intentionally different from the inverse-CM path must be used.
         let a = DcpProfile::parse(&fixture(false, 42, &base())).unwrap();
         assert!(
@@ -1189,7 +1179,7 @@ mod tests {
         );
     }
     #[test]
-    fn clips_table_value_as_required_by_dng() {
+    fn huesat_preserves_scaled_value_until_exposure() {
         let mut e = base();
         e[1].2 = vec![23.];
         e.extend([
@@ -1201,8 +1191,8 @@ mod tests {
         bare[1].2 = vec![23.];
         let a = DcpProfile::parse(&fixture(false, 42, &bare)).unwrap();
         close(
-            p.apply([0.7976749 * 0.75, 0.2880402 * 0.75, 0.], 5003.),
-            a.apply([0.7976749, 0.2880402, 0.], 5003.),
+            p.apply_without_tone([0.7976749 * 0.75, 0.2880402 * 0.75, 0.], 5003.),
+            a.apply_without_tone([0.7976749 * 1.5, 0.2880402 * 1.5, 0.], 5003.),
             0.0001,
         );
     }
@@ -1358,13 +1348,9 @@ mod tests {
     fn inverts_color_matrix_into_linear_rec2020() {
         let p = DcpProfile::parse(&fixture(false, 0x4352, &base())).unwrap();
         // With identity ColorMatrix, camera RGB is XYZ D65.
+        close(p.apply([0.95047, 1., 1.08883], 6504.), [1.; 3], 0.002);
         close(
-            p.apply_without_tone([0.95047, 1., 1.08883], 6504.),
-            [1.; 3],
-            0.002,
-        );
-        close(
-            p.apply_without_tone([0.636958, 0.262700, 0.], 6504.),
+            p.apply([0.636958, 0.262700, 0.], 6504.),
             [1., 0., 0.],
             0.002,
         );
@@ -1406,6 +1392,60 @@ mod tests {
                 let black = p.apply([0.; 3], 6504.);
                 assert_eq!(black, [0.; 3]);
             }
+        }
+    }
+    #[test]
+    fn absent_calibration_illuminant_defaults_to_unknown() {
+        let mut entries = base();
+        entries.retain(|entry| entry.0 != 50778);
+        let absent = DcpProfile::parse(&fixture(false, 0x4352, &entries)).unwrap();
+        entries.push((50778, 3, vec![0.]));
+        let unknown = DcpProfile::parse(&fixture(false, 0x4352, &entries)).unwrap();
+        assert_eq!(
+            absent.apply([0.2; 3], 5000.),
+            unknown.apply([0.2; 3], 5000.)
+        );
+    }
+
+    #[test]
+    fn all_exif_calibration_illuminants_are_admitted() {
+        for value in [
+            0., 1., 2., 3., 4., 9., 10., 11., 12., 13., 14., 15., 16., 17., 18., 19., 20., 21.,
+            22., 23., 24., 255.,
+        ] {
+            let mut entries = base();
+            entries[1].2 = vec![value];
+            let profile = DcpProfile::parse(&fixture(false, 0x4352, &entries))
+                .unwrap_or_else(|e| panic!("EXIF illuminant {value}: {e}"));
+            assert!(profile.apply([0.2; 3], 5000.).iter().all(|v| v.is_finite()));
+        }
+    }
+
+    #[test]
+    fn installed_profile_without_curve_preserves_scene_headroom() {
+        let profile = DcpProfile::parse(&fixture(false, 0x4352, &base())).unwrap();
+        assert_eq!(profile.apply_tone([2., 0.5, 0.1]), [2., 0.5, 0.1]);
+    }
+
+    #[test]
+    fn huesat_highlights_survive_negative_exposure_in_both_encodings() {
+        for encoded in [false, true] {
+            let table = Table {
+                dims: [1, 2, 2],
+                data: vec![[0., 1., 1.]; 4],
+                encoded,
+            };
+            let mapped = table.apply([2., 1., 0.5], None, 0.);
+            for (actual, expected) in mapped.into_iter().zip([2., 1., 0.5]) {
+                assert!((actual - expected).abs() < 1e-10, "{actual} != {expected}");
+            }
+            let mut entries = base();
+            entries.push((51110, 4, vec![1.]));
+            let profile = DcpProfile::parse(&fixture(false, 0x4352, &entries)).unwrap();
+            assert_eq!(
+                profile.apply_exposure(mapped.map(|v| v as f32), -2.),
+                [0.5, 0.25, 0.125]
+            );
         }
     }
 }
