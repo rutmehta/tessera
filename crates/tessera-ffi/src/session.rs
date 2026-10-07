@@ -1105,4 +1105,95 @@ mod offline_library_tests {
         );
         assert!(!photos.exists());
     }
+
+    /// A-LR8 M5: listing facts are captured when a file is indexed, so opening
+    /// a library of imported proxies reads no recipe per row. Only rows whose
+    /// recipe changed since indexing fall back to one recipe read each.
+    #[test]
+    fn lr13b_cold_library_open_reads_no_proxy_recipes() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        let originals = dir.path().join("originals");
+        fs::create_dir(&photos).unwrap();
+        fs::create_dir(&originals).unwrap();
+        let photos = photos.canonicalize().unwrap();
+        let originals = originals.canonicalize().unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let mut index = index::Index::open(&engine.db).unwrap();
+        let mut ids = Vec::new();
+        for n in 0..4 {
+            let path = photos.join(format!("proxy-{n}.dng"));
+            fs::write(
+                &path,
+                include_bytes!("../../raw-decode/tests/fixtures/linear-gradient-jxl.dng"),
+            )
+            .unwrap();
+            let id = crate::lrcat::app_image_id(&path).unwrap();
+            let mut document = sidecar::RecipeDocument {
+                recipe: engine_api::recipe::Recipe::new(id),
+                ..Default::default()
+            };
+            document.recipe.unknown.insert(
+                "lightroom_smart_preview".into(),
+                serde_json::json!({"original_path": originals.join(format!("synthetic-{n}.raw"))}),
+            );
+            sidecar::Sidecar::write_recipe(sidecar::Sidecar::paths(&path).recipe, &document)
+                .unwrap();
+            index
+                .scan_file(
+                    &path,
+                    &crate::catalog::Sidecars,
+                    &crate::catalog::EmbeddedMetadata,
+                )
+                .unwrap();
+            ids.push(index.image_at(&path).unwrap().unwrap());
+        }
+        // proxy-0's original is back online (relinked).
+        image::RgbImage::new(8, 8)
+            .save_with_format(originals.join("synthetic-0.raw"), image::ImageFormat::Png)
+            .unwrap();
+        let reads = crate::catalog::proxy_recipe_reads();
+        let session = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap();
+        let mut rows = session.images().unwrap();
+        assert_eq!(
+            crate::catalog::proxy_recipe_reads() - reads,
+            0,
+            "a cold listing must not read recipes"
+        );
+        rows.sort_by_key(|r| r.display_name.clone());
+        assert_eq!(rows.len(), 4);
+        for (n, row) in rows.iter().enumerate() {
+            assert_eq!(
+                row.display_name.as_deref(),
+                Some(format!("synthetic-{n}.raw").as_str())
+            );
+            assert_eq!(row.lightroom_smart_preview, n != 0);
+            let expected = if n == 0 {
+                originals.join("synthetic-0.raw")
+            } else {
+                photos.join(format!("proxy-{n}.dng"))
+            };
+            assert_eq!(row.path, expected.to_string_lossy());
+        }
+        // An edited recipe makes that row's scan-time facts stale: exactly one
+        // recipe read on the next listing, none for the unchanged rows.
+        let edited = ids[1].to_string();
+        let mut recipe: engine_api::recipe::Recipe =
+            serde_json::from_str(&engine.get_recipe(edited.clone()).unwrap()).unwrap();
+        recipe.settings.tone.exposure = 0.5;
+        engine
+            .set_recipe_json(edited, serde_json::to_string(&recipe).unwrap())
+            .unwrap();
+        session.sync_changes().unwrap();
+        let reads = crate::catalog::proxy_recipe_reads();
+        let again = engine
+            .open_cull_session(photos.to_string_lossy().into())
+            .unwrap()
+            .images()
+            .unwrap();
+        assert_eq!(again.len(), 4);
+        assert_eq!(crate::catalog::proxy_recipe_reads() - reads, 1);
+    }
 }
