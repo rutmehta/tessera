@@ -962,54 +962,130 @@ pub(crate) fn imported_render_identity(recipe: &core::Recipe, support: &Path) ->
 }
 
 pub(crate) fn render_identity(recipe: &core::Recipe, support: &Path, version: u32) -> [u8; 32] {
+    let facts = ImportedFacts::of(recipe);
+    identity(&facts, support, version, &model_names(support))
+}
+
+/// What an imported thumbnail's identity depends on, projected from its
+/// recipe (REV2-SP NS2): nothing else of the recipe is retained.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct ImportedFacts {
+    /// `lightroom_smart_preview.original_path` (the pixel source when present).
+    original: Option<std::path::PathBuf>,
+    /// `lightroom_orientation`.
+    orientation: Option<u64>,
+    /// Imported AI raster keys, sorted and unique.
+    mask_keys: Vec<[u8; 32]>,
+    /// Lens Blur: Some(depth slot key, if any).
+    lens_blur: Option<Option<[u8; 32]>>,
+}
+impl ImportedFacts {
+    fn of(recipe: &core::Recipe) -> Self {
+        let mut mask_keys: Vec<[u8; 32]> = recipe
+            .settings
+            .locals
+            .adjustments
+            .iter()
+            .flat_map(|g| &g.components)
+            .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+            .filter_map(|c| c.adobe_ai.as_ref().and_then(|a| a.mask_key))
+            .collect();
+        mask_keys.sort_unstable();
+        mask_keys.dedup();
+        Self {
+            original: recipe
+                .unknown
+                .get("lightroom_smart_preview")
+                .and_then(|v| v.get("original_path"))
+                .and_then(|p| p.as_str())
+                .map(std::path::PathBuf::from),
+            orientation: recipe
+                .unknown
+                .get("lightroom_orientation")
+                .and_then(serde_json::Value::as_u64),
+            mask_keys,
+            lens_blur: recipe
+                .settings
+                .effects
+                .lens_blur
+                .as_ref()
+                .map(|b| b.depth.as_ref().and_then(|d| d.mask_key)),
+        }
+    }
+    #[cfg(test)]
+    fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.original.as_ref().map_or(0, |p| p.as_os_str().len())
+            + self.mask_keys.len() * 32
+    }
+}
+
+/// Cached `.onnx` names in the model cache (Lens Blur depth availability).
+fn model_names(support: &Path) -> Vec<std::ffi::OsString> {
+    let mut models: Vec<_> = std::fs::read_dir(support.join("models/cache"))
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name())
+        .filter(|n| {
+            std::path::Path::new(n)
+                .extension()
+                .is_some_and(|x| x == "onnx")
+        })
+        .collect();
+    models.sort();
+    models
+}
+
+fn identity(
+    facts: &ImportedFacts,
+    support: &Path,
+    version: u32,
+    models: &[std::ffi::OsString],
+) -> [u8; 32] {
+    let pinned = |root: std::path::PathBuf, key: &[u8; 32]| {
+        // Not MaskStore::new: a listing request must not create directories.
+        root.is_dir()
+            .then(|| ml_segment::MaskStore::new(&root, 0).ok())
+            .flatten()
+            .and_then(|s| s.pinned_revision(key).ok())
+    };
     let mut hash = blake3::Hasher::new();
     hash.update(b"tessera-imported-thumbnail\0");
     hash.update(&version.to_le_bytes());
-    let mut keys: Vec<[u8; 32]> = recipe
-        .settings
-        .locals
-        .adjustments
-        .iter()
-        .flat_map(|g| &g.components)
-        .flat_map(engine_api::recipe::MaskComponent::active_leaves)
-        .filter_map(|c| c.adobe_ai.as_ref().and_then(|a| a.mask_key))
-        .collect();
-    keys.sort_unstable();
-    keys.dedup();
-    if !keys.is_empty() {
-        // Not MaskStore::new: a listing request must not create directories.
-        let root = support.join("imported-masks");
-        let store = root
-            .is_dir()
-            .then(|| ml_segment::MaskStore::new(&root, 0).ok())
-            .flatten();
-        for key in keys {
-            hash.update(&key);
-            match store.as_ref().and_then(|s| s.pinned_revision(&key).ok()) {
-                Some(revision) => {
-                    hash.update(&[1]);
-                    hash.update(&revision);
-                }
-                None => {
-                    hash.update(&[0]);
-                }
+    // REV2-SP N1: the stored original and catalog orientation, which a
+    // re-import can change without changing the settings' hash.
+    match &facts.original {
+        Some(original) => {
+            hash.update(&[1]);
+            hash.update(original.as_os_str().as_encoded_bytes());
+            hash.update(&[0]);
+        }
+        None => {
+            hash.update(&[0]);
+        }
+    }
+    hash.update(&facts.orientation.map_or(0, |o| o + 1).to_le_bytes());
+    for key in &facts.mask_keys {
+        hash.update(key);
+        match pinned(support.join("imported-masks"), key) {
+            Some(revision) => {
+                hash.update(&[1]);
+                hash.update(&revision);
+            }
+            None => {
+                hash.update(&[0]);
             }
         }
     }
     // Lens Blur (REV-SP-A S6): the imported depth slot and whether any model
     // weights are cached, so a frame that failed for lack of depth re-renders
-    // once either arrives. One stat per slot, one directory listing.
-    if let Some(blur) = &recipe.settings.effects.lens_blur {
+    // once either arrives.
+    if let Some(depth) = &facts.lens_blur {
         hash.update(b"lens-blur\0");
-        if let Some(key) = blur.depth.as_ref().and_then(|d| d.mask_key) {
-            hash.update(&key);
-            let root = support.join("previews/depth-cache");
-            match root
-                .is_dir()
-                .then(|| ml_segment::MaskStore::new(&root, 0).ok())
-                .flatten()
-                .and_then(|s| s.pinned_revision(&key).ok())
-            {
+        if let Some(key) = depth {
+            hash.update(key);
+            match pinned(support.join("previews/depth-cache"), key) {
                 Some(revision) => {
                     hash.update(&[1]);
                     hash.update(&revision);
@@ -1019,18 +1095,6 @@ pub(crate) fn render_identity(recipe: &core::Recipe, support: &Path, version: u3
                 }
             }
         }
-        let mut models: Vec<_> = std::fs::read_dir(support.join("models/cache"))
-            .into_iter()
-            .flatten()
-            .filter_map(|e| e.ok())
-            .map(|e| e.file_name())
-            .filter(|n| {
-                std::path::Path::new(n)
-                    .extension()
-                    .is_some_and(|x| x == "onnx")
-            })
-            .collect();
-        models.sort();
         for name in models {
             hash.update(name.as_encoded_bytes());
             hash.update(&[0]);
@@ -1040,53 +1104,84 @@ pub(crate) fn render_identity(recipe: &core::Recipe, support: &Path, version: u3
     *hash.finalize().as_bytes()
 }
 
-/// An imported owner's recipe and its catalog original (if recorded).
-#[derive(Clone)]
-pub(super) struct ImportedSource {
-    original: Option<std::path::PathBuf>,
-    recipe: Arc<core::Recipe>,
-}
+type SourceStamp = Option<(u64, std::time::SystemTime)>;
 
-/// Per-owner facts for thumbnail requests, valid while the caller's recipe
-/// hash is unchanged (a recipe edit changes the hash and re-reads).
+/// Per-owner facts for thumbnail requests. An entry is valid while the
+/// caller's recipe hash and the owner recipe file's size and modification
+/// time are unchanged (a re-import that touches only `original_path` or the
+/// orientation rewrites the file). Bounded; holds projections only.
 #[derive(Default)]
-pub(super) struct PreviewSources(
-    std::collections::HashMap<std::path::PathBuf, (String, Option<ImportedSource>)>,
-);
+pub(super) struct PreviewSources {
+    entries: std::collections::HashMap<
+        std::path::PathBuf,
+        (String, SourceStamp, Option<Arc<ImportedFacts>>),
+    >,
+    /// Model cache listing for Lens Blur identities (REV2-SP N4), refreshed at
+    /// most every [`Self::MODELS_TTL`].
+    models: Option<(
+        std::time::Instant,
+        std::path::PathBuf,
+        Arc<Vec<std::ffi::OsString>>,
+    )>,
+}
 impl PreviewSources {
-    const MAX_ENTRIES: usize = 200_000;
+    const MAX_ENTRIES: usize = 50_000;
+    const MODELS_TTL: std::time::Duration = std::time::Duration::from_secs(2);
+
+    fn stamp(path: &Path) -> SourceStamp {
+        let meta = std::fs::metadata(sidecar::Sidecar::paths(path).recipe).ok()?;
+        Some((meta.len(), meta.modified().ok()?))
+    }
+
+    fn get(&mut self, path: &Path, recipe_hash: &str) -> Option<Arc<ImportedFacts>> {
+        let stamp = Self::stamp(path);
+        if let Some((hash, cached, facts)) = self.entries.get(path)
+            && hash == recipe_hash
+            && *cached == stamp
+        {
+            return facts.clone();
+        }
+        if self.entries.len() >= Self::MAX_ENTRIES {
+            self.entries.clear();
+        }
+        let facts = imported_recipe(path).map(|recipe| Arc::new(ImportedFacts::of(&recipe)));
+        self.entries.insert(
+            path.to_path_buf(),
+            (recipe_hash.to_owned(), stamp, facts.clone()),
+        );
+        facts
+    }
+
+    fn identity(&mut self, facts: &ImportedFacts, support: &Path) -> [u8; 32] {
+        let models = if facts.lens_blur.is_some() {
+            match &self.models {
+                Some((at, root, names)) if root == support && at.elapsed() < Self::MODELS_TTL => {
+                    names.clone()
+                }
+                _ => {
+                    let names = Arc::new(model_names(support));
+                    self.models = Some((
+                        std::time::Instant::now(),
+                        support.to_path_buf(),
+                        names.clone(),
+                    ));
+                    names
+                }
+            }
+        } else {
+            Arc::new(Vec::new())
+        };
+        identity(facts, support, IMPORTED_RENDER_PLAN_VERSION, &models)
+    }
+
     /// Approximate heap bytes retained by cached entries (tests only).
     #[cfg(test)]
     fn retained_bytes(&self) -> usize {
-        self.0
+        self.entries
             .values()
-            .filter_map(|(_, i)| i.as_ref())
-            .map(|i| serde_json::to_vec(&*i.recipe).map_or(0, |v| v.len()))
+            .filter_map(|(_, _, facts)| facts.as_ref())
+            .map(|facts| facts.retained_bytes())
             .sum()
-    }
-    fn get(&mut self, path: &Path, recipe_hash: &str) -> Option<ImportedSource> {
-        if let Some((hash, imported)) = self.0.get(path)
-            && hash == recipe_hash
-        {
-            return imported.clone();
-        }
-        if self.0.len() >= Self::MAX_ENTRIES {
-            self.0.clear();
-        }
-        let imported = imported_recipe(path).map(|recipe| ImportedSource {
-            original: recipe
-                .unknown
-                .get("lightroom_smart_preview")
-                .and_then(|v| v.get("original_path"))
-                .and_then(|p| p.as_str())
-                .map(std::path::PathBuf::from),
-            recipe: Arc::new(recipe),
-        });
-        self.0.insert(
-            path.to_path_buf(),
-            (recipe_hash.to_owned(), imported.clone()),
-        );
-        imported
     }
 }
 
@@ -1117,11 +1212,15 @@ impl Engine {
     ) -> Result<PreviewResponse> {
         // REV-SP-A S4: the owner recipe is read once per recipe hash; a re-poll
         // costs no recipe I/O (one stat of the candidate original, for imports).
-        let imported = self
-            .preview_sources
-            .lock()
-            .map_err(failure)?
-            .get(Path::new(&path), &recipe_hash);
+        let (imported, render) = {
+            let mut sources = self.preview_sources.lock().map_err(failure)?;
+            let imported = sources.get(Path::new(&path), &recipe_hash);
+            let render = match &imported {
+                Some(facts) => sources.identity(facts, self.support_dir()?),
+                None => [0; 32],
+            };
+            (imported, render)
+        };
         let source = imported
             .as_ref()
             .and_then(|i| i.original.clone())
@@ -1131,10 +1230,6 @@ impl Engine {
             .map_err(failure)?
             .file_hash;
         let default_hash = core::Recipe::default().recipe_hash().to_string();
-        let render = match &imported {
-            Some(imported) => imported_render_identity(&imported.recipe, self.support_dir()?),
-            None => [0; 32],
-        };
         let request = RequestKey {
             image_id,
             max_px,
