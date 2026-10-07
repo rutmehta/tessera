@@ -226,7 +226,7 @@ fn render_scaled_cpu(
     let mut settings = recipe.settings.clone();
     // Proofing is a display-only preview, never baked into a file export.
     settings.output.proof_profile = None;
-    Ok(pipeline_cpu::render_managed_scaled(
+    pipeline_cpu::render_managed_scaled_pixels(
         &settings,
         &image.source,
         scale,
@@ -236,8 +236,7 @@ fn render_scaled_cpu(
             proof: None,
             options: color_mgmt::TransformOptions::default(),
         },
-    )?
-    .pixels)
+    )
 }
 
 /// Recorded with every HDR export of an Adobe-process recipe and shown in
@@ -313,7 +312,7 @@ fn encode_output_profile_untraced(
     let target = codec::profile(&mut registry, space)?;
     let mut settings = recipe.settings.clone();
     settings.output.proof_profile = None;
-    Ok(pipeline_cpu::output_managed_linear(
+    pipeline_cpu::output_managed_pixels(
         &settings,
         rgb,
         &mut pipeline_cpu::OutputContext {
@@ -322,8 +321,7 @@ fn encode_output_profile_untraced(
             proof: None,
             options: color_mgmt::TransformOptions::default(),
         },
-    )?
-    .pixels)
+    )
 }
 
 fn encode_error(e: impl std::fmt::Display) -> EngineError {
