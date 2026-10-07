@@ -613,7 +613,7 @@ mod tests {
             let input = 2.0_f32.powf(-30.0 + 40.0 * i as f32 / 20000.0);
             let scale = crate::tone_math::log_one_plus(1.0 / 0.18);
             let expected = crate::tone_math::log_one_plus(input / 0.18) / scale;
-            let reference = f64::from(input / 0.18).ln_1p() / f64::from(scale);
+            let reference = (f64::from(input) / 0.18).ln_1p() / (1.0_f64 / 0.18).ln_1p();
             assert!((f64::from(encode(input)) - reference).abs() <= 3e-7 * reference);
             assert_eq!(
                 encode(input).to_bits(),
@@ -630,6 +630,20 @@ mod tests {
                     "decode {input}"
                 );
             }
+        }
+    }
+    #[test]
+    fn lr_clean_axis_zero_and_overflow_branches() {
+        assert_eq!(encode(0.).to_bits(), 0_f32.to_bits());
+        assert_eq!(decode(0.).to_bits(), 0_f32.to_bits());
+        for input in [f32::MAX * 0.18, f32::MAX] {
+            let reference = (f64::from(input) / 0.18).ln_1p() / (1.0_f64 / 0.18).ln_1p();
+            assert!((f64::from(encode(input)) - reference).abs() <= 3e-7 * reference);
+        }
+        for input in [43., 50.] {
+            let reference = (0.18 * (f64::from(input) * (1.0_f64 / 0.18).ln_1p()).exp_m1())
+                .min(f64::from(f32::MAX));
+            assert!((f64::from(decode(input)) - reference).abs() <= 3e-7 * reference);
         }
     }
     #[test]
