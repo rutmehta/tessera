@@ -1,7 +1,8 @@
 # LR-CLEAN handoff
 
 Base: `gate/b51`, `392c2156` on `wp/LR-CLEAN`. Synthetic inputs only.
-Status: implementation and verification in progress; this is not a gate claim.
+Status: STOPPED / NOT GATE-CLEAN. The unchanged preview latency bound failed in
+the workspace run and the required serialized retry. No merge approval is claimed.
 
 ## Finding → code → test
 
@@ -14,6 +15,7 @@ Status: implementation and verification in progress; this is not a gate claim.
 | LR-4: restore schema regression | `import-lrcat/tests/schema_version.rs` | `lr4c_imported_mask_features_write_schema_four`: nested, disabled, display-range cases |
 | LR-4: XMP luminance scale | Translation matrix | Explicit Lightroom perceptual-scale interpretation of exported native linear masks |
 | LR-3: avoid discarded admission Upright solve | `image-core/src/render.rs`: shared CPU-chain predicate before public admission | Public `render_tiles` regression RED `[2;5]`, GREEN unchanged `[1;5]`; 46 image-core unit tests passed |
+| LR-3: preserve admission validation | `render.rs`: resolve full settings before entering the selected CPU chain | Additional RED invalid NaN settings invoked retouch; GREEN rejects before callback (1 passed) |
 | LR-3: restore vec![1;5] | Already present (`881212e8`); test previously bypassed public admission | Retained exact assertion, now exercises public API |
 | LR-3: base Lua hook order | `lua_develop.rs`: geometry → LR-2 → retouch → finish | Existing combined Lua/XMP one-history-entry regression |
 | LR-3: exact feature list | `schema_version.rs` | `assert_eq!` full `v4_features_used`, not membership only |
@@ -43,7 +45,7 @@ Status: implementation and verification in progress; this is not a gate claim.
 | ENG-4 near-black presence | Same integration test | Non-ignored resident signed near-black CPU parity, 1e-6 bound |
 | Export wall-clock test | `export/tests/workflow.rs` | Release-only; configured timeout stays 1 s; running cancellation waits for child ready then asserts cancelled outcome, with 30 s hang guards |
 | Preview wall-clock test | `previews/src/lib.rs` | Release-only; existing 3.0 s assertion retained |
-| ml-embed HNSW flake | No test bound/assertion/exclusion changes | Full workspace gate will exercise it; any failure/serialized retry recorded below |
+| ml-embed HNSW flake | No test bound/assertion/exclusion changes | Both HNSW tests passed in the workspace run |
 
 ## Production behavior changes
 
@@ -51,7 +53,7 @@ Native point colors without Adobe selection no longer force schema 4. Unsupporte
 non-Paint mask values no longer render as unit masks. Conflicting circle feather
 encodings retain source and warn. Empty depth corrections no longer produce an
 unsupported warning. CPU-required rendering selects its chain before admission,
-avoiding a discarded Upright analysis. The large-exponent CPU decoder now uses compensated f32 arithmetic to retain
+avoiding a discarded Upright analysis while retaining full settings validation before retouch callbacks. A follow-up RED/GREEN pair caught and fixed that validation-order regression. The large-exponent CPU decoder now uses compensated f32 arithmetic to retain
 its low exponent bits; the new overflow regression first failed the unchanged
 3e-7 relative bound and now passes. The normal-range branch is unchanged. Layer accessibility queries refresh retained cell/control identifiers after row shifts. Both
 presence shader paths consume the same host-computed log denominator as curves.
@@ -120,11 +122,73 @@ Pre-gate attempts:
   new FFI assertion needed `crate::BridgeError`. Fixed its qualification, cleaned
   tessera-ffi release artifacts again (25 files / 476.7 MiB), and restarted the
   full workspace command.
-- Final formatting gate: exit 0. No lockfile, board or generated binding drift.
+- Admission-validation follow-up: expected RED callback count 2 instead of 1
+  when invalid NaN settings reached retouch; GREEN 1 passed, 0 failed, 0.07 s.
+  Commits `fe808744` / `c8bff729` were made after the workspace run had built its
+  test binaries, so that workspace result does not verify the final source tip.
+- Completed workspace attempt: **3,275 passed, 1 failed, 99 ignored** across
+  640 result summaries; exit 101. Only failing target: `previews --lib`, test
+  `tests::raw_without_jpeg_is_rendered`, **3.221841292 s** versus unchanged
+  **< 3.0 s**. That suite: 22 passed, 1 failed, 3 ignored. Both HNSW tests passed.
+- Required serialized retry: `cargo test --release -p previews --lib --
+  --test-threads=1 --nocapture`; **22 passed, 1 failed, 3 ignored**, exit 101,
+  suite duration 4.73 s. Same preview test took **3.276844792 s**. No `CI`
+  override, test exclusion, assertion edit or bound change was used.
+- Stopped further gate attempts after the serialized failure under the user's
+  explicit stop-and-report rule. No unrelated preview performance change was
+  invented to hide the failure.
 
-Remaining final gates pending. Detailed transient logs are kept outside the repository;
-no private paths, pixel data or catalog-derived strings are committed as evidence.
+| Required final gate | Recorded result |
+| --- | --- |
+| Release clean of touched crates | Done before workspace attempt: 1,039 files / 2.1 GiB; FFI reclean 25 files / 476.7 MiB. Late admission follow-up still needs a new clean/final gate cycle. |
+| `cargo test --release --workspace --no-fail-fast` | FAILED: 3,275 passed / 1 failed / 99 ignored; serialized failing-suite retry also failed. Latest admission follow-up has focused GREEN only. |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | Not run after stop; pending. |
+| `cargo fmt --all -- --check` | Earlier check exit 0; latest follow-up was formatted, but final-tip check pending. |
+| `cd apps/mac && ./build-ffi.sh` | Preparation build passed with no bindings drift; final-tip gate pending. |
+| `tools/orchestrate/swift-gate.sh` | Not run; no SWIFT GATE OK claim. Focused native layer probe: 1 passed / 0 failed. |
+| Strict release Tessera build | Not run after stop; pending. |
+
+Detailed transient logs are kept outside the repository; no private paths, pixel
+data or catalog-derived strings are committed as evidence. No Cargo.lock, board,
+or generated binding changes are present in the committed diff.
+
+## Outstanding work
+
+1. Resolve the preview latency failure without changing the 3.0 s bound, then
+   complete all final gates on the final source tip. The serialized retry alone
+   does not establish whether the cause is shared-machine load or a performance
+   issue, and this handoff makes no such diagnosis.
+2. Obtain an approved B5-49d integration base/tip before applying the outside-
+   document focus/grid-leave and address-normalizer follow-ups. Later-lane L1–L4
+   fixes were inspected, but are not ancestors of this lane. No answer to the
+   base/integration clarification was received before stopping.
+3. Decide whether keyword names remain globally unique or become path/ID-based
+   identities. The existing invariant prevents the hypothesized duplicate-name
+   tree; changing that invariant is a product/API decision, not a view-only fix.
 
 ## Commits / publication
 
-Pending final commit list, hash and push verification.
+Implementation tip: `c8bff729`. The final documentation commit records this
+blocked handoff; its own hash is reported to the user after publication.
+Publication target: `origin/wp/LR-CLEAN`; push verification is reported with the
+final hash rather than embedding a self-referential hash here.
+
+- `c95a0d64` test(LR-CLEAN): distinguish native point colors and pin sticky schema writes
+- `53b4ab49` test(LR-CLEAN): pin unsupported masks, circle conflicts and empty depth corrections
+- `67a70145` test(LR-CLEAN): exercise spot Upright memo through public admission
+- `1615aa9d` fix(LR-CLEAN): narrow schema predicate and select CPU chain before admission
+- `8edd9e6d` test(LR-CLEAN): reject unpinned legacy accessibility suffixes
+- `3659aa16` test(LR-CLEAN): pin host GPU denominators and resident near-black parity
+- `dd227299` test(LR-CLEAN): use independent axis oracle and cover zero and overflow
+- `85e459fa` test(LR-CLEAN): cover circle-local Feather agreement as well as parent Feather
+- `f0151a5d` fix(LR-CLEAN): reject unsupported mask values and conflicting circle feather encodings
+- `0e8f6071` test(LR-CLEAN): restore import assertions and separate cancellation from scheduler latency
+- `d7002dd7` fix(LR-CLEAN): share host GPU axis constants and compensate CPU overflow rounding
+- `049ed0fa` test(LR-CLEAN): regenerate identifier pins and anchor legacy templates
+- `985d66cd` docs(LR-CLEAN): clarify cloud, circle and cross-application luminance semantics
+- `5f006db3` test(LR-CLEAN): reproduce stale layer control identifiers after row shifts
+- `dddb544d` test(LR-CLEAN): wait for complete readiness marker and qualify bridge error
+- `25c56b58` fix(LR-CLEAN): refresh layer cell identifiers when realized rows move
+- `a6218ea3` docs(LR-CLEAN): map all rulings, production changes and dependency limits
+- `fe808744` test(LR-CLEAN): preserve validation before CPU retouch admission
+- `c8bff729` fix(LR-CLEAN): retain full settings admission before the selected CPU chain
