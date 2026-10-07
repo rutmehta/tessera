@@ -269,7 +269,12 @@ mod tests {
         for (max_px, level) in [(long.div_ceil(4), 2), (long.div_ceil(4) + 1, 1), (long, 0)] {
             let extent = image_core::Renderer::output_extent(&image, &settings, level).unwrap();
             let tiles = renderer
-                .render_region(&image, &settings, level, image_core::PixelRect::full(extent))
+                .render_region(
+                    &image,
+                    &settings,
+                    level,
+                    image_core::PixelRect::full(extent),
+                )
                 .unwrap();
             assert_eq!(
                 render(max_px),
@@ -442,7 +447,10 @@ mod tests {
                 .values()
                 .any(|state| matches!(state, State::Pending))
             {
-                assert!(std::time::Instant::now() < deadline, "preview job timed out");
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "preview job timed out"
+                );
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         };
@@ -455,7 +463,10 @@ mod tests {
             .put_content_pinned(&raster)
             .unwrap();
         let after = request().expect("a stored raster must not be answered by the cached failure");
-        assert!(after.pending, "a newly available raster re-renders the thumbnail");
+        assert!(
+            after.pending,
+            "a newly available raster re-renders the thumbnail"
+        );
         settle();
         assert!(request().unwrap().bytes.is_some());
 
