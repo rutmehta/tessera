@@ -384,7 +384,7 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         LayoutProbeHarness.prepare()
         let importer = LightroomImportController()
         importer.folders = FolderMappingTable(options: LrcatOptions(libraryFolder: "/Synthetic Photos",
-            relocations: [LrcatRelocation(from: "/AXPrivateRoot731", to: "/Synthetic New")], marks: [], overwriteExistingEdits: false))
+            relocations: [LrcatRelocation(from: "/AXPrivateRoot731", to: "/Synthetic New")], marks: [], overwriteExistingEdits: false, importSmartPreviews: true, copyProxies: false))
         importer.marks = MarkMappingTable(rows: [LrcatMarkRow(label: "Client choice", mark: "Client choice", count: 2)])
         importer.fidelity = FidelityGrid(samples: [LrcatFidelitySample(catalogId: 1, name: "fixture.jpg", path: "/fixture.jpg",
             status: .failed, message: "Synthetic renderer warning", deltaEMean: 0, deltaEP95: 0, lightroomJpeg: Data(), tesseraJpeg: Data())])
