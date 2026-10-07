@@ -32,7 +32,8 @@ fn falloff() -> Image {
     Image::new(w, h, vec![p; 3]).unwrap()
 }
 
-/// Two straight vertical edges imaged through a k1 = 0.12 barrel lens.
+/// Straight vertical stripes imaged through a k1 = 0.12 lens; explicit
+/// auto-calibration recovers k1 from the bent edges.
 fn barrel() -> Image {
     let n = 192_u32;
     let model = BrownConrady {
@@ -48,7 +49,7 @@ fn barrel() -> Image {
                     2. * f64::from(y) / f64::from(n - 1) - 1.,
                 ])
                 .unwrap();
-            p.push((0.5 + 0.5 * ((q[0].abs() - 0.53) * 150.).tanh()) as f32);
+            p.push((0.3 + 0.2 * ((q[0] * 9.).sin() * 30.).tanh()) as f32);
         }
     }
     Image::new(n, n, vec![p; 3]).unwrap()
@@ -119,7 +120,11 @@ fn explicit_auto_calibrated_still_estimates() {
     let r = resolve_lens(&image, &s.lens, None, &LensContext::default()).unwrap();
     assert_eq!(r.source(), CorrectionSource::Image);
     let k1 = r.sample().unwrap().distortion.k1;
-    assert!(k1.abs() > 0.01, "estimated k1 {k1}");
+    assert!((k1 - 0.12).abs() < 0.03, "estimated k1 {k1}");
+    assert_ne!(
+        render(&s, &image, &LensContext::default()).planes(),
+        render(&none, &image, &LensContext::default()).planes()
+    );
 }
 
 fn metadata(opcodes: Option<Vec<u8>>, lens: Option<&str>) -> RawMetadata {
