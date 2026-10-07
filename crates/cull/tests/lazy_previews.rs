@@ -185,3 +185,11 @@ fn lr13c_drop_cancels_queued_hashes_without_waiting_for_running_image() {
     );
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 }
+
+#[test]
+fn lr13d_unapproved_index_parent_never_receives_hash_cache() {
+    let (dir, index) = fixture(2);
+    let mut session = OwnedCullSession::open_owned_with_previews(index, dir.path(), |_| Ok(Some(0))).unwrap();
+    finish(&mut session);
+    assert!(!dir.path().join("cull-hashes-v1").exists());
+}

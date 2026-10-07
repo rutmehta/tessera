@@ -381,3 +381,33 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod lr13d_tests {
+    use super::*;
+    use index::ImageInfo;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn lr13d_large_component_edit_rebuild_is_bounded() {
+        let index = Index::open(":memory:").unwrap();
+        let mut session = CullSession::open(&index, index::Query::default()).unwrap();
+        session.images = (0..19_700).map(ImageId).collect();
+        for id in &session.images {
+            session.infos.insert(*id, ImageInfo {
+                id: *id, path: "synthetic.jpg".into(), size: 1, capture_seconds: None,
+            });
+            session.hashes.insert(*id, Some(0));
+        }
+        session.groups = vec![Group { images: session.images.clone() }];
+        // A pixel-changing edit invalidates one member of a large hash component.
+        session.hashes.remove(&ImageId(0));
+        let start = Instant::now();
+        assert!(session.regroup_images(&[ImageId(0)]).unwrap());
+        let elapsed = start.elapsed();
+        assert!(elapsed < Duration::from_millis(250), "edit held the session for {elapsed:?}");
+        assert_eq!(session.groups.len(), 2);
+        assert_eq!(session.groups[0].images, vec![ImageId(0)]);
+        assert_eq!(session.groups[1].images.len(), 19_699);
+    }
+}
