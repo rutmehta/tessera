@@ -516,8 +516,9 @@ final class AppModel {
     @ObservationIgnored private var readoutTask: Task<Void, Never>?
     @ObservationIgnored private var loadGeneration = 0
     @ObservationIgnored private var catalogGeneration = 0
-    @ObservationIgnored private var shuttingDownCull = false
-    @ObservationIgnored private let cullShutdowns = CullShutdownQueue()
+    /// True while quitting retires cull sessions; reset if that shutdown does not join.
+    @ObservationIgnored private(set) var isShuttingDownCull = false
+    @ObservationIgnored let cullShutdowns = CullShutdownQueue()
     @ObservationIgnored private var modeBeforeCompare: ViewMode = .grid
     /// In-place library updates (M2-28): one catalog pull at a time, coalesced.
     @ObservationIgnored private var syncInFlight = false
@@ -729,19 +730,24 @@ final class AppModel {
         cullShutdowns.enqueue { try session.shutdown() }
     }
 
-    /// App termination waits here without blocking the main actor's event loop.
-    func shutdownCullSessions() async throws {
-        shuttingDownCull = true
+    /// App termination waits here, at most `timeout`, without blocking the main actor's
+    /// event loop. Quitting proceeds whatever the outcome: hash cache writes are atomic,
+    /// so exiting while a stuck provider runs loses at most one cached hash. A failed or
+    /// timed-out shutdown resets the shutdown state so the model is never left disabled.
+    func shutdownCullSessions(timeout: Duration = .seconds(3)) async -> CullShutdownQueue.DrainOutcome {
+        isShuttingDownCull = true
         loadGeneration += 1
         catalogGeneration += 1
         syncWaiters.removeAll()
         syncRequested = false
         if let lib = engineLibrary { retireCull(lib) }
-        try await cullShutdowns.drain()
+        let outcome = await cullShutdowns.drain(timeout: timeout)
+        if outcome != .joined { isShuttingDownCull = false }
+        return outcome
     }
 
     func install(_ lib: any PhotoLibrary, snapshot: CullController.InitialSnapshot? = nil) {
-        guard !shuttingDownCull else {
+        guard !isShuttingDownCull else {
             if let engine = lib as? EngineLibrary { retireCull(engine) }
             return
         }
@@ -809,7 +815,7 @@ final class AppModel {
             engine.onCatalogChange { [weak self, weak engine] _ in
                 Task { @MainActor in
                     guard let self, let engine, self.engineLibrary === engine,
-                          self.catalogGeneration == generation, !self.shuttingDownCull else { return }
+                          self.catalogGeneration == generation, !self.isShuttingDownCull else { return }
                     self.syncLibrary()
                 }
             }
@@ -1008,7 +1014,7 @@ final class AppModel {
     /// and other writers. One pull at a time; calls during a pull are coalesced into one more.
     /// `then` runs after a pull that started after this call.
     func syncLibrary(then: (@MainActor @Sendable () -> Void)? = nil) {
-        guard !shuttingDownCull, let lib = engineLibrary, !lib.isReadOnly else { then?(); return }
+        guard !isShuttingDownCull, let lib = engineLibrary, !lib.isReadOnly else { then?(); return }
         if let then { syncWaiters.append(then) }
         guard !syncInFlight else { syncRequested = true; return }
         syncInFlight = true
@@ -1022,7 +1028,7 @@ final class AppModel {
             let matches = try? search?.collect()
             await MainActor.run {
                 self.syncInFlight = false
-                if !self.shuttingDownCull, self.engineLibrary === lib {
+                if !self.isShuttingDownCull, self.engineLibrary === lib {
                     switch result {
                     case .success(let delta): self.apply(delta, to: lib, search: search, matches: matches)
                     case .failure(let error): self.statusMessage = "Library update failed: \(error.localizedDescription)"
@@ -1210,7 +1216,7 @@ final class AppModel {
             let result = Result { try EngineLibrary.open(folder: folder, basketTarget: target) }
             await MainActor.run {
                 guard case .success(let lib) = result else { return }
-                guard generation == self.loadGeneration, !self.shuttingDownCull else {
+                guard generation == self.loadGeneration, !self.isShuttingDownCull else {
                     self.retireCull(lib)
                     return
                 }

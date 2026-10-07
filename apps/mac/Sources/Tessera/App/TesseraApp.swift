@@ -307,14 +307,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model.mainWindow?.makeKeyAndOrderFront(nil)
             return .terminateCancel
         }
+        // Join cull workers for at most a few seconds, then quit regardless: a provider
+        // stuck on a stalled volume must not turn Quit into Force Quit.
         Task { @MainActor in
-            do {
-                try await model.shutdownCullSessions()
-                sender.reply(toApplicationShouldTerminate: true)
-            } catch {
-                model.statusMessage = "Could not finish cull shutdown: \(error.localizedDescription)"
-                sender.reply(toApplicationShouldTerminate: false)
-            }
+            _ = await model.shutdownCullSessions(timeout: .seconds(3))
+            sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
     }

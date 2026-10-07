@@ -1243,6 +1243,12 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
      */
     func previewErrors() throws  -> [String]
     
+    /**
+     * True while deferred near-duplicate hashing or regrouping remains; each
+     * `sync_changes` advances it.
+     */
+    func previewsPending() throws  -> Bool
+    
     func redo() throws  -> CullUpdate?
     
     /**
@@ -1915,6 +1921,19 @@ open func previewErrors()throws  -> [String]  {
     return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_cullsession_preview_errors(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * True while deferred near-duplicate hashing or regrouping remains; each
+     * `sync_changes` advances it.
+     */
+open func previewsPending()throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_previews_pending(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
@@ -38815,6 +38834,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_preview_errors() != 62362) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_previews_pending() != 33955) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_redo() != 64508) {
