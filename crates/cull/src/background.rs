@@ -575,4 +575,72 @@ mod lifecycle_tests {
             "a stuck session must not delay another session's shutdown"
         );
     }
+
+    /// A regroup job that needs several polls while hashing runs wakes the host
+    /// on every poll. Wakes must never accumulate in the bounded ticket channel:
+    /// a full channel would block `poll` while the host holds its session lock.
+    #[test]
+    fn lr13f_poll_and_wake_never_block_while_provider_is_busy() {
+        let dir = tempfile::tempdir().unwrap();
+        for n in 0..40 {
+            std::fs::write(dir.path().join(format!("{n}.jpg")), b"synthetic").unwrap();
+        }
+        let mut index = index::Index::open(dir.path().join("index.sqlite")).unwrap();
+        index
+            .scan(
+                dir.path(),
+                &index::NoopSidecarReader,
+                &index::NoopMetadataProvider,
+            )
+            .unwrap();
+        let (entered, started) = mpsc::channel();
+        let (release, blocked) = mpsc::channel::<()>();
+        let blocked = Mutex::new(blocked);
+        let provider: PreviewProvider = Arc::new(move |_| {
+            entered.send(()).unwrap();
+            let _ = blocked.lock().unwrap().recv();
+            Ok(Some(0))
+        });
+        let mut work = BackgroundPreviews::default();
+        for id in index.search(&Default::default()).unwrap() {
+            work.enqueue(index.image_info(id).unwrap());
+        }
+        work.poll(&provider, &None).unwrap();
+        started.recv_timeout(Duration::from_secs(5)).unwrap();
+        let mut stalled = None;
+        for round in 0..8 {
+            // One image finishes; the worker then blocks inside the next one.
+            release.send(()).unwrap();
+            started.recv_timeout(Duration::from_secs(5)).unwrap();
+            // The host's poll for this notification, and the job's next wake.
+            let (done, finished) = mpsc::channel();
+            let returned = thread::scope(|scope| {
+                let work = &mut work;
+                let provider = &provider;
+                scope.spawn(move || {
+                    work.poll(provider, &None).unwrap();
+                    work.wake(&None).unwrap();
+                    done.send(()).unwrap();
+                });
+                let returned = finished.recv_timeout(Duration::from_secs(2));
+                if returned.is_err() {
+                    // Unblock the stuck send so the scope can end, then report.
+                    for _ in 0..64 {
+                        let _ = release.send(());
+                    }
+                }
+                returned
+            });
+            if returned.is_err() {
+                stalled = Some(round);
+                break;
+            }
+        }
+        drop(release);
+        work.retire().wait();
+        assert_eq!(
+            stalled, None,
+            "poll/wake blocked on a full ticket channel while the provider was busy"
+        );
+    }
 }
