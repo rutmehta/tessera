@@ -244,9 +244,26 @@ The HANDOFF commit after `6b5860b8` is documentation only.
 
 # ENG-7b: review follow-up (REV-ENG-7 CHANGES-REQUIRED)
 
-Same branch `wp/ENG-7`, on top of `c57b36c2`; `origin/main` is still
-`fc3e757d`, so the rebase was a no-op. Worker: Claude Opus 5.5. The
-coordinator's rulings apply the user's "match Lightroom" decision.
+Same branch `wp/ENG-7`, on top of `c57b36c2`, then rebased onto
+`origin/main` `f77aae5d` (batch 55, Smart Previews, 212 commits). Worker:
+Claude Opus 5.5. The coordinator's rulings apply the user's "match
+Lightroom" decision.
+
+**Rebase notes.**
+- Two conflicts (`pipeline-cpu/src/lib.rs` exports and an `image-core`
+  render branch) were resolved by keeping main's code and applying the
+  ENG-7b change on top.
+- Batch 55 added `DevelopSession::render_notices`, the Develop status
+  channel. The Develop note now goes through it. The pre-rebase commits that
+  added a separate `lens_notes` FFI method, a Transform-panel line and nine
+  test-double overrides were dropped while rebasing (`git rebase --skip`).
+  So there is no FFI surface change and the bindings are unchanged.
+- A new commit restores an import that main's new Smart Preview
+  `render_plan` uses.
+- Another fills `RawMetadata`'s new `catalog_orientation` and
+  `baseline_exposure` in the ENG-7/7b test literals.
+- No golden needed re-pinning after the rebase: all of main's new tests
+  pass unchanged.
 
 ## Item table (finding → code → test)
 
@@ -257,7 +274,7 @@ coordinator's rulings apply the user's "match Lightroom" decision.
 | Built-in corrections | apply embedded opcodes with `None` and an unavailable named profile; maker notes are a follow-up | `lens_resolve.rs`: `find_profile`, `uses_built_in`, `built_in_selected`, shared by `resolve_with`, `render::camera_linear_prefix` and `CameraLinearProxy::generate`. Codec `use_embedded` and mode checks follow the same rule. `image-core` `resident_lens_supported(lens, metadata)` keeps opcode raws off the resident fast path | `lens_builtin.rs::built_in_correction_applies_in_none_and_for_an_unavailable_profile` and `..._available_profile_and_auto_calibrated_keep_their_behaviour...`. `image-core/tests/builtin_lens.rs::profile_none_still_applies_built_in_opcodes` (engine L0 == reference, max diff 0, and differs from the same raw without opcodes). The input is synthetic DNG opcode metadata (OpcodeList3 FixVignetteRadial) as `raw_decode::dng::extract_dng_opcode_lists` yields it. The repo has no DNG writer for opcode tags, and no fixture carries opcode lists |
 | Export ruling | keep `LensProfileEnable=1` for Auto; add an export-report note when no profile was available | `pipeline_cpu::lens_notice`; `export::render_one_cancellable` appends it to the per-file export warnings (`<file>.tessera-warnings.txt`), which the app lists in the completion toast (`ExportWarnings`). Sidecar export is unchanged | `export/tests/lens_notes.rs` (Auto raw → "No lens profile available — no profile correction applied"; unavailable named → "Lens profile '…' not available — …"; None and RGB Auto → none) |
 | **S2** edits move | HANDOFF and a user-facing release note | `docs/RELEASE-NOTES.md` (new), plus this section | — |
-| **S3** passive note | Develop and export, whatever the recipe's origin | export as above; `DevelopSession::lens_notes()` (FFI), `DevelopController.lensNotes`, and a status line in the Transform panel. Develop shows only the unavailable-named-profile note; the Auto/no-profile note would show on nearly every raw | `lens_builtin.rs::lens_notices` (all cases, including RGB). The FFI method is a thin filter of `lens_notice`. The Swift gate builds and runs the existing suite, but no XCTest drives the new status line |
+| **S3** passive note | Develop and export, whatever the recipe's origin | export as above. Develop: `DevelopSession::render_notices` (batch 55's channel → `DevelopController.renderNotices` → the AppModel status line "Develop: …") now includes the unavailable-named-profile note. Develop shows only that note; the Auto/no-profile note would show on nearly every raw | `lens_builtin.rs::lens_notices` (all cases, including RGB); `tessera-ffi/tests/develop.rs::unavailable_named_lens_profile_is_a_visible_render_notice` (real NEF session; RED before the change) |
 | **S4** geometry guard | at least one fixture resolves a non-zero k1 under `geometry_settings()` | — | `image-core/tests/fixture.rs::geometry_settings_resolve_a_distortion_on_some_fixture`. It uses every fixture present, ignores the speed filter, and fails if none resolves `Image` with k1 ≠ 0. CR3 and RAF pass |
 | **N1** codec comment | — | Comment made precise. I checked the review's premise: generation does apply image CA to the stored pixels (`render::camera_linear_prefix` runs `optics::lateral_ca` before the proxy is downsampled, and the tail never replays it). So "baked" was accurate; the comment now says exactly where | — |
 | **N2** duplicate/string `LensProfileEnable` | comment | `import-lrcat/src/lens_profile.rs::enabled` | — |
@@ -293,7 +310,7 @@ other test with built-in CA and the switch off.
 | stored recipe with `remove_chromatic_aberration` | stored value | stored value (unchanged) |
 | stored JSON without the field (schema-1.2 documents without `lens`, partial or agent JSON, XMP without `AutoLateralCA`) | on | **off** |
 | built-in per-plane CA with the switch off | not applied | applied (DNG opcodes always apply in full) |
-| Develop, unavailable named profile | silent | status line "Lens profile '…' not available — no profile correction applied" |
+| Develop, unavailable named profile | silent | render notice "Lens profile '…' not available — no profile correction applied" (status line) |
 | export, Auto raw without built-in data or a profile | silent | export warning "No lens profile available — no profile correction applied" |
 | export, unavailable named profile | silent | export warning with the profile name |
 | disk preview from before this change | served | not served (render epoch 2), re-rendered lazily |
@@ -380,29 +397,27 @@ unchanged.
 
 ## Gates (ENG-7b)
 
-All gates ran on `50d3a614` after `cargo clean -p engine-api -p pipeline-cpu
--p image-core -p import-lrcat -p previews -p export -p sidecar -p tessera-ffi
--p pipeline-gpu`, with target `~/.cache/tessera-target/ENG-7` and the fixtures
-symlinked.
+The final gates ran on `943d3ccf`, which is rebased on `f77aae5d`, after
+`cargo clean -p engine-api -p pipeline-cpu -p image-core -p import-lrcat
+-p previews -p export -p sidecar -p tessera-ffi -p pipeline-gpu`. The target
+was `~/.cache/tessera-target/ENG-7` and the fixtures were symlinked.
 
 | Gate | Result |
 |---|---|
-| `cargo test --release --workspace --no-fail-fast` | pass: 646 test binaries, **3313 passed, 0 failed, 99 ignored**, 0 SKIPPED lines. All five raw fixtures ran, including the L0/L3 parity tests, the S4 guard and `raw_fixtures_default_applies_no_estimated_geometry`. Load was 6.8 at start and 28.1 at end; no wall-clock failures, no reruns |
+| `cargo test --release --workspace --no-fail-fast` | pass: 682 test binaries, **3519 passed, 0 failed, 108 ignored**, 0 SKIPPED lines. All five raw fixtures ran, including the L0/L3 parity tests, the S4 guard and `raw_fixtures_default_applies_no_estimated_geometry`. Load was 20.6 at the start and 29.3 at the end; there were no wall-clock failures and no reruns |
 | `cargo clippy --release --workspace --all-targets -- -D warnings` | pass |
 | `cargo fmt --all -- --check` | pass |
-| `apps/mac/build-ffi.sh` | pass; 0 changed paths afterwards (the regenerated bindings for `lensNotes` are committed in `c88ebcf5`) |
-| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: XCTest 987 tests, 3 skipped, 0 failures; Swift Testing 5 tests in 2 suites passed |
+| `apps/mac/build-ffi.sh` | pass; 0 changed paths afterwards (no bindings drift) |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: XCTest 996 tests, 3 skipped, 0 failures; Swift Testing 5 tests in 2 suites passed |
 | strict release `swift build --product Tessera` (`-strict-concurrency=complete -warnings-as-errors`) | pass |
 
-Earlier attempt on `82f177ce`, recorded for completeness:
-- **clippy failed** on a constant `assert!` in the new previews test. Fixed
-  with a `const` assert (`5866780f`).
-- **The Swift suite crashed twice** (signal 11, at 13:4x and 13:52; load
-  9.5–15) in `AgentReviewOwnershipTests.testConcurrentCloseWaitsForOneActualSessionFlush`.
-  The DevelopSession test doubles subclass the FFI class with a null handle
-  and did not forward the new `lensNotes()`. Fixed by forwarding it in all
-  nine doubles (`50d3a614`). This was a real bug in the doubles, not a
-  flake. No bound or assertion was changed.
+Earlier attempts, before the rebase, recorded for completeness:
+- clippy failed once on a constant `assert!` in the new previews test.
+  Fixed with a `const` assert.
+- The Swift suite crashed (signal 11) because the DevelopSession test
+  doubles did not forward the then-new `lens_notes` FFI method. That method
+  no longer exists after the rebase (see the rebase notes).
+- Neither failure involved relaxing an assertion.
 
 ## Not done / follow-ups (ENG-7b)
 
