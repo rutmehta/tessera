@@ -105,12 +105,18 @@ impl<I: Deref<Target = Index>> CullSession<I> {
         }
         out.removed = self.remove_images(&remove)?;
         out.inserted = self.insert_images(&insert)?;
+        // The default policy regroups re-timed images now; a changed hash
+        // regroups when it arrives, and only if it differs. Custom strategies
+        // may read any image field, so they always regroup edited images.
+        let mut retimed = Vec::new();
         for id in &regroup {
-            self.refresh_grouping_inputs(*id)?;
+            if self.refresh_grouping_inputs(*id)? || self.grouping_strategy.is_some() {
+                retimed.push(*id);
+            }
             self.keys.remove(id);
         }
         out.regrouped = !out.removed.is_empty() || !out.inserted.is_empty();
-        out.regrouped |= self.regroup_images(&regroup)?;
+        out.regrouped |= self.regroup_images(&retimed)?;
         out.updated = updated;
         self.change_seq = out.sequence;
         Ok(out)
@@ -253,7 +259,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             return Ok(false);
         }
         if self.grouping_strategy.is_none() {
-            return self.rebuild_default();
+            return self.schedule_default(&seeds, &[]);
         }
         let position: HashMap<ImageId, usize> = self
             .images

@@ -1,6 +1,7 @@
 //! Lazy pixel work. Opening/regrouping only queues metadata: O(distinct images),
 //! coalesced by image ID. At most 16 hash tickets/results and one wake command
 //! are outstanding per session. A process-wide gate permits one provider call.
+//! Each retired worker is joined on its own thread (see `join_retired`).
 //! Decoder tiles and codec allocations are additional to the reduced output.
 use crate::{ImageId, PreviewProvider};
 use engine_api::{EngineError, EngineResult};
@@ -65,10 +66,37 @@ fn finish_completion(completion: &Completion) {
 
 struct Retirement {
     worker: thread::JoinHandle<()>,
-    // The join owner retains only this worker's flag, not older generations.
+    // The joiner retains only this worker's flag, not older generations.
     completion: Completion,
 }
-fn retirements() -> &'static mpsc::Sender<Retirement> {
+impl Retirement {
+    fn join(self) {
+        let _ = self.worker.join();
+        finish_completion(&self.completion);
+    }
+}
+/// Joins each retired worker on its own short-lived thread, so a worker stuck
+/// in a codec never delays another session's barrier. If a thread cannot be
+/// started, a shared fallback joiner takes the worker instead of detaching it.
+fn join_retired(retired: Retirement) {
+    let slot = Arc::new(Mutex::new(Some(retired)));
+    let owned = slot.clone();
+    let started = thread::Builder::new()
+        .name("cull-hash-join".into())
+        .spawn(move || {
+            if let Some(retired) = owned.lock().unwrap_or_else(|e| e.into_inner()).take() {
+                retired.join();
+            }
+        });
+    if started.is_err()
+        && let Some(retired) = slot.lock().unwrap_or_else(|e| e.into_inner()).take()
+    {
+        fallback_joiner()
+            .send(retired)
+            .unwrap_or_else(|_| panic!("cull worker fallback joiner stopped"));
+    }
+}
+fn fallback_joiner() -> &'static mpsc::Sender<Retirement> {
     static OWNER: OnceLock<mpsc::Sender<Retirement>> = OnceLock::new();
     OWNER.get_or_init(|| {
         let (sender, receiver) = mpsc::channel::<Retirement>();
@@ -76,11 +104,10 @@ fn retirements() -> &'static mpsc::Sender<Retirement> {
             .name("cull-hash-joins".into())
             .spawn(move || {
                 for retired in receiver {
-                    let _ = retired.worker.join();
-                    finish_completion(&retired.completion);
+                    retired.join();
                 }
             })
-            .expect("start cull worker lifecycle owner");
+            .expect("start cull worker fallback joiner");
         sender
     })
 }
@@ -140,12 +167,10 @@ impl BackgroundPreviews {
         self.in_flight = 0;
         let completion = PreviewShutdown::pending(std::mem::take(&mut self.previous));
         if let Some(worker) = self.worker.take() {
-            retirements()
-                .send(Retirement {
-                    worker,
-                    completion: completion.current.clone(),
-                })
-                .unwrap_or_else(|_| panic!("cull worker lifecycle owner stopped"));
+            join_retired(Retirement {
+                worker,
+                completion: completion.current.clone(),
+            });
         } else {
             completion.complete();
         }
@@ -178,8 +203,6 @@ impl BackgroundPreviews {
         if self.sender.is_some() || self.cancel.load(Ordering::Acquire) {
             return Ok(());
         }
-        // Initialize the off-thread join owner before starting work.
-        retirements();
         let (tx, rx) = mpsc::sync_channel::<Ticket>(WINDOW + 1);
         let (done, results) = mpsc::sync_channel(WINDOW);
         let cancel = self.cancel.clone();
@@ -232,7 +255,10 @@ impl BackgroundPreviews {
                     {
                         return;
                     }
-                    if last || last_notice.elapsed() >= Duration::from_millis(200) {
+                    // A queued Wake waits behind hash tickets; answer it after
+                    // this image instead (the later ticket is then a no-op poll).
+                    let woken = wake_pending.swap(false, Ordering::AcqRel);
+                    if woken || last || last_notice.elapsed() >= Duration::from_millis(200) {
                         notify_current();
                         last_notice = std::time::Instant::now();
                     }
@@ -254,11 +280,17 @@ impl BackgroundPreviews {
             self.wake_pending.store(false, Ordering::Release);
             return Err(error);
         }
-        self.sender
+        let sent = self
+            .sender
             .as_ref()
             .expect("worker started")
-            .send(Ticket::Wake)
-            .map_err(|_| EngineError::invalid("cull previews", "worker stopped"))
+            .send(Ticket::Wake);
+        if sent.is_err() {
+            // Do not suppress later wakes for this generation.
+            self.wake_pending.store(false, Ordering::Release);
+            return Err(EngineError::invalid("cull previews", "worker stopped"));
+        }
+        Ok(())
     }
     pub fn poll(
         &mut self,

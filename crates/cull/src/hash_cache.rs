@@ -47,7 +47,11 @@ pub(crate) fn persistent(
     };
     // Bump the namespace whenever the pixel/hash policy changes. Cache creation
     // and validation happen on the worker, never during session construction.
+    let legacy_removed = std::sync::atomic::AtomicBool::new(false);
     Arc::new(move |info| {
+        if !legacy_removed.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            policy.remove_legacy();
+        }
         let Some(root) = policy.directory(info) else {
             return provider(info);
         };
@@ -178,6 +182,25 @@ impl HashCachePolicy {
             protected_roots,
             namespace: format!("{provider_id}-v{pixel_policy_version}"),
         })
+    }
+
+    /// Removes the LR-13c `cull-hashes-v1` directory directly inside this
+    /// approved root, once per session on the worker. A symlink is never
+    /// followed or removed, and a redirected root is left alone.
+    fn remove_legacy(&self) {
+        let legacy = self.root.join("cull-hashes-v1");
+        let Ok(meta) = std::fs::symlink_metadata(&legacy) else {
+            return;
+        };
+        if !meta.file_type().is_dir()
+            || resolved(&self.root).ok().as_ref() != Some(&self.root)
+            || protected_name(&legacy)
+            || self.protected_roots.iter().any(|p| legacy.starts_with(p))
+        {
+            return;
+        }
+        // Best-effort: std's remove_dir_all does not follow inner symlinks.
+        let _ = std::fs::remove_dir_all(&legacy);
     }
 
     fn directory(&self, info: &ImageInfo) -> Option<PathBuf> {

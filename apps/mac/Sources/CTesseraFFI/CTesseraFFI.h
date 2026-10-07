@@ -3005,6 +3005,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_cullsession_prev_in_group(uint64_t ptr, 
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_preview_errors(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PREVIEWS_PENDING
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_PREVIEWS_PENDING
+int8_t uniffi_tessera_ffi_fn_method_cullsession_previews_pending(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_REDO
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_CULLSESSION_REDO
 RustBuffer uniffi_tessera_ffi_fn_method_cullsession_redo(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -6263,6 +6268,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_cullsession_prev_in_group(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PREVIEW_ERRORS
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PREVIEW_ERRORS
 uint16_t uniffi_tessera_ffi_checksum_method_cullsession_preview_errors(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PREVIEWS_PENDING
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_CULLSESSION_PREVIEWS_PENDING
+uint16_t uniffi_tessera_ffi_checksum_method_cullsession_previews_pending(void
     
 );
 #endif
