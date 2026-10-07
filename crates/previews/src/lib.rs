@@ -298,7 +298,7 @@ mod tests {
         let s = PreviewStore::new(dir.path(), u64::MAX).unwrap();
         assert_ne!(k.directory(), legacy);
         assert!(k.directory().starts_with(&format!("e{RENDER_EPOCH}-")));
-        assert!(RENDER_EPOCH >= 2);
+        const { assert!(RENDER_EPOCH >= 2) };
         for level in Level::ALL {
             assert!(
                 s.get(&k, level).is_none(),
