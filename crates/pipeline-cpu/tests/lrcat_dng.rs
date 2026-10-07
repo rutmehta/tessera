@@ -96,7 +96,7 @@ fn default_render_from_env() {
 }
 
 #[test]
-fn baseline_exposure_is_shared_by_cfa_and_external_camera_linear_sources() {
+fn native_ignores_baseline_exposure_for_cfa_and_external_camera_linear_sources() {
     let mut dng =
         raw_decode::lossy_dng::read(&mut std::io::Cursor::new(support::lossy_dng(false, false)))
             .unwrap()
@@ -111,7 +111,7 @@ fn baseline_exposure_is_shared_by_cfa_and_external_camera_linear_sources() {
     dng.baseline_exposure = 0.75;
     let proxy = pipeline_cpu::CameraLinearProxy::from_dng(dng).unwrap();
     assert_eq!(proxy.original_metadata().baseline_exposure, 0.75);
-    // Exposure is a shared camera-profile operation, never baked into stored samples.
+    // BaselineExposure remains metadata, never baked into stored samples.
     assert_eq!(proxy.pixels().planes()[0][0], 0.08);
     let mut metadata = proxy.original_metadata().clone();
     metadata.cfa_layout = raw_decode::CfaLayout::Bayer([[0, 1], [1, 2]]);
@@ -152,7 +152,8 @@ fn baseline_exposure_is_shared_by_cfa_and_external_camera_linear_sources() {
         .zip(zero.planes().iter().flatten())
     {
         assert!((a - b).abs() < 1e-5);
-        assert!((a - zero * 2f32.powf(0.75)).abs() < 1e-5);
+        // B4 ruling: Native preserves the pre-Smart-Preview look.
+        assert_eq!(a, zero);
     }
 }
 
