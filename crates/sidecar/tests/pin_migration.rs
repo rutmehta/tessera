@@ -128,6 +128,61 @@ fn two_catalogs_sharing_identical_edits_share_one_recipe_and_dedupe() {
     );
 }
 
+/// Write `exposure` with an explicit recorded edit time.
+fn write_at(recipe: &Path, exposure: f32, time_ms: i64) {
+    let mut doc = RecipeDocument::default();
+    doc.recipe
+        .edit(engine_api::recipe::EditMeta::user("Exposure", 1), |s| {
+            s.tone.exposure = exposure
+        })
+        .unwrap();
+    doc.record_write("tessera-app", time_ms).unwrap();
+    std::fs::create_dir_all(recipe.parent().unwrap()).unwrap();
+    std::fs::write(recipe, serde_json::to_vec(&doc).unwrap()).unwrap();
+}
+
+/// Set a file's mtime `seconds` from now (negative: in the past).
+fn set_mtime(path: &Path, seconds: i64) {
+    let now = std::time::SystemTime::now();
+    let time = if seconds < 0 {
+        now - std::time::Duration::from_secs(seconds.unsigned_abs())
+    } else {
+        now + std::time::Duration::from_secs(seconds as u64)
+    };
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(time)
+        .unwrap();
+}
+
+fn backups(support: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let mut stack = vec![support.join(".edits/lightroom/objects")];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if p
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .contains(".backup-")
+            {
+                found.push(p);
+            }
+        }
+    }
+    found
+}
+
+/// REV4-SP S1/N9: an interrupted migration left a diverged copy. The winner
+/// is decided by the edit time recorded in each recipe, not by file mtime
+/// (falsified here to point the other way); in both directions the loser is
+/// moved to a `.backup-` file that no lookup resolves to; the plan preview
+/// classifies the same way.
 #[test]
 fn crash_after_copy_before_key_save_keeps_the_newer_recipe_and_a_backup() {
     for legacy_newer in [true, false] {
@@ -139,40 +194,40 @@ fn crash_after_copy_before_key_save_keeps_the_newer_recipe_and_a_backup() {
         let p = s.proxy("A", UUID, b"preview");
         let identity = format!("lightroom smart preview file\0{UUID}").into_bytes();
         let destination = Sidecar::protected_identity_recipe(&p, &identity);
-        // The interrupted migration had copied the legacy recipe (1.0) but not
-        // yet published the key; the app kept editing the legacy object.
         edit(&p, 1.0);
         let legacy = Sidecar::paths(&p).recipe;
-        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
-        std::fs::copy(&legacy, &destination).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(20));
-        if legacy_newer {
-            edit(&p, 2.0);
+        let (legacy_time, destination_time) = if legacy_newer {
+            (2_000_000, 1_000_000)
         } else {
-            let mut doc = Sidecar::read_recipe(&destination).unwrap();
-            doc.recipe
-                .edit(engine_api::recipe::EditMeta::user("Exposure", 2), |s| {
-                    s.tone.exposure = 3.0
-                })
-                .unwrap();
-            std::fs::write(&destination, serde_json::to_vec(&doc).unwrap()).unwrap();
-        }
+            (1_000_000, 2_000_000)
+        };
+        write_at(&legacy, 2.0, legacy_time);
+        write_at(&destination, 3.0, destination_time);
+        // File times say the opposite of the recorded edit times.
+        set_mtime(&legacy, if legacy_newer { -3600 } else { 3600 });
+        set_mtime(&destination, if legacy_newer { 3600 } else { -3600 });
+        let mut preview = Sidecar::protected_pin_preview();
+        assert_eq!(preview.pin(&p, &identity).unwrap(), PinOutcome::Recovered);
         let mut batch = Sidecar::protected_pin_batch();
         assert_eq!(batch.pin(&p, &identity).unwrap(), PinOutcome::Recovered);
         batch.finish().unwrap();
         assert_eq!(Sidecar::paths(&p).recipe, destination);
-        if legacy_newer {
-            assert_eq!(exposure(&p), 2.0, "the newer legacy edit wins");
-            assert_eq!(
-                objects_with(&s.support, 1.0),
-                1,
-                "the older copy is kept as a backup"
-            );
-        } else {
-            assert_eq!(exposure(&p), 3.0, "the newer destination wins");
-            assert!(legacy.exists(), "the differing legacy recipe is kept");
-            assert_eq!(exposure_at(&legacy), 1.0);
-        }
+        let (winner, loser) = if legacy_newer { (2.0, 3.0) } else { (3.0, 2.0) };
+        assert_eq!(exposure(&p), winner, "the recorded newer edit wins");
+        let kept = backups(&s.support);
+        assert_eq!(kept.len(), 1, "exactly one labelled backup: {kept:?}");
+        assert_eq!(exposure_at(&kept[0]), loser);
+        assert!(!legacy.exists(), "no unlabelled loser at the legacy key");
+        // A never-pinned source with the legacy bytes resolves to the winner,
+        // never to the backup.
+        let twin = s.proxy("B", "CD12CD34-0000-4000-8000-000000000002", b"preview");
+        assert_eq!(exposure(&twin), winner);
+        assert!(
+            !Sidecar::paths(&twin)
+                .recipe
+                .to_string_lossy()
+                .contains(".backup-")
+        );
     }
 }
 
