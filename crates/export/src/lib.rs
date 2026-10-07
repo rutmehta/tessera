@@ -422,8 +422,18 @@ pub fn render_pixels_with_resources(
         let rgb = retouch_float(image, recipe, render.scale, retouch)?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else if ai_masks::active(&recipe.settings) {
-        let rgb =
-            ai_masks::render_with_support(&image.source, &recipe.settings, segmenter, support)?;
+        let rgb = if matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng()) {
+            ai_masks::render_proxy(
+                &image.source,
+                recipe,
+                render.scale,
+                segmenter,
+                &mut Vec::new(),
+                support,
+            )?
+        } else {
+            ai_masks::render_with_support(&image.source, &recipe.settings, segmenter, support)?
+        };
         encode_output_profile(rgb, recipe, render.color_space)?
     } else {
         render_scaled_cancellable(image, recipe, render.color_space, render.scale, cancel)?
@@ -454,7 +464,7 @@ fn proxy_recipe<'a>(source: &RenderSource<'_>, recipe: &'a Recipe) -> std::borro
     match source {
         RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
             let mut drawn = recipe.clone();
-            drawn.settings = proxy.render_plan(&recipe.settings, false).0;
+            drawn.settings = proxy.render_plan(&recipe.settings, true).0;
             std::borrow::Cow::Owned(drawn)
         }
         _ => std::borrow::Cow::Borrowed(recipe),
@@ -628,7 +638,7 @@ pub fn render_one_cancellable(
     let proxy_warnings = match &image.source {
         RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
             let mut notes = vec!["Exported from a Smart Preview proxy at its available resolution; the original was not used.".to_owned()];
-            notes.extend(proxy.render_plan(&recipe.settings, false).1.into_iter().map(|field| format!("Info: {field} is unavailable for this proxy; exported without it. Saved settings are unchanged.")));
+            notes.extend(proxy.render_plan(&recipe.settings, true).1.into_iter().map(|field| format!("Info: {field} is unavailable for this proxy; exported without it. Saved settings are unchanged.")));
             notes
         }
         _ => Vec::new(),
@@ -730,6 +740,30 @@ pub fn render_one_cancellable(
     let started = std::time::Instant::now();
     let rgb = if settings.hdr.is_some() {
         hdr::render(image, recipe, settings, cancel)?
+    } else if ai_masks::active(&recipe.settings)
+        && matches!(&image.source, RenderSource::CameraLinear(p) if p.is_external_dng())
+    {
+        let rgb = ai_masks::render_proxy(
+            &image.source,
+            recipe,
+            if upscale.is_some() {
+                1
+            } else {
+                settings.render_scale
+            },
+            segmenter,
+            &mut warnings,
+            settings.mask_support.as_deref(),
+        )?;
+        let rgb = match upscale {
+            Some(model) => upscale_rgb(rgb, model)?,
+            None => rgb,
+        };
+        if matches!(settings.format, Format::Dng) {
+            rgb
+        } else {
+            encode_output_profile(rgb, recipe, settings.color_space)?
+        }
     } else if !recipe.settings.locals.retouch.is_empty() {
         let rgb = retouch_float(
             image,
