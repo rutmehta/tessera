@@ -274,6 +274,16 @@ fn header_only_jxl_returns_error_without_render_panic() {
 // samples or allocator metadata are retained after each case.
 struct Meter;
 thread_local! { static ALLOC: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) }; }
+// LR-8h: live (current, peak) bytes on this thread, for the streaming bound.
+thread_local! { static LIVE: std::cell::Cell<Option<(usize, usize)>> = const { std::cell::Cell::new(None) }; }
+fn live(delta: isize) {
+    let _ = LIVE.try_with(|v| {
+        if let Some((current, peak)) = v.get() {
+            let current = current.saturating_add_signed(delta);
+            v.set(Some((current, peak.max(current))));
+        }
+    });
+}
 unsafe impl std::alloc::GlobalAlloc for Meter {
     unsafe fn alloc(&self, l: std::alloc::Layout) -> *mut u8 {
         let _ = ALLOC.try_with(|n| {
@@ -281,9 +291,11 @@ unsafe impl std::alloc::GlobalAlloc for Meter {
                 n.set(Some(v.saturating_add(l.size())))
             }
         });
+        live(l.size() as isize);
         unsafe { std::alloc::System.alloc(l) }
     }
     unsafe fn dealloc(&self, p: *mut u8, l: std::alloc::Layout) {
+        live(-(l.size() as isize));
         unsafe { std::alloc::System.dealloc(p, l) }
     }
     unsafe fn realloc(&self, p: *mut u8, l: std::alloc::Layout, n: usize) -> *mut u8 {
@@ -292,6 +304,7 @@ unsafe impl std::alloc::GlobalAlloc for Meter {
                 v.set(Some(x.saturating_add(n)))
             }
         });
+        live(n as isize - l.size() as isize);
         unsafe { std::alloc::System.realloc(p, l, n) }
     }
 }
@@ -361,7 +374,10 @@ fn seeded_full_jpeg_and_16bit_jxl_mutations_are_bounded() {
 }
 
 fn large_original(width: u32, height: u32) -> Vec<u8> {
-    let tile = include_bytes!("fixtures/solid-512.jpg");
+    large_original_with(include_bytes!("fixtures/solid-512.jpg"), width, height)
+}
+
+fn large_original_with(tile: &[u8], width: u32, height: u32) -> Vec<u8> {
     let mut b = support::lossy_dng_with_jpeg(false, false, tile);
     for (tag, value) in [(256, width), (257, height), (322, 512), (323, 512)] {
         set(&mut b, tag, value);
@@ -589,4 +605,43 @@ fn lr8h_compressed_total_above_file_size_and_aliased_ranges_are_rejected() {
     compressed_budget_error(sparse_original(10000, count, 0, 100 * count as u64));
     // Overlapping ranges half a tile apart; each range is inside the file.
     compressed_budget_error(sparse_original(10000, count, count / 2, 201 * count as u64));
+}
+
+/// LR-8h ruling: tiles stream (read, decode into the output, drop). Resident
+/// compressed memory is one tile, so the decoder's live peak is about the
+/// output buffer plus one tile, not the output plus every compressed tile
+/// (or a second, cropped copy of the output).
+#[test]
+fn lr8h_tile_stream_peak_is_output_plus_one_tile() {
+    // A valid 512x512 JPEG tile made ~2 MiB with comment segments after SOI.
+    let solid = include_bytes!("fixtures/solid-512.jpg");
+    let mut tile = solid[..2].to_vec();
+    for _ in 0..32 {
+        tile.extend([0xFF, 0xFE, 0xFF, 0xFF]);
+        tile.extend(std::iter::repeat_n(b' ', 0xFFFF - 2));
+    }
+    tile.extend_from_slice(&solid[2..]);
+    let (width, height) = (2048, 2048);
+    let tiles = (width / 512) * (height / 512);
+    let b = large_original_with(&tile, width, height);
+    let mut input = Cursor::new(b);
+    LIVE.with(|v| v.set(Some((0, 0))));
+    let decoded = raw_decode::lossy_dng::read(&mut input).unwrap().unwrap();
+    let (_, peak) = LIVE.with(|v| v.replace(None).unwrap());
+    assert_eq!((decoded.width, decoded.height), (2048, 2048));
+    for pixel in decoded.pixels.iter().step_by(4099) {
+        for (&v, code) in pixel.iter().zip([48., 69., 84.]) {
+            assert!((v - (code - 1.) / 254.).abs() < 2. / 254.);
+        }
+    }
+    let output = decoded.pixels.len() * std::mem::size_of::<[f32; 3]>();
+    // One compressed tile, its marker-rewritten copy and one decoded tile,
+    // plus codec state. Retaining every tile would exceed this by far.
+    let bound = output + 2 * tile.len() + 512 * 512 * 3 + (8 << 20);
+    assert!(tiles as usize * tile.len() > 2 * tile.len() + (8 << 20));
+    eprintln!(
+        "lr8h peak={peak} output={output} tile={} tiles={tiles} bound={bound}",
+        tile.len()
+    );
+    assert!(peak <= bound, "peak={peak} bound={bound} output={output}");
 }
