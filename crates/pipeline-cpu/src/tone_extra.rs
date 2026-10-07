@@ -173,7 +173,8 @@ fn decode(v: f32) -> f32 {
         let log_middle = 0.18_f32.ln();
         let sum = exponent + log_middle;
         let high = sum.exp();
-        if !high.is_finite() {
+        // Only true overflow saturates; NaN propagates as before this branch.
+        if high == f32::INFINITY {
             return f32::MAX;
         }
         let low =
