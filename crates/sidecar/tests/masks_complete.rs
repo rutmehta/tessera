@@ -285,3 +285,51 @@ fn lr5_adobe_ai_state_round_trips_through_native_xmp() {
         assert!(!packet.contains("TSMASK"));
     }
 }
+
+#[test]
+fn lr_clean_xmp_non_paint_mask_value_is_unsupported_and_retained() {
+    let shapes = [
+        r#"crs:What="Mask/Gradient" crs:ZeroX="0.2" crs:ZeroY="0.3" crs:FullX="0.7" crs:FullY="0.8""#,
+        r#"crs:What="Mask/CircularGradient" crs:Left="0.1" crs:Right="0.9" crs:Top="0.2" crs:Bottom="0.8" crs:Angle="0" crs:Feather="50""#,
+    ];
+    for shape in shapes {
+        let partial = foreign(&format!(
+            r#"<rdf:li><rdf:Description {shape} crs:MaskValue="0.3" crs:MaskDigest="partial-mask-value"/></rdf:li>"#
+        ));
+        let r = XmpPacket::parse(partial).unwrap().to_recipe().unwrap();
+        assert!(
+            r.recipe.settings.locals.adjustments.is_empty(),
+            "{shape}: MaskValue=0.3 must not be rendered"
+        );
+        assert!(
+            r.warnings.iter().any(|w| w.contains("MaskValue")),
+            "{shape}: {:?}",
+            r.warnings
+        );
+        let exported = XmpPacket::from_imported_recipe(&r.recipe, &MarkPreset::default()).unwrap();
+        assert!(
+            exported.xml.contains("partial-mask-value"),
+            "{shape}: source must be retained"
+        );
+        assert!(
+            exported.xml.contains(r#"MaskValue="0.3""#)
+                || exported.xml.contains("<crs:MaskValue>0.3<")
+        );
+
+        let full = foreign(&format!(
+            r#"<rdf:li><rdf:Description {shape} crs:MaskValue="1"/></rdf:li>"#
+        ));
+        let r = XmpPacket::parse(full).unwrap().to_recipe().unwrap();
+        assert_eq!(
+            r.recipe.settings.locals.adjustments.len(),
+            1,
+            "{shape}: {:?}",
+            r.warnings
+        );
+        assert!(
+            !r.warnings.iter().any(|w| w.contains("MaskValue")),
+            "{:?}",
+            r.warnings
+        );
+    }
+}
