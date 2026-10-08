@@ -7,10 +7,20 @@ use compositor::Affine;
 use engine_api::tile::{Extent, TileCoord};
 use wgpu::util::DeviceExt;
 
+/// Reports, uncaptured so it shows in plain `cargo test` output, that `test`
+/// checked nothing because CI runners have no Metal device.
+fn ci_skip(test: &str) {
+    use std::io::Write;
+    let _ = writeln!(
+        std::io::stderr().lock(),
+        "test {test} ... SKIPPED: CI runner without a Metal device; it checked nothing"
+    );
+}
+
 #[test]
 fn identity_writes_straight_planar_at_page_offset() {
     if std::env::var_os("CI").is_some() {
-        eprintln!("skipping: CI runner without a Metal device");
+        ci_skip("identity_writes_straight_planar_at_page_offset");
         return;
     }
     let gpu = gpu::GpuCompositor::new().expect("Metal GPU required");
@@ -51,7 +61,7 @@ fn gpu_child_and_resampling_match_cpu_smart_tiles() {
     };
     use engine_api::tile::Tile;
     if std::env::var_os("CI").is_some() {
-        eprintln!("skipping: CI runner without a Metal device");
+        ci_skip("gpu_child_and_resampling_match_cpu_smart_tiles");
         return;
     }
     let gpu = gpu::GpuCompositor::new().unwrap();
@@ -152,7 +162,7 @@ fn gpu_child_and_resampling_match_cpu_smart_tiles() {
 fn large_parent_coordinates_keep_fractional_footprints() {
     use compositor::{Compositor, Depth, DocState, Document, Fill, Layer, LayerKind, SmartObject};
     if std::env::var_os("CI").is_some() {
-        eprintln!("skipping: CI runner without a Metal device");
+        ci_skip("large_parent_coordinates_keep_fractional_footprints");
         return;
     }
     let gpu = gpu::GpuCompositor::new().unwrap();
@@ -290,6 +300,7 @@ fn lanczos_reference(
 #[test]
 fn lanczos_level_zero_matches_independent_reference_and_is_deterministic() {
     if std::env::var_os("CI").is_some() {
+        ci_skip("lanczos_level_zero_matches_independent_reference_and_is_deterministic");
         return;
     }
     let gpu = gpu::GpuCompositor::new().expect("Metal GPU required");
@@ -360,6 +371,9 @@ fn resident_quality_switch_invalidates_nested_caches_and_higher_levels_stay_bili
     use compositor::{Depth, DocState, Document, Fill, Layer, LayerKind, SmartObject};
     use resident::{ResidentRenderer, SmartQuality};
     if std::env::var_os("CI").is_some() {
+        ci_skip(
+            "resident_quality_switch_invalidates_nested_caches_and_higher_levels_stay_bilinear",
+        );
         return;
     }
     let gpu = gpu::GpuCompositor::new().unwrap();
@@ -415,6 +429,7 @@ fn lanczos_support_reaches_beyond_object_bounds_into_adjacent_tile() {
     use compositor::{Depth, DocState, Document, Fill, Layer, LayerKind, SmartObject};
     use resident::{ResidentRenderer, SmartQuality};
     if std::env::var_os("CI").is_some() {
+        ci_skip("lanczos_support_reaches_beyond_object_bounds_into_adjacent_tile");
         return;
     }
     let gpu = gpu::GpuCompositor::new().unwrap();

@@ -177,8 +177,13 @@ The pattern is generated in code, not a real person's image. No face count is
 asserted for pattern/RAW fixtures. Four of five RAW fixtures currently expose
 JPEG previews; no-preview files are skipped and at least one must be exercised.
 Only network transport failures skip model tests. Corrupt hashes, manifest,
-filesystem, inference and partition errors fail. Set `TESSERA_REQUIRE_MODELS=1`
-to prohibit offline skips. Tests cache weights in ignored `.model-cache/`.
+filesystem, inference and partition errors fail. Every skip prints a visible
+`SKIPPED` line. Set `TESSERA_REQUIRE_MODEL_WEIGHTS=1` to prohibit offline skips
+(the shared `test-fixtures` policy, which applies to every model-weight test in
+the workspace, not only ml-faces). The older `TESSERA_REQUIRE_MODELS` is still
+accepted with the same meaning and now applies workspace-wide too. Any value,
+including `0` or an empty string, means required: the check is only whether the
+variable is set. Tests cache weights in ignored `.model-cache/`.
 
 `tests/clustering.rs` verifies ARI > .95 against generated, labeled 128-D
 identity populations with varying within-person dispersion (not a real-person
@@ -193,7 +198,8 @@ cargo test --release -p ml-faces --test clustering benchmark_100k_under_30_secon
 ```
 
 `tests/multiface_cached.rs` never initiates downloads when cache files are absent;
-it prints a skip (or fails with `TESSERA_REQUIRE_MODELS=1`). Override its cache
+it prints a skip (or fails with `TESSERA_REQUIRE_MODEL_WEIGHTS` set, or the
+older `TESSERA_REQUIRE_MODELS`). Override its cache
 with `TESSERA_FACE_MODEL_CACHE`. Once cached, hashes/runtime errors fail normally.
 It generates a two-face canvas, supplies known landmarks, embeds both crops with
 real SFace, excludes a low-confidence crop, and clusters the two same-pattern

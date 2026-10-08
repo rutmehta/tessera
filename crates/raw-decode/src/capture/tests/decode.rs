@@ -338,22 +338,40 @@ fn assert_metadata(a: &RawMetadata, b: &RawMetadata) {
     );
 }
 
-// Actual decoder qualification: explicit opt-in; missing fixtures are not evidence
-// of five-camera support. Run with --nocapture and inventory originals before/after.
+/// The captured-CFA qualification fixtures: `TESSERA_CAPTURED_CFA_FIXTURES`
+/// when set (an explicit inventory, where a missing file fails), otherwise
+/// `test_fixtures::raw::root()` (absence is a visible SKIPPED, or a failure
+/// under `TESSERA_REQUIRE_RAW_FIXTURES`).
+fn captured_cfa_fixtures(names: &[&str]) -> Option<PathBuf> {
+    if let Some(directory) = std::env::var_os("TESSERA_CAPTURED_CFA_FIXTURES") {
+        let directory = PathBuf::from(directory);
+        for name in names {
+            assert!(directory.join(name).is_file(), "required fixture {name}");
+        }
+        return Some(directory);
+    }
+    test_fixtures::raw::files(&test_fixtures::current_test(), names)?;
+    Some(test_fixtures::raw::root())
+}
+
+const FIVE_FAMILIES: [(&str, &str); 5] = [
+    ("sony-arw.ARW", "ARW"),
+    ("fuji-raf.RAF", "RAF"),
+    ("nikon-nef.NEF", "NEF"),
+    ("canon-cr3.CR3", "CR3"),
+    ("sample.dng", "DNG"),
+];
+
+// Actual decoder qualification on the five camera families; missing fixtures are
+// not evidence of five-camera support (SKIPPED, or a failure under REQUIRE).
+// Run with --nocapture and inventory originals before/after.
 #[test]
-#[ignore = "requires explicit five-family TESSERA_CAPTURED_CFA_FIXTURES qualification"]
 fn actual_cfa_fixtures_return_owned_samples_after_original_copy_replacement() {
-    let directory = std::env::var_os("TESSERA_CAPTURED_CFA_FIXTURES")
-        .expect("qualification requires explicit five-family fixture directory");
-    for (name, suffix) in [
-        ("sony-arw.ARW", "ARW"),
-        ("fuji-raf.RAF", "RAF"),
-        ("nikon-nef.NEF", "NEF"),
-        ("canon-cr3.CR3", "CR3"),
-        ("sample.dng", "DNG"),
-    ] {
-        let original = PathBuf::from(&directory).join(name);
-        assert!(original.is_file(), "required fixture {name}");
+    let Some(directory) = captured_cfa_fixtures(&FIVE_FAMILIES.map(|(name, _)| name)) else {
+        return;
+    };
+    for (name, suffix) in FIVE_FAMILIES {
+        let original = directory.join(name);
         let root = tempfile::tempdir().unwrap();
         let copy = root.path().join("relocated.bin");
         fs::copy(&original, &copy).unwrap();
@@ -490,14 +508,14 @@ fn closed_result_requires_matching_sensor_dimensions_and_layout() {
 // Actual native boundaries, not fake drop instrumentation. Both named phases
 // follow successful calls; no claim of cancellation inside LibRaw open/unpack.
 #[test]
-#[ignore = "requires explicit Sony CFA fixture for native cancellation boundaries"]
 fn actual_native_success_boundaries_observe_cancellation_before_publication() {
-    let directory =
-        std::env::var_os("TESSERA_CAPTURED_CFA_FIXTURES").expect("fixture directory required");
+    let Some(directory) = captured_cfa_fixtures(&["sony-arw.ARW"]) else {
+        return;
+    };
     for stop in [DecodePhase::Opened, DecodePhase::Decoded] {
         let root = tempfile::tempdir().unwrap();
         let source = root.path().join("copy.arw");
-        fs::copy(PathBuf::from(&directory).join("sony-arw.ARW"), &source).unwrap();
+        fs::copy(directory.join("sony-arw.ARW"), &source).unwrap();
         let n = fs::metadata(&source).unwrap().len();
         let pool = CapturePool::create(
             root.path(),

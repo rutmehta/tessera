@@ -18,9 +18,13 @@ impl log::Log for Diagnostics {
     fn flush(&self) {}
 }
 
+/// Uses `fixtures/raw/nikon-nef.NEF` (`test_fixtures::raw`) and Metal.
 #[test]
-#[ignore = "requires the full Nikon NEF fixture and Metal"]
 fn full_nef_transaction_keeps_device_alive() {
+    let Some(nef) = test_fixtures::raw::file(&test_fixtures::current_test(), "nikon-nef.NEF")
+    else {
+        return;
+    };
     let _ = log::set_logger(&Diagnostics);
     log::set_max_level(log::LevelFilter::Warn);
     let context = Arc::new(GpuContext::new().unwrap());
@@ -32,11 +36,7 @@ fn full_nef_transaction_keeps_device_alive() {
             eprintln!("device lost: {reason:?}: {message}");
             *record.lock().unwrap() = Some((reason, message));
         });
-    let image = RawImage::open(
-        ImageId(93),
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw/nikon-nef.NEF"),
-    )
-    .unwrap();
+    let image = RawImage::open(ImageId(93), nef).unwrap();
     let config = RendererConfig::default();
     let renderer = Renderer::with_ops(
         Arc::new(GpuStageOp::new(context)),

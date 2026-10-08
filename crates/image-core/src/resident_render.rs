@@ -84,7 +84,125 @@ fn ca_halo(plan: &pipeline_cpu::CaPlan, sensor: Extent) -> EngineResult<u16> {
     Ok(halo as u16)
 }
 
+/// The rows an export band's stages read, for budgeting a band before it
+/// renders (see [`Renderer::export_band_geometry`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BandRows {
+    /// Level-frame rows the developed stages produce (the band's rows with
+    /// the Detail halo), at [`BandGeometry::frame`] width.
+    pub developed: std::ops::Range<u32>,
+    /// Sensor rows uploaded for the band, with every sensor-domain halo
+    /// (linearize, demosaic, lateral CA), at [`BandGeometry::sensor`] width.
+    pub sensor: std::ops::Range<u32>,
+}
+
+/// Rows each stage of one export band reads, from the developed rows back to
+/// the sensor, for one image, recipe, level and lens plan. The sensor stages
+/// run at the sensor (CFA) width, which can be much wider than the developed
+/// frame when the default crop is narrow.
+#[derive(Clone, Debug)]
+pub struct BandGeometry {
+    frame: Extent,
+    sensor: Extent,
+    crop: Crop,
+    level: u8,
+    detail_halo: u16,
+    ca_halo: u16,
+    dem_halo: u16,
+    lin_halo: u16,
+    period: u32,
+}
+
+/// Every stage's rows for a band (see [`BandGeometry::stages`]).
+struct StageRows {
+    balanced: std::ops::Range<u32>,
+    resampled: std::ops::Range<u32>,
+    demosaiced: std::ops::Range<u32>,
+    linear: std::ops::Range<u32>,
+    raw: std::ops::Range<u32>,
+}
+
+impl BandGeometry {
+    fn new(r: &Resolved<'_>, level: u8) -> EngineResult<Self> {
+        Ok(Self {
+            frame: r.image.level_extent(level),
+            sensor: r.sensor,
+            crop: r.crop,
+            level,
+            detail_halo: pipeline_cpu::detail_halo(&r.settings.detail),
+            ca_halo: match r.lens.and_then(|l| l.ca.as_ref()) {
+                Some(plan) => ca_halo(plan, r.sensor)?,
+                None => 0,
+            },
+            dem_halo: r.dem_halo,
+            lin_halo: r.lin_halo,
+            period: r.period,
+        })
+    }
+
+    /// The level frame the developed stages cover.
+    pub fn frame(&self) -> Extent {
+        self.frame
+    }
+
+    /// The sensor (CFA) extent the sensor stages run on.
+    pub fn sensor(&self) -> Extent {
+        self.sensor
+    }
+
+    /// The rows a band producing level-frame `rows` reads.
+    pub fn rows(&self, rows: std::ops::Range<u32>) -> BandRows {
+        let s = self.stages(rows);
+        BandRows {
+            developed: s.balanced,
+            sensor: s.raw,
+        }
+    }
+
+    fn stages(&self, rows: std::ops::Range<u32>) -> StageRows {
+        let balanced = fold_rows(rows, self.detail_halo, 1, self.frame.height);
+        let [_, top, _, h] = self.crop;
+        let scale = 1u32 << self.level;
+        let resampled = top + balanced.start * scale..top + (balanced.end * scale).min(h);
+        let demosaiced = fold_rows(resampled.clone(), self.ca_halo, 1, self.sensor.height);
+        let linear = fold_rows(
+            demosaiced.clone(),
+            self.dem_halo,
+            self.period,
+            self.sensor.height,
+        );
+        let raw = fold_rows(
+            linear.clone(),
+            self.lin_halo,
+            self.period,
+            self.sensor.height,
+        );
+        StageRows {
+            balanced,
+            resampled,
+            demosaiced,
+            linear,
+            raw,
+        }
+    }
+}
+
 impl Renderer {
+    /// How [`Renderer::render_export_rows`] bands of `image` at `level` map
+    /// back to the sensor, without GPU work: export plans its bands with it.
+    pub fn export_band_geometry(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        lens: Option<&pipeline_cpu::LensPlan>,
+    ) -> EngineResult<BandGeometry> {
+        self.validate_settings(settings)?;
+        let mut r = self.resolve(image, settings)?;
+        r.lens = lens.filter(|l| !l.is_identity());
+        BandGeometry::new(&r, level)
+    }
+
     /// Reduce full-resolution, quantized SDR output on the resident backend.
     /// None means unsupported: callers must measure full-resolution CPU output,
     /// never substitute a pyramid preview. Reuses the render's memoized stages.
@@ -343,20 +461,18 @@ impl Renderer {
     ) -> EngineResult<crate::resident::ResidentTile> {
         let frame = r.image.level_extent(level);
         let sensor = r.sensor;
-        let detail_halo = pipeline_cpu::detail_halo(&r.settings.detail);
+        let geometry = BandGeometry::new(r, level)?;
+        let detail_halo = geometry.detail_halo;
+        let ca_halo = geometry.ca_halo;
         // Rows each stage produces, from the output back to the sensor.
-        let balanced = fold_rows(rows.clone(), detail_halo, 1, frame.height);
-        let [_, top, _, h] = r.crop;
-        let scale = 1u32 << level;
-        let resampled = top + balanced.start * scale..top + (balanced.end * scale).min(h);
+        let StageRows {
+            balanced,
+            resampled,
+            demosaiced,
+            linear,
+            raw,
+        } = geometry.stages(rows.clone());
         let ca = r.lens.and_then(|l| l.ca.as_ref());
-        let ca_halo = match ca {
-            Some(plan) => ca_halo(plan, sensor)?,
-            None => 0,
-        };
-        let demosaiced = fold_rows(resampled.clone(), ca_halo, 1, sensor.height);
-        let linear = fold_rows(demosaiced.clone(), r.dem_halo, r.period, sensor.height);
-        let raw = fold_rows(linear.clone(), r.lin_halo, r.period, sensor.height);
         cancel.check()?;
         let pixels = r.image.cfa().pyramid().pixels();
         let t = batch.upload_rows(pixels, sensor.width, raw.clone())?;

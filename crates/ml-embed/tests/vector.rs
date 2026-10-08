@@ -35,30 +35,47 @@ fn auto_selects_and_promotes_only_above_fifty_thousand() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[test]
-fn hnsw_top_five_matches_exact_for_seeded_thousand_vectors() -> anyhow::Result<()> {
-    let dir = tempfile::tempdir()?;
-    let mut approximate = HnswVectorIndex::open(dir.path(), "v1", 32)?;
+/// A deterministic stream of 32-dimensional vectors (only the data is seeded:
+/// hnsw_rs draws graph levels from the OS RNG, so every run builds a different
+/// graph).
+fn lcg_vectors() -> impl FnMut() -> Vec<f32> {
     let mut seed = 0x1234_5678_u64;
-    let mut random_vector = || -> Vec<f32> {
+    move || {
         (0..32)
             .map(|_| {
                 seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
                 ((seed >> 32) as u32 as f64 / u32::MAX as f64 * 2.0 - 1.0) as f32
             })
             .collect()
-    };
+    }
+}
+
+fn thousand_vector_indexes(
+    dir: &std::path::Path,
+    random_vector: &mut impl FnMut() -> Vec<f32>,
+) -> anyhow::Result<(HnswVectorIndex, SqliteVectorIndex)> {
+    let mut approximate = HnswVectorIndex::open(dir, "v1", 32)?;
     for id in 0..1000 {
         approximate.insert(ImageId(id), &random_vector())?;
     }
-    let exact = SqliteVectorIndex::open(dir.path(), "v1", 32)?;
+    Ok((approximate, SqliteVectorIndex::open(dir, "v1", 32)?))
+}
+
+#[test]
+fn hnsw_top_five_recall_on_a_thousand_random_vectors() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut random_vector = lcg_vectors();
+    let (approximate, exact) = thousand_vector_indexes(dir.path(), &mut random_vector)?;
     for _ in 0..20 {
         let query = random_vector();
         let expected = exact.search(&query, 5)?;
         let actual = approximate.search(&query, 5)?;
         assert_eq!(actual.len(), 5);
-        assert_eq!(actual[0].0, expected[0].0);
-        // HNSW is approximate: graph construction can omit a lower-ranked neighbor.
+        // Both indexes rank the same stored vectors by the same cosine and
+        // tie-break, so the exact nearest neighbour, once found, is first.
+        // HNSW is approximate: graph construction may omit at most one
+        // lower-ranked neighbour.
+        assert_eq!(actual[0].0, expected[0].0, "{actual:?} vs {expected:?}");
         let overlap = actual
             .iter()
             .filter(|(id, _)| expected.iter().any(|(exact_id, _)| id == exact_id))
@@ -73,6 +90,50 @@ fn hnsw_top_five_matches_exact_for_seeded_thousand_vectors() -> anyhow::Result<(
             }
         }
     }
+    Ok(())
+}
+
+/// Photo embeddings are clustered (bursts, near-duplicates), the case HNSW
+/// link pruning handles worst: 200 clusters of 20 points with 5% noise, and
+/// 100 queries near random cluster centres. The exact nearest neighbour must
+/// be in the approximate top-5 for at least 96 of them (600 runs without
+/// keep_pruned: 100 in 598, 99 once, 98 once; with it: 85 to 99, below 96 in
+/// about 88% of runs).
+#[test]
+fn hnsw_recall_on_clustered_vectors() -> anyhow::Result<()> {
+    const DIMENSION: usize = 64;
+    let dir = tempfile::tempdir()?;
+    let mut seed = 0x9e37_79b9_u64;
+    let mut uniform = move || {
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        ((seed >> 32) as u32 as f64 / u32::MAX as f64 * 2.0 - 1.0) as f32
+    };
+    let centres: Vec<Vec<f32>> = (0..200)
+        .map(|_| (0..DIMENSION).map(|_| uniform()).collect())
+        .collect();
+    let mut near =
+        |centre: &[f32]| -> Vec<f32> { centre.iter().map(|c| c + 0.05 * uniform()).collect() };
+    let mut approximate = HnswVectorIndex::open(dir.path(), "v1", DIMENSION)?;
+    for (cluster, centre) in centres.iter().enumerate() {
+        for member in 0..20 {
+            approximate.insert(ImageId((cluster * 20 + member) as u128), &near(centre))?;
+        }
+    }
+    let exact = SqliteVectorIndex::open(dir.path(), "v1", DIMENSION)?;
+    let mut found = 0;
+    for query in 0..100 {
+        let query = near(&centres[(query * 37) % centres.len()]);
+        let expected = exact.search(&query, 1)?;
+        let actual = approximate.search(&query, 5)?;
+        if actual.iter().any(|(id, _)| *id == expected[0].0) {
+            found += 1;
+        }
+    }
+    eprintln!("clustered recall: exact top-1 in the top-5 for {found} of 100 queries");
+    assert!(
+        found >= 96,
+        "exact top-1 in the top-5 for {found} of 100 queries"
+    );
     Ok(())
 }
 

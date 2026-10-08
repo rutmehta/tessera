@@ -3,10 +3,32 @@ import Foundation
 import XCTest
 @testable import TesseraCore
 
-/// Opt-in real bridge qualification; no NSApplication, window, or GUI harness.
-/// Every write targets a disposable photo COPY or its isolated support directory.
+/// Real bridge qualification on the repository's Sony ARW fixture
+/// (`fixtures/raw/sony-arw.ARW`; `TESSERA_SMART_PREVIEW_RAW` overrides it); no
+/// NSApplication, window, or GUI harness. Every write targets a disposable photo
+/// COPY or its isolated support directory.
 @MainActor
 final class SmartPreviewNativeWorkflowTests: XCTestCase {
+    /// `TESSERA_SMART_PREVIEW_RAW` when set, else the repository's Sony ARW fixture.
+    /// Absence skips visibly, or fails when `TESSERA_REQUIRE_RAW_FIXTURES` is set.
+    private func sonyFixture() throws -> URL {
+        let environment = ProcessInfo.processInfo.environment
+        if let path = environment["TESSERA_SMART_PREVIEW_RAW"], !path.isEmpty {
+            return URL(fileURLWithPath: path)
+        }
+        let fixture = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("../../fixtures/raw/sony-arw.ARW").standardizedFileURL
+        if FileManager.default.fileExists(atPath: fixture.path) { return fixture }
+        let reason = "fixtures/raw/sony-arw.ARW is absent (run fixtures/fetch.sh or set TESSERA_SMART_PREVIEW_RAW)"
+        if environment["TESSERA_REQUIRE_RAW_FIXTURES"] != nil {
+            struct MissingFixture: Error {}
+            XCTFail("\(reason); TESSERA_REQUIRE_RAW_FIXTURES is set")
+            throw MissingFixture()
+        }
+        throw XCTSkip(reason)
+    }
+
     private func sha256(_ url: URL) throws -> String {
         let file = try FileHandle(forReadingFrom: url)
         defer { try? file.close() }
@@ -63,7 +85,7 @@ final class SmartPreviewNativeWorkflowTests: XCTestCase {
         XCTAssertEqual(built.state, .ready)
         XCTAssertFalse(built.dirty)
         XCTAssertTrue(built.originalAvailable)
-        // This opt-in qualification targets the existing Sony ARW fixture.
+        // This qualification targets the repository's Sony ARW fixture.
         XCTAssertEqual(built.width, 1640)
         XCTAssertEqual(built.height, 1092)
         return (canonical, imageID)
@@ -101,10 +123,7 @@ final class SmartPreviewNativeWorkflowTests: XCTestCase {
 
     /// Separate acceptance check: a failure here must not mask the Develop workflow.
     func testActualCachedThumbnailAfterOriginalDisconnect() async throws {
-        guard let path = ProcessInfo.processInfo.environment["TESSERA_SMART_PREVIEW_RAW"], !path.isEmpty else {
-            throw XCTSkip("Set TESSERA_SMART_PREVIEW_RAW to the existing read-only Sony ARW fixture")
-        }
-        let fixture = URL(fileURLWithPath: path)
+        let fixture = try sonyFixture()
         let sourceHash = try sha256(fixture)
         defer { XCTAssertEqual(try? sha256(fixture), sourceHash) }
         let fm = FileManager.default
@@ -155,10 +174,7 @@ final class SmartPreviewNativeWorkflowTests: XCTestCase {
     }
 
     func testActualSwiftBridgeOfflineLibraryRenderSaveReopenAndReconnect() async throws {
-        guard let path = ProcessInfo.processInfo.environment["TESSERA_SMART_PREVIEW_RAW"], !path.isEmpty else {
-            throw XCTSkip("Set TESSERA_SMART_PREVIEW_RAW to the existing read-only Sony ARW fixture")
-        }
-        let fixture = URL(fileURLWithPath: path)
+        let fixture = try sonyFixture()
         let sourceHash = try sha256(fixture)
         XCTAssertEqual(sourceHash, "bf4c6d21136aa4fd626212fe72b962b6404e3fca45cdc3b6afbed8e73fee2cf8")
         defer { XCTAssertEqual(try? sha256(fixture), sourceHash, "Source fixture must remain byte-identical") }

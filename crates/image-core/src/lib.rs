@@ -48,7 +48,8 @@ pub use cache::{CacheStats, TileCache};
 pub use graph::{PipelineGraph, StageNode};
 pub use ops::{CountingStageOp, CpuStageOp, Op, StageOp};
 pub use render::{
-    Headroom, PixelRect, ProgressiveRenderJob, RenderOutput, Renderer, RendererConfig, Viewport,
+    BandGeometry, BandRows, Headroom, PixelRect, ProgressiveRenderJob, RenderOutput, Renderer,
+    RendererConfig, Viewport,
 };
 pub use source::RawImage;
 

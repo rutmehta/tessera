@@ -74,6 +74,7 @@ mod cfa_render;
 mod denoise_render;
 #[path = "resident_render.rs"]
 mod resident_render;
+pub use resident_render::{BandGeometry, BandRows};
 #[path = "rgb_render.rs"]
 mod rgb_render;
 #[path = "smart_preview_render.rs"]

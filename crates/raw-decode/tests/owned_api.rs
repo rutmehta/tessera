@@ -7,22 +7,32 @@ fn documented_owned_api_typechecks_downstream() {
     let _ = positive::use_owner;
 }
 
+/// Public API only. `TESSERA_CAPTURED_CFA_FIXTURES` overrides the fixture
+/// directory (an explicit inventory, where a missing file fails); otherwise
+/// `test_fixtures::raw::root()` (absence is a visible SKIPPED, or a failure
+/// under `TESSERA_REQUIRE_RAW_FIXTURES`).
 #[test]
-#[ignore = "requires explicit five-family TESSERA_CAPTURED_CFA_FIXTURES; public API only"]
 fn external_owned_api_five_families_survive_capture_cleanup() {
     use engine_api::{jobs::CancellationToken, pinned_raw::PinnedRawDecoderRoute};
     use raw_decode::capture::{CaptureLimits, CapturePool};
-    let directory = std::path::PathBuf::from(
-        std::env::var_os("TESSERA_CAPTURED_CFA_FIXTURES")
-            .expect("explicit fixture inventory required"),
-    );
-    for (name, suffix) in [
+    const FAMILIES: [(&str, &str); 5] = [
         ("sony-arw.ARW", "arw"),
         ("fuji-raf.RAF", "raf"),
         ("nikon-nef.NEF", "nef"),
         ("canon-cr3.CR3", "cr3"),
         ("sample.dng", "dng"),
-    ] {
+    ];
+    let directory = match std::env::var_os("TESSERA_CAPTURED_CFA_FIXTURES") {
+        Some(directory) => std::path::PathBuf::from(directory),
+        None => {
+            let names = FAMILIES.map(|(name, _)| name);
+            if test_fixtures::raw::files(&test_fixtures::current_test(), &names).is_none() {
+                return;
+            }
+            test_fixtures::raw::root()
+        }
+    };
+    for (name, suffix) in FAMILIES {
         let original = directory.join(name);
         assert!(original.is_file(), "missing {name}");
         let root = tempfile::tempdir().unwrap();

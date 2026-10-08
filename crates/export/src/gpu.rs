@@ -120,13 +120,49 @@ pub(crate) fn render_resized(
     render_with_lens(image, recipe, space, scale, cancel, budget, resize, None)
 }
 
-/// Band renderer scratch per developed pixel of a band at level L: the
-/// level-L stages plus the full-resolution sensor stages (raw, highlights,
-/// demosaic, lateral CA) of its 4^L sensor pixels, and the readback. Fresh
-/// allocations measured 135–140 B/px at level 0 and about 245 B/px at level 1
-/// on the five fixtures (`TESSERA_EXPORT_TRACE=1` prints them per band).
-fn band_bytes_per_pixel(level: u8) -> usize {
-    150 + 40 * ((1usize << (2 * level)) - 1)
+// Band renderer scratch, fitted to the per-band allocations
+// `TESSERA_EXPORT_TRACE=1` prints on the five fixtures (ENG-12b): the worst
+// band of each camera, full chain at level 0, gives 25.1 B per sensor pixel
+// and 95.6 B per developed pixel besides the readback; the CR3 (sensor 6288
+// wide, developed 4000) separates the two. Planned bands keep
+// [`BAND_MARGIN_DIVISOR`] of headroom below their share.
+/// Per uploaded sensor pixel: the sensor-domain stages (raw upload and
+/// gathers, highlights, demosaic, lateral CA), which run at the CFA width over
+/// the band's sensor rows with all their halos.
+const SENSOR_BYTES_PER_PIXEL: usize = 26;
+/// Per developed pixel (level-frame rows with the Detail halo): resample,
+/// matrices, vignette, Detail, Tone/Color/Effects.
+const DEVELOPED_BYTES_PER_PIXEL: usize = 96;
+/// Per output pixel: the interleaved RGB readback buffer and its staging copy.
+const READBACK_BYTES_PER_PIXEL: usize = 24;
+/// Per output pixel with the export resize: its RGB output as well.
+const RESIZED_READBACK_BYTES_PER_PIXEL: usize = 36;
+/// Per developed pixel with the export resize: the copy of the developed band
+/// and the resampler's intermediate rows (fitted: 25 to 31 B measured at full
+/// resolution).
+const RESIZE_SOURCE_BYTES_PER_PIXEL: usize = 32;
+/// A band's planned scratch plus 1/20 (5%) must fit its share.
+const BAND_MARGIN_DIVISOR: usize = 20;
+
+/// A band's planned scratch (see the constants above), in bytes.
+#[derive(Clone, Copy, Debug)]
+struct BandCost {
+    sensor: usize,
+    developed: usize,
+    mapped: usize,
+    /// The readback, and the export resize when there is one.
+    readback: usize,
+}
+
+impl BandCost {
+    fn total(&self) -> usize {
+        self.sensor + self.developed + self.mapped + self.readback
+    }
+
+    fn fits(&self, share: usize) -> bool {
+        let total = self.total();
+        total.saturating_add(total / BAND_MARGIN_DIVISOR) <= share
+    }
 }
 /// The map's mapped band and its display copy, per output pixel.
 const MAP_BYTES_PER_PIXEL: usize = 48;
@@ -381,7 +417,13 @@ fn render_bands(
     // fits this band's share of the budget.
     let share = (job.budget / in_flight).max(1);
     let developed = job.raw.level_extent(job.level);
-    let per_pixel = band_bytes_per_pixel(job.level);
+    let geometry = base.export_band_geometry(job.raw, job.settings, job.level, Some(job.lens))?;
+    let sensor_width = geometry.sensor().width as usize;
+    let readback_per_pixel = if resizing {
+        RESIZED_READBACK_BYTES_PER_PIXEL
+    } else {
+        READBACK_BYTES_PER_PIXEL
+    };
     let source_rows = |top: u32, rows: u32| -> EngineResult<std::ops::Range<u32>> {
         if resizing {
             let rect = pipeline_gpu::ExportResize {
@@ -409,30 +451,46 @@ fn render_bands(
             })
             .collect()
     });
-    let developed_rows = |rows: std::ops::Range<u32>| -> usize {
+    let developed_rows = |rows: std::ops::Range<u32>| -> std::ops::Range<u32> {
         match &blocks {
             Some(blocks) => {
                 let span = &blocks[(rows.start / BLOCK) as usize
                     ..(rows.end.div_ceil(BLOCK) as usize).min(blocks.len())];
                 let first = span.iter().map(|b| b.0).min().unwrap_or(0);
                 let end = span.iter().map(|b| b.1).max().unwrap_or(0);
-                end.saturating_sub(first) as usize
+                first..end.max(first)
             }
-            None => rows.len(),
+            None => rows,
         }
     };
-    let fits = |top: u32, rows: u32| -> EngineResult<bool> {
+    // Sensor stages are charged per sensor pixel (CFA width, halo rows), the
+    // rest per developed and output pixel: a default crop much narrower than
+    // the sensor (the CR3 fixture: 6288 wide, developed 4000) costs more than
+    // its developed size suggests.
+    let cost = |top: u32, rows: u32| -> EngineResult<(BandCost, usize)> {
         let source = source_rows(top, rows)?;
         let developed_rows = developed_rows(source.clone());
-        let mapped = if blocks.is_some() {
-            source.len() * frame.width as usize * MAP_BYTES_PER_PIXEL
-        } else {
-            0
+        let band = geometry.rows(developed_rows.clone());
+        let cost = BandCost {
+            sensor: band.sensor.len() * sensor_width * SENSOR_BYTES_PER_PIXEL,
+            developed: band.developed.len() * developed.width as usize * DEVELOPED_BYTES_PER_PIXEL,
+            mapped: if blocks.is_some() {
+                source.len() * frame.width as usize * MAP_BYTES_PER_PIXEL
+            } else {
+                0
+            },
+            readback: rows as usize * destination.width as usize * readback_per_pixel
+                + if resizing {
+                    band.developed.len() * developed.width as usize * RESIZE_SOURCE_BYTES_PER_PIXEL
+                } else {
+                    0
+                },
         };
-        Ok(
-            developed_rows * developed.width as usize * per_pixel + mapped <= share
-                && developed_rows * developed.width as usize <= MAX_BAND_PIXELS,
-        )
+        Ok((cost, developed_rows.len() * developed.width as usize))
+    };
+    let fits = |top: u32, rows: u32| -> EngineResult<bool> {
+        let (cost, pixels) = cost(top, rows)?;
+        Ok(cost.fits(share) && pixels <= MAX_BAND_PIXELS)
     };
     // Greedy bands: each takes the most output rows (a multiple of 16) that
     // still fits, so bands where the map spreads rows (edges of a distortion
@@ -443,6 +501,18 @@ fn render_bands(
         let left = destination.height - top;
         let (mut lo, mut hi) = (1u32, left.div_ceil(16));
         if !fits(top, 16.min(left))? {
+            // Decline at plan time, before any band renders, when even the
+            // smallest band exceeds the scratch each band renderer is given
+            // (`budget` only sizes bands: tests pass tiny ones).
+            let (smallest, _) = cost(top, 16.min(left))?;
+            if !smallest.fits(BUDGET / in_flight) {
+                trace_note(&format!(
+                    "band plan: rows {top}.. need {} B, over the {} B band scratch; pyramid tiles",
+                    smallest.total(),
+                    BUDGET / in_flight
+                ));
+                return Ok(None);
+            }
             hi = 1;
         }
         while lo < hi {
@@ -523,16 +593,32 @@ fn render_bands(
             }
             if std::env::var_os("TESSERA_EXPORT_TRACE").is_some() {
                 let stats = renderer.stats();
+                let (planned, _) = cost(top, rows)?;
+                let band = geometry.rows(developed_rows(source.clone()));
+                // The readback staging copy is allocated after the scratch.
+                let staging = rows as u64 * u64::from(destination.width) * 12;
+                let mib = |b: u64| b as f64 / (1 << 20) as f64;
                 eprintln!(
-                    "EXPORT_TRACE band rows={}..{} yielded={:.1} ms render={:.1} ms scratch={:.1} MiB ({:.0} B/px) dispatches={}",
+                    "EXPORT_TRACE band rows={}..{} yielded={:.1} ms render={:.1} ms scratch={:.1} MiB ({:.0} B/px) dispatches={} \
+                     actual={:.2} MiB planned={:.2} MiB (sensor {}x{} {:.2}, developed {}x{} {:.2}, mapped {:.2}, readback {:.2})",
                     source.start,
                     source.end,
                     yielded.as_secs_f64() * 1e3,
                     band_started.elapsed().as_secs_f64() * 1e3,
-                    stats.last_resident_allocated_bytes as f64 / (1 << 20) as f64,
+                    mib(stats.last_resident_allocated_bytes),
                     stats.last_resident_allocated_bytes as f64
                         / (f64::from(frame.width) * f64::from(source.end - source.start)),
-                    stats.last_resident_dispatches
+                    stats.last_resident_dispatches,
+                    mib(stats.last_resident_allocated_bytes + staging),
+                    mib(planned.total() as u64),
+                    sensor_width,
+                    band.sensor.len(),
+                    mib(planned.sensor as u64),
+                    developed.width,
+                    band.developed.len(),
+                    mib(planned.developed as u64),
+                    mib(planned.mapped as u64),
+                    mib(planned.readback as u64),
                 );
             }
         }
@@ -887,20 +973,28 @@ mod tests {
         }
     }
 
-    #[test]
-    #[ignore = "full-chain precision on all five real RAW fixtures"]
-    fn five_fixture_full_chain_tolerance() {
-        let root = std::path::PathBuf::from(
-            std::env::var_os("PIPELINE_RAW_FIXTURES").expect("fixture directory required"),
-        );
-        for name in [
+    /// The five camera fixtures (`test_fixtures::raw::root()`), with their
+    /// file names; `None` after a visible SKIPPED (a failure under
+    /// `TESSERA_REQUIRE_RAW_FIXTURES`).
+    fn five_fixtures() -> Option<Vec<(&'static str, std::path::PathBuf)>> {
+        const NAMES: [&str; 5] = [
             "canon-cr3.CR3",
             "sony-arw.ARW",
             "nikon-nef.NEF",
             "fuji-raf.RAF",
             "sample.dng",
-        ] {
-            let raw = RawImage::open(ImageId(1), root.join(name)).unwrap();
+        ];
+        let paths = test_fixtures::raw::files(&test_fixtures::current_test(), &NAMES)?;
+        Some(NAMES.into_iter().zip(paths).collect())
+    }
+
+    #[test]
+    fn five_fixture_full_chain_tolerance() {
+        let Some(fixtures) = five_fixtures() else {
+            return;
+        };
+        for (name, path) in fixtures {
+            let raw = RawImage::open(ImageId(1), &path).unwrap();
             let image = ExportImage {
                 source: RenderSource::Cfa {
                     image: raw.cfa(),
@@ -1235,22 +1329,15 @@ mod tests {
     /// the full-chain tolerance; the pyramid-level (Web-scale) development is
     /// measured and reported.
     #[test]
-    #[ignore = "Web-scale precision on all five real RAW fixtures"]
     fn five_fixture_web_scale_tolerance() {
-        let root = std::path::PathBuf::from(
-            std::env::var_os("PIPELINE_RAW_FIXTURES").expect("fixture directory required"),
-        );
+        let Some(fixtures) = five_fixtures() else {
+            return;
+        };
         let mode = crate::Resize::LongEdge(2048);
         let cancel = CancellationToken::new();
         let mut failures = Vec::new();
-        for name in [
-            "canon-cr3.CR3",
-            "sony-arw.ARW",
-            "nikon-nef.NEF",
-            "fuji-raf.RAF",
-            "sample.dng",
-        ] {
-            let raw = RawImage::open(ImageId(1), root.join(name)).unwrap();
+        for (name, path) in fixtures {
+            let raw = RawImage::open(ImageId(1), &path).unwrap();
             let image = ExportImage {
                 source: RenderSource::Cfa {
                     image: raw.cfa(),
