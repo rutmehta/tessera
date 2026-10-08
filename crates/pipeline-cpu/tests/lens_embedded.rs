@@ -124,6 +124,7 @@ fn metadata(bytes: Vec<u8>) -> RawMetadata {
         has_gain_map: false,
         has_opcode_list: true,
         opcode_lists: [None, None, Some(bytes)],
+        maker_lens: None,
     }
 }
 #[test]

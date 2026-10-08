@@ -356,6 +356,7 @@ fn synthetic_raw(id: u128, width: u32, height: u32) -> image_core::RawImage {
         default_crop: [0, 0, width, height],
         has_gain_map: false,
         has_opcode_list: false,
+        maker_lens: None,
     };
     image_core::RawImage::new(
         engine_api::id::ImageId(id),

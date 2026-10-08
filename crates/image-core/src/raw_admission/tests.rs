@@ -84,6 +84,7 @@ fn decoded() -> DecodedCapturedCfa {
             has_gain_map: false,
             has_opcode_list: false,
             opcode_lists: [None, None, None],
+            maker_lens: None,
         },
         identity: CapturedAssetIdentity {
             digest: Digest::derive("synthetic only", b"not authenticated"),

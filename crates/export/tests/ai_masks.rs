@@ -256,6 +256,7 @@ fn metadata() -> raw_decode::RawMetadata {
         has_gain_map: false,
         has_opcode_list: false,
         opcode_lists: [None, None, None],
+        maker_lens: None,
     }
 }
 

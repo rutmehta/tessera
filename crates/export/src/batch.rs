@@ -399,6 +399,7 @@ mod tests {
             has_gain_map: false,
             has_opcode_list: false,
             opcode_lists: [None, None, None],
+            maker_lens: None,
         };
         let recipe = Recipe {
             process_version: process,

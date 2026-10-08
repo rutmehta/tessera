@@ -53,6 +53,7 @@ pub fn metadata(width: u32, height: u32, cfa: CfaLayout, crop: [u32; 4]) -> RawM
         default_crop: crop,
         has_gain_map: false,
         has_opcode_list: false,
+        maker_lens: None,
     }
 }
 

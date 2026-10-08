@@ -165,6 +165,7 @@ fn metadata(opcodes: Option<Vec<u8>>, lens: Option<&str>) -> RawMetadata {
         has_gain_map: false,
         has_opcode_list: opcodes.is_some(),
         opcode_lists: [None, None, opcodes],
+        maker_lens: None,
     }
 }
 

@@ -38,6 +38,7 @@ fn demosaic_preserves_camera_space_and_crops_active_area() {
         has_gain_map: false,
         has_opcode_list: false,
         opcode_lists: [None, None, None],
+        maker_lens: None,
     };
     let out = from_cfa(&plane, &m).unwrap();
     assert_eq!((out.width, out.height), (4, 4));

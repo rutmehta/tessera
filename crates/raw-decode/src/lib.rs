@@ -6,6 +6,9 @@ pub mod capture;
 pub mod dng;
 pub mod linear_dng;
 pub mod lossy_dng;
+pub mod maker_lens;
+
+pub use maker_lens::{FujifilmLens, MakerLens};
 
 use engine_api::{
     EngineError, EngineResult,
@@ -53,8 +56,12 @@ pub struct RawMetadata {
     pub has_gain_map: bool,
     pub has_opcode_list: bool,
     /// Owned raw OpcodeList1/2/3 bytes for the LibRaw-selected image IFD.
-    /// Absence is not an identity calibration; proprietary maker-note corrections are not exposed.
+    /// Absence is not an identity calibration.
     pub opcode_lists: [Option<Vec<u8>>; 3],
+    /// The camera's built-in lens correction from proprietary maker notes
+    /// (ENG-8): applied like opcode corrections, in every lens mode. Only read
+    /// for native raws; DNG opcode lists take precedence when both exist.
+    pub maker_lens: Option<MakerLens>,
 }
 
 impl From<FfiMetadata> for RawMetadata {
@@ -88,6 +95,7 @@ impl From<FfiMetadata> for RawMetadata {
             has_gain_map: m.has_gain_map,
             has_opcode_list: m.has_opcode_list,
             opcode_lists: m.opcode_lists,
+            maker_lens: None,
         }
     }
 }
@@ -187,14 +195,22 @@ impl Pyramid for CfaPyramid {
 pub struct RawSource {
     path: PathBuf,
     raw: RawFile,
+    maker_lens: Option<MakerLens>,
 }
 
 impl RawSource {
     pub fn open(path: impl AsRef<Path>) -> EngineResult<Self> {
         let raw = RawFile::open(&path).map_err(|e| decode_error(e.to_string()))?;
+        // Maker-note corrections are optional data: an unreadable or malformed
+        // block applies no correction and never fails the decode.
+        let maker_lens = std::fs::File::open(&path)
+            .ok()
+            .and_then(|f| maker_lens::extract_raf_lens(&mut std::io::BufReader::new(f)).ok())
+            .flatten();
         Ok(Self {
             path: path.as_ref().to_path_buf(),
             raw,
+            maker_lens,
         })
     }
 
@@ -212,6 +228,7 @@ impl RawSource {
         metadata.rgb_cam = image.rgb_cam;
         metadata.default_crop = image.crop;
         metadata.baseline_exposure = self.raw.baseline_exposure();
+        metadata.maker_lens = self.maker_lens.clone();
         metadata
     }
 

@@ -179,6 +179,7 @@ impl Metadata {
                 Cfa::Bayer(p) => CfaLayout::Bayer(p),
                 Cfa::XTrans(p) => CfaLayout::XTrans(p),
             },
+            maker_lens: None,
         };
         let [x, y, w, h] = m.default_crop;
         if w == 0
@@ -684,6 +685,7 @@ mod tests {
             has_gain_map: false,
             has_opcode_list: false,
             opcode_lists: [None, None, None],
+            maker_lens: None,
         };
         let s = DevelopSettings::default();
         CameraLinearProxy {
