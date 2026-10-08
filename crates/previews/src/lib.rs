@@ -278,27 +278,31 @@ mod tests {
     use super::*;
     /// ENG-7b: renders cached before the default lens mode stopped applying
     /// image-estimated distortion (render epoch 1: unprefixed directories)
-    /// must not be served. Only the on-disk location changes; key equality,
-    /// `recipe_hash` and every key constructor are untouched.
+    /// must not be served. ENG-8: neither may renders from before maker-note
+    /// built-in corrections (epoch 2). Only the on-disk location changes; key
+    /// equality, `recipe_hash` and every key constructor are untouched.
     #[test]
     fn previews_cached_under_an_earlier_render_epoch_miss() {
         let dir = tempfile::tempdir().unwrap();
         let k = PreviewKey::new(b"epoch", 1, [3; 32]);
-        let legacy = format!(
+        let name = format!(
             "{}-{}-{}",
             hex(&k.file_hash),
             k.orientation,
             hex(&k.recipe_hash)
         );
-        for level in Level::ALL {
-            let d = dir.path().join(&legacy);
-            fs::create_dir_all(&d).unwrap();
-            fs::write(d.join(format!("{}.jpg", level.divisor())), [7; 16]).unwrap();
+        let earlier = [name.clone(), format!("e2-{name}")];
+        for legacy in &earlier {
+            for level in Level::ALL {
+                let d = dir.path().join(legacy);
+                fs::create_dir_all(&d).unwrap();
+                fs::write(d.join(format!("{}.jpg", level.divisor())), [7; 16]).unwrap();
+            }
         }
         let s = PreviewStore::new(dir.path(), u64::MAX).unwrap();
-        assert_ne!(k.directory(), legacy);
+        assert!(!earlier.contains(&k.directory()));
         assert!(k.directory().starts_with(&format!("e{RENDER_EPOCH}-")));
-        const { assert!(RENDER_EPOCH >= 2) };
+        const { assert!(RENDER_EPOCH >= 3) };
         for level in Level::ALL {
             assert!(
                 s.get(&k, level).is_none(),
@@ -316,7 +320,7 @@ mod tests {
                 .directory()
                 .starts_with(&format!("e{RENDER_EPOCH}-"))
         );
-        assert_eq!(revision::REVISION_DOMAIN, b"tessera-preview-revision-v2\0");
+        assert_eq!(revision::REVISION_DOMAIN, b"tessera-preview-revision-v3\0");
     }
     #[test]
     fn restart_recovers_cap_and_abandoned_writes() {
