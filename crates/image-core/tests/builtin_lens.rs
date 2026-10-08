@@ -121,3 +121,77 @@ fn profile_none_level3_preview_matches_reference_with_built_in_opcodes() {
     assert_eq!(engine, level(&with, &embedded, 3));
     assert_ne!(engine, level(&without, &s, 3));
 }
+
+/// One DNG WarpRectilinear opcode (OpcodeList3), one plane, kr1 = 0.04.
+fn warp_opcode() -> Vec<u8> {
+    let mut b = Vec::new();
+    // count, id 1, version 1.3, flags, length = 4 + 48 + 16, planes
+    for x in [1_u32, 1, 0x01030000, 0, 68, 1] {
+        b.extend(x.to_be_bytes());
+    }
+    for x in [1.0_f64, 0.04, 0., 0., 0., 0., 0.5, 0.5] {
+        b.extend(x.to_be_bytes());
+    }
+    b
+}
+
+/// REV2-ENG-8: Develop applies an opcode stage warp (which runs before the
+/// local adjustments) for a raw whose metadata carries one, also when the
+/// metadata was attached to existing samples with `with_metadata`. Before
+/// ENG-8c Develop's prefix zeroed `distortion_scale` to defer the common
+/// warp, which also removed opcode stage warps (engine = unwarped, 1.25 off
+/// the reference).
+#[test]
+fn develop_applies_opcode_stage_warps_from_metadata() {
+    let mut s = DevelopSettings::default();
+    s.lens.profile = LensProfileSource::None;
+    let plain = image(2305, false);
+    let mut m = plain.metadata().clone();
+    m.has_opcode_list = true;
+    m.opcode_lists = [None, None, Some(warp_opcode())];
+    let warped = plain.with_metadata(ImageId(2306), Arc::new(m)).unwrap();
+    let reference = pipeline_cpu::render_linear_scaled(
+        &s,
+        &RenderSource::Cfa {
+            image: warped.cfa(),
+            metadata: warped.metadata(),
+        },
+        1,
+    )
+    .unwrap()
+    .planes()
+    .concat();
+    let engine = linear(&warped, &s);
+    let diff = engine
+        .iter()
+        .zip(&reference)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0f32, f32::max);
+    assert_eq!(diff, 0.0, "engine differs from the reference by {diff:e}");
+    let unwarped = linear(&plain, &s);
+    let moved = engine
+        .iter()
+        .zip(&unwarped)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0f32, f32::max);
+    assert!(moved > 1e-3, "the opcode warp was not applied ({moved:e})");
+    // Level 2 too (the interactive path).
+    let e = warped.level_extent(2);
+    let a = Renderer::new(RendererConfig::default())
+        .render_region_as(
+            &warped,
+            &s,
+            2,
+            PixelRect::full(e),
+            RenderOutput::SceneLinear,
+        )
+        .unwrap();
+    let b = Renderer::new(RendererConfig::default())
+        .render_region_as(&plain, &s, 2, PixelRect::full(e), RenderOutput::SceneLinear)
+        .unwrap();
+    assert_ne!(
+        assemble_f32(e, &a),
+        assemble_f32(e, &b),
+        "L2 skipped the opcode warp"
+    );
+}

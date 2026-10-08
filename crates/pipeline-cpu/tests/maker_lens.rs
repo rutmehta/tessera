@@ -2,9 +2,11 @@
 //!
 //! Lightroom applies a Fujifilm X-series camera's built-in distortion,
 //! vignetting and lateral CA correction whatever the profile setting, like a
-//! DNG opcode correction. Tessera represents it as a calibration sample with
-//! source `MakerNote`, resolved in every mode that applies built-in
-//! corrections (ENG-7b).
+//! DNG opcode correction. Since ENG-8c Tessera applies it exactly like one:
+//! in the raw prefix (camera RGB, where DNG opcode stages run), so local
+//! adjustments, masks, prompts, crop and Upright all work in the corrected,
+//! displayed frame. It resolves as the `Embedded` built-in source in every
+//! mode that applies built-in corrections (ENG-7b).
 //!
 //! Independent references:
 //! - the Fujifilm spline model as darktable implements it (`src/iop/lens.cc`
@@ -219,9 +221,8 @@ fn maker_note_sample_matches_the_darktable_spline_model() {
         ("synthetic barrel 1.25x", barrel()),
     ] {
         let m = metadata(Some(f.clone()), None);
-        let r = resolve(&settings(LensProfileSource::Auto), &m);
-        assert_eq!(r.source(), CorrectionSource::MakerNote, "{name}");
-        let sample = r.sample().expect("maker-note sample");
+        let fitted = pipeline_cpu::maker_note_sample(&m).expect("maker-note model");
+        let sample = &fitted;
         let (max, rms, ca) = geometry_error(&f, sample);
         eprintln!("{name}: geometry max {max:.3} px rms {rms:.3} px, CA max {ca:.3} px");
         assert!(
@@ -261,7 +262,6 @@ fn maker_note_sample_matches_the_darktable_spline_model() {
 #[test]
 fn maker_note_correction_applies_in_every_built_in_mode() {
     let m = metadata(Some(xe2s()), None);
-    let reference = resolve(&settings(LensProfileSource::Auto), &m);
     for profile in [
         LensProfileSource::Auto,
         LensProfileSource::None,
@@ -269,12 +269,13 @@ fn maker_note_correction_applies_in_every_built_in_mode() {
         named("Fujifilm XF18-55mm (not installed)"),
     ] {
         let r = resolve(&settings(profile.clone()), &m);
-        assert_eq!(r.source(), CorrectionSource::MakerNote, "{profile:?}");
-        assert_eq!(r.sample(), reference.sample(), "{profile:?}");
+        // ENG-8c: a raw-prefix built-in correction, like DNG opcodes.
+        assert_eq!(r.source(), CorrectionSource::Embedded, "{profile:?}");
+        assert!(r.sample().is_none(), "{profile:?}: no post-local sample");
     }
     // The explicit estimate opt-in keeps its own source.
     let r = resolve(&settings(LensProfileSource::AutoCalibrated), &m);
-    assert_ne!(r.source(), CorrectionSource::MakerNote);
+    assert_ne!(r.source(), CorrectionSource::Embedded);
     // An available profile is the user's explicit choice.
     let profile = Profile {
         maker: "test".into(),
@@ -313,15 +314,50 @@ fn vignette_opcode() -> Vec<u8> {
     b
 }
 
+/// A small raw (64x48, Bayer) for render comparisons.
+fn small(
+    lens: Option<FujifilmLens>,
+    opcodes: Option<Vec<u8>>,
+) -> (raw_decode::CfaImage, RawMetadata) {
+    let mut m = metadata(lens, opcodes);
+    m.width = 64;
+    m.height = 48;
+    m.default_crop = [0, 0, 64, 48];
+    let cfa = raw_decode::CfaImage::from_linear(
+        64,
+        48,
+        (0..64 * 48)
+            .map(|i| 0.05 + 0.4 * (((i % 64) / 6 + (i / 64) / 6) % 2) as f32)
+            .collect(),
+    )
+    .unwrap();
+    (cfa, m)
+}
+
 #[test]
 fn dng_opcodes_take_precedence_and_are_never_combined() {
     let m = metadata(Some(xe2s()), Some(vignette_opcode()));
     let r = resolve(&settings(LensProfileSource::None), &m);
     assert_eq!(r.source(), CorrectionSource::Embedded);
-    assert!(
-        r.sample().is_none(),
-        "maker-note sample applied on top of opcodes"
-    );
+    assert!(r.sample().is_none());
+    // The maker-note correction is not applied on top of the opcodes.
+    let render = |lens, opcodes| {
+        let (cfa, m) = small(lens, opcodes);
+        render_linear_scaled(
+            &settings(LensProfileSource::None),
+            &RenderSource::Cfa {
+                image: &cfa,
+                metadata: &m,
+            },
+            1,
+        )
+        .unwrap()
+    };
+    let both = render(Some(barrel()), Some(vignette_opcode()));
+    let opcodes = render(None, Some(vignette_opcode()));
+    let maker = render(Some(barrel()), None);
+    assert_eq!(both.planes(), opcodes.planes());
+    assert_ne!(maker.planes(), opcodes.planes());
 }
 
 #[test]
@@ -331,13 +367,22 @@ fn built_in_ca_applies_whatever_the_remove_ca_switch() {
         let mut s = settings(LensProfileSource::Auto);
         s.lens.remove_chromatic_aberration = remove;
         let r = resolve(&s, &m);
+        // ENG-8c: the whole correction is one raw-prefix resample, which the
+        // resident plan carries as its sensor-frame stage.
         let plan = r.plan(&s, &m).unwrap().expect("resident plan");
-        assert!(plan.ca.is_some(), "remove CA {remove}: built-in CA dropped");
-        assert!(plan.vignette.is_some() && plan.map.is_some());
-        // A zero CA amount still disables it, as for opcode warps.
+        let maker = plan.ca.as_ref().and_then(|c| c.maker.as_ref());
+        let maker = maker.expect("built-in prefix stage");
+        assert_eq!(
+            maker.ca_amount, 1.,
+            "remove CA {remove}: built-in CA dropped"
+        );
+        assert_eq!((maker.distortion_amount, maker.vignette_amount), (1., 1.));
+        // Nothing of it is left for the post-local stages.
+        assert!(plan.vignette.is_none() && plan.map.is_none());
+        // A zero CA amount still disables its CA, as for opcode warps.
         s.lens.chromatic_aberration_scale = 0.;
         let plan = r.plan(&s, &m).unwrap().unwrap();
-        assert!(plan.ca.is_none());
+        assert_eq!(plan.ca.unwrap().maker.unwrap().ca_amount, 0.);
     }
 }
 
@@ -382,12 +427,11 @@ fn raw_fixtures_apply_maker_note_corrections_where_present() {
         let r_none = resolve_lens_sensor(plane, &metadata, &none, &ctx).unwrap();
         assert_eq!(r_auto.source(), r_none.source(), "{name}");
         if metadata.maker_lens.is_none() {
-            assert_ne!(r_auto.source(), CorrectionSource::MakerNote, "{name}");
             continue;
         }
         corrected += 1;
-        assert_eq!(r_auto.source(), CorrectionSource::MakerNote, "{name}");
-        assert_eq!(r_auto.sample(), r_none.sample(), "{name}");
+        assert_eq!(r_auto.source(), CorrectionSource::Embedded, "{name}");
+        assert!(r_auto.sample().is_none(), "{name}");
         let src = RenderSource::Cfa {
             image: &cfa,
             metadata: &metadata,
@@ -625,8 +669,9 @@ fn raf_correction_matches_the_cameras_embedded_jpeg_geometry() {
 /// in the raw prefix, before the locals, and stays.
 #[test]
 fn mask_segmentation_settings_leave_out_post_local_warps_only() {
+    // ENG-8c: the maker-note warp runs in the raw prefix, before the locals.
     let s = pipeline_cpu::mask_segmentation_settings(Some(&metadata(Some(xe2s()), None)));
-    assert_eq!(s.lens.distortion_scale, 0.);
+    assert_eq!(s.lens.distortion_scale, 100.);
     let s = pipeline_cpu::mask_segmentation_settings(Some(&metadata(None, None)));
     assert_eq!(s.lens.distortion_scale, 0.);
     let s =
@@ -791,19 +836,143 @@ fn raf_ai_mask_from_segmentation_settings_lands_on_its_content() {
              corrected + default render {warped:.4}"
         ),
     );
-    // Measured: floor 0.9979, aligned 0.9953, warped 0.9671. The aligned
-    // residual is the smoothing (applied before the warp for the raster,
-    // after it for the target; the warp scales locally by up to 2 %): with a
-    // radius of 12 it falls to 0.0014 (floor 0.9988, aligned 0.9974) while
-    // the warped input still loses 0.018.
+    // ENG-8c: the built-in warp runs in the raw prefix, so the as-shot
+    // default render already is the frame the masks are applied in; the
+    // segmentation settings equal it for this raw. (ENG-8b, with the warp
+    // after the locals, measured floor 0.9979, aligned 0.9953, default
+    // render 0.9671.)
+    assert_eq!(
+        pipeline_cpu::mask_segmentation_settings(Some(&metadata)),
+        DevelopSettings::default()
+    );
     assert!(
-        aligned >= floor - 0.005,
+        aligned >= floor - 0.002,
         "aligned {aligned} vs floor {floor}"
     );
-    assert!(
-        warped < aligned - 0.02,
-        "misaligned input not detected: {warped}"
+    assert_eq!(aligned, warped);
+}
+
+/// Centroid (pixels) of the pixels a local adjustment brightened by more than
+/// 25 % of the strongest change.
+fn effect_centroid(plain: &pipeline_cpu::Image, edited: &pipeline_cpu::Image) -> [f64; 2] {
+    let (w, a, b) = (
+        plain.width() as usize,
+        plane_luma(plain),
+        plane_luma(edited),
     );
+    let delta: Vec<f32> = a.iter().zip(&b).map(|(a, b)| b - a).collect();
+    let peak = delta.iter().copied().fold(0f32, f32::max);
+    let (mut sx, mut sy, mut n) = (0f64, 0f64, 0f64);
+    for (i, d) in delta.iter().enumerate() {
+        if *d > 0.25 * peak {
+            let wgt = f64::from(*d);
+            sx += wgt * ((i % w) as f64 + 0.5);
+            sy += wgt * ((i / w) as f64 + 0.5);
+            n += wgt;
+        }
+    }
+    [sx / n, sy / n]
+}
+
+/// REV2-ENG-8 NB1: hand-drawn masks are defined in the frame the locals run
+/// in; the app maps clicks through crop and orientation only. With the
+/// built-in warp in the raw prefix that frame is the displayed one: a radial
+/// mask and a brush dab drawn at (0.85, 0.80) land within 1 px of it at
+/// level 2 (1/4 scale). With the ENG-8b post-local warp the radial landed
+/// 6.8 px (27 px at full size) away.
+#[test]
+fn raf_hand_drawn_masks_land_where_drawn() {
+    const TEST: &str = "raf_hand_drawn_masks_land_where_drawn";
+    let Some(path) = raw_fixtures::with_extension(TEST, "raf") else {
+        return;
+    };
+    let mut source = RawSource::open(&path).unwrap();
+    let cfa = source.decode_cfa().unwrap();
+    let metadata = source.metadata();
+    let src = RenderSource::Cfa {
+        image: &cfa,
+        metadata: &metadata,
+    };
+    let scale = 4;
+    let plain = render_linear_scaled(&DevelopSettings::default(), &src, scale).unwrap();
+    let (w, h) = (f64::from(plain.width()), f64::from(plain.height()));
+    let at = [0.85f32, 0.80];
+    for (name, kind) in [
+        (
+            "radial",
+            engine_api::recipe::MaskKind::Radial {
+                center: at,
+                radii: [0.03, 0.045],
+                angle: 0.,
+                feather: 0.,
+            },
+        ),
+        (
+            "brush",
+            engine_api::recipe::MaskKind::Brush {
+                strokes: vec![engine_api::recipe::mask::BrushStroke {
+                    points: vec![[at[0], at[1], 1.]],
+                    radius: 0.03,
+                    feather: 0.,
+                    flow: 100.,
+                    erase: false,
+                }],
+            },
+        ),
+    ] {
+        let mut edited = DevelopSettings::default();
+        edited
+            .locals
+            .adjustments
+            .push(engine_api::recipe::LocalAdjustment {
+                components: vec![engine_api::recipe::MaskComponent::new(kind)],
+                params: engine_api::recipe::LocalParams {
+                    exposure: 2.,
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+        let masked = render_linear_scaled(&edited, &src, scale).unwrap();
+        let c = effect_centroid(&plain, &masked);
+        let drawn = [f64::from(at[0]) * w, f64::from(at[1]) * h];
+        let off = (c[0] - drawn[0]).hypot(c[1] - drawn[1]);
+        raw_fixtures::notice(
+            TEST,
+            &format!("{name}: centroid {c:?} drawn {drawn:?}, off {off:.2} px"),
+        );
+        assert!(off <= 1., "{name}: lands {off} px from where it was drawn");
+    }
+}
+
+/// ENG-8c: with default settings the RAF's geometry stage is the identity:
+/// the pre-geometry frame (where locals, masks, prompts and retouch run) is
+/// the displayed frame.
+#[test]
+fn raf_pre_geometry_frame_is_the_displayed_frame() {
+    const TEST: &str = "raf_pre_geometry_frame_is_the_displayed_frame";
+    let Some(path) = raw_fixtures::with_extension(TEST, "raf") else {
+        return;
+    };
+    let mut source = RawSource::open(&path).unwrap();
+    let cfa = source.decode_cfa().unwrap();
+    let metadata = source.metadata();
+    let src = RenderSource::Cfa {
+        image: &cfa,
+        metadata: &metadata,
+    };
+    let s = DevelopSettings::default();
+    let r = resolve_lens_sensor(
+        cfa.pyramid().pixels(),
+        &metadata,
+        &s,
+        &LensContext::default(),
+    )
+    .unwrap();
+    let plan = r.plan(&s, &metadata).unwrap().expect("resident plan");
+    assert!(plan.map.is_none(), "no post-local warp");
+    let before = pipeline_cpu::render_linear_before_geometry(&s, &src, None).unwrap();
+    let after = render_linear_scaled(&s, &src, 1).unwrap();
+    assert_eq!(before.planes(), after.planes());
 }
 
 /// REV-ENG-8 (7): a checksum pin of the corrected default RAF render (the
@@ -812,7 +981,10 @@ fn raf_ai_mask_from_segmentation_settings_lands_on_its_content() {
 #[test]
 fn raf_corrected_default_render_checksum() {
     const TEST: &str = "raf_corrected_default_render_checksum";
-    const PIN: &str = "f5f82c27b09e60366a8f500d8232bdc7f250b6873b4ce36a698fc4d37348b729";
+    // ENG-8c re-pin: the correction moved into the raw prefix (one bilinear
+    // resample of camera RGB, as DNG opcode warps) from the post-local
+    // Lanczos geometry map; ENG-8b's value was f5f82c27…b729.
+    const PIN: &str = "679f717bc145015be43eba09ba57ac0d7e06ea04162e456adb20d700183af3cc";
     let Some(path) = raw_fixtures::with_extension(TEST, "raf") else {
         return;
     };

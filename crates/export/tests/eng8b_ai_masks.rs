@@ -174,13 +174,17 @@ fn ai_mask_exports_succeed_on_every_fixture_and_lens_mode_and_match_develop() {
             ("recipe default", None),
         ] {
             let recipe = recipe(profile, 1.);
+            let started = std::time::Instant::now();
             let (exported, w, h) = export(&image, &recipe, &mut Constant(0.5));
+            let seconds = started.elapsed().as_secs_f64();
             let (developed, dw, dh) = develop(&image, &recipe, Arc::new(ConstantHooks(0.5)));
             assert_eq!((w, h), (dw, dh), "{name} {mode}: frame");
             let (max, mean) = parity(&developed, &exported);
             raw_fixtures::notice(
                 TEST,
-                &format!("{name} {mode}: max {max:.3} mean {mean:.4} levels"),
+                &format!(
+                    "{name} {mode}: max {max:.3} mean {mean:.4} levels, export {seconds:.1} s"
+                ),
             );
             if max > NATIVE_MAX + NATIVE_GREY_POINT || mean > MEAN {
                 failures.push(format!("{name} {mode}: max {max} mean {mean}"));

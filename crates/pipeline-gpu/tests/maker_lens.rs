@@ -97,6 +97,14 @@ fn gpu_raf_fixture_matches_cpu_with_built_in_correction() {
     let raw = RawImage::open(ImageId(8803), &path).unwrap();
     assert!(raw.metadata().maker_lens.is_some());
     let renderer = gpu();
+    // ENG-8c: the raw-prefix correction is a resident GPU stage (the
+    // sensor-frame resample), not a fallback to the CPU chain.
+    assert!(
+        renderer
+            .can_render_resident(&raw, &DevelopSettings::default())
+            .unwrap(),
+        "the RAF left the resident GPU path"
+    );
     let cpu = Renderer::new(RendererConfig::default());
     for profile in [LensProfileSource::Auto, LensProfileSource::None] {
         let mut s = DevelopSettings::default();

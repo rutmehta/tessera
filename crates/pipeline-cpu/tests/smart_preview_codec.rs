@@ -913,7 +913,7 @@ fn eng8_fujifilm(w: u32, h: u32, lens: bool) -> (CfaImage, RawMetadata) {
 }
 
 /// ENG-8: a Smart Preview of a raw with a maker-note correction records it
-/// (source MakerNote, the derived sample and the original's parameters),
+/// (source Embedded, the derived model and the original's parameters),
 /// bakes the built-in CA into the camera-linear pixels once and replays only
 /// vignetting and geometry; it reopens to the same render.
 #[test]
@@ -931,7 +931,9 @@ fn eng8_maker_note_correction_round_trips_without_double_application() {
     .unwrap();
     let bytes = p.encode_persistent(1000).unwrap();
     let v = snapshot(&bytes);
-    assert_eq!(v["correction"]["source"], "MakerNote");
+    // ENG-8c: a raw-prefix built-in correction (source Embedded) whose
+    // derived model is recorded so a changed derivation reads as Stale.
+    assert_eq!(v["correction"]["source"], "Embedded");
     assert_eq!(v["metadata"]["maker_note"]["kind"], "fujifilm");
     let decoded = CameraLinearProxy::decode_persistent(&bytes).unwrap();
     assert!(v["correction"]["sample"].is_object());
@@ -1068,6 +1070,20 @@ fn eng8_legacy_fujifilm_container_is_stale_and_mismatches_are_rejected() {
             Err(e) => panic!("changed derivation is not stale: {e}"),
             Ok(_) => panic!("changed derivation accepted"),
         }
+    }
+    // ENG-8c: containers written by ENG-8/8b applied the correction after
+    // the local adjustments (source MakerNote, CA baked, geometry in the
+    // tail). Their stored frame differs from today's: Stale.
+    let eng8b = change_json(&bytes, |v| {
+        v["correction"]["source"] = serde_json::json!("MakerNote");
+    });
+    match CameraLinearProxy::decode_persistent(&eng8b) {
+        Err(EngineError::Unsupported { what }) => assert!(
+            what.contains("stale") && what.contains("regenerate from original"),
+            "{what}"
+        ),
+        Err(e) => panic!("ENG-8b container is not stale: {e}"),
+        Ok(_) => panic!("ENG-8b container accepted"),
     }
     // Inconsistent snapshots: the source without the parameters, and
     // parameters without the source.
