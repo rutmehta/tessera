@@ -536,8 +536,9 @@ fn tile_shifts(fixed: &[f32], moving: &[f32], w: usize, h: usize) -> Vec<TileShi
 }
 
 /// Residual RMS (pixels) of tile shifts after the best global scale and
-/// translation (the JPEG's framing may differ slightly from the raw's crop).
-fn similarity_residual(shifts: &[TileShift]) -> f64 {
+/// translation (the JPEG's framing may differ slightly from the raw's crop),
+/// and that relative scale between the two framings (0.0014 = 0.14 %).
+fn similarity_residual(shifts: &[TileShift]) -> (f64, f64) {
     // shift = a·p + t, solved per axis with a shared a.
     let n = shifts.len() as f64;
     let mean = |f: &dyn Fn(&TileShift) -> f64| shifts.iter().map(f).sum::<f64>() / n;
@@ -560,7 +561,7 @@ fn similarity_residual(shifts: &[TileShift]) -> f64 {
             ex * ex + ey * ey
         })
         .sum();
-    (r / n).sqrt()
+    ((r / n).sqrt(), a)
 }
 
 /// Sanity check against the camera: the X-E2S writes its JPEG with its
@@ -596,16 +597,20 @@ fn raf_correction_matches_the_cameras_embedded_jpeg_geometry() {
         let grey = resample(&luma(rendered.as_raw(), rw, rh), rw, rh, jw, jh);
         let shifts = tile_shifts(&reference, &gradient(&grey, jw, jh), jw, jh);
         assert!(shifts.len() >= 15, "only {} matched tiles", shifts.len());
-        residuals.push((similarity_residual(&shifts), shifts.len()));
+        let (residual, scale) = similarity_residual(&shifts);
+        residuals.push((residual, scale, shifts.len()));
     }
-    let [(corrected, n1), (uncorrected, n2)] = residuals[..] else {
+    let [(corrected, s1, n1), (uncorrected, s2, n2)] = residuals[..] else {
         unreachable!()
     };
+    // Units: pixels of the camera's 1920-wide JPEG (x2.55 at full size).
     raw_fixtures::notice(
         TEST,
         &format!(
-            "residual vs JPEG after scale+shift: built-in {corrected:.3} px ({n1} tiles), \
-             uncorrected {uncorrected:.3} px ({n2} tiles)"
+            "residual vs JPEG after scale+shift (JPEG px): built-in {corrected:.3} ({n1} tiles, \
+             scale {:+.2} %), uncorrected {uncorrected:.3} ({n2} tiles, scale {:+.2} %)",
+            100. * s1,
+            100. * s2
         ),
     );
     assert!(
