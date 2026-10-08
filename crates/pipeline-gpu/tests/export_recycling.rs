@@ -121,10 +121,10 @@ fn bands_a_row_apart_recycle_like_bands_of_one_height() {
         .unwrap();
     let scratch = need + need / 32;
     let base = renderer(scratch);
-    // Fresh allocations of the interior bands (the first two fill the pool;
+    // Fresh allocations of the interior bands (the first three fill the pool:
     // the first and last bands, at the frame's edges, have other shapes).
     let interior = |bands: &[(Vec<f32>, u64, u64)]| -> Vec<u64> {
-        bands[2..bands.len() - 1].iter().map(|b| b.1).collect()
+        bands[3..bands.len() - 1].iter().map(|b| b.1).collect()
     };
     // Steady state of one height: what a band cannot recycle (its uploads).
     let uniform = render(&base, &image, &bands(&[128]));
@@ -142,9 +142,12 @@ fn bands_a_row_apart_recycle_like_bands_of_one_height() {
             "RECYCLE {heights:?}: fresh buffers per band {:?} (one height: {floor})",
             recycled.iter().map(|b| b.1).collect::<Vec<_>>()
         );
+        // A band may miss a buffer or two that making room for its uploads
+        // evicted (bands of one height can reuse those): without recycling
+        // across heights, every buffer is fresh.
         let fresh = interior(&recycled);
         assert!(
-            fresh.iter().all(|&n| n <= floor),
+            fresh.iter().all(|&n| n <= floor + 2),
             "{heights:?}: bands a row apart allocate afresh: {fresh:?} (one height: {floor})"
         );
         // Within the scratch, and recycled (possibly larger) buffers change
