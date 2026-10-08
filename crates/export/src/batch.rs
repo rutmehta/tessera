@@ -191,7 +191,8 @@ fn adobe_render_bytes(source: &pipeline_cpu::RenderSource<'_>, render_scale: u32
             let px = u64::from(metadata.width) * u64::from(metadata.height);
             (px, 4 * px)
         }
-        pipeline_cpu::RenderSource::Rgb(image) => {
+        pipeline_cpu::RenderSource::Rgb(image)
+        | pipeline_cpu::RenderSource::StoredRgb { image, .. } => {
             let px = u64::from(image.width()) * u64::from(image.height());
             (px, 12 * px)
         }

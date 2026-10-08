@@ -153,7 +153,9 @@ fn raw_image(source: &RenderSource<'_>) -> EngineResult<RawImage> {
                 Arc::new((*metadata).clone()),
             )
         }
-        RenderSource::Rgb(rgb) => RawImage::from_rgb(
+        // A stored-frame RGB original renders in its stored frame, like
+        // Develop's (LR-8n); the export applies its orientation afterwards.
+        RenderSource::Rgb(rgb) | RenderSource::StoredRgb { image: rgb, .. } => RawImage::from_rgb(
             id,
             image_core::RgbSource::from_linear_rec2020((*rgb).clone())?,
         ),
