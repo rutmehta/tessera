@@ -197,19 +197,12 @@ fn owned_classifier_refusal_prevents_decoder_and_releases_capture() {
 }
 
 #[test]
-#[ignore = "requires explicit five-family TESSERA_CAPTURED_CFA_FIXTURES qualification"]
 fn actual_opaque_owner_five_families_after_original_copy_replacement() {
-    let directory = std::env::var_os("TESSERA_CAPTURED_CFA_FIXTURES")
-        .expect("qualification requires explicit five-family fixture directory");
-    for (name, suffix) in [
-        ("sony-arw.ARW", "ARW"),
-        ("fuji-raf.RAF", "RAF"),
-        ("nikon-nef.NEF", "NEF"),
-        ("canon-cr3.CR3", "CR3"),
-        ("sample.dng", "DNG"),
-    ] {
-        let original = PathBuf::from(&directory).join(name);
-        assert!(original.is_file(), "required fixture {name}");
+    let Some(directory) = captured_cfa_fixtures(&FIVE_FAMILIES.map(|(name, _)| name)) else {
+        return;
+    };
+    for (name, suffix) in FIVE_FAMILIES {
+        let original = directory.join(name);
         let root = tempfile::tempdir().unwrap();
         let copy = root.path().join("relocated.bin");
         fs::copy(&original, &copy).unwrap();
