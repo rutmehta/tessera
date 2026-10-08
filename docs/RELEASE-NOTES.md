@@ -22,19 +22,26 @@
   rebuilds it with the correction.
 - **Grid previews are re-rendered once more.** Cached previews from earlier
   versions are rebuilt the next time each photo is shown.
-- **AI masks line up with the corrected picture.** Subject, sky and other AI
-  masks are now computed from the image in the same geometry the mask is
-  applied to, before the lens correction reshapes it. Before this fix a
-  mask on a Fujifilm raw could sit up to about 0.5% of the image width away
-  from its subject, and the same applied with a lens profile or lens
-  auto-calibration on any raw. Masks created in Develop are recomputed when
-  the photo is next opened. Masks imported from Lightroom are used as
-  stored.
-- **AI-masked exports of corrected raws work.** Exporting, printing or
-  placing in a document a photo whose edit uses AI masks no longer fails
-  with "AI masks with lens warps require a hook-aware lens renderer". In the
-  first ENG-8 build this hit every Fujifilm raw with AI masks, with no way
-  around it, because the built-in correction cannot be turned off.
+- **Everything you draw lands where you draw it.** The correction is applied
+  at the very start of the pipeline, as Lightroom does with built-in
+  profiles, so brushes, radial and linear gradients, Object and Person
+  clicks and boxes, healing spots, AI masks, crops and Upright all work on
+  the corrected picture you see, and mask overlays and handles sit on the
+  adjustment. (Crop rectangles saved on Fujifilm raws before this release
+  were drawn on the uncorrected picture; see "Existing Fujifilm edits
+  shift slightly" above.)
+- **AI-masked exports work.** Exporting, printing or placing in a document a
+  Fujifilm photo whose edit uses AI masks works at the usual speed. With a
+  lens profile, lens auto-calibration or manual distortion on any raw, such
+  exports no longer fail with "AI masks with lens warps require a
+  hook-aware lens renderer"; they render the masks before the warp, as
+  Develop does. AI masks are also computed in that geometry, so they
+  stay on their subject with a profile or auto-calibration. Masks created
+  in Develop are recomputed when a photo is next opened; masks imported
+  from Lightroom are used as stored.
+- **DNG files with a built-in distortion correction look right in Develop.**
+  Develop dropped the distortion part of a DNG's built-in correction (its
+  opcode warp) while exports applied it. Develop now shows it too.
 - **Some Fujifilm Smart Previews may need rebuilding later.** If a later
   version computes the built-in correction differently, a Smart Preview made
   with the earlier result opens as Stale and can be rebuilt from the

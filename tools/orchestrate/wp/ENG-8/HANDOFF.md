@@ -344,3 +344,156 @@ release note and this HANDOFF.
    the `pipeline_adobe` proxy path above.
 5. S4 (Lightroom parity of geometry, framing, vignetting and CA) remains
    open.
+
+---
+
+# ENG-8c: re-review follow-up (REV2-ENG-8 CHANGES REQUIRED)
+
+Same branch `wp/ENG-8`, on top of `0aaae71c`; origin/main had not moved
+(`42bfbc6d`), so no rebase. Worker: Claude Opus 5.5. Coordinator ruling on
+NB1: option (b), apply the maker-note geometric warp (and its CA) in the raw
+prefix, where DNG opcode warps run.
+
+## Design change
+
+ENG-8/8b applied the Fujifilm correction as a calibration sample: CA before
+the matrices, vignetting after white balance, distortion in the composed
+geometry map after the local adjustments. Every tool that maps a click
+through crop and orientation only (`MaskSpace.toMask/fromMask`: brushes,
+gradients, Object/Person prompts, overlays and handles, healing spots)
+therefore landed up to ~27 px (full size) off on Fuji raws.
+
+ENG-8c makes it an `Embedded` built-in stage (`embedded_lens::MakerPrefix`).
+It is one resample of demosaiced camera RGB in the full sensor frame, in
+`camera_linear_prefix`, right where the opcode stages run:
+- green source `q = p·(1 + d·(F(r) − 1))`, with F the fitted radial ratio;
+- red/blue source `q·(1 + c·(ratio(ρ) − 1))`;
+- the sample at each channel's source multiplied by the vignetting gain
+  there, `1 + v·(1/I − 1)`.
+
+The fit (`pipeline_cpu::maker_note_sample`) is unchanged. The model applies
+vignetting before distortion, as darktable does. Consequences:
+
+- The pre-geometry frame (locals, masks, prompts, segmentation, retouch,
+  crop, Upright) is the corrected, displayed frame. With default settings
+  the geometry stage is the identity on the RAF
+  (`raf_pre_geometry_frame_is_the_displayed_frame`: pre-geometry render ==
+  final render, bit for bit).
+- `CorrectionSource::MakerNote` is removed. The correction resolves as
+  `Embedded` (no sample) wherever built-in corrections apply, and opcode
+  lists still win.
+- GPU: the resident sensor-frame CA stage carries it (`CaPlan.maker`,
+  `MakerPlan`; `lens.wgsl` evaluates the same expressions for all three
+  channels with the gain), so Fuji raws stay on the resident GPU path in
+  Develop and in band exports. A displacement beyond the resident halo
+  (max displacement + 2 > 32 px) falls back to the CPU chain, as for any CA
+  plan; the X-E2S/18-55 needs about 31. Maker-only Embedded snapshots now get
+  resident Smart Preview tails (fully baked).
+- `pipeline_cpu::built_in_prefix` / `defer_post_local_distortion` draw the
+  pre-geometry frame without removing a raw-prefix warp.
+  `mask_segmentation_settings` uses them, so for raws it is the as-shot
+  default again; it still removes profile/estimate warps.
+- **Pre-existing bug found by the reviewer's suggested check** (DNG opcode
+  warps in Develop): `develop_before_geometry` and Develop's depth input set
+  `distortion_scale = 0` to defer the composed warp, which also removed
+  opcode stage warps (the same scale). Develop drew opcode raws unwarped
+  while export warped them: 1.25 off the reference on a synthetic
+  WarpRectilinear. Both now use `defer_post_local_distortion`. This affects
+  main for DNGs with OpcodeList3 warps.
+- AI-mask export (NS1): raw-prefix built-in corrections take the old fast
+  path again (`render_linear_before_geometry` already includes them). Only
+  sample warps (profile, estimate) and manual distortion use
+  `render_hooked_native`, which stays for those (B1 generalised). RAF:
+  **4.4 s** (main 4.3 s, ENG-8b 17.2 s; load 8.5).
+- N2: `render_hooked_native` applies local adjustments but not retouch
+  spots, like the old path. Retouch plus AI masks is rejected before either
+  path (`retouch_float`: "retouch export with AI masks, denoise or depth is
+  not supported"), so no export drops spots silently. It now applies only
+  to profile, estimate and manual-distortion warps, not Fuji.
+- Export band plan: a maker prefix stage costs 24 B per sensor pixel
+  (`MAKER_BYTES_PER_PIXEL`; 18 B left the RAF at 1.045 actual/planned).
+  After: CR3 0.989, ARW 0.985, RAF 0.975, NEF 0.984, DNG 0.984; device peak
+  RAF 336–365 MiB.
+- Smart Previews: source `Embedded`, with the derived model recorded as the
+  correction sample, so a different derivation is Stale. ENG-8/8b
+  containers (source `MakerNote`: CA baked, geometry in the tail) are
+  **Stale**, "regenerate from original". Pre-ENG-8 Fuji containers stay
+  Stale as before.
+
+## Crop coordinates on Fuji raws
+
+Crop rectangles are normalised in the frame the geometry stage receives.
+- **vs main:** main drew Fuji raws uncorrected, so a crop stored on main now
+  frames corrected content. It moves by up to ~26 px (0.54 % of the width)
+  at mid-radius and 0 at the centre and corners. The release note already
+  said this ("Existing Fujifilm edits shift slightly"), and it now
+  explicitly names crops saved before this release.
+- **vs ENG-8/8b:** the crop framed the same corrected content (the warp was
+  in the geometry map before the crop), so nothing moves apart from
+  interpolation. That code was never released.
+
+## Item table (finding → code → test, RED in `b447959f`)
+
+| Item | Code | Test |
+|---|---|---|
+| NB1 radial / brush placement (the reviewer's probe) | prefix stage | `pipeline-cpu/tests/maker_lens.rs::raf_hand_drawn_masks_land_where_drawn`: drawn at (0.85, 0.80), level 2: radial **0.62 px**, brush **0.63 px**. RED: did not compile (new API); the reviewer measured 6.83 px on ENG-8b |
+| NB1 Object prompt through Develop's AI job | prefix stage | `tessera-ffi masks.rs::develop_object_prompt_on_the_raf_lands_where_clicked`: **0.04 px** (RED 6.80 px) |
+| NB1 healing/clone spot | prefix stage | `develop_retouch_spot_on_the_raf_lands_where_drawn`: 1.03 px vs 1.01 px on the same raw without the correction (spot-geometry floor). RED: 6.74 vs 1.01 |
+| NB1 overlay / handle round trip | prefix stage | `raf_overlay_handle_and_effect_coincide_under_a_crop`: with a crop, overlay (raster through `crop_plane`) vs effect **0.23 px**, handle (`fromMask` formula) vs effect **0.10 px** (RED: overlay off) |
+| Frame identity | prefix stage | `raf_pre_geometry_frame_is_the_displayed_frame` (bit-identical) |
+| AI masks IoU: Develop / thumbnail / export / reference | — | Develop **1.0000** (8b 0.9944), Adobe thumbnail **1.0000** (8b 0.9923), export 0.9894 vs 0.9888 without the correction, reference 0.9981 vs floor 0.9979 |
+| Develop applies opcode warps | `image-core render.rs`, `tessera-ffi develop.rs` | `image-core/tests/builtin_lens.rs::develop_applies_opcode_stage_warps_from_metadata`: L0 == reference, L2 warped, `with_metadata` included (RED: 1.25 off) |
+| Engine/CPU parity | — | image-core `maker_lens` L0 diff 0, L3 ≤ 1e-5 / display 0 (L3 model updated to keep raw-prefix warps); pipeline-gpu `maker_lens`: GPU vs CPU ≤ 1 code value, RAF on the resident path (`can_render_resident`) |
+| Export timing / parity | `export/src/ai_masks.rs` | `eng8b_ai_masks.rs`: all 5 fixtures × 3 modes succeed within ENG-9 bounds (RAF 0.977/0.333); timings printed (RAF 4.4 s) |
+| Smart Preview compatibility | `smart_preview_codec.rs` | `eng8_legacy_fujifilm_container_is_stale_and_mismatches_are_rejected` (+ ENG-8b container Stale), round trip without double application (proxy vs original ≤ 1e-5) |
+| Camera-JPEG check | — | unchanged result: 0.380 vs 1.098 JPEG px, scale +0.14 % vs −1.43 % |
+| Mask segmentation settings | `lens_resolve.rs` | Fuji now keeps `distortion_scale` 100; opcode raws 100; others 0 |
+
+## Golden and expectation audit (ENG-8c)
+
+- Re-pinned with a reason: the corrected RAF checksum, from
+  `f5f82c27…b729` (ENG-8b, Lanczos geometry map) to
+  `679f717bc145015be43eba09ba57ac0d7e06ea04162e456adb20d700183af3cc` (prefix
+  bilinear resample).
+- Changed expectations, all from the design change: the resolution source
+  (`Embedded`, no sample) in `maker_lens.rs` and `lens_default.rs`; the
+  resident plan carries the correction as `ca.maker` with no post-local
+  map or vignette; Smart Preview source `Embedded`; mask segmentation keeps
+  distortion for Fuji; the reference IoU A/B (default render ==
+  segmentation input now).
+- The L3 contract model (`image-core/tests/common/preview.rs`) keeps
+  raw-prefix warps. Before, it removed opcode warps too, which hid the
+  Develop bug above.
+- No golden PNG, tolerance or other pin changed.
+
+## Gates (ENG-8c)
+
+Run on `48fed710` after `cargo clean --release -p raw-decode -p pipeline-cpu
+-p image-core -p pipeline-gpu -p export -p previews -p merge -p
+pipeline-adobe -p tessera-ffi -p tessera-mcp`, target
+`~/.cache/tessera-target/ENG-8`, fixtures symlinked,
+`TESSERA_REQUIRE_RAW_FIXTURES=1`. The commit that follows changes only the
+release note and this HANDOFF.
+
+| Gate | Result |
+|---|---|
+| `cargo test --release --workspace --no-fail-fast` | pass, exit 0: 701 test binaries, **3613 passed, 0 failed, 102 ignored**. No raw-fixture SKIPPED lines. Load 10.2 at start, 56 at end; no wall-clock failures, no reruns |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | pass |
+| `cargo fmt --all -- --check` | pass |
+| `apps/mac/build-ffi.sh` | pass; no bindings drift (only the docs were modified) |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: XCTest 996 tests, 1 skipped, 0 failures; Swift Testing 5 passed |
+| strict release `swift build --product Tessera` | pass |
+| `five_fixture_device_peak_within_budget` (ignored, run alone) | pass; RAF 336–365 MiB |
+
+## Residual risks / follow-ups (ENG-8c)
+
+1. A Fuji lens with more distortion than the resident halo allows
+   (displacement > ~30 px at full size, e.g. wide zooms) renders through the
+   CPU chain: correct, but slower. No such fixture.
+2. The CPU prefix resample is bilinear, like opcode warps; the old geometry
+   map was Lanczos-3. Slight softening of the warped areas; the camera-JPEG
+   check is unchanged.
+3. Imported Lightroom rasters (R1), external Smart Preview DNG proxies on
+   the Adobe path (R2) and Adobe depth masks (R4) remain open as in ENG-8b.
+   Object prompts (old R3) are fixed.
+4. S4 (Lightroom parity) remains open.
