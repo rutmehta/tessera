@@ -24,7 +24,7 @@ env.update(CARGO_TARGET_DIR=str(Path.home() / '.cache/tessera-target/LR-4-parame
 env['PATH'] = str(Path.home() / '.cargo/bin') + ':' + env['PATH']
 for name in ('PIPELINE_RAW_FIXTURES', 'RAW_DECODE_FIXTURES', 'PIPELINE_NEF_FIXTURE'):
     env[name] = str(root / 'tools/orchestrate/wp/LR-4/absent-external-fixtures')
-for name in ('TESSERA_DEPTH_FIXTURE', 'TESSERA_CODEC_RAW_FIXTURE', 'IMAGE_CORE_ALL_FIXTURES', 'PIPELINE_GPU_ALL_FIXTURES'):
+for name in ('TESSERA_DEPTH_FIXTURE', 'TESSERA_CODEC_RAW_FIXTURE', 'IMAGE_CORE_ALL_FIXTURES'):
     env.pop(name, None)
 args = ['/usr/bin/time', '-lp', 'cargo', 'test', '--locked', '--no-fail-fast']
 for package in packages:

@@ -3,6 +3,16 @@ use common::*;
 use compositor::{gpu::GpuCompositor, resident::ResidentRenderer, *};
 use engine_api::tile::Extent;
 
+/// Reports, uncaptured so it shows in plain `cargo test` output, that `test`
+/// checked nothing because CI runners have no Metal device.
+fn ci_skip(test: &str) {
+    use std::io::Write;
+    let _ = writeln!(
+        std::io::stderr().lock(),
+        "test {test} ... SKIPPED: CI runner without a Metal device; it checked nothing"
+    );
+}
+
 fn present_bytes(g: &GpuCompositor, r: &ResidentRenderer, rect: Rect) -> Vec<u8> {
     present_level_bytes(g, r, 0, rect)
 }
@@ -50,6 +60,7 @@ fn present_level_bytes(g: &GpuCompositor, r: &ResidentRenderer, level: u8, rect:
 #[test]
 fn nonzero_viewport_rgba8_matches_full_render_after_pan_and_specialization() {
     if std::env::var_os("CI").is_some() {
+        ci_skip("nonzero_viewport_rgba8_matches_full_render_after_pan_and_specialization");
         return;
     }
     let g = GpuCompositor::new().expect("Metal required");
@@ -82,6 +93,7 @@ fn nonzero_viewport_rgba8_matches_full_render_after_pan_and_specialization() {
 #[test]
 fn huge_smart_child_renders_only_the_sampling_window() {
     if std::env::var_os("CI").is_some() {
+        ci_skip("huge_smart_child_renders_only_the_sampling_window");
         return;
     }
     let g = GpuCompositor::new().expect("Metal required");
@@ -107,6 +119,7 @@ fn huge_smart_child_renders_only_the_sampling_window() {
 #[test]
 fn compact_smart_windows_match_cpu_across_parent_tiles() {
     if std::env::var_os("CI").is_some() {
+        ci_skip("compact_smart_windows_match_cpu_across_parent_tiles");
         return;
     }
     let g = GpuCompositor::new().expect("Metal required");
@@ -153,6 +166,7 @@ fn compact_smart_windows_match_cpu_across_parent_tiles() {
 #[test]
 fn output_storage_tracks_viewport_not_canvas() {
     if std::env::var_os("CI").is_some() {
+        ci_skip("output_storage_tracks_viewport_not_canvas");
         return;
     }
     let g = GpuCompositor::new().expect("Metal required");
