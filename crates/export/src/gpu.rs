@@ -1602,6 +1602,71 @@ mod tests {
         assert!(overruns.is_empty(), "{overruns:#?}");
     }
 
+    /// REV3-ENG-8 NS3: the RAF with a wide zoom's built-in correction (-4 %,
+    /// -6 % barrels: 72 and 104 px displacement) exports on the GPU band path
+    /// within each band's scratch share, full chain and web sizes, and
+    /// matches the CPU render like the fixtures do.
+    #[test]
+    fn raf_wide_zoom_barrels_export_on_bands_within_budget() {
+        let Some(path) = test_fixtures::raw::with_extension(&test_fixtures::current_test(), "raf")
+        else {
+            return;
+        };
+        let raw = RawImage::open(ImageId(1), &path).unwrap();
+        let cancel = CancellationToken::new();
+        let mut failures = Vec::new();
+        let mut overruns = Vec::new();
+        for corner in [-4., -6.] {
+            let mut m = raw.metadata().clone();
+            m.maker_lens = Some(raw_decode::MakerLens::Fujifilm(raw_decode::FujifilmLens {
+                knots: (0..=10).map(|i| i as f64 / 10.).collect(),
+                distortion: (0..=10)
+                    .map(|i| corner * (i as f64 / 10.).powi(2))
+                    .collect(),
+                ca_red: (0..=10).map(|i| 3e-4 * i as f64 / 10.).collect(),
+                ca_blue: (0..=10).map(|i| -3e-4 * i as f64 / 10.).collect(),
+                vignetting: (0..=10)
+                    .map(|i| 100. - 20. * (i as f64 / 10.).powi(2))
+                    .collect(),
+                crop_factor: 1.,
+            }));
+            let image = ExportImage {
+                source: RenderSource::Cfa {
+                    image: raw.cfa(),
+                    metadata: &m,
+                },
+                name: "raf-barrel",
+                sequence: 1,
+                date: "",
+                metadata: None,
+            };
+            let recipe = Recipe::default();
+            let cpu = crate::render_scaled_cpu(&image, &recipe, ColorSpace::Srgb, 1).unwrap();
+            let full = render_opts(
+                &image,
+                &recipe,
+                ColorSpace::Srgb,
+                BUDGET,
+                crate::Resize::None,
+                false,
+            );
+            overruns.extend(footprint_overruns(&format!("{corner} % full")));
+            let (linear, codes, _, _) = error_stats(&cpu, &full);
+            eprintln!("BARREL {corner} % full-res linear_max={linear} codes_max={codes}");
+            if !(linear <= 2e-3 && codes <= 1.0) {
+                failures.push(format!("{corner} %: linear={linear} codes={codes}"));
+            }
+            let mode = crate::Resize::LongEdge(2048);
+            for web_level in [false, true] {
+                render_opts(&image, &recipe, ColorSpace::Srgb, BUDGET, mode, web_level);
+                overruns.extend(footprint_overruns(&format!("{corner} % web {web_level}")));
+            }
+            let _ = &cancel;
+        }
+        assert!(failures.is_empty(), "{failures:?}");
+        assert!(overruns.is_empty(), "{overruns:#?}");
+    }
+
     /// A recipe with each effect the device-peak diagnostic measures.
     fn effects_variants(base: &Recipe) -> Vec<(&'static str, Recipe)> {
         let with = |edit: fn(&mut engine_api::recipe::DevelopSettings)| {

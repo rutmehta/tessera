@@ -981,10 +981,10 @@ fn raf_pre_geometry_frame_is_the_displayed_frame() {
 #[test]
 fn raf_corrected_default_render_checksum() {
     const TEST: &str = "raf_corrected_default_render_checksum";
-    // ENG-8c re-pin: the correction moved into the raw prefix (one bilinear
-    // resample of camera RGB, as DNG opcode warps) from the post-local
-    // Lanczos geometry map; ENG-8b's value was f5f82c27…b729.
-    const PIN: &str = "679f717bc145015be43eba09ba57ac0d7e06ea04162e456adb20d700183af3cc";
+    // ENG-8d re-pin: the raw-prefix resample is Lanczos-3, not bilinear
+    // (REV3-ENG-8 NB2). Earlier: ENG-8c 679f717b…f3cc (prefix, bilinear),
+    // ENG-8b f5f82c27…b729 (post-local Lanczos geometry map).
+    const PIN: &str = "b66ad609b736d817acd529ae8019722b4f21057252cdc30b66ed8e5cacbc5e8c";
     let Some(path) = raw_fixtures::with_extension(TEST, "raf") else {
         return;
     };
@@ -1006,4 +1006,78 @@ fn raf_corrected_default_render_checksum() {
         &format!("{}x{} {digest}", rendered.width(), rendered.height()),
     );
     assert_eq!(digest, PIN, "corrected RAF render changed");
+}
+
+/// Mean squared Laplacian and gradient of the square-root-encoded green
+/// plane, per radial ring of the half-diagonal (REV3-ENG-8's method).
+fn ring_detail(image: &pipeline_cpu::Image, rings: &[f64]) -> Vec<(f64, f64)> {
+    let (w, h) = (image.width() as usize, image.height() as usize);
+    let g: Vec<f64> = image.planes()[1]
+        .iter()
+        .map(|&v| f64::from(v.max(0.)).sqrt())
+        .collect();
+    let hd = (w as f64 / 2.).hypot(h as f64 / 2.);
+    let mut acc = vec![(0f64, 0f64, 0f64); rings.len() - 1];
+    for y in 1..h - 1 {
+        for x in 1..w - 1 {
+            let i = y * w + x;
+            let lap = g[i - 1] + g[i + 1] + g[i - w] + g[i + w] - 4. * g[i];
+            let gx = (g[i + 1] - g[i - 1]) / 2.;
+            let gy = (g[i + w] - g[i - w]) / 2.;
+            let r = (x as f64 + 0.5 - w as f64 / 2.).hypot(y as f64 + 0.5 - h as f64 / 2.) / hd;
+            if let Some(k) = rings.windows(2).position(|b| r >= b[0] && r < b[1]) {
+                acc[k].0 += lap * lap;
+                acc[k].1 += gx * gx + gy * gy;
+                acc[k].2 += 1.;
+            }
+        }
+    }
+    acc.iter().map(|(l, g, n)| (l / n, g / n)).collect()
+}
+
+/// REV3-ENG-8 NB2: the raw-prefix resample must not soften the picture. Per
+/// ring, the corrected render keeps at least 60 % of the fine-detail energy
+/// (Laplacian²) of the same render without the resample (distortion and CA
+/// amounts 0: the stage samples integer positions). Bilinear kept ~31 %
+/// (ENG-8c); the ENG-8b Lanczos geometry map ~67 %.
+#[test]
+fn raf_prefix_resample_keeps_fine_detail() {
+    const TEST: &str = "raf_prefix_resample_keeps_fine_detail";
+    let Some(path) = raw_fixtures::with_extension(TEST, "raf") else {
+        return;
+    };
+    let mut source = RawSource::open(&path).unwrap();
+    let cfa = source.decode_cfa().unwrap();
+    let metadata = source.metadata();
+    let src = RenderSource::Cfa {
+        image: &cfa,
+        metadata: &metadata,
+    };
+    let corrected = render_linear_scaled(&DevelopSettings::default(), &src, 1).unwrap();
+    let mut unresampled = DevelopSettings::default();
+    unresampled.lens.distortion_scale = 0.;
+    unresampled.lens.chromatic_aberration_scale = 0.;
+    let reference = render_linear_scaled(&unresampled, &src, 1).unwrap();
+    let rings = [0., 0.15, 0.35, 0.55, 0.75, 1.0];
+    let (a, b) = (
+        ring_detail(&corrected, &rings),
+        ring_detail(&reference, &rings),
+    );
+    let mut worst = f64::INFINITY;
+    for (k, ((la, ga), (lb, gb))) in a.iter().zip(&b).enumerate() {
+        let (lr, gr) = (la / lb, ga / gb);
+        raw_fixtures::notice(
+            TEST,
+            &format!(
+                "ring {:.2}-{:.2}: Laplacian² ratio {lr:.3}, gradient² ratio {gr:.3}",
+                rings[k],
+                rings[k + 1]
+            ),
+        );
+        worst = worst.min(lr);
+    }
+    assert!(
+        worst >= 0.6,
+        "the prefix resample keeps only {worst:.3} of fine detail"
+    );
 }

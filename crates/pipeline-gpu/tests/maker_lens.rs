@@ -120,3 +120,87 @@ fn gpu_raf_fixture_matches_cpu_with_built_in_correction() {
         );
     }
 }
+
+/// A Fujifilm-format barrel with `corner` percent distortion at the corner
+/// (an r² profile), the shape of a wide zoom's correction.
+fn barrel(corner: f64) -> MakerLens {
+    MakerLens::Fujifilm(FujifilmLens {
+        knots: (0..=10).map(|i| i as f64 / 10.).collect(),
+        distortion: (0..=10)
+            .map(|i| corner * (i as f64 / 10.).powi(2))
+            .collect(),
+        ca_red: (0..=10).map(|i| 3e-4 * i as f64 / 10.).collect(),
+        ca_blue: (0..=10).map(|i| -3e-4 * i as f64 / 10.).collect(),
+        vignetting: (0..=10)
+            .map(|i| 100. - 20. * (i as f64 / 10.).powi(2))
+            .collect(),
+        crop_factor: 1.,
+    })
+}
+
+/// REV3-ENG-8 NS3: real wide-zoom corrections (-4 %, -6 %: ~77-113 px on
+/// this 16 MP sensor) stay on the resident GPU path, with a gather halo
+/// sized from the displacement, and match the CPU reference within 1 code
+/// value. N1: a correction beyond the resident limit makes the renderer
+/// report it (`can_render_resident` false) and render on the reference chain
+/// instead of failing.
+#[test]
+fn gpu_raf_with_wide_zoom_barrels_stays_resident() {
+    let test = "gpu_raf_with_wide_zoom_barrels_stays_resident";
+    let Some(path) = raw_fixtures::with_extension(test, "raf") else {
+        return;
+    };
+    let raw = RawImage::open(ImageId(8804), &path).unwrap();
+    let renderer = gpu();
+    let cpu = Renderer::new(RendererConfig::default());
+    let s = DevelopSettings::default();
+    for (i, (corner, resident)) in [(-4., true), (-6., true), (-40., false)]
+        .into_iter()
+        .enumerate()
+    {
+        let mut m = raw.metadata().clone();
+        m.maker_lens = Some(barrel(corner));
+        let image = raw
+            .with_metadata(ImageId(8805 + i as u128), Arc::new(m))
+            .unwrap();
+        let resolved = pipeline_cpu::resolve_lens_sensor(
+            image.cfa().pyramid().pixels(),
+            image.metadata(),
+            &s,
+            &Default::default(),
+        )
+        .unwrap();
+        let plan = resolved.plan(&s, image.metadata()).unwrap().unwrap();
+        let ca = plan.ca.as_ref().unwrap();
+        let sensor = image.sensor_extent();
+        let displacement = ca.max_displacement(sensor.width, sensor.height).unwrap();
+        assert_eq!(
+            renderer.can_render_resident(&image, &s).unwrap(),
+            resident,
+            "{corner} %: displacement {displacement:.0} px"
+        );
+        let metrics = renderer
+            .render_output_metrics(&image, &s, &CancellationToken::new())
+            .unwrap();
+        assert_eq!(metrics.is_some(), resident, "{corner} %: resident render");
+        let started = std::time::Instant::now();
+        let gpu_l2 = display(&renderer, &image, &s, 2);
+        let gpu_time = started.elapsed();
+        for level in [2, 3] {
+            let (ga, cb) = (
+                display(&renderer, &image, &s, level),
+                display(&cpu, &image, &s, level),
+            );
+            let error = max_diff(&ga, &cb);
+            eprintln!(
+                "{corner} % barrel (displacement {displacement:.0} px, halo {:?}) L{level}: GPU vs CPU {error}, GPU L2 {gpu_time:?}",
+                ca.halo(sensor.width, sensor.height)
+            );
+            assert!(
+                error <= 1,
+                "{corner} % L{level}: GPU/CPU code-value error {error}"
+            );
+        }
+        drop(gpu_l2);
+    }
+}
