@@ -252,13 +252,11 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 /// the first error stops further tiles and is returned.
 fn for_each_tile(
     coords: &[engine_api::tile::TileCoord],
-    _threads: usize,
+    threads: usize,
     cancel: &CancellationToken,
     f: impl Fn(engine_api::tile::TileCoord) -> EngineResult<()> + Sync,
 ) -> EngineResult<()> {
-    let workers = std::thread::available_parallelism()
-        .map_or(1, usize::from)
-        .min(coords.len());
+    let workers = threads.min(coords.len());
     if workers <= 1 {
         for &coord in coords {
             cancel.check()?;

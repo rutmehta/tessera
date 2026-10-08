@@ -326,7 +326,7 @@ impl Renderer {
         let mask_cache = Arc::new(crate::MaskRasterCache::new(cache.budget()));
         let native_ops = ops.clone();
         let ops = if config.process_version.family == engine_api::recipe::ProcessFamily::Adobe {
-            Arc::new(crate::AdobeStageOp::new(ops)) as Arc<dyn StageOp>
+            Arc::new(crate::AdobeStageOp::new(ops).with_threads(config.threads)) as Arc<dyn StageOp>
         } else {
             ops
         };
@@ -381,7 +381,9 @@ impl Renderer {
         next.config.process_version = process_version;
         next.dcp_resolved = false;
         next.ops = if process_version.family == engine_api::recipe::ProcessFamily::Adobe {
-            Arc::new(crate::AdobeStageOp::new(self.native_ops.clone()))
+            Arc::new(
+                crate::AdobeStageOp::new(self.native_ops.clone()).with_threads(next.config.threads),
+            )
         } else {
             self.native_ops.clone()
         };
@@ -449,18 +451,24 @@ impl Renderer {
             }
         }
         if let Some((profile, _)) = &next.dcp {
-            next.ops = Arc::new(crate::AdobeStageOp::with_profile(
-                self.native_ops.clone(),
-                profile.clone(),
-                image,
-                settings,
-            )?);
+            next.ops = Arc::new(
+                crate::AdobeStageOp::with_profile(
+                    self.native_ops.clone(),
+                    profile.clone(),
+                    image,
+                    settings,
+                )?
+                .with_threads(self.config.threads),
+            );
         }
         if next.dcp.is_none() && image.metadata().baseline_exposure != 0. {
-            next.ops = Arc::new(crate::AdobeStageOp::with_baseline(
-                self.native_ops.clone(),
-                image.metadata().baseline_exposure,
-            )?);
+            next.ops = Arc::new(
+                crate::AdobeStageOp::with_baseline(
+                    self.native_ops.clone(),
+                    image.metadata().baseline_exposure,
+                )?
+                .with_threads(self.config.threads),
+            );
         }
         next.dcp_resolved = true;
         Ok(Some(next))

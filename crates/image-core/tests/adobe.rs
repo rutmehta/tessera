@@ -420,6 +420,11 @@ fn eng10b_adobe_barriers_follow_renderer_threads() {
     s.tone.contrast = 25.;
     s.color.vibrance = 20.;
     s.detail.sharpening.amount = 60.;
+    // A neutral custom balance, as compat_matches_standalone_with_and_without_dcp
+    // (the synthetic as-shot balance is outside the DCP's Duv range).
+    s.white_balance.mode = engine_api::recipe::settings::WhiteBalanceMode::Custom;
+    s.white_balance.temperature = 6504.;
+    s.white_balance.tint = 5.;
     let render = |threads, dcp: bool| {
         let mut r = Renderer::new(config(threads));
         if dcp {
