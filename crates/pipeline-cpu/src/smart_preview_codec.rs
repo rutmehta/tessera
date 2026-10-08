@@ -673,10 +673,20 @@ impl CameraLinearProxy {
                 source,
                 CorrectionSource::Database | CorrectionSource::Image | CorrectionSource::MakerNote
             )) != s.correction.sample.is_some()
-            || (source == CorrectionSource::MakerNote && s.correction.sample != maker)
             || (matches!(s.lens.profile, LensProfileSource::Embedded) && !built_in)
         {
             return Err(invalid("inconsistent resolved lens snapshot"));
+        }
+        // REV-ENG-8 S2: the stored sample is what the engine that wrote the
+        // container derived from the recorded parameters. A different
+        // derivation today (a changed fit) means its pixels and tail no
+        // longer match a render from the original: Stale, never corrupt.
+        if source == CorrectionSource::MakerNote && s.correction.sample != maker {
+            return Err(EngineError::Unsupported {
+                what: "smart preview stale: built-in maker-note lens correction computed \
+                       differently by this version; regenerate from original"
+                    .into(),
+            });
         }
         let correction = ResolvedLens {
             manual_ca,
