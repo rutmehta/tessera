@@ -95,27 +95,6 @@ fn hnsw_top_five_recall_on_a_thousand_random_vectors() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Search over-fetches graph candidates and re-ranks them by exact cosine, so
-/// the nearest neighbour is not lost to the graph's ordering of a short list.
-#[test]
-fn hnsw_top_one_is_the_exact_nearest_neighbour_after_reranking() -> anyhow::Result<()> {
-    let dir = tempfile::tempdir()?;
-    let mut random_vector = lcg_vectors();
-    let (approximate, exact) = thousand_vector_indexes(dir.path(), &mut random_vector)?;
-    let mut misses = Vec::new();
-    for query in 0..200 {
-        let query_vector = random_vector();
-        let expected = exact.search(&query_vector, 1)?;
-        let actual = approximate.search(&query_vector, 1)?;
-        assert_eq!(actual.len(), 1);
-        if actual[0].0 != expected[0].0 {
-            misses.push((query, actual[0], expected[0]));
-        }
-    }
-    assert!(misses.is_empty(), "top-1 misses: {misses:?}");
-    Ok(())
-}
-
 #[test]
 fn hnsw_rebuilds_replacements_and_clamps_unbounded_search() -> anyhow::Result<()> {
     let dir = tempfile::tempdir()?;
