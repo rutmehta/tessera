@@ -349,6 +349,29 @@ pub(crate) fn render_with_options(
         return Ok(None);
     }
     let destination = engine_api::tile::Extent::new(width, height);
+    // Texture, Clarity and Dehaze render only through the tile path, and only
+    // when one tile band covers the frame. Decide that before the output
+    // uploads its tables (ENG-15): the budget here bounds the job's, which
+    // only loses the output's tables, so a frame declined here is declined
+    // below too.
+    if has_presence(&recipe.settings.tone)
+        && tile_band_rows(
+            raw.level_extent(level),
+            frame,
+            lens.map.is_some(),
+            level,
+            budget.min(BUDGET),
+        ) < frame.height
+    {
+        trace_note("presence recipe over one tile band; CPU export");
+        return Ok(None);
+    }
+    // Whatever path follows (bands, tiles, or a decline from either), flush
+    // the uploads queued so far when the export ends: wgpu keeps their
+    // staging until the next submission, which a CPU fallback never makes
+    // (REV-ENG-14 SHOULD-FIX 2: 1.8 MiB per declined export, unbounded in a
+    // headless batch).
+    let _flush = FlushUploads(context.clone());
     let mut registry = color_mgmt::Registry::new();
     let target = codec::profile(&mut registry, space)?;
     let output = Arc::new(GpuManagedOutput::new(
@@ -772,6 +795,38 @@ fn render_bands(
     Ok(Some(rgb))
 }
 
+/// Rows of `frame` one tile-path band renders within `budget`: whole tile
+/// rows, at most the frame.
+fn tile_band_rows(
+    developed: engine_api::tile::Extent,
+    frame: engine_api::tile::Extent,
+    mapped: bool,
+    level: u8,
+    budget: usize,
+) -> u32 {
+    let scale = 1u32 << level;
+    // Scratch per output row: the resident tile graph (~256 B/px), plus the
+    // map's assembled input, mapped band and its encoded copy.
+    let per_pixel = if mapped { 384 } else { 256 };
+    let row_bytes = (developed.width.max(frame.width) as usize)
+        .saturating_mul(per_pixel)
+        .saturating_mul((scale * scale) as usize);
+    let rows = (budget / row_bytes.max(1) / TILE_SIZE as usize).max(1);
+    rows.saturating_mul(TILE_SIZE as usize)
+        .min(frame.height as usize) as u32
+}
+
+/// Submits the uploads queued on the export device when dropped, so wgpu
+/// can free their staging copies whether or not the export submitted GPU
+/// work (a declined export otherwise leaves them until the next submission).
+struct FlushUploads(Arc<GpuContext>);
+
+impl Drop for FlushUploads {
+    fn drop(&mut self) {
+        self.0.flush_uploads();
+    }
+}
+
 /// The M2-21b pyramid-tile path (Texture/Clarity/Dehaze in one band, and
 /// the fallback when the band renderer declines).
 fn render_tiles(job: &Job<'_>, base: &ManagedRenderer) -> EngineResult<Option<image::Rgb32FImage>> {
@@ -780,21 +835,12 @@ fn render_tiles(job: &Job<'_>, base: &ManagedRenderer) -> EngineResult<Option<im
     let resizing = destination != frame;
     let level = job.level;
     let developed = job.raw.level_extent(level);
-    let scale = 1u32 << level;
-    // Scratch per output row: the resident tile graph (~256 B/px), plus the
-    // map's assembled input, mapped band and its encoded copy.
-    let per_pixel = if job.lens.map.is_some() { 384 } else { 256 };
-    let row_bytes = (developed.width.max(frame.width) as usize)
-        .saturating_mul(per_pixel)
-        .saturating_mul((scale * scale) as usize);
     let budget = job.budget;
-    let rows = (budget / row_bytes.max(1) / TILE_SIZE as usize).max(1);
-    let band = rows
-        .saturating_mul(TILE_SIZE as usize)
-        .min(frame.height as usize) as u32;
+    let band = tile_band_rows(developed, frame, job.lens.map.is_some(), level, budget);
     let tone = &job.settings.tone;
     // Global Dehaze statistics / local-tone barriers cannot be independently
     // evaluated per band. Preserve correctness via the scalar fallback.
+    // (`render_with_options` declines these before building the output.)
     if band < frame.height && has_presence(tone) {
         return Ok(None);
     }
