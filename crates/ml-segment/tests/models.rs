@@ -10,7 +10,10 @@ fn cached_models_segment_synthetic_and_fixture() {
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join("tools/orchestrate/wp/M3-04/.cache/segment-registry"));
     if !cache.is_dir() {
-        eprintln!("SKIP offline: fetch segmentation weights then populate SHA cache (README)");
+        test_fixtures::models::skipped(
+            "cached_models_segment_synthetic_and_fixture",
+            "segmentation weights not cached (TESSERA_SEGMENT_MODELS; see README)",
+        );
         return;
     }
     let registry = ModelRegistry::open(root.join("crates/ml-runtime/models.toml"), &cache).unwrap();

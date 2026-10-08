@@ -18,8 +18,9 @@ fn cached() -> Option<Siglip> {
             .exists()
         || !cache.join("tokenizer.json").exists()
     {
-        eprintln!(
-            "SKIP offline: run tools/fetch_siglip.py --cache <dir>, set TESSERA_SIGLIP_CACHE"
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            "SigLIP not cached (tools/fetch_siglip.py --cache <dir>; set TESSERA_SIGLIP_CACHE)",
         );
         return None;
     }

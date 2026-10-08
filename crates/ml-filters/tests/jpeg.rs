@@ -30,7 +30,10 @@ fn boundary_estimate_and_zero_bypass() -> anyhow::Result<()> {
 #[test]
 fn cached_q30_jpeg_improves_psnr() -> anyhow::Result<()> {
     let Some(cache) = std::env::var_os("TESSERA_FILTER_MODEL_CACHE") else {
-        eprintln!("SKIP: set TESSERA_FILTER_MODEL_CACHE for real DRUNet PSNR");
+        test_fixtures::models::skipped(
+            "cached_q30_jpeg_improves_psnr",
+            "set TESSERA_FILTER_MODEL_CACHE for real DRUNet PSNR",
+        );
         return Ok(());
     };
     let registry = ModelRegistry::open(
@@ -42,7 +45,10 @@ fn cached_q30_jpeg_improves_psnr() -> anyhow::Result<()> {
         version: ml_enhance::DENOISE_VERSION.into(),
     };
     if registry.resolve_cached_ref(&reference)?.is_none() {
-        eprintln!("SKIP: DRUNet absent");
+        test_fixtures::models::skipped(
+            "cached_q30_jpeg_improves_psnr",
+            "DRUNet absent from TESSERA_FILTER_MODEL_CACHE",
+        );
         return Ok(());
     }
     let clean = image::RgbImage::from_fn(64, 64, |x, y| {

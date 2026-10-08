@@ -3,7 +3,10 @@
 #[test]
 fn lightroom_smart_preview_libraw_decode() {
     let Some(path) = std::env::var_os("TESSERA_SMART_PREVIEW_SAMPLE") else {
-        eprintln!("smart preview sample not supplied; opt-in decode check skipped");
+        test_fixtures::opt_in_skipped(
+            "lightroom_smart_preview_libraw_decode",
+            "set TESSERA_SMART_PREVIEW_SAMPLE to a private Smart Preview",
+        );
         return;
     };
     let dimensions = libraw_ffi::RawFile::open(&path).ok().map(|raw| {

@@ -9,7 +9,10 @@ fn cached_model_fixture_and_partition() {
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join("tools/orchestrate/wp/M3-06/.cache/depth-registry"));
     if !cache.join(format!("{MODEL_SHA256}.onnx")).is_file() {
-        eprintln!("SKIP offline: run tools/orchestrate/wp/M3-06/fetch_depth.py");
+        test_fixtures::models::skipped(
+            "cached_model_fixture_and_partition",
+            "depth weights not cached (run tools/orchestrate/wp/M3-06/fetch_depth.py)",
+        );
         return;
     }
     let registry = ModelRegistry::open(root.join("crates/ml-runtime/models.toml"), cache).unwrap();
@@ -37,7 +40,10 @@ fn cached_model_fixture_and_partition() {
         let depth = model.estimate(&image).unwrap();
         assert_eq!((depth.width(), depth.height()), image.dimensions());
     } else {
-        eprintln!("SKIP photograph: set TESSERA_DEPTH_FIXTURE to a JPEG");
+        test_fixtures::opt_in_skipped(
+            "cached_model_fixture_and_partition",
+            "photograph part: set TESSERA_DEPTH_FIXTURE to a JPEG",
+        );
     }
     let report = model.partition_report().unwrap();
     assert!(!report.nodes.is_empty());

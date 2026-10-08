@@ -163,7 +163,10 @@ fn cached_models_cli_upscale_smoke() {
     for (factor, sha) in [(2, ml_enhance::SR_X2_SHA256), (4, ml_enhance::SR_X4_SHA256)] {
         let model = cache.join(format!("{sha}.onnx"));
         if !model.is_file() {
-            eprintln!("SKIP: Real-ESRGAN x{factor} not cached");
+            test_fixtures::models::skipped(
+                "cached_models_cli_upscale_smoke",
+                &format!("Real-ESRGAN x{factor} part: not cached (TESSERA_ENHANCE_MODEL_CACHE)"),
+            );
             continue;
         }
         let temp = tempfile::tempdir().unwrap();

@@ -11,7 +11,10 @@ fn compare(factor: usize, sha: &str, width: usize) -> anyhow::Result<()> {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| root.join("tools/orchestrate/wp/M3-05/.cache"));
     if !cache.join(format!("{sha}.onnx")).is_file() {
-        eprintln!("SKIP: Real-ESRGAN x{factor} not cached for production seam test");
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            &format!("Real-ESRGAN x{factor} not cached (TESSERA_ENHANCE_MODEL_CACHE)"),
+        );
         return Ok(());
     }
     let radius = (23 * 3 * 5 + 7) * if factor == 2 { 2 } else { 1 };

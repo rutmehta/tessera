@@ -15,5 +15,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 previews = { path = "../previews" }
 tempfile = { workspace = true }

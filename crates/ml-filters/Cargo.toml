@@ -13,5 +13,6 @@ ml-enhance = { path = "../ml-enhance" }
 ml-faces = { path = "../ml-faces" }
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 image.workspace = true
 tempfile.workspace = true

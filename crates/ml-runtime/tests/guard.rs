@@ -3,6 +3,11 @@ use ml_runtime::{ModelRegistry, Session, SessionOptions, Tensor};
 #[test]
 fn registered_models_coreml_guard() -> anyhow::Result<()> {
     if std::env::var("TESSERA_REQUIRE_COREML").as_deref() != Ok("1") {
+        // Downloads every registered model and needs CoreML: a separate opt-in.
+        test_fixtures::opt_in_skipped(
+            "registered_models_coreml_guard",
+            "set TESSERA_REQUIRE_COREML=1 to download and audit every registered model",
+        );
         return Ok(());
     }
     let cache = tempfile::tempdir()?;

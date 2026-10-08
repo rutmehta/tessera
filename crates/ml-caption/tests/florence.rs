@@ -10,7 +10,10 @@ fn cached_caption_ocr_and_partition_report() {
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/orchestrate/wp/M3-13/cache")
         });
     if !Florence::is_cached(&cache) {
-        eprintln!("SKIP offline: tools/fetch_florence.py --cache DIR; set TESSERA_FLORENCE_CACHE");
+        test_fixtures::models::skipped(
+            "cached_caption_ocr_and_partition_report",
+            "Florence not cached (tools/fetch_florence.py --cache DIR; set TESSERA_FLORENCE_CACHE)",
+        );
         return;
     }
     let registry = ModelRegistry::open(

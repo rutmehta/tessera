@@ -33,6 +33,7 @@ zune-jpegxl = { version = "0.5.2", default-features = false, features = ["std"] 
 zune-core = "0.5.3"
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 serde_json = { workspace = true }
 libraw-ffi = { path = "../libraw-ffi" }
 jxl-oxide = { version = "0.12.6", default-features = false }

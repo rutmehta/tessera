@@ -7,7 +7,10 @@ fn registry() -> anyhow::Result<Option<ModelRegistry>> {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| root.join("tools/orchestrate/wp/M3-05/.cache"));
     if !cache.join(format!("{DENOISE_SHA256}.onnx")).is_file() {
-        eprintln!("SKIP: DRUNet not cached");
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            "DRUNet not cached (TESSERA_ENHANCE_MODEL_CACHE)",
+        );
         return Ok(None);
     }
     Ok(Some(ModelRegistry::open(

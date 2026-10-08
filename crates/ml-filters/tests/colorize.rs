@@ -12,7 +12,10 @@ use std::path::PathBuf;
 #[test]
 fn real_cached_ddcolor_cpu() -> Result<()> {
     let Some(cache) = std::env::var_os("TESSERA_FILTER_MODEL_CACHE") else {
-        eprintln!("SKIP DDColor: set TESSERA_FILTER_MODEL_CACHE to a SHA-addressed model cache");
+        test_fixtures::models::skipped(
+            "real_cached_ddcolor_cpu",
+            "set TESSERA_FILTER_MODEL_CACHE to a SHA-addressed model cache",
+        );
         return Ok(());
     };
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -27,7 +30,10 @@ fn real_cached_ddcolor_cpu() -> Result<()> {
         version: spec.version.clone(),
     };
     if registry.resolve_cached_ref(&model)?.is_none() {
-        eprintln!("SKIP DDColor: model absent from requested cache");
+        test_fixtures::models::skipped(
+            "real_cached_ddcolor_cpu",
+            "DDColor absent from TESSERA_FILTER_MODEL_CACHE",
+        );
         return Ok(());
     }
     // Corrupt/unreadable cached bytes propagate an error above, never a skip.

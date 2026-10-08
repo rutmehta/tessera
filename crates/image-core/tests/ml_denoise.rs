@@ -21,7 +21,10 @@ fn cached_model_runs_through_renderer_and_reference_pipeline() {
         .join(format!("{}.onnx", ml_enhance::DENOISE_SHA256))
         .is_file()
     {
-        eprintln!("SKIP: DRUNet not cached");
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            "DRUNet not cached (TESSERA_ENHANCE_MODEL_CACHE)",
+        );
         return;
     }
     let registry = Arc::new(

@@ -10,4 +10,5 @@ engine-api = { path = "../engine-api" }
 ml-runtime = { path = "../ml-runtime" }
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 tempfile.workspace = true

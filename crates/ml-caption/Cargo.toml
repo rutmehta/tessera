@@ -21,5 +21,6 @@ sha2 = "0.10"
 tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"] }
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 tempfile.workspace = true
 fontdue = "0.9"

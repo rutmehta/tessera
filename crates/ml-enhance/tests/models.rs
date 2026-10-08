@@ -11,7 +11,10 @@ fn cached_realesrgan_x4_scales_and_reports_coreml() -> anyhow::Result<()> {
         .join(ml_enhance::SR_X4_SHA256.to_owned() + ".onnx")
         .is_file()
     {
-        eprintln!("SKIP: Real-ESRGAN x4 not cached");
+        test_fixtures::models::skipped(
+            "cached_realesrgan_x4_scales_and_reports_coreml",
+            "Real-ESRGAN x4 not cached (TESSERA_ENHANCE_MODEL_CACHE)",
+        );
         return Ok(());
     }
     let registry = ModelRegistry::open(root.join("crates/ml-runtime/models.toml"), cache)?;
@@ -42,7 +45,10 @@ fn cached_realesrgan_doubles_dimensions_preserves_edge_and_reports_coreml() -> a
         .join(ml_enhance::SR_X2_SHA256.to_owned() + ".onnx")
         .is_file()
     {
-        eprintln!("SKIP: Real-ESRGAN x2 not cached");
+        test_fixtures::models::skipped(
+            "cached_realesrgan_doubles_dimensions_preserves_edge_and_reports_coreml",
+            "Real-ESRGAN x2 not cached (TESSERA_ENHANCE_MODEL_CACHE)",
+        );
         return Ok(());
     }
     let registry = ModelRegistry::open(root.join("crates/ml-runtime/models.toml"), cache)?;

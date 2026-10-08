@@ -13,5 +13,6 @@ ml-segment = { path = "../ml-segment" }
 engine-api = { path = "../engine-api" }
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 tempfile = { workspace = true }
 pipeline-cpu = { path = "../pipeline-cpu" }

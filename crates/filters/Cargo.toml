@@ -27,6 +27,7 @@ bytemuck.workspace = true
 pollster = "0.4"
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 image = { workspace = true, features = ["png"] }
 tempfile.workspace = true
 naga = { version = "30", features = ["wgsl-in"] }

@@ -1329,6 +1329,7 @@ dependencies = [
  "serde_json",
  "sidecar",
  "tempfile",
+ "test-fixtures",
  "tiff 0.10.3",
  "zune-core 0.5.3",
  "zune-jpegxl",
@@ -1408,6 +1409,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "test-fixtures",
  "transform",
  "wgpu",
 ]
@@ -2971,6 +2973,7 @@ dependencies = [
  "sha2",
  "sidecar",
  "tempfile",
+ "test-fixtures",
  "tokenizers",
 ]
 
@@ -2986,6 +2989,7 @@ dependencies = [
  "ml-segment",
  "pipeline-cpu",
  "tempfile",
+ "test-fixtures",
 ]
 
 [[package]]
@@ -3004,6 +3008,7 @@ dependencies = [
  "rusqlite",
  "sha2",
  "tempfile",
+ "test-fixtures",
  "tokenizers",
 ]
 
@@ -3015,6 +3020,7 @@ dependencies = [
  "engine-api",
  "ml-runtime",
  "tempfile",
+ "test-fixtures",
 ]
 
 [[package]]
@@ -3033,6 +3039,7 @@ dependencies = [
  "previews",
  "raw-decode",
  "tempfile",
+ "test-fixtures",
  "ureq",
 ]
 
@@ -3048,6 +3055,7 @@ dependencies = [
  "ml-faces",
  "ml-runtime",
  "tempfile",
+ "test-fixtures",
 ]
 
 [[package]]
@@ -3073,6 +3081,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "test-fixtures",
  "toml 0.8.23",
  "ureq",
 ]
@@ -3091,6 +3100,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "test-fixtures",
 ]
 
 [[package]]
