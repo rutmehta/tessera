@@ -276,6 +276,17 @@ fn unsupported_orientation_and_correction_metadata_refuse() {
     let mut d = decoded();
     d.metadata.opcode_lists[2] = Some(Vec::new());
     assert_eq!(admit_metadata(&d), Err(Refusal::CorrectionMetadata));
+    // ENG-8: maker-note built-in corrections apply in every lens mode too.
+    let mut d = decoded();
+    d.metadata.maker_lens = Some(raw_decode::MakerLens::Fujifilm(raw_decode::FujifilmLens {
+        knots: vec![0., 1.],
+        distortion: vec![0., 1.],
+        ca_red: vec![0., 0.],
+        ca_blue: vec![0., 0.],
+        vignetting: vec![100., 90.],
+        crop_factor: 1.,
+    }));
+    assert_eq!(admit_metadata(&d), Err(Refusal::CorrectionMetadata));
 }
 
 #[test]

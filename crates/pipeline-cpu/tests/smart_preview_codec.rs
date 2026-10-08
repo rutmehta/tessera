@@ -888,3 +888,208 @@ fn eng7c_legacy_none_mode_opcode_container_is_stale() {
         }
     }
 }
+
+/// A Fujifilm raw with the X-E2S fixture's maker-note correction (ENG-8).
+fn eng8_fujifilm(w: u32, h: u32, lens: bool) -> (CfaImage, RawMetadata) {
+    let (c, mut m) = fixture(w, h);
+    m.make = "FUJIFILM".into();
+    m.orientation = 1;
+    m.maker_lens = lens.then(|| {
+        raw_decode::MakerLens::Fujifilm(raw_decode::FujifilmLens {
+            knots: (0..=10).map(|i| i as f64 / 10.).collect(),
+            distortion: vec![
+                0., 0.102, 0.205, 0.307, 0.408, 0.517, 0.66, 0.879, 1.184, 1.598, 2.158,
+            ],
+            // Exaggerated CA so a double application would show.
+            ca_red: (0..=10).map(|i| 0.004 * i as f64 / 10.).collect(),
+            ca_blue: (0..=10).map(|i| -0.004 * i as f64 / 10.).collect(),
+            vignetting: vec![
+                100., 99.92, 99.77, 99.46, 98.94, 98.43, 98.11, 97.29, 96.78, 95.88, 94.9,
+            ],
+            crop_factor: 1.,
+        })
+    });
+    (c, m)
+}
+
+/// ENG-8: a Smart Preview of a raw with a maker-note correction records it
+/// (source MakerNote, the derived sample and the original's parameters),
+/// bakes the built-in CA into the camera-linear pixels once and replays only
+/// vignetting and geometry; it reopens to the same render.
+#[test]
+fn eng8_maker_note_correction_round_trips_without_double_application() {
+    let (c, m) = eng8_fujifilm(96, 64, true);
+    let settings = DevelopSettings::default();
+    let p = CameraLinearProxy::generate(
+        &c,
+        &m,
+        &settings,
+        ProcessVersion::NATIVE_CURRENT,
+        [8; 32],
+        &LensContext::default(),
+    )
+    .unwrap();
+    let bytes = p.encode_persistent(1000).unwrap();
+    let v = snapshot(&bytes);
+    assert_eq!(v["correction"]["source"], "MakerNote");
+    assert_eq!(v["metadata"]["maker_note"]["kind"], "fujifilm");
+    let decoded = CameraLinearProxy::decode_persistent(&bytes).unwrap();
+    assert!(v["correction"]["sample"].is_object());
+    assert_eq!(
+        snapshot(&decoded.proxy.encode_persistent(1000).unwrap()),
+        v,
+        "reopened snapshot (source, sample, parameters) differs"
+    );
+    assert_eq!(decoded.proxy.original_metadata().maker_lens, m.maker_lens);
+    let proxy = render_linear_scaled(&settings, &RenderSource::CameraLinear(&p), 1).unwrap();
+    let reopened =
+        render_linear_scaled(&settings, &RenderSource::CameraLinear(&decoded.proxy), 1).unwrap();
+    for (a, b) in proxy
+        .planes()
+        .iter()
+        .flatten()
+        .zip(reopened.planes().iter().flatten())
+    {
+        assert!((a - b).abs() <= 0.003 * a.abs() + 0.0005, "{a} != {b}");
+    }
+    // The proxy (scale 1 here) renders like the original: CA once, not twice.
+    let original = render_linear_scaled(
+        &settings,
+        &RenderSource::Cfa {
+            image: &c,
+            metadata: &m,
+        },
+        1,
+    )
+    .unwrap();
+    let diff = original
+        .planes()
+        .iter()
+        .flatten()
+        .zip(proxy.planes().iter().flatten())
+        .map(|(a, b)| (a - b).abs())
+        .fold(0f32, f32::max);
+    assert!(diff <= 1e-5, "proxy differs from the original by {diff}");
+}
+
+/// ENG-8: other cameras' containers keep their exact bytes (no maker-note
+/// member); a Fujifilm raw without correction data records `none`.
+#[test]
+fn eng8_maker_note_member_only_for_fujifilm() {
+    let bytes = proxy().encode_persistent(100).unwrap();
+    assert!(snapshot(&bytes)["metadata"].get("maker_note").is_none());
+    let (c, m) = eng8_fujifilm(32, 24, false);
+    let p = CameraLinearProxy::generate(
+        &c,
+        &m,
+        &DevelopSettings::default(),
+        ProcessVersion::NATIVE_CURRENT,
+        [8; 32],
+        &LensContext::default(),
+    )
+    .unwrap();
+    let bytes = p.encode_persistent(100).unwrap();
+    assert_eq!(
+        snapshot(&bytes)["metadata"]["maker_note"],
+        serde_json::json!({"kind": "none"})
+    );
+    CameraLinearProxy::decode_persistent(&bytes).unwrap();
+}
+
+/// ENG-8: a Fujifilm container written before maker-note corrections has no
+/// record of them and resolved none; it is stale in every mode that applies
+/// built-in corrections, and fine where they do not apply. A tampered or
+/// mismatched maker-note snapshot is inconsistent.
+#[test]
+fn eng8_legacy_fujifilm_container_is_stale_and_mismatches_are_rejected() {
+    use engine_api::{
+        EngineError,
+        recipe::settings::{LensProfileRef, LensProfileSource},
+    };
+    let (c, m) = eng8_fujifilm(64, 48, true);
+    let generate = |settings: &DevelopSettings| {
+        CameraLinearProxy::generate(
+            &c,
+            &m,
+            settings,
+            ProcessVersion::NATIVE_CURRENT,
+            [8; 32],
+            &LensContext::default(),
+        )
+        .unwrap()
+        .encode_persistent(100)
+        .unwrap()
+    };
+    let bytes = generate(&DevelopSettings::default());
+    let named = serde_json::to_value(LensProfileSource::Database {
+        profile: LensProfileRef::named("Missing"),
+    })
+    .unwrap();
+    for mode in [
+        serde_json::json!({"kind": "auto"}),
+        serde_json::json!({"kind": "none"}),
+        serde_json::json!({"kind": "embedded"}),
+        named,
+    ] {
+        let legacy = change_json(&bytes, |v| {
+            v["metadata"].as_object_mut().unwrap().remove("maker_note");
+            v["lens"]["profile"] = mode.clone();
+            v["correction"]["source"] = serde_json::json!("Manual");
+            v["correction"]["sample"] = serde_json::Value::Null;
+        });
+        match CameraLinearProxy::decode_persistent(&legacy) {
+            Err(EngineError::Unsupported { what }) => assert!(
+                what.contains("stale") && what.contains("regenerate from original"),
+                "{mode}: {what}"
+            ),
+            Err(e) => panic!("{mode}: not reported stale: {e}"),
+            Ok(_) => panic!("{mode}: legacy snapshot accepted"),
+        }
+    }
+    // AutoCalibrated never applied built-in corrections: still valid.
+    let mut calibrated = DevelopSettings::default();
+    calibrated.lens.profile = LensProfileSource::AutoCalibrated;
+    let bytes_cal = generate(&calibrated);
+    let legacy = change_json(&bytes_cal, |v| {
+        v["metadata"].as_object_mut().unwrap().remove("maker_note");
+    });
+    CameraLinearProxy::decode_persistent(&legacy).unwrap();
+    // Mismatches: a sample that is not the one the parameters give, the
+    // source without the parameters, and parameters without the source.
+    for (name, edit) in [
+        (
+            "tampered sample",
+            Box::new(|v: &mut serde_json::Value| {
+                v["correction"]["sample"]["distortion"]["k1"] = serde_json::json!(0.01);
+            }) as Box<dyn Fn(&mut serde_json::Value)>,
+        ),
+        (
+            "no parameters",
+            Box::new(|v: &mut serde_json::Value| {
+                v["metadata"]["maker_note"] = serde_json::json!({"kind": "none"});
+            }),
+        ),
+        (
+            "source dropped",
+            Box::new(|v: &mut serde_json::Value| {
+                v["correction"]["source"] = serde_json::json!("Manual");
+                v["correction"]["sample"] = serde_json::Value::Null;
+            }),
+        ),
+        (
+            "ragged parameters",
+            Box::new(|v: &mut serde_json::Value| {
+                v["metadata"]["maker_note"]["vignetting"]
+                    .as_array_mut()
+                    .unwrap()
+                    .pop();
+            }),
+        ),
+    ] {
+        let bad = change_json(&bytes, |v| edit(v));
+        assert!(
+            CameraLinearProxy::decode_persistent(&bad).is_err(),
+            "{name}: accepted"
+        );
+    }
+}
