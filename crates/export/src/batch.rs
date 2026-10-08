@@ -155,16 +155,77 @@ pub fn export_batch_with_jobs(
 /// screen presets, not full-size float frames of large sensors.
 const PIPELINE_PAIR_PIXELS: u64 = 16 << 20;
 
+/// Share of physical memory two Adobe-process renders may hold together
+/// (ENG-10): one eighth. Pairing a full-size 16 MP batch measured about 30%
+/// faster than rendering one at a time, at about 1 GB more peak memory, so
+/// machines with room pair and small ones do not.
+const ADOBE_PAIR_MEMORY_SHARE: u64 = 8;
+/// The pair budget when physical memory cannot be read.
+const ADOBE_PAIR_FALLBACK_BYTES: u64 = 3 << 29;
+
+/// Host working set two Adobe-process renders may hold at once.
+fn adobe_pair_budget() -> u64 {
+    physical_memory().map_or(ADOBE_PAIR_FALLBACK_BYTES, |m| m / ADOBE_PAIR_MEMORY_SHARE)
+}
+
+fn physical_memory() -> Option<u64> {
+    // SAFETY: sysconf only reads system configuration values.
+    let (pages, size) = unsafe {
+        (
+            libc::sysconf(libc::_SC_PHYS_PAGES),
+            libc::sysconf(libc::_SC_PAGESIZE),
+        )
+    };
+    (pages > 0 && size > 0).then(|| (pages as u64).saturating_mul(size as u64))
+}
+
+/// Peak host bytes of one Adobe-process render (Develop's renderer, see
+/// `adobe_render`) at `render_scale`, from the 16 MP ARW measurements in
+/// the ENG-10 HANDOFF: the renderer's own source copy (4 B per sensor
+/// sample, 12 B per RGB or proxy pixel), about 96 MiB of demosaic chunk
+/// scratch, and 41-52 B per developed level pixel for the renderer's level
+/// frames plus the rendered output awaiting encode (56 B in all).
+fn adobe_render_bytes(source: &pipeline_cpu::RenderSource<'_>, render_scale: u32) -> u64 {
+    let (pixels, source_bytes) = match source {
+        pipeline_cpu::RenderSource::Cfa { metadata, .. } => {
+            let px = u64::from(metadata.width) * u64::from(metadata.height);
+            (px, 4 * px)
+        }
+        pipeline_cpu::RenderSource::Rgb(image) => {
+            let px = u64::from(image.width()) * u64::from(image.height());
+            (px, 12 * px)
+        }
+        pipeline_cpu::RenderSource::CameraLinear(proxy) => {
+            let px = u64::from(proxy.pixels().width()) * u64::from(proxy.pixels().height());
+            (px, 12 * px)
+        }
+    };
+    let scale = u64::from(render_scale.max(1));
+    source_bytes + (96 << 20) + 56 * pixels / (scale * scale)
+}
+
 /// Renders [`export_pipeline`] runs at once. Two renders overlap one
 /// image's CPU work (sensor copy, lens analysis) with the other's GPU bands
 /// when outputs are small enough to hold three at once (two rendering, one
-/// encoding).
-fn pipeline_renders(
-    _items: &[ExportItem<'_>],
-    _settings: &ExportSettings,
+/// encoding). Adobe-process renders hold level-size float frames on the
+/// host, so two of them must also fit [`adobe_pair_budget`] together.
+fn pipeline_renders(items: &[ExportItem<'_>], settings: &ExportSettings, max_output: u64) -> usize {
+    pipeline_renders_within(items, settings, max_output, adobe_pair_budget())
+}
+
+fn pipeline_renders_within(
+    items: &[ExportItem<'_>],
+    settings: &ExportSettings,
     max_output: u64,
+    adobe_pair_budget: u64,
 ) -> usize {
-    if max_output <= PIPELINE_PAIR_PIXELS {
+    let adobe = items
+        .iter()
+        .filter(|item| crate::is_adobe(item.recipe))
+        .map(|item| adobe_render_bytes(&item.image.source, settings.render_scale))
+        .max()
+        .unwrap_or(0);
+    if max_output <= PIPELINE_PAIR_PIXELS && 2 * adobe <= adobe_pair_budget {
         2
     } else {
         1
@@ -309,6 +370,7 @@ mod tests {
         h: u32,
         process: engine_api::recipe::ProcessVersion,
         settings: &ExportSettings,
+        memory: u64,
     ) -> usize {
         let cfa = raw_decode::CfaImage::from_linear(2, 2, vec![0.1; 4]).unwrap();
         let metadata = raw_decode::RawMetadata {
@@ -355,17 +417,25 @@ mod tests {
             recipe: &recipe,
         }];
         let (ow, oh) = settings.resize.dimensions(w, h).unwrap();
-        pipeline_renders(&items, settings, u64::from(ow) * u64::from(oh))
+        pipeline_renders_within(
+            &items,
+            settings,
+            u64::from(ow) * u64::from(oh),
+            memory / ADOBE_PAIR_MEMORY_SHARE,
+        )
     }
 
     /// ENG-10: an Adobe-process render holds several level-size float frames
     /// on the host (Develop's renderer), unlike the resident GPU bands of a
-    /// Native render. Two run at once only while both fit the pair budget:
-    /// full-size 16 and 24 MP Adobe exports render one at a time, Web-sized
-    /// ones (render scale 2) still pair. Native admission is unchanged.
+    /// Native render. Two run at once only while both fit an eighth of
+    /// physical memory: on an 8 GiB machine full-size 16 and 24 MP Adobe
+    /// exports render one at a time and Web-sized ones (render scale 2) still
+    /// pair; on a 48 GiB machine full-size ones pair too. Native admission is
+    /// unchanged on both.
     #[test]
     fn eng10_pipeline_pairs_adobe_renders_only_within_the_memory_budget() {
         use engine_api::recipe::ProcessVersion;
+        const GIB: u64 = 1 << 30;
         let full = ExportSettings::default();
         let web = ExportSettings {
             resize: crate::Resize::LongEdge(2048),
@@ -373,27 +443,41 @@ mod tests {
             ..Default::default()
         };
         for (w, h) in [(4928, 3276), (6000, 4000)] {
-            assert_eq!(
-                admitted(w, h, ProcessVersion::adobe(6), &full),
-                1,
-                "{w}x{h} full"
-            );
-            assert_eq!(
-                admitted(w, h, ProcessVersion::adobe(6), &web),
-                2,
-                "{w}x{h} web"
-            );
-            assert_eq!(
-                admitted(w, h, ProcessVersion::NATIVE_CURRENT, &full),
-                2,
-                "{w}x{h} native"
-            );
+            for (memory, full_pairs) in [(8 * GIB, 1), (48 * GIB, 2)] {
+                assert_eq!(
+                    admitted(w, h, ProcessVersion::adobe(6), &full, memory),
+                    if u64::from(w) * u64::from(h) <= PIPELINE_PAIR_PIXELS {
+                        full_pairs
+                    } else {
+                        1
+                    },
+                    "{w}x{h} full, {} GiB",
+                    memory / GIB
+                );
+                assert_eq!(
+                    admitted(w, h, ProcessVersion::adobe(6), &web, memory),
+                    2,
+                    "{w}x{h} web, {} GiB",
+                    memory / GIB
+                );
+                // Native keeps its output-size rule (pairs up to 16 Mi pixels).
+                assert_eq!(
+                    admitted(w, h, ProcessVersion::NATIVE_CURRENT, &full, memory),
+                    if u64::from(w) * u64::from(h) <= PIPELINE_PAIR_PIXELS {
+                        2
+                    } else {
+                        1
+                    },
+                    "{w}x{h} native"
+                );
+                assert_eq!(
+                    admitted(w, h, ProcessVersion::NATIVE_CURRENT, &web, memory),
+                    2,
+                    "{w}x{h} native web"
+                );
+            }
         }
-        // Native keeps its output-size rule.
-        assert_eq!(
-            admitted(8000, 6000, ProcessVersion::NATIVE_CURRENT, &full),
-            1
-        );
+        assert!(adobe_pair_budget() >= GIB / 8);
     }
 
     #[test]
