@@ -73,3 +73,9 @@ From 2026-10-07 Machine B is the sole coordinator and main merger (Machine A is 
 - ENG-13 export GPU buffer pool: recycled buffers are counted when a band transaction takes them and kept in an idle list; exact-size reuse; export transactions evict idle buffers oldest-first under pressure; uploads metered; checkpoint releases only counted bytes; readback publishes true held bytes; per-band-renderer statistics (previously shared across in-flight bands). Device-measured peak export scratch (MTLDevice.currentAllocatedSize) fell from 494–677 MiB to 346–394 MiB across five fixtures × three scales; export ~8% faster.
 - Independent review: APPROVE. Follow-up ENG-14 (running): the vignette/grain effects map is uncounted and built per band worker (903 MiB measured on a 36 MP NEF with vignette), plus ~10 MiB of unmetered staging/params.
 - Gates on 5c57b2c7 (TESSERA_REQUIRE_RAW_FIXTURES=1): Rust 3,571 / 0 / 100 ignored; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
+
+## Batch 63 (main 229bf0bb)
+
+- ENG-14: GPU exports never build the vignette/grain effects map (inline WGSL path, bit-identical over 60 independent comparisons; interactive renders still build it); every export device allocation is metered (upload staging copies, parameter buffers/arenas, resize offsets/taps, readback staging; output LUT taken off BUDGET); planner sensor term 26→30 B + 2 MiB/band. Device-measured peak ≤ 380.8 MiB vs 384 MiB BUDGET on 5 fixtures × 3 scales × none/vignette/grain (was up to 904 MiB). New device-peak diagnostics.
+- Independent review: APPROVE (merged by rebasing onto main; the branch carried replayed ENG-13 commits). Follow-ups in ENG-15: CR3 Web export +22% (16→19 bands); pre-existing ~1.8 MiB leak per GPU-declined export (presence recipes) until the next GPU submission.
+- Gates on 229bf0bb (TESSERA_REQUIRE_RAW_FIXTURES=1): Rust 3,576 / 0 / 101 ignored; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
