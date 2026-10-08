@@ -500,14 +500,20 @@ fn render_bands(
     while top < destination.height {
         let left = destination.height - top;
         let (mut lo, mut hi) = (1u32, left.div_ceil(16));
-        // Decline at plan time, before any band renders, when even the
-        // smallest band would exceed its share.
         if !fits(top, 16.min(left))? {
-            trace_note(&format!(
-                "band plan: rows {top}.. need {} B, over the {share} B share; pyramid tiles",
-                cost(top, 16.min(left))?.0.total()
-            ));
-            return Ok(None);
+            // Decline at plan time, before any band renders, when even the
+            // smallest band exceeds the scratch each band renderer is given
+            // (`budget` only sizes bands: tests pass tiny ones).
+            let (smallest, _) = cost(top, 16.min(left))?;
+            if !smallest.fits(BUDGET / in_flight) {
+                trace_note(&format!(
+                    "band plan: rows {top}.. need {} B, over the {} B band scratch; pyramid tiles",
+                    smallest.total(),
+                    BUDGET / in_flight
+                ));
+                return Ok(None);
+            }
+            hi = 1;
         }
         while lo < hi {
             let mid = (lo + hi).div_ceil(2);
