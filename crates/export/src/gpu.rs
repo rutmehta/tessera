@@ -72,6 +72,18 @@ impl Drop for Reservation {
     }
 }
 
+/// Diagnostic: the Metal device's allocated bytes once the export device has
+/// gone idle ([`GpuContext::idle_device_allocated_bytes`]), None without
+/// Metal. Process-wide: callers must not overlap other GPU work.
+#[doc(hidden)]
+pub fn idle_device_allocated_bytes() -> Option<u64> {
+    DEVICE
+        .get_or_init(|| GpuContext::new().map(Arc::new))
+        .as_ref()
+        .ok()?
+        .idle_device_allocated_bytes()
+}
+
 /// `TESSERA_EXPORT_TRACE=1` prints per-phase export timings to stderr.
 pub(crate) fn trace(phase: &str, since: std::time::Instant) {
     static ON: OnceLock<bool> = OnceLock::new();

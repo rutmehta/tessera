@@ -24,6 +24,8 @@ mod gpu;
 use engine_api::{EngineError, EngineResult};
 use engine_api::{jobs::CancellationToken, recipe::Recipe};
 pub use filter::{Resize, SharpenAmount, SharpenFor, sharpen_output};
+#[doc(hidden)]
+pub use gpu::idle_device_allocated_bytes;
 use pipeline_cpu::RenderSource;
 use sidecar::{MarkPreset, Sidecar, XmpPacket};
 mod native;
