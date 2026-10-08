@@ -39,9 +39,10 @@ pub struct PreviewKey {
 /// previews rendered by an older engine are never served. Epoch 1 used
 /// unprefixed directories. Epoch 2 (ENG-7/7b): the default lens mode no
 /// longer applies image-estimated distortion, built-in DNG opcode corrections
-/// apply in every profile mode, and automatic CA is off by default. Stale
-/// directories are left to LRU eviction.
-pub const RENDER_EPOCH: u32 = 2;
+/// apply in every profile mode, and automatic CA is off by default. Epoch 3
+/// (ENG-8): maker-note built-in corrections (Fujifilm) apply in every profile
+/// mode. Stale directories are left to LRU eviction.
+pub const RENDER_EPOCH: u32 = 3;
 
 impl PreviewKey {
     pub fn new(bytes: &[u8], orientation: u8, recipe_hash: [u8; 32]) -> Self {
