@@ -1,22 +1,25 @@
-//! Opt-in: the sparse sensor lens analysis used by GPU export resolves the
-//! same corrections as the reference's whole-frame analysis on real RAWs.
+//! The sparse sensor lens analysis used by GPU export resolves the same
+//! corrections as the reference's whole-frame analysis on the five real RAW
+//! fixtures (`test_fixtures::raw::root()`).
 use engine_api::recipe::DevelopSettings;
 use pipeline_cpu::{DemosaicAlgorithm, Image};
-use std::{path::PathBuf, time::Instant};
+use std::time::Instant;
 
 #[test]
-#[ignore = "five real RAW fixtures (PIPELINE_RAW_FIXTURES)"]
 fn sparse_lens_analysis_matches_reference_on_fixtures() {
-    let root = PathBuf::from(std::env::var_os("PIPELINE_RAW_FIXTURES").expect("fixtures"));
-    let settings = DevelopSettings::default();
-    for name in [
+    let names = [
         "canon-cr3.CR3",
         "sony-arw.ARW",
         "nikon-nef.NEF",
         "fuji-raf.RAF",
         "sample.dng",
-    ] {
-        let mut raw = raw_decode::RawSource::open(root.join(name)).unwrap();
+    ];
+    let Some(paths) = test_fixtures::raw::files(&test_fixtures::current_test(), &names) else {
+        return;
+    };
+    let settings = DevelopSettings::default();
+    for (name, path) in names.into_iter().zip(paths) {
+        let mut raw = raw_decode::RawSource::open(path).unwrap();
         let cfa = raw.decode_cfa().unwrap();
         let m = raw.metadata();
         let plane = Image::from_pyramid(cfa.pyramid()).unwrap();
