@@ -47,10 +47,11 @@ pub struct GpuStats {
     /// Surface presentation reads only the histogram, never pixels.
     pub histogram_readbacks: u64,
     pub pixel_readback_bytes: u64,
-    /// Device bytes of resident payloads the last batch held at its readback
-    /// (excludes parameters and the staging copy): recycled buffers it took
-    /// in and fresh allocations, less those released. Export budget checks
-    /// use the same count. Equal to `last_resident_live_bytes`.
+    /// Device bytes the last batch held at its readback, excluding the
+    /// readback staging copy: recycled buffers it took in and fresh
+    /// allocations (payloads, uploads, parameters and wgpu's staging copies
+    /// of uploads and parameter arenas), less those released. Export budget
+    /// checks use the same count. Equal to `last_resident_live_bytes`.
     pub last_resident_allocated_bytes: u64,
     /// Fresh payload buffers the last batch allocated.
     pub last_resident_buffers: u64,
@@ -60,10 +61,14 @@ pub struct GpuStats {
     /// (recycled buffers taken in plus fresh allocations, less those
     /// released), excluding the readback staging copy.
     pub last_resident_live_bytes: u64,
-    /// The largest such footprint during the last resident transaction.
+    /// The largest footprint during the last resident transaction,
+    /// including the readback staging copy (ENG-14).
     pub last_resident_peak_bytes: u64,
     /// Bytes of recycled buffers the last resident transaction took in.
     pub last_resident_recycled_bytes: u64,
+    /// Effects constants maps (vignette mask, grain value per pixel of the
+    /// whole frame) built. Export transactions never build one (ENG-14).
+    pub effects_maps: u64,
 }
 #[derive(Default)]
 pub(crate) struct Counters {
@@ -79,6 +84,7 @@ pub(crate) struct Counters {
     pub(crate) last_resident_live_bytes: AtomicU64,
     pub(crate) last_resident_peak_bytes: AtomicU64,
     pub(crate) last_resident_recycled_bytes: AtomicU64,
+    pub(crate) effects_maps: AtomicU64,
 }
 
 /// Metal operators. X-Trans neighbourhood and unported M2 operators fall back
@@ -106,6 +112,9 @@ pub struct GpuStageOp {
     pub(crate) hdr_surface_pipeline: Arc<std::sync::OnceLock<wgpu::ComputePipeline>>,
     /// The last effects constants map: (parameter key, buffer).
     pub(crate) effects_map: Arc<std::sync::Mutex<Option<EffectsMap>>>,
+    /// Test-only: export transactions build the effects constants map as
+    /// interactive ones do (see [`crate::ManagedRenderer::with_export_effects_map`]).
+    pub(crate) export_effects_map: bool,
     pub(crate) detail_pipelines: Vec<wgpu::ComputePipeline>,
     /// Resident Texture/Clarity/Dehaze kernels, compiled on first use.
     pub(crate) local_tone:
@@ -220,6 +229,7 @@ impl GpuStageOp {
             effects_map_pipeline: Arc::default(),
             hdr_surface_pipeline: Arc::default(),
             effects_map: Arc::default(),
+            export_effects_map: false,
             recycled: Arc::default(),
             dehaze_stats: Arc::default(),
             context,
@@ -309,6 +319,7 @@ impl GpuStageOp {
                 .counters
                 .last_resident_recycled_bytes
                 .load(Ordering::Relaxed),
+            effects_maps: self.counters.effects_maps.load(Ordering::Relaxed),
         }
     }
 

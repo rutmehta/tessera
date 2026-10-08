@@ -140,6 +140,13 @@ impl GpuManagedOutput {
         })
     }
 
+    /// Device bytes this output holds for its lifetime (ICC, gamut and
+    /// transfer tables), doubled for the staging copies wgpu makes of them
+    /// until its first submission: export charges them to its budget.
+    pub fn device_bytes(&self) -> u64 {
+        2 * (self.nodes.size() + self.warnings.size() + self.transfer.size())
+    }
+
     pub fn validate(&self, settings: &DevelopSettings) -> EngineResult<()> {
         if settings.output != self.settings {
             return Err(EngineError::invalid(
@@ -442,6 +449,9 @@ impl ManagedRenderer {
     /// The renderer for another export band with its own resize request:
     /// shares the compiled pipelines, device and output (no recompilation).
     /// Resident memo caches are fresh (export renderers do not memoize).
+    /// Its [`ManagedRenderer::stats`] are its own: every counter (uploads,
+    /// readbacks, submissions, dispatches, effects maps, `last_resident_*`)
+    /// covers this band renderer only, not the base or other bands.
     pub fn export_band(&self, resize: Option<crate::ExportResize>) -> Self {
         self.band_with(resize, Arc::default())
     }
@@ -455,6 +465,26 @@ impl ManagedRenderer {
         self.band_with(resize, self.ops.recycled.clone())
     }
 
+    /// Test-only: this export renderer (and the band renderers made from
+    /// it) builds the effects constants map as interactive renderers do.
+    /// Production exports use the inline vignette/grain path (ENG-14); tests
+    /// compare the two bit for bit. The map is not charged to the scratch.
+    #[doc(hidden)]
+    pub fn with_export_effects_map(&self) -> Self {
+        let mut ops = (*self.ops).clone();
+        ops.export_effects_map = true;
+        ops.effects_map = Arc::default();
+        let ops = Arc::new(ops);
+        Self {
+            output: self.output.clone(),
+            renderer: self.renderer.for_backend(ops.clone()),
+            ops,
+        }
+    }
+
+    /// A band renderer sharing this renderer's pipelines and output, with
+    /// its own resident cache and counters: every statistic its `stats()`
+    /// reports is per band renderer (REV-ENG-13 NIT).
     fn band_with(
         &self,
         resize: Option<crate::ExportResize>,
@@ -465,7 +495,7 @@ impl ManagedRenderer {
         ops.recycled = recycled;
         // Its own counters: concurrent bands' `last_resident_*` statistics
         // (the export trace and footprint checks) must not overwrite each
-        // other.
+        // other. Every counter in `stats()` is therefore per band renderer.
         ops.counters = Arc::default();
         ops.resident_cache = crate::resident::cache(self.renderer.config().cache_budget_bytes);
         let ops = Arc::new(ops);

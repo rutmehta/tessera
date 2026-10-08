@@ -27,6 +27,22 @@ impl GpuContext {
         self.shared.as_ref().and_then(|s| s.device_failure())
     }
 
+    /// Diagnostic: bytes the Metal device has allocated for this process
+    /// ([`gpu_core::device_allocated_bytes`]), independent of any budget
+    /// counter. Process-wide: measurements must not overlap other GPU work.
+    #[doc(hidden)]
+    pub fn device_allocated_bytes(&self) -> Option<u64> {
+        gpu_core::device_allocated_bytes(&self.device)
+    }
+
+    /// [`Self::device_allocated_bytes`] once submitted work has completed
+    /// and wgpu has released what it retired (a measurement baseline).
+    #[doc(hidden)]
+    pub fn idle_device_allocated_bytes(&self) -> Option<u64> {
+        self.device.poll(wgpu::PollType::wait_indefinitely()).ok()?;
+        self.device_allocated_bytes()
+    }
+
     /// The shared device handle for contexts opened by `new` or `from_shared`.
     ///
     /// # Panics

@@ -124,12 +124,17 @@ pub(crate) fn render_resized(
 // `TESSERA_EXPORT_TRACE=1` prints on the five fixtures (ENG-12b): the worst
 // band of each camera, full chain at level 0, gives 25.1 B per sensor pixel
 // and 95.6 B per developed pixel besides the readback; the CR3 (sensor 6288
-// wide, developed 4000) separates the two. Planned bands keep
-// [`BAND_MARGIN_DIVISOR`] of headroom below their share.
+// wide, developed 4000) separates the two. ENG-14 meters wgpu's staging
+// copies and the parameter arena too: +4 B per sensor pixel and 2 MiB per
+// band restore the largest actual/planned ratio to 0.99 (it reached 1.056).
+// Planned bands keep [`BAND_MARGIN_DIVISOR`] of headroom below their share.
 /// Per uploaded sensor pixel: the sensor-domain stages (raw upload and
 /// gathers, highlights, demosaic, lateral CA), which run at the CFA width over
-/// the band's sensor rows with all their halos.
-const SENSOR_BYTES_PER_PIXEL: usize = 26;
+/// the band's sensor rows with all their halos, and wgpu's 4 B staging copy
+/// of the raw upload (metered since ENG-14).
+const SENSOR_BYTES_PER_PIXEL: usize = 30;
+/// Per band: the parameter arena and wgpu's staging copy of it (ENG-14).
+const PARAMS_BYTES: usize = 2 << 20;
 /// Per developed pixel (level-frame rows with the Detail halo): resample,
 /// matrices, vignette, Detail, Tone/Color/Effects.
 const DEVELOPED_BYTES_PER_PIXEL: usize = 96;
@@ -152,11 +157,13 @@ struct BandCost {
     mapped: usize,
     /// The readback, and the export resize when there is one.
     readback: usize,
+    /// Parameters ([`PARAMS_BYTES`]).
+    params: usize,
 }
 
 impl BandCost {
     fn total(&self) -> usize {
-        self.sensor + self.developed + self.mapped + self.readback
+        self.sensor + self.developed + self.mapped + self.readback + self.params
     }
 
     fn fits(&self, share: usize) -> bool {
@@ -228,6 +235,10 @@ pub(crate) struct Options {
     /// resized on the GPU meets it.
     pub web_level: bool,
     pub in_flight: usize,
+    /// Test-only: build the effects constants map as interactive renders do
+    /// (production exports use the inline path; ENG-14 compares the two).
+    #[cfg(test)]
+    pub effects_map: bool,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -238,6 +249,8 @@ impl Default for Options {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(BANDS_IN_FLIGHT),
+            #[cfg(test)]
+            effects_map: false,
         }
     }
 }
@@ -340,7 +353,11 @@ pub(crate) fn render_with_options(
         cache_budget_bytes: 0,
         ..Default::default()
     };
-    let budget = budget.min(BUDGET);
+    // The output's tables live for the whole export, shared by its band
+    // workers: they come off the budget before it is split (ENG-14).
+    let fixed = usize::try_from(output.device_bytes()).unwrap_or(usize::MAX);
+    let scratch = BUDGET.saturating_sub(fixed).max(1);
+    let budget = budget.min(scratch);
     let job = Job {
         raw: &raw,
         settings: &settings,
@@ -349,6 +366,8 @@ pub(crate) fn render_with_options(
         frame,
         destination,
         budget,
+        scratch,
+        fixed,
         cancel,
     };
     if options.bands && !has_presence(&recipe.settings.tone) {
@@ -360,8 +379,14 @@ pub(crate) fn render_with_options(
             output.clone(),
             config.clone(),
             None,
-            (BUDGET / in_flight) as u64,
+            (scratch / in_flight) as u64,
         );
+        #[cfg(test)]
+        let base = if options.effects_map {
+            base.with_export_effects_map()
+        } else {
+            base
+        };
         match render_bands(&job, &base, in_flight) {
             Ok(Some(rgb)) => {
                 LAST_PATH.set("bands");
@@ -374,7 +399,13 @@ pub(crate) fn render_with_options(
             Err(e) => return Err(e),
         }
     }
-    let base = ManagedRenderer::new_export_budgeted(output, config, None, BUDGET as u64);
+    let base = ManagedRenderer::new_export_budgeted(output, config, None, scratch as u64);
+    #[cfg(test)]
+    let base = if options.effects_map {
+        base.with_export_effects_map()
+    } else {
+        base
+    };
     LAST_PATH.set("tiles");
     render_tiles(&job, &base)
 }
@@ -402,8 +433,10 @@ pub(crate) struct BandFootprint {
     pub(crate) counted: u64,
     /// Recycled buffers the band took in from the worker's previous band.
     pub(crate) recycled: u64,
-    /// The scratch the band renderer is given (`BUDGET / in_flight`).
+    /// The scratch the band renderer is given (`(BUDGET - fixed) / in_flight`).
     pub(crate) share: u64,
+    /// Effects constants maps the band built (ENG-14: none in production).
+    pub(crate) effects_maps: u64,
 }
 
 #[cfg(test)]
@@ -425,7 +458,13 @@ struct Job<'a> {
     /// The rendered output frame at `level` (mapped with a lens map).
     frame: engine_api::tile::Extent,
     destination: engine_api::tile::Extent,
+    /// Sizes bands (at most `scratch`; tests pass tiny ones).
     budget: usize,
+    /// The export scratch band renderers share: [`BUDGET`] less `fixed`.
+    scratch: usize,
+    /// Device bytes the export holds outside every band (the output's
+    /// tables), reserved alongside the bands' shares.
+    fixed: usize,
     cancel: &'a CancellationToken,
 }
 
@@ -512,6 +551,7 @@ fn render_bands(
                 } else {
                     0
                 },
+            params: PARAMS_BYTES,
         };
         Ok((cost, developed_rows.len() * developed.width as usize))
     };
@@ -532,11 +572,11 @@ fn render_bands(
             // smallest band exceeds the scratch each band renderer is given
             // (`budget` only sizes bands: tests pass tiny ones).
             let (smallest, _) = cost(top, 16.min(left))?;
-            if !smallest.fits(BUDGET / in_flight) {
+            if !smallest.fits(job.scratch / in_flight) {
                 trace_note(&format!(
                     "band plan: rows {top}.. need {} B, over the {} B band scratch; pyramid tiles",
                     smallest.total(),
-                    BUDGET / in_flight
+                    job.scratch / in_flight
                 ));
                 return Ok(None);
             }
@@ -596,7 +636,11 @@ fn render_bands(
             *waited.lock().unwrap_or_else(|e| e.into_inner()) += yielded;
             let band_started = std::time::Instant::now();
             if reservation.is_none() {
-                reservation = Some(Reservation::acquire(share, job.cancel)?);
+                // With its part of the export's fixed tables.
+                reservation = Some(Reservation::acquire(
+                    share + job.fixed.div_ceil(in_flight),
+                    job.cancel,
+                )?);
             }
             let resize = resizing.then_some(pipeline_gpu::ExportResize {
                 source: frame,
@@ -634,7 +678,8 @@ fn render_bands(
                         readback: rows as u64 * u64::from(destination.width) * 12,
                         counted: stats.last_resident_allocated_bytes,
                         recycled: stats.last_resident_recycled_bytes,
-                        share: (BUDGET / in_flight) as u64,
+                        share: (job.scratch / in_flight) as u64,
+                        effects_maps: stats.effects_maps,
                     });
             }
             if std::env::var_os("TESSERA_EXPORT_TRACE").is_some() {
@@ -761,7 +806,7 @@ fn render_tiles(job: &Job<'_>, base: &ManagedRenderer) -> EngineResult<Option<im
         )?;
         waited += yielded;
         let band_started = std::time::Instant::now();
-        let reservation = Reservation::acquire(budget, job.cancel)?;
+        let reservation = Reservation::acquire(budget + job.fixed, job.cancel)?;
         let (renderer, rect) = if resizing {
             let request = pipeline_gpu::ExportResize {
                 source: frame,
@@ -1342,6 +1387,7 @@ mod tests {
                                     bands,
                                     web_level: false,
                                     in_flight: BANDS_IN_FLIGHT,
+                                    effects_map: false,
                                 },
                             )
                             .unwrap()
@@ -1395,6 +1441,7 @@ mod tests {
                 bands: true,
                 web_level,
                 in_flight: BANDS_IN_FLIGHT,
+                effects_map: false,
             },
         )
         .unwrap()
@@ -1478,5 +1525,301 @@ mod tests {
         }
         assert!(failures.is_empty(), "{failures:?}");
         assert!(overruns.is_empty(), "{overruns:#?}");
+    }
+
+    /// A recipe with each effect the device-peak diagnostic measures.
+    fn effects_variants(base: &Recipe) -> Vec<(&'static str, Recipe)> {
+        let with = |edit: fn(&mut engine_api::recipe::DevelopSettings)| {
+            let mut recipe = base.clone();
+            recipe
+                .edit(engine_api::recipe::EditMeta::user("effects", 0), edit)
+                .unwrap();
+            recipe
+        };
+        vec![
+            ("none", base.clone()),
+            ("vignette", with(|s| s.effects.vignette.amount = -40.)),
+            ("grain", with(|s| s.effects.grain.amount = 40.)),
+        ]
+    }
+
+    /// Runs `export` while another thread samples the Metal device's own
+    /// allocation counter every 0.3 ms: (peak minus the idle baseline taken
+    /// first, export time).
+    fn device_peak(context: &GpuContext, export: impl FnOnce()) -> (u64, std::time::Duration) {
+        use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+        let read = || {
+            context
+                .device_allocated_bytes()
+                .expect("Metal allocation counter")
+        };
+        let baseline = context
+            .idle_device_allocated_bytes()
+            .expect("Metal allocation counter");
+        let (done, peak) = (AtomicBool::new(false), AtomicU64::new(baseline));
+        let elapsed = std::thread::scope(|scope| {
+            scope.spawn(|| {
+                while !done.load(Ordering::Acquire) {
+                    peak.fetch_max(read(), Ordering::Relaxed);
+                    std::thread::sleep(std::time::Duration::from_micros(300));
+                }
+                peak.fetch_max(read(), Ordering::Relaxed);
+            });
+            let started = std::time::Instant::now();
+            export();
+            let elapsed = started.elapsed();
+            done.store(true, Ordering::Release);
+            elapsed
+        });
+        (peak.into_inner().saturating_sub(baseline), elapsed)
+    }
+
+    /// ENG-14 diagnostic: true export device memory, measured as the
+    /// reviewer of ENG-13 did. The Metal device's own allocation counter
+    /// (`currentAllocatedSize`, which sees every buffer, pipeline and wgpu
+    /// staging copy whether or not a budget counts it) is sampled during a
+    /// real export, after a warm-up export of the same configuration. Five
+    /// fixtures x {full chain, Web full-res, Web pyramid} x {no effects,
+    /// vignette, grain}: every peak must be within [`BUDGET`]. Ignored
+    /// because the counter is process-wide; run it alone:
+    /// `cargo test --release -p export --lib five_fixture_device_peak -- --ignored --test-threads=1`
+    #[test]
+    #[ignore = "process-wide device counter: run alone"]
+    fn five_fixture_device_peak_within_budget() {
+        let Some(fixtures) = five_fixtures() else {
+            return;
+        };
+        let context = match DEVICE.get_or_init(|| GpuContext::new().map(Arc::new)) {
+            Ok(context) => context.clone(),
+            Err(e) => panic!("Metal device required: {e}"),
+        };
+        let cancel = CancellationToken::new();
+        let mib = |b: u64| b as f64 / (1 << 20) as f64;
+        let mut over = Vec::new();
+        for (name, path) in fixtures {
+            let raw = RawImage::open(ImageId(1), &path).unwrap();
+            let image = ExportImage {
+                source: RenderSource::Cfa {
+                    image: raw.cfa(),
+                    metadata: raw.metadata(),
+                },
+                name,
+                sequence: 1,
+                date: "",
+                metadata: None,
+            };
+            for (scale, resize, web_level) in [
+                ("full-chain", crate::Resize::None, false),
+                ("web-full-res", crate::Resize::LongEdge(2048), false),
+                ("web-pyramid", crate::Resize::LongEdge(2048), true),
+            ] {
+                for (effect, recipe) in effects_variants(&Recipe::default()) {
+                    let export = || {
+                        render_with_options(
+                            &image,
+                            &recipe,
+                            ColorSpace::Srgb,
+                            1,
+                            &cancel,
+                            BUDGET,
+                            resize,
+                            None,
+                            Options {
+                                bands: true,
+                                web_level,
+                                in_flight: BANDS_IN_FLIGHT,
+                                effects_map: false,
+                            },
+                        )
+                        .unwrap()
+                        .expect("fixture must use GPU");
+                        assert_eq!(LAST_PATH.get(), "bands", "{name} {scale} {effect}");
+                    };
+                    export();
+                    let (peak, elapsed) = device_peak(&context, export);
+                    BAND_FOOTPRINTS.with(|f| f.borrow_mut().clear());
+                    eprintln!(
+                        "DEVICE_PEAK {name} {scale} {effect} peak={:.1} MiB export={:.1} ms",
+                        mib(peak),
+                        elapsed.as_secs_f64() * 1e3
+                    );
+                    if peak > BUDGET as u64 {
+                        over.push(format!(
+                            "{name} {scale} {effect}: {:.1} MiB > {:.1} MiB",
+                            mib(peak),
+                            mib(BUDGET as u64)
+                        ));
+                    }
+                }
+            }
+        }
+        assert!(over.is_empty(), "{over:#?}");
+    }
+
+    /// Exports `recipe` with production settings and with the effects map
+    /// forced (test-only switch): describes any difference, any effects map
+    /// the production export built, and a forced export that built none.
+    #[allow(clippy::too_many_arguments)]
+    fn effects_map_difference(
+        label: &str,
+        image: &ExportImage<'_>,
+        recipe: &Recipe,
+        scale: u32,
+        resize: crate::Resize,
+        web_level: bool,
+        bands: bool,
+        budget: usize,
+    ) -> Vec<String> {
+        let run = |effects_map: bool| {
+            let rgb = render_with_options(
+                image,
+                recipe,
+                ColorSpace::Srgb,
+                scale,
+                &CancellationToken::new(),
+                budget,
+                resize,
+                None,
+                Options {
+                    bands,
+                    web_level,
+                    in_flight: BANDS_IN_FLIGHT,
+                    effects_map,
+                },
+            )
+            .unwrap()
+            .expect("stays on GPU");
+            assert_eq!(
+                LAST_PATH.get(),
+                if bands { "bands" } else { "tiles" },
+                "{label}"
+            );
+            let maps: u64 = BAND_FOOTPRINTS
+                .with(|f| std::mem::take(&mut *f.borrow_mut()))
+                .iter()
+                .map(|b| b.effects_maps)
+                .sum();
+            (rgb, maps)
+        };
+        let (inline, inline_maps) = run(false);
+        let (mapped, mapped_maps) = run(true);
+        let mut problems = Vec::new();
+        if inline_maps != 0 {
+            problems.push(format!("{label}: export built {inline_maps} effects maps"));
+        }
+        if bands && mapped_maps == 0 {
+            problems.push(format!("{label}: the forced map was never built"));
+        }
+        let differing = inline
+            .as_raw()
+            .iter()
+            .zip(mapped.as_raw())
+            .filter(|(a, b)| a.to_bits() != b.to_bits())
+            .count();
+        eprintln!(
+            "EFFECTS_MAP {label} maps_inline={inline_maps} maps_forced={mapped_maps} differing_samples={differing}"
+        );
+        if differing != 0 {
+            problems.push(format!(
+                "{label}: {differing} samples differ with the effects map"
+            ));
+        }
+        problems
+    }
+
+    /// ENG-14: export never builds the effects constants map; the inline
+    /// vignette/grain path is bit-identical to the map, on synthetic Bayer
+    /// and X-Trans sources, bands (whole and 16-row) and tiles, levels 0
+    /// and 1, resized or not.
+    #[test]
+    fn exports_use_the_inline_effects_path_bit_identical_to_the_map() {
+        let sources = [
+            (
+                "bayer",
+                common::synthetic(1411, 610, 452, common::RGGB, [5, 3, 598, 441]),
+            ),
+            (
+                "xtrans",
+                common::synthetic(1412, 612, 450, common::xtrans(), [6, 0, 600, 444]),
+            ),
+        ];
+        let mut problems = Vec::new();
+        for (source, raw) in &sources {
+            let image = ExportImage {
+                source: RenderSource::Cfa {
+                    image: raw.cfa(),
+                    metadata: raw.metadata(),
+                },
+                name: "effects",
+                sequence: 1,
+                date: "",
+                metadata: None,
+            };
+            for (effect, recipe) in effects_variants(&resident_recipe()).into_iter().skip(1) {
+                for scale in [1, 2] {
+                    for resize in [crate::Resize::None, crate::Resize::LongEdge(190)] {
+                        for (path, bands, budget) in [
+                            ("bands", true, usize::MAX),
+                            ("16-row bands", true, 1),
+                            ("tiles", false, usize::MAX),
+                        ] {
+                            problems.extend(effects_map_difference(
+                                &format!("{source} {effect} scale={scale} {resize:?} {path}"),
+                                &image,
+                                &recipe,
+                                scale,
+                                resize,
+                                false,
+                                bands,
+                                budget,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(problems.is_empty(), "{problems:#?}");
+    }
+
+    /// ENG-14 on the five fixtures: full chain, Web full-res and Web pyramid,
+    /// with vignette and with grain.
+    #[test]
+    fn five_fixture_exports_use_the_inline_effects_path_bit_identical_to_the_map() {
+        let Some(fixtures) = five_fixtures() else {
+            return;
+        };
+        let mut problems = Vec::new();
+        for (name, path) in fixtures {
+            let raw = RawImage::open(ImageId(1), &path).unwrap();
+            let image = ExportImage {
+                source: RenderSource::Cfa {
+                    image: raw.cfa(),
+                    metadata: raw.metadata(),
+                },
+                name,
+                sequence: 1,
+                date: "",
+                metadata: None,
+            };
+            for (effect, recipe) in effects_variants(&Recipe::default()).into_iter().skip(1) {
+                for (scale, resize, web_level) in [
+                    ("full-chain", crate::Resize::None, false),
+                    ("web-full-res", crate::Resize::LongEdge(2048), false),
+                    ("web-pyramid", crate::Resize::LongEdge(2048), true),
+                ] {
+                    problems.extend(effects_map_difference(
+                        &format!("{name} {scale} {effect}"),
+                        &image,
+                        &recipe,
+                        1,
+                        resize,
+                        web_level,
+                        true,
+                        BUDGET,
+                    ));
+                }
+            }
+        }
+        assert!(problems.is_empty(), "{problems:#?}");
     }
 }

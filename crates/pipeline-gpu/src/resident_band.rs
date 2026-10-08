@@ -76,14 +76,13 @@ impl Batch<'_> {
             channels: 1,
         };
         check_area(layout)?;
-        self.charge(((to - from) * 4) as u64)?;
-        let buffer = self.host_buffer(
-            Some("sensor rows"),
+        let buffer = self.upload_buffer(
+            "sensor rows",
             bytemuck::cast_slice(&samples[from..to]),
             wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST,
-        );
+        )?;
         self.gpu.counters.uploads.fetch_add(1, Ordering::Relaxed);
         Ok(self.tile(TileCoord::new(0, 0, 0), layout, buffer))
     }
@@ -256,8 +255,10 @@ impl Batch<'_> {
         let (allocated, buffers) = {
             let mut p = self.pool.lock().unwrap();
             p.release_idle();
-            p.meter.publish(&self.gpu.counters);
-            (p.meter.live(), p.allocations)
+            let live = p.meter.live();
+            // The staging copy is counted in the peak (ENG-14).
+            p.meter.publish(&self.gpu.counters, bytes as u64);
+            (live, p.allocations)
         };
         if allocated.saturating_add(bytes as u64) > self.gpu.export_scratch {
             return Err(EngineError::Unsupported {
@@ -318,7 +319,8 @@ impl Batch<'_> {
         }
         cancel.check()?;
         Self::print_profile(self.gpu, std::mem::take(&mut self.profile));
-        // Later bands of this export reuse the effects constants map.
+        // Export builds no effects map (ENG-14) except under the test-only
+        // switch; later bands of such an export reuse it.
         if let Some(map) = self.pending_map.take() {
             *self.gpu.effects_map.lock().unwrap() = Some(map);
         }

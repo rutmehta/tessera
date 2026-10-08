@@ -11,8 +11,10 @@
 pub use color_mgmt;
 pub use color_mgmt::Lut3d;
 mod iosurface;
+mod memory;
 mod precise;
 pub use iosurface::{SurfaceFormat, write_to_iosurface};
+pub use memory::device_allocated_bytes;
 pub use precise::{PrecisePipeline, Precision, precise_compute_pipeline, translate};
 
 use std::sync::{Arc, Mutex};
