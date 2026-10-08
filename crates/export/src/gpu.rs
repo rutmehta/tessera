@@ -145,6 +145,12 @@ pub(crate) fn render_resized(
 /// the band's sensor rows with all their halos, and wgpu's 4 B staging copy
 /// of the raw upload (metered since ENG-14).
 const SENSOR_BYTES_PER_PIXEL: usize = 30;
+/// Per uploaded sensor pixel, when the lens plan has lateral CA (ENG-8: the
+/// fit above had no CA; a Fujifilm maker-note correction carries one in
+/// every mode): the CA resample's RGB output beside its input. Fitted like
+/// the others on the RAF fixture: its worst band (web pyramid level 1) needs
+/// 16.5 B for the 0.99 actual/planned ratio; 12 B left it at 1.041.
+const CA_BYTES_PER_PIXEL: usize = 18;
 /// Per band: the parameter arena and wgpu's staging copy of it (ENG-14).
 const PARAMS_BYTES: usize = 2 << 20;
 /// Per developed pixel (level-frame rows with the Detail halo): resample,
@@ -573,7 +579,14 @@ fn render_bands(
         let developed_rows = developed_rows(source.clone());
         let band = geometry.rows(developed_rows.clone());
         let cost = BandCost {
-            sensor: band.sensor.len() * sensor_width * SENSOR_BYTES_PER_PIXEL,
+            sensor: band.sensor.len()
+                * sensor_width
+                * (SENSOR_BYTES_PER_PIXEL
+                    + if job.lens.ca.is_some() {
+                        CA_BYTES_PER_PIXEL
+                    } else {
+                        0
+                    }),
             developed: band.developed.len() * developed.width as usize * DEVELOPED_BYTES_PER_PIXEL,
             mapped: if blocks.is_some() {
                 source.len() * frame.width as usize * MAP_BYTES_PER_PIXEL

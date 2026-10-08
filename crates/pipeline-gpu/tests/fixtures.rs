@@ -219,6 +219,19 @@ fn fixture_level3_tolerance_per_operator_and_output() {
                 eprintln!("{} L3 max DeltaE2000: {max_delta:e}", path.display());
             }
         }
+        // ENG-8: a raw with a maker-note built-in correction (the RAF) renders
+        // through the resolved lens plan, whose fused resident stages bypass
+        // the per-operator hook. Its final pixels were compared above; audit
+        // each operator on the same sensor data without the correction too.
+        if image.metadata().maker_lens.is_some() {
+            let mut m = image.metadata().clone();
+            m.maker_lens = None;
+            let plain = image.with_metadata(ImageId(43), Arc::new(m)).unwrap();
+            for output in [RenderOutput::SceneLinear, RenderOutput::Display] {
+                r.cache().clear();
+                r.render_region_as(&plain, &s, 3, rect, output).unwrap();
+            }
+        }
         let errors = ops.errors.lock().unwrap();
         for stage in [
             StageId::Linearize,

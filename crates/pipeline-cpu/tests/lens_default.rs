@@ -292,8 +292,13 @@ fn raw_fixtures_default_applies_no_estimated_geometry() {
                 r_cal.sample().map(|s| s.distortion.k1)
             ),
         );
-        if r_auto.source() == CorrectionSource::Embedded {
-            // Camera-embedded correction: Auto keeps applying it unchanged.
+        if matches!(
+            r_auto.source(),
+            CorrectionSource::Embedded | CorrectionSource::MakerNote
+        ) {
+            // Camera built-in correction (DNG opcodes, or maker notes since
+            // ENG-8): applied from the file's data, never estimated from
+            // content. tests/maker_lens.rs checks it.
             continue;
         }
         if estimated_geometry(&r_auto) {

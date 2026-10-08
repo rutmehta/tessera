@@ -17,7 +17,12 @@ fn main() {
         let path = root.join("raw").join(name);
         let mut source = RawSource::open(&path).unwrap();
         let image = source.decode_cfa().unwrap();
-        let metadata = source.metadata();
+        let mut metadata = source.metadata();
+        // The goldens are the optics-off render. Since ENG-8 a camera's
+        // maker-note built-in correction (the Fujifilm RAF) applies in every
+        // lens mode, None included, so it is removed here explicitly;
+        // `tests/maker_lens.rs` covers the corrected render.
+        metadata.maker_lens = None;
         // Match the immutable Native goldens: no BaselineExposure gain, optics off.
         let mut settings = DevelopSettings::default();
         settings.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
