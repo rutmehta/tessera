@@ -445,7 +445,12 @@ Earlier attempts, before the rebase, recorded for completeness:
 
 # ENG-7c: second re-review follow-up (REV2-ENG-7 CHANGES-REQUIRED)
 
-Same branch `wp/ENG-7`. `origin/main` is still `f77aae5d`. Worker: Claude Opus 5.5.
+Same branch `wp/ENG-7`, rebased onto `origin/main` `ebe260a0`. Main moved by
+11 commits (batches 56–57) during the lane. Worker: Claude Opus 5.5.
+
+**Rebase notes.** There were two conflicts, both with ENG-9b's new Adobe-HDR
+Develop notice. In `tessera-ffi/src/develop.rs::render_notices` both notices
+are kept. In `tessera-ffi/tests/develop.rs` both tests are kept.
 
 ## Item table (finding → code → test)
 
@@ -487,51 +492,54 @@ is kept in the API, with its unit test, for a future lens-database UI.
 
 ## Gates (ENG-7c)
 
-The final gates ran on `82e56ad0` (code), after `cargo clean -p engine-api
--p pipeline-cpu -p image-core -p import-lrcat -p previews -p export -p sidecar
--p tessera-ffi -p pipeline-gpu`, with target `~/.cache/tessera-target/ENG-7`
-and the fixtures symlinked.
+The final gates ran on `7ef860fc`, rebased on `ebe260a0`, after
+`cargo clean -p engine-api -p pipeline-cpu -p image-core -p import-lrcat -p previews
+-p export -p sidecar -p tessera-ffi -p pipeline-gpu`. The target was
+`~/.cache/tessera-target/ENG-7` and the fixtures were symlinked.
 
 | Gate | Result |
 |---|---|
-| `cargo test --release --workspace --no-fail-fast` | pass: 684 test binaries, **3530 passed, 0 failed, 107 ignored**, 0 SKIPPED lines. The ENG-7c tests all ran: codec stale, 4 FFI legacy-preview cases, export no-file, L3 parity. Load was 16.1 at the start and 32.0 at the end; no wall-clock failures, no reruns |
+| `cargo test --release --workspace --no-fail-fast` | pass: 685 test binaries, **3541 passed, 0 failed, 107 ignored**, 0 SKIPPED lines. All ENG-7c tests ran: codec stale, the 4 FFI legacy-preview cases, export no-file, and L3 parity. Load was 16.7 at the start and 18.1 at the end; no wall-clock failures, no reruns |
 | `cargo clippy --release --workspace --all-targets -- -D warnings` | pass |
 | `cargo fmt --all -- --check` | pass |
 | `apps/mac/build-ffi.sh` | pass; 0 changed paths (no bindings drift, no FFI surface change) |
 | `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: XCTest 996 tests, 3 skipped, 0 failures; Swift Testing 5 passed |
 | strict release `swift build --product Tessera` | pass |
-| every commit's libraries compile (S-1): `cargo check --workspace --lib` on each commit `origin/main..HEAD`, in a throwaway worktree and target dir | all 18 OK (list below) |
+| every commit's libraries compile (S-1): `cargo check --workspace --lib` on each commit in `origin/main..HEAD`, in a throwaway worktree and target dir (both removed) | all 19 OK (list below) |
 
-The first ENG-7c gate run, on `4267ad2d`, passed everything except clippy:
-the L3 test's `mod preview` left `preview::display` unused (dead code). I
-fixed it with `#[allow(dead_code)]` on that module import, folded into the
-ENG-7c RED commit, and reran every gate above on the result.
+**Earlier ENG-7c gate runs, before the second rebase.**
+- On `4267ad2d`, everything passed except clippy: the L3 test's `mod preview`
+  left `preview::display` unused. Fixed with `#[allow(dead_code)]` on that
+  import, folded into the ENG-7c RED commit.
+- On `82e56ad0`, every gate passed: 3530 passed, 0 failed.
+- Main then moved, so I rebased and reran every gate (the results above).
 
-Per-commit check (`cargo check --workspace --lib`), the current series:
+**Per-commit check of the series**
 
-- `e7b8d91b` test(ENG-7): RED - default lens mode must not apply image-content estimates : lib OK
-- `dfcbcae0` test(ENG-7): RED - use a stripe pattern the k1 estimator detects : lib OK
-- `638d9f59` fix(ENG-7): default lens mode never applies an image-content estimate : lib OK
-- `720a5316` docs(ENG-7): handoff - behaviour before/after, golden audit, gates : lib OK
-- `bd88b3be` test(ENG-7b): RED - preview epoch, CA default, built-in corrections, lens notes : lib OK
-- `82898073` fix(ENG-7b): preview disk cache render epoch 2 (B1) : lib OK
-- `4679fc6f` fix(ENG-7b): Remove Chromatic Aberration defaults to off (S1) : lib OK
-- `90aeb61e` fix(ENG-7b): built-in DNG opcode corrections apply in every profile mode : lib OK
-- `96ddad03` docs(ENG-7b): user-facing release note for the lens default changes (S2) : lib OK
-- `306deb80` fix(ENG-7b): const-assert the preview render epoch (clippy assertions_on_constants) : lib OK
-- `5f3ad4cd` docs(ENG-7b): handoff - rulings table, golden audit, gates : lib OK
-- `a09fb460` test(ENG-7b): RED - Develop render notices name an unavailable lens profile (S3) : lib OK
-- `fca65f20` feat(ENG-7b): Develop shows an unavailable named lens profile (S3) : lib OK
-- `2743a796` docs(ENG-7b): handoff - rebase onto f77aae5d, render_notices, final gates : lib OK
-- `78b18729` test(ENG-7c): RED - legacy opcode Smart Previews are Stale, default exports write no warnings : lib OK
-- `2b245dc7` fix(ENG-7c): legacy opcode Smart Previews open as Stale; sync needs only the journal (N-B1) : lib OK
-- `4509949d` fix(ENG-7c): default raw exports write no lens warnings file (N-B2) : lib OK
-- `82e56ad0` docs(ENG-7c): release note - stale legacy Smart Previews, OpcodeList3 build limit, CA default scope, export note : lib OK
+- `10c0a0c4` test(ENG-7): RED - default lens mode must not apply image-content estimates : lib OK
+- `e081f498` test(ENG-7): RED - use a stripe pattern the k1 estimator detects : lib OK
+- `3de87e90` fix(ENG-7): default lens mode never applies an image-content estimate : lib OK
+- `5b78a6f7` docs(ENG-7): handoff - behaviour before/after, golden audit, gates : lib OK
+- `bc9aabd7` test(ENG-7b): RED - preview epoch, CA default, built-in corrections, lens notes : lib OK
+- `fab07ad9` fix(ENG-7b): preview disk cache render epoch 2 (B1) : lib OK
+- `5502215d` fix(ENG-7b): Remove Chromatic Aberration defaults to off (S1) : lib OK
+- `bd7a95b0` fix(ENG-7b): built-in DNG opcode corrections apply in every profile mode : lib OK
+- `ab4108a8` docs(ENG-7b): user-facing release note for the lens default changes (S2) : lib OK
+- `460abe5c` fix(ENG-7b): const-assert the preview render epoch (clippy assertions_on_constants) : lib OK
+- `a7424ff9` docs(ENG-7b): handoff - rulings table, golden audit, gates : lib OK
+- `7d371032` test(ENG-7b): RED - Develop render notices name an unavailable lens profile (S3) : lib OK
+- `f7f655ac` feat(ENG-7b): Develop shows an unavailable named lens profile (S3) : lib OK
+- `7c7896ce` docs(ENG-7b): handoff - rebase onto f77aae5d, render_notices, final gates : lib OK
+- `291d3b3e` test(ENG-7c): RED - legacy opcode Smart Previews are Stale, default exports write no warnings : lib OK
+- `fd73f560` fix(ENG-7c): legacy opcode Smart Previews open as Stale; sync needs only the journal (N-B1) : lib OK
+- `8d186934` fix(ENG-7c): default raw exports write no lens warnings file (N-B2) : lib OK
+- `0b11912a` docs(ENG-7c): release note - stale legacy Smart Previews, OpcodeList3 build limit, CA default scope, export note : lib OK
+- `7ef860fc` docs(ENG-7c): handoff - N-B1/N-B2/S-1..S-3, audit, gates, per-commit compile check : lib OK
 
 The RED test commits fail their own tests by design (tests first). The
-two RED commits that add new API (`lens_notice`, the preview epoch) also
-fail to compile their tests until the next commit. Every commit's
-libraries compile.
+RED commits that add new API (`lens_notice`, the preview epoch) also fail
+to compile their tests until the next commit. Every commit's libraries
+compile. The commit carrying this HANDOFF follows `7ef860fc`.
 
 ## Commit map after the S-1 history rewrite
 
