@@ -8,6 +8,15 @@
 fn f(i: u32) -> f32 { return bitcast<f32>(p[i]); }
 fn index(gid: vec3<u32>) -> u32 { return gid.x + gid.y * 65535u * 64u; }
 
+// Lanczos-3 weight (embedded_lens::lanczos3_weight).
+fn lanczos3w(x: f32) -> f32 {
+    let ax = abs(x);
+    if ax < 1e-6 { return 1.; }
+    if ax >= 3. { return 0.; }
+    let q = 3.14159265358979 * x;
+    return sin(q) / q * sin(q / 3.) / (q / 3.);
+}
+
 // ── lateral CA: optics::lateral_ca + ResolvedLens::ca_map (sample), or a
 // maker-note prefix correction (ENG-8c: embedded_lens::MakerPrefix) ──
 // p: w, h, halo, ox, oy, sensor W, H | crop[4], centre[2], scale[2], amount,
@@ -57,25 +66,54 @@ fn lateral_ca(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
     let sx = (q.x + 1.) * crop.z / 2. + crop.x - 0.5;
     let sy = (q.y + 1.) * crop.w / 2. + crop.y - 0.5;
-    let u = clamp(sx, 0., f32(p[5] - 1u));
-    let v = clamp(sy, 0., f32(p[6] - 1u));
-    let a = u32(floor(u));
-    let b = u32(floor(v));
-    let fu = u - floor(u);
-    let fv = v - floor(v);
     let x0 = i32(p[3]) - i32(halo);
     let y0 = i32(p[4]) - i32(halo);
-    let at = array<f32, 4>(
-        src[c * plane + u32(clamp(i32(b) - y0, 0, i32(h + 2u * halo) - 1)) * stride
-            + u32(clamp(i32(a) - x0, 0, i32(stride) - 1))],
-        src[c * plane + u32(clamp(i32(b) - y0, 0, i32(h + 2u * halo) - 1)) * stride
-            + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
-        src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
-            + u32(clamp(i32(a) - x0, 0, i32(stride) - 1))],
-        src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
-            + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
-    );
-    var value = (at[0] * (1. - fu) + at[1] * fu) * (1. - fv) + (at[2] * (1. - fu) + at[3] * fu) * fv;
+    var value: f32;
+    if maker {
+        // ENG-8d: normalized separable Lanczos-3, 6x6 edge-clamped taps
+        // (embedded_lens::lanczos3); the halo covers displacement + 4.
+        let fx = floor(sx);
+        let fy = floor(sy);
+        var wx: array<f32, 6>;
+        var sx_w = 0.;
+        for (var t = 0; t < 6; t++) {
+            wx[t] = lanczos3w(sx - (fx + f32(t) - 2.));
+            sx_w += wx[t];
+        }
+        var sum = 0.;
+        var sy_w = 0.;
+        for (var j = 0; j < 6; j++) {
+            let wy = lanczos3w(sy - (fy + f32(j) - 2.));
+            sy_w += wy;
+            let yy = clamp(i32(fy) + j - 2, 0, i32(p[6]) - 1);
+            let row_at = c * plane + u32(clamp(yy - y0, 0, i32(h + 2u * halo) - 1)) * stride;
+            var row = 0.;
+            for (var t = 0; t < 6; t++) {
+                let xx = clamp(i32(fx) + t - 2, 0, i32(p[5]) - 1);
+                row += wx[t] * src[row_at + u32(clamp(xx - x0, 0, i32(stride) - 1))];
+            }
+            sum += row * wy;
+        }
+        value = sum / (sx_w * sy_w);
+    } else {
+        let u = clamp(sx, 0., f32(p[5] - 1u));
+        let v = clamp(sy, 0., f32(p[6] - 1u));
+        let a = u32(floor(u));
+        let b = u32(floor(v));
+        let fu = u - floor(u);
+        let fv = v - floor(v);
+        let at = array<f32, 4>(
+            src[c * plane + u32(clamp(i32(b) - y0, 0, i32(h + 2u * halo) - 1)) * stride
+                + u32(clamp(i32(a) - x0, 0, i32(stride) - 1))],
+            src[c * plane + u32(clamp(i32(b) - y0, 0, i32(h + 2u * halo) - 1)) * stride
+                + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
+            src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
+                + u32(clamp(i32(a) - x0, 0, i32(stride) - 1))],
+            src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
+                + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
+        );
+        value = (at[0] * (1. - fu) + at[1] * fu) * (1. - fv) + (at[2] * (1. - fu) + at[3] * fu) * fv;
+    }
     if maker {
         let mq = q * scale;
         let r2 = mq.x * mq.x + mq.y * mq.y;
