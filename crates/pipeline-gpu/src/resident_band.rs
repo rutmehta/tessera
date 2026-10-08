@@ -318,7 +318,8 @@ impl Batch<'_> {
         }
         cancel.check()?;
         Self::print_profile(self.gpu, std::mem::take(&mut self.profile));
-        // Later bands of this export reuse the effects constants map.
+        // Export builds no effects map (ENG-14) except under the test-only
+        // switch; later bands of such an export reuse it.
         if let Some(map) = self.pending_map.take() {
             *self.gpu.effects_map.lock().unwrap() = Some(map);
         }

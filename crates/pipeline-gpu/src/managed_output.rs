@@ -463,6 +463,7 @@ impl ManagedRenderer {
     pub fn with_export_effects_map(&self) -> Self {
         let mut ops = (*self.ops).clone();
         ops.export_effects_map = true;
+        ops.effects_map = Arc::default();
         let ops = Arc::new(ops);
         Self {
             output: self.output.clone(),

@@ -134,8 +134,9 @@ fn export_bands_use_the_inline_effects_path_bit_identical_to_the_map() {
     for (name, settings) in variants() {
         let output = output(&settings);
         let base = ManagedRenderer::new_export_budgeted(output, config(), None, 1 << 30);
-        let forced = base.with_export_effects_map();
         for destination in [None, Some(Extent::new(800, 466))] {
+            // A fresh switch per run: the map is cached per parameter key.
+            let forced = base.with_export_effects_map();
             let (inline, inline_maps) = bands(&base, &image, &settings, destination);
             let (mapped, mapped_maps) = bands(&forced, &image, &settings, destination);
             assert!(

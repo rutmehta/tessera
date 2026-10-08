@@ -494,6 +494,9 @@ impl<'a> Batch<'a> {
         if base == 0 || p[base + 26] != 0.0 {
             return None;
         }
+        if self.gpu.export_float && !self.gpu.export_effects_map {
+            return None;
+        }
         let key: Vec<u32> = EFFECTS_MAP_KEY
             .iter()
             .map(|&k| p[base + k].to_bits())
