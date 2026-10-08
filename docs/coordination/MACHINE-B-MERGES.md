@@ -29,3 +29,16 @@ From 2026-10-07 Machine B is the sole coordinator and main merger (Machine A is 
 - Independent reviews: Machine A (LR-8/8b/8c/10 changes-required; 8e/8f approved; LR-13a approved), then REV-SP-A/B → REV2-SP → REV3-SP → REV4-SP APPROVE-WITH-NITS; LR-8d APPROVE-WITH-NITS; LR-13c → REV2/REV3 (LR-13d/e/f). Reviews in ~/tessera-evidence/rulings.
 - Gates on 3e19cbf5: Rust 3,496 passed / 0 failed / 108 ignored; clippy 0; fmt 0; bindings drift 0; swift-gate OK; strict 0. First gate attempt failed one counted-operations test that over-counted under parallel siblings (process-wide counter); fixed by serializing that test file (SP-INT6), bound unchanged.
 - Open follow-ups: LR-8n relinked RGB originals use the rotated frame; GPU tail for rotated proxies; Transform/Upright direction on rotated photos vs Adobe; Adobe-process originals export via the Native pipeline on main (Develop/print look differs); maker-note lens corrections; remaining silently-skipping fixture tests (ENG-6 HANDOFF).
+
+## Batch 56 (main 488dea82)
+
+- LR-8n/8n2: relinked catalog-oriented RGB originals (JPEG/TIFF/HEIC/PNG, working-space DNG) are decoded in their stored frame and report the catalog orientation for display (new `RenderSource::StoredRgb`), so crop/masks stay on the same content as the Smart Preview after relink; orientation applied exactly once in Develop, thumbnails, analysis, export, print, documents and export AI-mask segmentation. Ordinary RGB imports unchanged (pixel-pinned).
+- Independent review: merge-ready; S1 export-segmentation test added (fails under mutation), N1/N5 done. Follow-ups: relink guard for originals whose pixels were rotated after cataloguing; ordinary/online RGB imports still store edits in the rotated frame (affects none of the user's current photos per a read-only scan; product decision parked).
+- Gates on 488dea82: Rust 3,500 / 0; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
+
+## Batch 57 (main 9fc49548)
+
+- ENG-9/9b: export, print, documents, MCP export and HDR export render Adobe-process (imported Lightroom) recipes through the same Adobe pipeline Develop uses; Develop honours the recipe's gamut policy (Perceptual default; Clip bit-identical to before). Develop-vs-output difference for Adobe RAW went from up to 32.8 levels in gamut and 255 saturated to ≤ 0.53 (quantisation). Develop's HDR viewport for Adobe originals fixed; Adobe HDR export now matches Develop (SDR-range content) and tells the user.
+- Independent review: APPROVE with should-fix; HDR notice and retouch parity row added in ENG-9b.
+- Known cost: Adobe-process exports are CPU-only at full resolution — roughly 20–60× slower than main's previous (wrong-look) GPU path. ENG-10 (scaled prefix, GPU Adobe path, memory bounds) is running.
+- Gates on 9fc49548: Rust 3,511 / 0 / 107 ignored; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
