@@ -302,11 +302,11 @@ fn eng10_adobe_bench_worker() {
     };
     let seconds = started.elapsed().as_secs_f64();
     println!(
-        "ENG10 case={case} file={} process={} backend={} renders={renders} out={width}x{height} \
+        "ENG10 case={case} file={} process={:?} backend={} renders={renders} out={width}x{height} \
          seconds={seconds:.2} per_render={:.2} decode={decode:.2} rss_after_decode_mib={decoded_rss:.0} \
          peak_rss_mib={:.0}",
         path.file_name().unwrap().to_string_lossy(),
-        format!("{:?}", recipe.process_version.family),
+        recipe.process_version.family,
         std::env::var("TESSERA_EXPORT_BACKEND").unwrap_or_else(|_| "default".into()),
         seconds / f64::from(renders),
         peak_rss_mib(),

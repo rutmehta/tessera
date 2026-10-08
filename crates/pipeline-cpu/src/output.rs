@@ -224,8 +224,8 @@ fn output_band(
     warnings: bool,
 ) -> Vec<GamutWarning> {
     let mut gamut_warnings = Vec::with_capacity(if warnings { samples.len() / 3 } else { 0 });
-    for pixel in samples.chunks_exact_mut(3) {
-        let toned = [pixel[0], pixel[1], pixel[2]];
+    for pixel in samples.as_chunks_mut::<3>().0 {
+        let toned = *pixel;
         if warnings {
             gamut_warnings.push(transform.gamut_warning(toned));
         }
@@ -250,7 +250,7 @@ fn output_band(
                 }
             }
         }
-        pixel.copy_from_slice(&encoded.map(|v| v.clamp(0.0, 1.0)));
+        *pixel = encoded.map(|v| v.clamp(0.0, 1.0));
     }
     gamut_warnings
 }
