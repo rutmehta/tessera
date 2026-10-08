@@ -49,3 +49,15 @@ From 2026-10-07 Machine B is the sole coordinator and main merger (Machine A is 
 - Re-pins: default recipe hash, six serialisation pins, import-lrcat digests/baselines/compat files, sidecar ACR packet pins — reviewer verified by decode diff that they differ only by the CA default and its history patch.
 - Independent reviews: REV-ENG-7 CHANGES-REQUIRED → REV2 CHANGES-REQUIRED → REV3 APPROVE-WITH-NITS. Nit left: rebuilding a Stale preview deletes it before regenerating.
 - Gates on eeb5a955: Rust 3,541 / 0 / 107 ignored; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
+
+## Batch 59 (main 56003b05)
+
+- ENG-10/10b fast Adobe-process export and print: Adobe outputs render through Develop's own renderer at the pyramid level for the render scale (print at scale > 1; in-app file exports still render at scale 1 then resize), Adobe stages run tile-parallel within RendererConfig.threads (bit-identical to serial; Develop's Adobe renders ≈5× faster), banded parallel output transform, file outputs skip unused gamut warnings, memory-aware pairing in the CLI batch pipeline. 16 MP ARW full-size export 12.3 s → ~1.5 s; in-app 2048-px export ≈1.4–2.4 s. Full-size CR3/RAF now match Develop exactly also with AutoCalibrated lens (pipeline_adobe differed). Coordinator ruling: ENG-9 Adobe export-vs-Develop max bound 0.60 level (mean 0.35) — ICC matrix quantisation near the sRGB toe on clipped-plus-dark channels, pre-existing.
+- Independent review: APPROVE with should-fix → ENG-10b (docs/claims corrected, CR3/RAF parity rows, thread cap). GPU Adobe stages judged not worth a lane (≤0.4 s/16 MP, would break exact equality).
+- Gates on 56003b05 (with TESSERA_REQUIRE_RAW_FIXTURES=1): Rust 3,552 / 0 / 109 ignored; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
+
+## Batch 60 (main 54e32768)
+
+- ENG-11 honest fixture/model tests: shared dev-only crate crates/test-fixtures; every fixture- and model-weight-dependent test runs by default when its input exists, prints SKIPPED when absent, fails under TESSERA_REQUIRE_RAW_FIXTURES=1 / TESSERA_REQUIRE_MODEL_WEIGHTS=1; pipeline-gpu fixture gate covers all five cameras (tolerances unchanged); no previously hidden failures. Cargo.lock adds only the internal test-fixtures package (coordinator-approved). Merge needed one fix: ENG-10b's new test still included the moved helper by path.
+- Independent review: APPROVE. Follow-ups (ENG-12): ml-embed HNSW top-1 flake (~1.5%, random graph levels) — re-rank candidates exactly + relax the test to top-5 membership; ~10 fixture tests still #[ignore]/env-gated though fixtures/raw has their inputs; ml-faces README variable name.
+- Gates on 54e32768 (with TESSERA_REQUIRE_RAW_FIXTURES=1): Rust 3,555 / 0 / 109 ignored; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
