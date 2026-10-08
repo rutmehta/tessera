@@ -483,6 +483,12 @@ impl<'a> Batch<'a> {
     /// (vignette mask, grain value per pixel), built once per parameter key
     /// and kept GPU-resident; sets the block's map flag when bound. Values
     /// are produced by the same WGSL functions as the inline path.
+    ///
+    /// Export transactions never build it (ENG-14): it is 8 B per pixel of
+    /// the whole frame, outside any band's scratch, and export bands touch
+    /// each pixel once, so the inline path costs no repeated work. Exports
+    /// with and without the map are bit-identical (`tests/export_effects.rs`
+    /// and the export crate's five-fixture test).
     fn effects_map(&mut self, p: &mut [f32]) -> Option<wgpu::Buffer> {
         let base = p[36] as usize;
         if base == 0 || p[base + 26] != 0.0 {
@@ -554,6 +560,10 @@ impl<'a> Batch<'a> {
                     ],
                 });
                 self.record_2d(&pipeline, group, [w.div_ceil(16), h.div_ceil(16)]);
+                self.gpu
+                    .counters
+                    .effects_maps
+                    .fetch_add(1, Ordering::Relaxed);
                 self.pending_map = Some((key, map.clone()));
                 map
             }

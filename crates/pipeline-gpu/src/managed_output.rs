@@ -455,6 +455,22 @@ impl ManagedRenderer {
         self.band_with(resize, self.ops.recycled.clone())
     }
 
+    /// Test-only: this export renderer (and the band renderers made from
+    /// it) builds the effects constants map as interactive renderers do.
+    /// Production exports use the inline vignette/grain path (ENG-14); tests
+    /// compare the two bit for bit. The map is not charged to the scratch.
+    #[doc(hidden)]
+    pub fn with_export_effects_map(&self) -> Self {
+        let mut ops = (*self.ops).clone();
+        ops.export_effects_map = true;
+        let ops = Arc::new(ops);
+        Self {
+            output: self.output.clone(),
+            renderer: self.renderer.for_backend(ops.clone()),
+            ops,
+        }
+    }
+
     fn band_with(
         &self,
         resize: Option<crate::ExportResize>,
