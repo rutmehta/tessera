@@ -21,12 +21,20 @@ use engine_api::{
 };
 use std::{path::PathBuf, process::Command, time::Instant};
 
-const CASES: [&str; 5] = [
+/// `export-*`, `batch20*` and `print-*` follow the library entry points;
+/// `app-*` follow what the app's export does (FFI `Engine::export`: render
+/// scale 1 unless `TESSERA_EXPORT_WEB_LEVEL` is set, then resize; one image
+/// at a time, no `export_pipeline`).
+const CASES: [&str; 9] = [
     "export-s1",
     "export-s4",
+    "app-2048",
+    "app20-2048",
     "print-8x10",
     "print-4x6",
     "batch20",
+    "batch20-full",
+    "app20-full",
 ];
 
 fn fixture() -> PathBuf {
@@ -163,6 +171,53 @@ fn eng10_adobe_bench_worker() {
             let out = rendered.finish(&cancel).unwrap();
             let decoded = image::image_dimensions(out).unwrap();
             (decoded.0, decoded.1, 1)
+        }
+        // The app's Web export (long edge 2048, screen sharpening) at render
+        // scale 1, once or 20 times in a row; `app20-full`: 20 full-size.
+        "app-2048" | "app20-2048" | "app20-full" => {
+            let count = if case == "app-2048" { 1 } else { 20 };
+            let full = case == "app20-full";
+            let names: Vec<String> = (0..count).map(|i| format!("app-{i}")).collect();
+            for (i, name) in names.iter().enumerate() {
+                let rendered = export::render_one_cancellable(
+                    &export::ExportImage {
+                        source: pipeline_cpu::RenderSource::Cfa {
+                            image: &cfa,
+                            metadata: &metadata,
+                        },
+                        name,
+                        sequence: i + 1,
+                        date: "",
+                        metadata: None,
+                    },
+                    &recipe,
+                    &export::ExportSettings {
+                        output_dir: dir.path().into(),
+                        format: export::Format::Jpeg {
+                            quality: if full { 90 } else { 85 },
+                        },
+                        resize: if full {
+                            export::Resize::None
+                        } else {
+                            export::Resize::LongEdge(2048)
+                        },
+                        sharpen_for: if full {
+                            export::SharpenFor::None
+                        } else {
+                            export::SharpenFor::Screen
+                        },
+                        render_scale: 1,
+                        apply_orientation: true,
+                        ..Default::default()
+                    },
+                    &cancel,
+                    None,
+                    None,
+                )
+                .unwrap();
+                rendered.finish(&cancel).unwrap();
+            }
+            (if full { w } else { 2048 }, 0, count as u32)
         }
         // 300 dpi boxes; the render scale is the FFI's `print_scale` binning
         // (largest power of two that still covers the box).

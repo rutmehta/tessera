@@ -170,7 +170,9 @@ const ROWS_PER_WORKER: usize = 64;
 /// worker thread (ENG-10). A colour transform is not shareable between
 /// threads, so every extra band resolves its own from the same context;
 /// each pixel's arithmetic, and the row-major warning order, are unchanged,
-/// so the result is identical to a single pass.
+/// so the result is identical to a single pass. Resolving a transform is
+/// cheap for the built-in matrix-shaper targets used today; if a LUT-based
+/// ICC profile ever becomes an output target, cap the bands (REV-ENG-10).
 fn output_with_transforms(
     settings: &DevelopSettings,
     mut pixels: image::Rgb32FImage,
