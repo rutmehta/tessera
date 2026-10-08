@@ -596,6 +596,12 @@ impl Renderer {
         self.ops.adobe_invocations(stage)
     }
 
+    /// Worker cap of the compatibility image barriers: the configured
+    /// `threads` for an Adobe-process renderer, zero for a native one.
+    pub fn adobe_threads(&self) -> usize {
+        self.ops.adobe_threads()
+    }
+
     /// The memo cache.
     pub fn cache(&self) -> &Arc<TileCache> {
         &self.cache

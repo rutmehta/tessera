@@ -19,18 +19,29 @@ pub struct AdobeStageOp {
     profile: Option<Arc<pipeline_adobe::dcp::DcpProfile>>,
     white_balance: Option<pipeline_adobe::dcp::DcpWhiteBalance>,
     baseline_exposure: f32,
+    /// Worker threads an image-level barrier may use (the renderer's
+    /// `RendererConfig::threads`; 1 runs on the calling thread).
+    threads: usize,
     counts: [AtomicU64; StageId::COUNT],
 }
 impl AdobeStageOp {
-    /// Wrap the chosen native CPU/GPU backend.
+    /// Wrap the chosen native CPU/GPU backend. Barriers use every logical
+    /// CPU until [`Self::with_threads`] says otherwise.
     pub fn new(native: Arc<dyn StageOp>) -> Self {
         Self {
             native,
             profile: None,
             white_balance: None,
             baseline_exposure: 0.,
+            threads: std::thread::available_parallelism().map_or(1, usize::from),
             counts: Default::default(),
         }
+    }
+
+    /// Cap the worker threads of the image-level barriers (at least 1).
+    pub fn with_threads(mut self, threads: usize) -> Self {
+        self.threads = threads.max(1);
+        self
     }
     pub(crate) fn with_baseline(
         native: Arc<dyn StageOp>,
@@ -75,6 +86,9 @@ impl AdobeStageOp {
 impl StageOp for AdobeStageOp {
     fn adobe_invocations(&self, stage: StageId) -> u64 {
         self.counts[stage.index()].load(Ordering::Relaxed)
+    }
+    fn adobe_threads(&self) -> usize {
+        self.threads
     }
     fn blend_local(
         &self,
@@ -162,7 +176,7 @@ impl StageOp for AdobeStageOp {
                 // Point operators, in place: each worker reads and writes only
                 // its own tiles (no halo), so the result is the serial one.
                 let output = Mutex::new(output);
-                for_each_tile(&coords, cancel, |coord| {
+                for_each_tile(&coords, self.threads, cancel, |coord| {
                     let mut tile = lock(&output).tile(coord, 0, 1)?;
                     pipeline_cpu::apply_matrix(&mut tile, to_pro)?;
                     pipeline_cpu::map_rgb(&mut tile, |p| {
@@ -209,7 +223,7 @@ impl StageOp for AdobeStageOp {
                         input.planes().len()
                     ],
                 )?);
-                for_each_tile(&coords, cancel, |coord| {
+                for_each_tile(&coords, self.threads, cancel, |coord| {
                     let mut tile = self.run(stage, op, input.tile(coord, halo, 1)?)?;
                     // Profile tone runs once, not in upstream WB assembly.
                     if matches!(op, Op::Tone(_))
@@ -232,11 +246,13 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// Runs `f` once per tile on scoped worker threads (one per core), taking
-/// tiles in order from a shared cursor. The cancellation token is polled
-/// before every tile; the first error stops further tiles and is returned.
+/// Runs `f` once per tile on up to `threads` scoped worker threads, taking
+/// tiles in order from a shared cursor; `threads == 1` runs every tile on
+/// the calling thread. The cancellation token is polled before every tile;
+/// the first error stops further tiles and is returned.
 fn for_each_tile(
     coords: &[engine_api::tile::TileCoord],
+    _threads: usize,
     cancel: &CancellationToken,
     f: impl Fn(engine_api::tile::TileCoord) -> EngineResult<()> + Sync,
 ) -> EngineResult<()> {
@@ -382,6 +398,36 @@ mod tests {
             .run_image(StageId::Tone, &Op::ToneExtra(&tone), input.clone(), &cancel)
             .unwrap();
         assert_eq!(bits(&parallel), bits(&serial), "ToneExtra");
+        // The worker cap changes nothing in the result.
+        for threads in [1, 3] {
+            let capped = AdobeStageOp::new(Arc::new(CpuStageOp)).with_threads(threads);
+            for (stage, op_value) in [
+                (StageId::Detail, Op::Detail(&detail)),
+                (StageId::Color, Op::Color(&color)),
+            ] {
+                assert_eq!(
+                    bits(
+                        &capped
+                            .run_image(stage, &op_value, input.clone(), &cancel)
+                            .unwrap()
+                    ),
+                    bits(
+                        &op.run_image(stage, &op_value, input.clone(), &cancel)
+                            .unwrap()
+                    ),
+                    "{stage:?} threads={threads}"
+                );
+            }
+            assert_eq!(
+                bits(
+                    &capped
+                        .run_image(StageId::Tone, &Op::ToneExtra(&tone), input.clone(), &cancel)
+                        .unwrap()
+                ),
+                bits(&parallel),
+                "ToneExtra threads={threads}"
+            );
+        }
         // A cancelled token stops the barrier.
         let cancelled = CancellationToken::new();
         cancelled.cancel();
@@ -389,5 +435,38 @@ mod tests {
             op.run_image(StageId::Detail, &Op::Detail(&detail), input, &cancelled)
                 .is_err()
         );
+    }
+
+    /// ENG-10b (REV-ENG-10 SF3): `threads == 1` runs every tile on the
+    /// calling thread; a cap of 2 never uses more than two threads.
+    #[test]
+    fn eng10b_barriers_honour_the_thread_cap() {
+        let coords: Vec<_> = (0..24)
+            .map(|i| engine_api::tile::TileCoord::new(0, i % 6, i / 6))
+            .collect();
+        for threads in [1usize, 2] {
+            let seen = Mutex::new(std::collections::HashSet::new());
+            for_each_tile(&coords, threads, &CancellationToken::new(), |_| {
+                lock(&seen).insert(std::thread::current().id());
+                // Give other workers time to claim tiles if any exist.
+                std::thread::sleep(std::time::Duration::from_millis(2));
+                Ok(())
+            })
+            .unwrap();
+            let seen = seen.into_inner().unwrap();
+            if threads == 1 {
+                assert_eq!(
+                    seen.into_iter().collect::<Vec<_>>(),
+                    vec![std::thread::current().id()],
+                    "threads=1 must stay on the calling thread"
+                );
+            } else {
+                assert!(
+                    seen.len() <= threads,
+                    "{} threads for a cap of {threads}",
+                    seen.len()
+                );
+            }
+        }
     }
 }

@@ -393,3 +393,54 @@ fn eng9_adobe_denoise_matches_develop_renderer() {
     }
     assert!(changed, "the denoiser must take effect");
 }
+
+/// ENG-10b (REV-ENG-10 SF3): Adobe-process renderers cap their
+/// compatibility barriers at `RendererConfig::threads` (snapshots and the
+/// DCP path included), and the cap changes no pixel.
+#[test]
+fn eng10b_adobe_barriers_follow_renderer_threads() {
+    let config = |threads| RendererConfig {
+        process_version: ProcessVersion::adobe(6),
+        threads,
+        ..Default::default()
+    };
+    for threads in [1, 3] {
+        let r = Renderer::new(config(threads));
+        assert_eq!(r.adobe_threads(), threads);
+        assert_eq!(
+            r.for_process_version(ProcessVersion::NATIVE_CURRENT)
+                .for_process_version(ProcessVersion::adobe(5))
+                .adobe_threads(),
+            threads
+        );
+    }
+    assert_eq!(Renderer::new(RendererConfig::default()).adobe_threads(), 0);
+    let image = synthetic(31, 600, 530, RGGB, [0, 0, 600, 530]);
+    let mut s = DevelopSettings::default();
+    s.tone.contrast = 25.;
+    s.color.vibrance = 20.;
+    s.detail.sharpening.amount = 60.;
+    let render = |threads, dcp: bool| {
+        let mut r = Renderer::new(config(threads));
+        if dcp {
+            r = r.with_dcp_profile(&dcp_bytes()).unwrap();
+        }
+        let tiles = r
+            .render_region_as(
+                &image,
+                &s,
+                0,
+                PixelRect::full(image.level_extent(0)),
+                RenderOutput::SceneLinear,
+            )
+            .unwrap();
+        assemble_f32(image.level_extent(0), &tiles)
+            .iter()
+            .flatten()
+            .map(|v| v.to_bits())
+            .collect::<Vec<_>>()
+    };
+    for dcp in [false, true] {
+        assert_eq!(render(1, dcp), render(4, dcp), "DCP={dcp}");
+    }
+}

@@ -85,6 +85,11 @@ pub trait StageOp: Send + Sync {
         0
     }
 
+    /// Worker cap of the compatibility image barriers (zero for native backends).
+    fn adobe_threads(&self) -> usize {
+        0
+    }
+
     /// Linear-light alpha blend at the whole-image Locals barrier. Adjustment
     /// operators and mask rasterization use CPU reference code; GPU backends
     /// can override this pointwise operation without changing mask caching.
