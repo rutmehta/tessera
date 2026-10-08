@@ -16,8 +16,15 @@ use std::sync::Mutex;
 /// a point that link pruning cut off from the graph's main strongly connected
 /// component may not be found at any `ef` (hnsw_rs draws graph levels from
 /// the OS RNG, so which points are cut off differs per build). Search
-/// therefore also scores those points exactly; the set is recomputed lazily
-/// after writes.
+/// therefore also scores those points exactly. One gap remains: if the upper
+/// layers lead the walk into a closed island, main-component neighbours are
+/// missed (rare with hnsw_rs's default pruning).
+///
+/// The set is recomputed on the first search after a write: one pass over
+/// every bottom-layer neighbour list and a component search, O(n x M) (about
+/// 10 to 20 ms at 20k points). That assumes writes arrive in batches followed
+/// by searches (`SemanticIndex` reopens after a background job); a caller
+/// alternating single inserts and searches pays it on every search.
 pub struct HnswVectorIndex {
     store: SqliteVectorIndex,
     graph: Hnsw<'static, f32, DistCosine>,
@@ -27,16 +34,29 @@ pub struct HnswVectorIndex {
     isolated: Mutex<Option<Isolated>>,
 }
 
-/// `(slot, normalized vector)` of each point outside the graph's main
-/// component.
-type Isolated = Vec<(usize, Vec<f32>)>;
+/// The points outside the graph's main component.
+enum Isolated {
+    /// `(slot, normalized vector)` of each, scored exactly on every search.
+    Points(Vec<(usize, Vec<f32>)>),
+    /// More than [`max_isolated`] points: the graph no longer narrows the
+    /// search, so search is exact (SQLite) until the next write.
+    TooMany,
+}
 
+/// The most points scored exactly beside the graph: 5% of the index. Up to
+/// that, the extra scoring costs at most 5% of a brute-force scan and the
+/// cached copies at most 5% of the vectors; beyond it the graph is not doing
+/// its job, and an open exact search is cheaper to reason about than a
+/// silent near-brute-force one.
+fn max_isolated(points: usize) -> usize {
+    points / 20
+}
+
+/// hnsw_rs's default neighbour selection. Its `keep_pruned` option fills
+/// neighbour lists with near-duplicates and breaks clustered data (photo
+/// embeddings) into islands: REV-ENG-12 measured 5 to 25x more top-1 misses.
 fn new_graph(max_elements: usize) -> Hnsw<'static, f32, DistCosine> {
-    let mut graph = Hnsw::new(32, max_elements, 16, 200, DistCosine {});
-    // Keep pruned candidates to fill neighbour lists: fewer points end up
-    // outside the main component.
-    graph.set_keeping_pruned(true);
-    graph
+    Hnsw::new(32, max_elements, 16, 200, DistCosine {})
 }
 
 impl HnswVectorIndex {
@@ -94,13 +114,28 @@ impl HnswVectorIndex {
     fn isolated(&self) -> Result<std::sync::MutexGuard<'_, Option<Isolated>>> {
         let mut isolated = self.isolated.lock().unwrap();
         if isolated.is_none() {
-            let mut points = Vec::new();
-            for slot in outside_largest_component(&self.adjacency()) {
-                if let Some(vector) = self.store.get(self.ids[slot])? {
-                    points.push((slot, vector));
+            let outside = outside_largest_component(&self.adjacency());
+            let cap = max_isolated(self.ids.len());
+            *isolated = Some(if outside.len() > cap {
+                use std::io::Write;
+                let _ = writeln!(
+                    std::io::stderr().lock(),
+                    "ml-embed: HNSW graph for model {} leaves {} of {} points outside its main \
+                     component (more than {cap}); searching exactly until the next write",
+                    self.store.model,
+                    outside.len(),
+                    self.ids.len()
+                );
+                Isolated::TooMany
+            } else {
+                let mut points = Vec::with_capacity(outside.len());
+                for slot in outside {
+                    if let Some(vector) = self.store.get(self.ids[slot])? {
+                        points.push((slot, vector));
+                    }
                 }
-            }
-            *isolated = Some(points);
+                Isolated::Points(points)
+            });
         }
         Ok(isolated)
     }
@@ -196,6 +231,10 @@ impl VectorIndex for HnswVectorIndex {
         if k == self.ids.len() {
             return self.store.search(&query, k);
         }
+        let isolated = self.isolated()?;
+        let Some(Isolated::Points(isolated)) = &*isolated else {
+            return self.store.search(&query, k);
+        };
         let ef = k.saturating_mul(4).max(256).min(self.ids.len());
         let mut scores = Vec::with_capacity(k);
         let mut found = std::collections::HashSet::with_capacity(k);
@@ -208,7 +247,7 @@ impl VectorIndex for HnswVectorIndex {
         }
         // Points the graph walk cannot reach are scored exactly, then the
         // union is ranked by exact cosine.
-        for (slot, vector) in self.isolated()?.iter().flatten() {
+        for (slot, vector) in isolated {
             if !found.contains(slot) {
                 scores.push((self.ids[*slot], cosine(&query, vector)));
             }
@@ -456,7 +495,43 @@ impl VectorIndex for SqliteVectorIndex {
 
 #[cfg(test)]
 mod tests {
-    use super::outside_largest_component;
+    use super::*;
+
+    /// Exact duplicates are the worst case for the graph: copies of one
+    /// vector are indistinguishable, so pruning cuts most of them off. The
+    /// index must then say so and search exactly, not score them one by one.
+    #[test]
+    fn too_many_isolated_points_switch_search_to_exact() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let mut index = HnswVectorIndex::open(dir.path(), "v1", 8)?;
+        // Two groups of 500 copies: 594 to 762 of 1000 points ended up outside
+        // the main component over 60 builds (the cap is 50).
+        for id in 0..1000_u32 {
+            let group = id % 2;
+            let vector: Vec<f32> = (0..8)
+                .map(|d| ((group * 8 + d) as f32 * 0.7).sin())
+                .collect();
+            index.insert(ImageId(u128::from(id)), &vector)?;
+        }
+        let query: Vec<f32> = (0..8).map(|d| (d as f32 * 0.37).cos()).collect();
+        let actual = index.search(&query, 15)?;
+        let outside = outside_largest_component(&index.adjacency()).len();
+        eprintln!("duplicates: {outside} of 1000 outside the main component");
+        assert!(outside > max_isolated(1000), "{outside} outside");
+        assert!(matches!(
+            *index.isolated.lock().unwrap(),
+            Some(Isolated::TooMany)
+        ));
+        assert_eq!(actual, index.store.search(&query, 15)?);
+        Ok(())
+    }
+
+    #[test]
+    fn at_most_five_percent_is_scored_beside_the_graph() {
+        assert_eq!(max_isolated(1000), 50);
+        assert_eq!(max_isolated(19), 0);
+        assert_eq!(max_isolated(50_000), 2500);
+    }
 
     #[test]
     fn nodes_outside_the_largest_strongly_connected_component() {
