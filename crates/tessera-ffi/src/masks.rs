@@ -3237,3 +3237,176 @@ mod lr5d_fallback_tests {
         check(true);
     }
 }
+
+#[cfg(test)]
+pub(crate) mod eng8b_alignment_tests {
+    //! ENG-8b (REV-ENG-8 B2): Develop segments AI masks in the frame its
+    //! renderer applies local adjustments in. On the Fujifilm RAF (built-in
+    //! maker-note warp) a mask must land on the content it was segmented
+    //! from.
+    use super::*;
+    use std::sync::Mutex as StdMutex;
+
+    /// Smoothed luma above its median, recording the threshold used.
+    pub(crate) struct Threshold(pub Arc<StdMutex<Option<f32>>>);
+
+    pub(crate) fn smooth_luma(rgb: &[u8], w: usize, h: usize) -> Vec<f32> {
+        let luma: Vec<f32> = rgb
+            .chunks(3)
+            .map(|p| 0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2]))
+            .collect();
+        let r = 4usize;
+        let pass = |src: &[f32], horizontal: bool| -> Vec<f32> {
+            let mut out = vec![0.; src.len()];
+            for y in 0..h {
+                for x in 0..w {
+                    let mut sum = 0.;
+                    for d in 0..=2 * r {
+                        let (sx, sy) = if horizontal {
+                            ((x + d).saturating_sub(r).min(w - 1), y)
+                        } else {
+                            (x, (y + d).saturating_sub(r).min(h - 1))
+                        };
+                        sum += src[sy * w + sx];
+                    }
+                    out[y * w + x] = sum / (2 * r + 1) as f32;
+                }
+            }
+            out
+        };
+        pass(&pass(&luma, true), false)
+    }
+
+    impl MaskSegmenter for Threshold {
+        fn segment(&mut self, image: &RgbImage, _: &SegmentRequest) -> anyhow::Result<Vec<f32>> {
+            let (w, h) = (image.width() as usize, image.height() as usize);
+            let luma = smooth_luma(image.as_raw(), w, h);
+            let mut sorted = luma.clone();
+            sorted.sort_by(f32::total_cmp);
+            let t = sorted[sorted.len() / 2];
+            *self.0.lock().unwrap() = Some(t);
+            Ok(luma.iter().map(|&v| f32::from(u8::from(v > t))).collect())
+        }
+    }
+
+    fn display(
+        renderer: &image_core::Renderer,
+        image: &RawImage,
+        s: &DevelopSettings,
+        level: u8,
+    ) -> (Vec<u8>, usize, usize) {
+        let e = image_core::Renderer::output_extent(image, s, level).unwrap();
+        let tiles = renderer
+            .render_region(image, s, level, PixelRect::full(e))
+            .unwrap();
+        let mut rgb = vec![0u8; e.area() as usize * 3];
+        for t in &tiles {
+            let l = t.layout();
+            let n = l.plane_len();
+            let d = t.samples::<u8>().unwrap();
+            let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
+            for y in 0..l.extent.height {
+                for x in 0..l.extent.width {
+                    let i = (y * l.extent.width + x) as usize;
+                    let o = ((oy + y) * e.width + ox + x) as usize * 3;
+                    for c in 0..3 {
+                        rgb[o + c] = d[c * n + i];
+                    }
+                }
+            }
+        }
+        (rgb, e.width as usize, e.height as usize)
+    }
+
+    pub(crate) fn interior_iou(a: &[bool], b: &[bool], w: usize, h: usize) -> f64 {
+        let (mx, my) = (w * 3 / 100, h * 3 / 100);
+        let (mut inter, mut union) = (0u64, 0u64);
+        for y in my..h - my {
+            for x in mx..w - mx {
+                let (p, q) = (a[y * w + x], b[y * w + x]);
+                inter += u64::from(p && q);
+                union += u64::from(p || q);
+            }
+        }
+        inter as f64 / union.max(1) as f64
+    }
+
+    #[test]
+    fn develop_ai_mask_on_the_raf_lands_on_its_content() {
+        let test = "develop_ai_mask_on_the_raf_lands_on_its_content";
+        let Some(src) = test_fixtures::raw::with_extension(test, "raf") else {
+            return;
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        std::fs::copy(&src, photos.join(src.file_name().unwrap())).unwrap();
+        let engine = Engine::open(dir.path().join("app").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        let threshold = Arc::new(StdMutex::new(None));
+        engine.install_mask_segmenter(Box::new(Threshold(threshold.clone())));
+        let session = engine.clone().open_develop_session(id).unwrap();
+        assert!(session.shared.image.metadata().maker_lens.is_some());
+        let kind = MaskKind::Subject { model: None };
+        let component = MaskComponent::new(kind.clone());
+        let key = component_raster_key(&component).unwrap();
+        // Develop's own job computes the raster (its segmentation input).
+        let plane = AiMaskJob {
+            shared: Arc::downgrade(&session.shared),
+            key: key.clone(),
+            kind,
+        }
+        .compute(
+            &session.shared,
+            &engine_api::jobs::JobContext::new(
+                engine_api::id::JobId(0),
+                engine_api::jobs::CancellationToken::new(),
+                None,
+            ),
+        )
+        .unwrap();
+        let t = threshold.lock().unwrap().expect("segmented");
+        // Develop's renderer applies it through the mask cache hooks.
+        let image = session.shared.image.clone();
+        let masks = MaskShared::new(&image);
+        masks.set_ai(&key, AiEntry::Ready(Arc::new(plane)));
+        let renderer = image_core::Renderer::new(Default::default());
+        renderer
+            .mask_cache()
+            .set_hooks(Some(Arc::new(Hooks(masks))));
+        let level = default_level(&image);
+        let plain = DevelopSettings::default();
+        let mut edited = plain.clone();
+        edited.locals.adjustments.push(LocalAdjustment {
+            components: vec![component],
+            params: LocalParams {
+                exposure: -3.,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let (base, w, h) = display(&renderer, &image, &plain, level);
+        let (masked, ..) = display(&renderer, &image, &edited, level);
+        let luma = |rgb: &[u8]| -> Vec<f32> {
+            rgb.chunks(3)
+                .map(|p| {
+                    0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2])
+                })
+                .collect()
+        };
+        let (lb, lm) = (luma(&base), luma(&masked));
+        let darkened: Vec<bool> = lm.iter().zip(&lb).map(|(m, b)| *m < 0.5 * b).collect();
+        let target: Vec<bool> = smooth_luma(&base, w, h).iter().map(|&v| v > t).collect();
+        let iou = interior_iou(&darkened, &target, w, h);
+        test_fixtures::raw::notice(test, &format!("RAF level {level}: IoU {iou:.4}"));
+        assert!(iou >= 0.99, "Develop AI mask misaligned: IoU {iou}");
+        session.close().unwrap();
+    }
+}

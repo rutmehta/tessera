@@ -613,3 +613,220 @@ fn raf_correction_matches_the_cameras_embedded_jpeg_geometry() {
         "built-in {corrected} px vs uncorrected {uncorrected} px"
     );
 }
+
+/// ENG-8b: Native AI masks are segmented in the frame local adjustments are
+/// applied in. Lens warps that run after the locals (maker-note, profile,
+/// estimate) are left out of the segmentation input; a DNG opcode warp runs
+/// in the raw prefix, before the locals, and stays.
+#[test]
+fn mask_segmentation_settings_leave_out_post_local_warps_only() {
+    let s = pipeline_cpu::mask_segmentation_settings(Some(&metadata(Some(xe2s()), None)));
+    assert_eq!(s.lens.distortion_scale, 0.);
+    let s = pipeline_cpu::mask_segmentation_settings(Some(&metadata(None, None)));
+    assert_eq!(s.lens.distortion_scale, 0.);
+    let s =
+        pipeline_cpu::mask_segmentation_settings(Some(&metadata(None, Some(vignette_opcode()))));
+    assert_eq!(s.lens.distortion_scale, 100.);
+    // Everything else is the as-shot default (vignetting and CA do not move
+    // content and stay).
+    let mut expected = DevelopSettings::default();
+    expected.lens.distortion_scale = 0.;
+    assert_eq!(pipeline_cpu::mask_segmentation_settings(None), expected);
+}
+
+/// Luma of planar linear RGB.
+fn plane_luma(image: &pipeline_cpu::Image) -> Vec<f32> {
+    let p = image.planes();
+    (0..p[0].len())
+        .map(|i| 0.2627 * p[0][i] + 0.678 * p[1][i] + 0.0593 * p[2][i])
+        .collect()
+}
+
+/// Box blur (radius `r`, clamped edges): thresholds of smooth content have
+/// smooth boundaries, so resampling the raster does not dominate the IoU.
+fn box_blur(v: &[f32], w: usize, h: usize, r: usize) -> Vec<f32> {
+    let pass = |src: &[f32], horizontal: bool| -> Vec<f32> {
+        let mut out = vec![0.; src.len()];
+        for y in 0..h {
+            for x in 0..w {
+                let mut sum = 0.;
+                for d in 0..=2 * r {
+                    let (sx, sy) = if horizontal {
+                        ((x + d).saturating_sub(r).min(w - 1), y)
+                    } else {
+                        (x, (y + d).saturating_sub(r).min(h - 1))
+                    };
+                    sum += src[sy * w + sx];
+                }
+                out[y * w + x] = sum / (2 * r + 1) as f32;
+            }
+        }
+        out
+    };
+    pass(&pass(v, true), false)
+}
+
+fn median(v: &[f32]) -> f32 {
+    let mut s = v.to_vec();
+    s.sort_by(f32::total_cmp);
+    s[s.len() / 2]
+}
+
+/// Intersection over union of two masks, ignoring a 3 % border.
+pub fn interior_iou(a: &[bool], b: &[bool], w: usize, h: usize) -> f64 {
+    let (mx, my) = (w * 3 / 100, h * 3 / 100);
+    let (mut inter, mut union) = (0u64, 0u64);
+    for y in my..h - my {
+        for x in mx..w - mx {
+            let (p, q) = (a[y * w + x], b[y * w + x]);
+            inter += u64::from(p && q);
+            union += u64::from(p || q);
+        }
+    }
+    inter as f64 / union.max(1) as f64
+}
+
+/// IoU between the pixels a -3 EV local adjustment darkens in the final
+/// render and the content it was segmented from: a threshold "segmentation"
+/// of the `segmentation` render (smoothed luma above its median), applied at
+/// the reference pipeline's local-adjustment barrier.
+fn mask_alignment(
+    cfa: &raw_decode::CfaImage,
+    metadata: &RawMetadata,
+    segmentation: &DevelopSettings,
+) -> f64 {
+    let src = RenderSource::Cfa {
+        image: cfa,
+        metadata,
+    };
+    let scale = 4;
+    let mut edited = DevelopSettings::default();
+    edited
+        .locals
+        .adjustments
+        .push(engine_api::recipe::LocalAdjustment {
+            components: vec![engine_api::recipe::MaskComponent::new(
+                engine_api::recipe::MaskKind::Subject { model: None },
+            )],
+            params: engine_api::recipe::LocalParams {
+                exposure: -3.,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+    let plain = render_linear_scaled(&DevelopSettings::default(), &src, scale).unwrap();
+    let (w, h) = (plain.width() as usize, plain.height() as usize);
+    let target_luma = plane_luma(&plain);
+    let input = render_linear_scaled(segmentation, &src, scale).unwrap();
+    assert_eq!((input.width() as usize, input.height() as usize), (w, h));
+    let luma = box_blur(&plane_luma(&input), w, h, 6);
+    let t = median(&luma);
+    let alpha: Vec<f32> = luma.iter().map(|&v| f32::from(u8::from(v > t))).collect();
+    let locals = |image: &pipeline_cpu::Image,
+                  groups: &[engine_api::recipe::LocalAdjustment]|
+     -> engine_api::EngineResult<pipeline_cpu::Image> {
+        // The barrier runs at full resolution: resample the raster to it
+        // (pixel centres, bilinear), as the mask cache does.
+        let (iw, ih) = (image.width() as usize, image.height() as usize);
+        let full = resample(&alpha, w, h, iw, ih);
+        let mut out = image.clone();
+        for g in groups {
+            let adjusted = pipeline_cpu::adjust_local(&out, &g.params, g.amount)?;
+            out = pipeline_cpu::blend_local(&out, &adjusted, &full)?;
+        }
+        Ok(out)
+    };
+    let masked = pipeline_cpu::render_linear_scaled_with_local_hook(
+        &edited,
+        &src,
+        scale,
+        &LensContext::default(),
+        None,
+        None,
+        &locals,
+    )
+    .unwrap();
+    let darkened: Vec<bool> = plane_luma(&masked)
+        .iter()
+        .zip(&target_luma)
+        .map(|(a, b)| *a < 0.5 * b)
+        .collect();
+    let target: Vec<bool> = box_blur(&target_luma, w, h, 6)
+        .iter()
+        .map(|&v| v > t)
+        .collect();
+    interior_iou(&darkened, &target, w, h)
+}
+
+/// The reviewer's alignment check (REV-ENG-8 B2) on the reference pipeline:
+/// with the correction on, a mask segmented from `mask_segmentation_settings`
+/// lands on its content as well as on the same raw without the correction
+/// (main's behaviour, the resampling floor); segmenting the default (warped)
+/// render, as before ENG-8b, misaligns it.
+#[test]
+fn raf_ai_mask_from_segmentation_settings_lands_on_its_content() {
+    const TEST: &str = "raf_ai_mask_from_segmentation_settings_lands_on_its_content";
+    let Some(path) = raw_fixtures::with_extension(TEST, "raf") else {
+        return;
+    };
+    let mut source = RawSource::open(&path).unwrap();
+    let cfa = source.decode_cfa().unwrap();
+    let metadata = source.metadata();
+    let floor = mask_alignment(&cfa, &strip(&metadata), &DevelopSettings::default());
+    let aligned = mask_alignment(
+        &cfa,
+        &metadata,
+        &pipeline_cpu::mask_segmentation_settings(Some(&metadata)),
+    );
+    let warped = mask_alignment(&cfa, &metadata, &DevelopSettings::default());
+    raw_fixtures::notice(
+        TEST,
+        &format!(
+            "IoU: no correction {floor:.4}, corrected + segmentation settings {aligned:.4}, \
+             corrected + default render {warped:.4}"
+        ),
+    );
+    // Measured: floor 0.9979, aligned 0.9953, warped 0.9671. The aligned
+    // residual is the smoothing (applied before the warp for the raster,
+    // after it for the target; the warp scales locally by up to 2 %): with a
+    // radius of 12 it falls to 0.0014 (floor 0.9988, aligned 0.9974) while
+    // the warped input still loses 0.018.
+    assert!(
+        aligned >= floor - 0.005,
+        "aligned {aligned} vs floor {floor}"
+    );
+    assert!(
+        warped < aligned - 0.02,
+        "misaligned input not detected: {warped}"
+    );
+}
+
+/// REV-ENG-8 (7): a checksum pin of the corrected default RAF render (the
+/// golden-scale render of `tests/golden.rs`, lens Auto), so later changes to
+/// the maker-note correction show up like a golden change.
+#[test]
+fn raf_corrected_default_render_checksum() {
+    const TEST: &str = "raf_corrected_default_render_checksum";
+    const PIN: &str = "f5f82c27b09e60366a8f500d8232bdc7f250b6873b4ce36a698fc4d37348b729";
+    let Some(path) = raw_fixtures::with_extension(TEST, "raf") else {
+        return;
+    };
+    let mut source = RawSource::open(&path).unwrap();
+    let cfa = source.decode_cfa().unwrap();
+    let metadata = source.metadata();
+    let rendered = render_scaled(
+        &DevelopSettings::default(),
+        &RenderSource::Cfa {
+            image: &cfa,
+            metadata: &metadata,
+        },
+        8,
+    )
+    .unwrap();
+    let digest = blake3::hash(rendered.as_raw()).to_hex().to_string();
+    raw_fixtures::notice(
+        TEST,
+        &format!("{}x{} {digest}", rendered.width(), rendered.height()),
+    );
+    assert_eq!(digest, PIN, "corrected RAF render changed");
+}

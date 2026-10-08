@@ -672,3 +672,79 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod eng8b_tests {
+    //! ENG-8b (REV-ENG-8 B1): the Lens Blur / denoise hook path
+    //! (`depth::render` → `ai_masks::render_with_hooks`) renders AI masks
+    //! with a lens warp through the hook-aware reference instead of failing.
+    use super::*;
+    use engine_api::recipe::{
+        LocalAdjustment,
+        mask::{LocalParams, MaskComponent, MaskKind},
+        settings::LensBlur,
+    };
+
+    struct Constant;
+    impl mask_ai::MaskSegmenter for Constant {
+        fn segment(
+            &mut self,
+            image: &image::RgbImage,
+            _: &mask_ai::SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            Ok(vec![1.; (image.width() * image.height()) as usize])
+        }
+    }
+
+    #[test]
+    fn ai_mask_with_lens_warp_and_lens_blur_renders() {
+        let support = tempfile::tempdir().unwrap();
+        let values: Vec<f32> = (0..32 * 24)
+            .map(|i| {
+                if (i % 32 + i / 32) % 2 == 0 {
+                    0.05
+                } else {
+                    0.4
+                }
+            })
+            .collect();
+        let image = pipeline_cpu::Image::new(32, 24, vec![values; 3]).unwrap();
+        let source = RenderSource::Rgb(&image);
+        let provider = DepthProvider::from_map(
+            ml_depth::DepthMap::from_prediction(32, 24, vec![0.; 32 * 24]).unwrap(),
+        );
+        let mut settings = engine_api::recipe::DevelopSettings::default();
+        settings.lens.manual_distortion = 20.;
+        settings.effects.lens_blur = Some(LensBlur::default());
+        settings.locals.adjustments.push(LocalAdjustment {
+            components: vec![MaskComponent::new(MaskKind::Subject { model: None })],
+            params: LocalParams {
+                exposure: 1.,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let (masked, _) = render(
+            &source,
+            &settings,
+            1,
+            support.path(),
+            Some(&mut Constant),
+            Some(&provider),
+        )
+        .unwrap();
+        settings.locals.adjustments[0].params.exposure = 0.;
+        let (plain, _) = render(
+            &source,
+            &settings,
+            1,
+            support.path(),
+            Some(&mut Constant),
+            Some(&provider),
+        )
+        .unwrap();
+        assert_eq!(masked.dimensions(), (32, 24));
+        let mean = |i: &image::Rgb32FImage| i.pixels().map(|p| p.0[1]).sum::<f32>();
+        assert!(mean(&masked) > mean(&plain) * 1.2, "the +1 EV mask applied");
+    }
+}

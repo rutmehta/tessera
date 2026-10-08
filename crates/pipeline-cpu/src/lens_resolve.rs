@@ -449,6 +449,22 @@ pub(crate) fn built_in_selected(
     uses_built_in(s, find_profile(s, metadata, context).is_some())
 }
 
+/// ENG-8b: settings of the as-shot image AI masks are segmented from. The
+/// renderers apply local adjustments before the composed geometry stage (the
+/// Native reference and Develop's stage graph for both processes, which
+/// export and thumbnails share), so a mask raster must be computed in that
+/// frame: the lens warp applied there (a maker-note, profile or estimated
+/// sample) is left out. A DNG opcode warp runs in the raw prefix, before local
+/// adjustments, and is kept. Vignetting and lateral CA do not move content
+/// and are kept.
+pub fn mask_segmentation_settings(
+    metadata: Option<&RawMetadata>,
+) -> engine_api::recipe::DevelopSettings {
+    // RED stub: the as-shot default render, as before ENG-8b.
+    let _ = metadata;
+    engine_api::recipe::DevelopSettings::default()
+}
+
 /// A passive note about the lens profile (ENG-7b), for Develop and export.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LensNotice {

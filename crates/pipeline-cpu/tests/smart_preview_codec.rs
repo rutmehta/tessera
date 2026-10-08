@@ -1054,20 +1054,29 @@ fn eng8_legacy_fujifilm_container_is_stale_and_mismatches_are_rejected() {
         v["metadata"].as_object_mut().unwrap().remove("maker_note");
     });
     CameraLinearProxy::decode_persistent(&legacy).unwrap();
-    // Mismatches: a sample that is not the one the parameters give, the
-    // source without the parameters, and parameters without the source.
+    // REV-ENG-8 S2: a stored sample that differs from today's derivation
+    // (a changed fit in a later version) is Stale, not a hard error.
+    for k1 in [0.01, 0.] {
+        let changed = change_json(&bytes, |v| {
+            v["correction"]["sample"]["distortion"]["k1"] = serde_json::json!(k1);
+        });
+        match CameraLinearProxy::decode_persistent(&changed) {
+            Err(EngineError::Unsupported { what }) => assert!(
+                what.contains("stale") && what.contains("regenerate from original"),
+                "{what}"
+            ),
+            Err(e) => panic!("changed derivation is not stale: {e}"),
+            Ok(_) => panic!("changed derivation accepted"),
+        }
+    }
+    // Inconsistent snapshots: the source without the parameters, and
+    // parameters without the source.
     for (name, edit) in [
-        (
-            "tampered sample",
-            Box::new(|v: &mut serde_json::Value| {
-                v["correction"]["sample"]["distortion"]["k1"] = serde_json::json!(0.01);
-            }) as Box<dyn Fn(&mut serde_json::Value)>,
-        ),
         (
             "no parameters",
             Box::new(|v: &mut serde_json::Value| {
                 v["metadata"]["maker_note"] = serde_json::json!({"kind": "none"});
-            }),
+            }) as Box<dyn Fn(&mut serde_json::Value)>,
         ),
         (
             "source dropped",
@@ -1087,9 +1096,12 @@ fn eng8_legacy_fujifilm_container_is_stale_and_mismatches_are_rejected() {
         ),
     ] {
         let bad = change_json(&bytes, |v| edit(v));
-        assert!(
-            CameraLinearProxy::decode_persistent(&bad).is_err(),
-            "{name}: accepted"
-        );
+        match CameraLinearProxy::decode_persistent(&bad) {
+            Err(EngineError::Unsupported { what }) if what.contains("stale") => {
+                panic!("{name}: an inconsistent snapshot is not a stale one: {what}")
+            }
+            Err(_) => {}
+            Ok(_) => panic!("{name}: accepted"),
+        }
     }
 }
