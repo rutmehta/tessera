@@ -8,9 +8,16 @@
 //! documented preview order, ENG-6). An export or print at render scale
 //! `2^L` is that frame, so it shows exactly what Develop shows at that
 //! level instead of developing at full resolution and reducing afterwards.
-//! Level 0 is Develop's full-resolution reference path, which equals
-//! `pipeline_adobe::render_linear_scaled(.., 1)` within the image-core
-//! contract (`compat_matches_standalone_with_and_without_dcp`, 1e-4 linear).
+//! Level 0 is Develop's full-resolution path. It replaces
+//! `pipeline_adobe::render_linear_scaled(.., 1)`, which matches it on
+//! synthetic data within 1e-4 linear
+//! (`compat_matches_standalone_with_and_without_dcp`) and on the real ARW,
+//! DNG, CR3 and RAF fixtures with Tessera's default lens settings, but not
+//! with lens auto-calibration selected: there the CR3 and X-Trans RAF
+//! differed by up to 18 and 96 levels in 8-bit sRGB (0.4% and 1.7% of
+//! samples over one level). Exports now equal Develop in every case
+//! (`eng10b_real_fixture_parity.rs`), so those exports changed toward what
+//! Develop shows.
 //!
 //! The renderer is private to the export: no shared tile cache (budget 0,
 //! so nothing is kept at f16 precision), the export's own mask rasters,
@@ -111,16 +118,20 @@ pub(crate) fn render(
                 }
             };
             let (ox, oy) = tile.coord().pixel_origin(TILE_SIZE);
-            for y in 0..layout.extent.height {
-                for x in 0..layout.extent.width {
-                    let i = (y * layout.extent.width + x) as usize;
-                    let (px, py) = (ox + x, oy + y);
-                    if px < width && py < height {
-                        out.put_pixel(
-                            px,
-                            py,
-                            image::Rgb(std::array::from_fn(|c| samples[c * n + i])),
-                        );
+            // Planar tile rows into the interleaved frame, row by row.
+            let columns = layout.extent.width.min(width.saturating_sub(ox)) as usize;
+            let frame: &mut [f32] = &mut out;
+            for y in 0..layout.extent.height.min(height.saturating_sub(oy)) {
+                let src = (y * layout.extent.width) as usize;
+                let dst = ((oy + y) as usize * width as usize + ox as usize) * 3;
+                for (x, pixel) in frame[dst..dst + 3 * columns]
+                    .as_chunks_mut::<3>()
+                    .0
+                    .iter_mut()
+                    .enumerate()
+                {
+                    for (c, v) in pixel.iter_mut().enumerate() {
+                        *v = samples[c * n + src + x];
                     }
                 }
             }
