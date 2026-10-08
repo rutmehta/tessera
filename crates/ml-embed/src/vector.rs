@@ -79,14 +79,19 @@ impl VectorIndex for HnswVectorIndex {
             return self.store.search(&query, k);
         }
         let ef = k.saturating_mul(4).max(256).min(self.ids.len());
-        let mut scores = Vec::with_capacity(k);
-        for neighbour in self.graph.search(&query, k, ef) {
+        // Over-fetch and re-rank by exact cosine: the graph's ordering of a
+        // short list can drop the true nearest neighbour (hnsw_rs draws graph
+        // levels from the OS RNG), which a wider candidate set recovers.
+        let candidates = k.saturating_mul(4).max(64).min(ef);
+        let mut scores = Vec::with_capacity(candidates);
+        for neighbour in self.graph.search(&query, candidates, ef) {
             let id = self.ids[neighbour.d_id];
             if let Some(vector) = self.store.get(id)? {
                 scores.push((id, cosine(&query, &vector)));
             }
         }
         scores.sort_unstable_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.0.cmp(&b.0.0)));
+        scores.truncate(k);
         Ok(scores)
     }
 
