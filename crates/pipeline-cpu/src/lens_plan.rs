@@ -26,6 +26,11 @@ use engine_api::{
 /// At most this many embedded DNG warps or gains are ported.
 pub const MAX_EMBEDDED: usize = 4;
 
+/// Largest gather halo (full-sensor pixels) of the resident sensor-frame CA
+/// stage. ENG-8d: sized for real maker-note corrections (a -6 % barrel on a
+/// 100 MP GFX body moves ~260 px), not the tile format's 32 px default.
+pub const MAX_CA_HALO: u16 = 384;
+
 /// Image-derived inverse homography, independent of resident lens eligibility.
 /// Reuse only for the same source and analysis settings (manual Transform may change).
 #[derive(Clone, Copy, Debug)]
@@ -98,6 +103,17 @@ impl CaPlan {
             (q[0] + 1.) * c[2] as f64 / 2. + c[0] as f64 - 0.5,
             (q[1] + 1.) * c[3] as f64 / 2. + c[1] as f64 - 0.5,
         ])
+    }
+
+    /// Gather halo the resident stage needs over a `width` × `height`
+    /// sensor: the largest displacement plus the kernel's reach (bilinear:
+    /// 2; the maker-note Lanczos-3 stage: 4). None when the map is not
+    /// finite or the halo exceeds [`MAX_CA_HALO`]; the caller then uses the
+    /// reference (CPU) chain for this render (ENG-8d).
+    pub fn halo(&self, width: u32, height: u32) -> Option<u16> {
+        let reach = if self.maker.is_some() { 4. } else { 2. };
+        let halo = self.max_displacement(width, height)?.ceil() + reach;
+        (halo.is_finite() && halo <= f64::from(MAX_CA_HALO)).then_some(halo as u16)
     }
 
     /// Largest sample displacement over a `width` × `height` sensor, in

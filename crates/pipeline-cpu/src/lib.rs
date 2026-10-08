@@ -30,8 +30,8 @@ mod lens_plan;
 mod lens_resolve;
 pub use embedded_lens::MakerPrefix;
 pub use lens_plan::{
-    CaPlan, EmbeddedGain, EmbeddedWarp, LensMap, LensPlan, MAX_EMBEDDED, MakerPlan, MapPlan,
-    ProfileVignette, SampleMap, TransformPlan, UprightAnalysis, VignettePlan,
+    CaPlan, EmbeddedGain, EmbeddedWarp, LensMap, LensPlan, MAX_CA_HALO, MAX_EMBEDDED, MakerPlan,
+    MapPlan, ProfileVignette, SampleMap, TransformPlan, UprightAnalysis, VignettePlan,
 };
 mod optics;
 mod render;

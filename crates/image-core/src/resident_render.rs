@@ -68,20 +68,21 @@ fn fold_rows(rows: std::ops::Range<u32>, halo: u16, period: u32, n: u32) -> std:
     first..last + 1
 }
 
-/// Gather halo for lateral CA: the largest displacement plus bilinear support.
+/// Gather halo for lateral CA (or a maker-note prefix stage): the largest
+/// displacement plus the kernel support (`CaPlan::halo`). Renders check
+/// [`ca_fits`] first and decline to the reference chain, so this error is
+/// only reachable by direct callers.
 fn ca_halo(plan: &pipeline_cpu::CaPlan, sensor: Extent) -> EngineResult<u16> {
-    let max = plan
-        .max_displacement(sensor.width, sensor.height)
-        .ok_or_else(|| {
-            engine_api::EngineError::invalid("lateral CA", "noninvertible channel map")
-        })?;
-    let halo = max.ceil() + 2.;
-    if halo.is_nan() || halo > f64::from(engine_api::tile::MAX_HALO) {
-        return Err(engine_api::EngineError::Unsupported {
+    plan.halo(sensor.width, sensor.height)
+        .ok_or_else(|| engine_api::EngineError::Unsupported {
             what: "lateral CA displacement exceeds the resident halo".into(),
-        });
-    }
-    Ok(halo as u16)
+        })
+}
+
+/// Whether the plan's sensor-frame CA stage (if any) fits a resident gather.
+pub(super) fn ca_fits(lens: Option<&pipeline_cpu::LensPlan>, sensor: Extent) -> bool {
+    lens.and_then(|l| l.ca.as_ref())
+        .is_none_or(|plan| plan.halo(sensor.width, sensor.height).is_some())
 }
 
 /// The rows an export band's stages read, for budgeting a band before it
@@ -600,7 +601,7 @@ impl Renderer {
             return false;
         }
         let s = r.settings;
-        if s.tone.legacy_pv2010.is_some() {
+        if s.tone.legacy_pv2010.is_some() || !ca_fits(r.lens, r.sensor) {
             return false;
         }
         if (r.image.rgb().is_none() && pipeline_cpu::denoise_active(&s.denoise) && !self.cfa_supported(r.cfa, s))
