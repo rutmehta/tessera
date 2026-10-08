@@ -460,9 +460,12 @@ pub(crate) fn built_in_selected(
 pub fn mask_segmentation_settings(
     metadata: Option<&RawMetadata>,
 ) -> engine_api::recipe::DevelopSettings {
-    // RED stub: the as-shot default render, as before ENG-8b.
-    let _ = metadata;
-    engine_api::recipe::DevelopSettings::default()
+    let mut s = engine_api::recipe::DevelopSettings::default();
+    let opcodes = metadata.is_some_and(|m| m.opcode_lists.iter().any(Option::is_some));
+    if !opcodes {
+        s.lens.distortion_scale = 0.;
+    }
+    s
 }
 
 /// A passive note about the lens profile (ENG-7b), for Develop and export.

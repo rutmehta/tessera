@@ -1138,7 +1138,11 @@ impl AiMaskJob {
                     self.progress(masks, 0.05, "Preparing image");
                     let level = default_level(&shared.image);
                     let e = shared.image.level_extent(level);
-                    let settings = renderable(&DevelopSettings::default());
+                    // In the frame the renderer applies local
+                    // adjustments in, before the lens warp (ENG-8b).
+                    let settings = renderable(&pipeline_cpu::mask_segmentation_settings(Some(
+                        shared.image.metadata(),
+                    )));
                     let tiles = shared.renderer.render_region(
                         &shared.image,
                         &settings,

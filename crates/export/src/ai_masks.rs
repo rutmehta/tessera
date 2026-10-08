@@ -92,9 +92,12 @@ pub(crate) fn render_with_hooks(
     pre.effects = Default::default();
     pre.geometry = Default::default();
     pipeline_cpu::validate_settings(&pre)?;
-    // The public reference API has no mask callback before its private lens
-    // warp. Reject that combination instead of applying sensor-space masks to
-    // already warped pixels. Ordinary (non-AI) exports retain the full path.
+    // The steps below finish the pre-local barrier with the public geometry
+    // operator, which has no lens warp. When the lens correction warps the
+    // image (a camera's built-in maker-note or DNG correction, a profile, an
+    // estimate or manual distortion), render through the full reference
+    // pipeline instead, with the masks at its local-adjustment barrier before
+    // the warp, as Develop does (ENG-8b).
     let metadata = match source {
         RenderSource::Rgb(_) | RenderSource::StoredRgb { .. } => None,
         RenderSource::CameraLinear(proxy) if proxy.is_external_dng() => {
@@ -109,9 +112,8 @@ pub(crate) fn render_with_hooks(
         || lens.sample().is_some()
         || lens.source() == pipeline_cpu::CorrectionSource::Embedded
     {
-        return Err(error(
-            "AI masks with lens warps require a hook-aware lens renderer",
-        ));
+        let hooks = ready_hooks(source, settings, segmenter, warnings, mask_support)?;
+        return render_hooked_native(source, settings, hooks, denoiser, depth, warnings);
     }
     let cache = ready_masks(source, settings, segmenter, warnings, mask_support)?;
     let mut planes = input.planes().to_vec();
@@ -247,9 +249,15 @@ fn ready_hooks(
     if requests.is_empty() {
         return Ok(None);
     }
-    // Stable as-shot segmentation input; it is independent of local/global edits.
+    // Stable as-shot segmentation input; it is independent of local/global
+    // edits. It is drawn in the frame the masks are applied in, before the
+    // lens warp, for both processes (ENG-8b; as in Develop).
     let scale = w.max(h).div_ceil(2048).max(1);
-    let rgb = pipeline_cpu::render_scaled(&DevelopSettings::default(), source, scale)?;
+    let rgb = pipeline_cpu::render_scaled(
+        &pipeline_cpu::mask_segmentation_settings(metadata),
+        source,
+        scale,
+    )?;
     let (sw, sh) = rgb.dimensions();
     let (dw, dh) = if orientation >= 5 { (sh, sw) } else { (sw, sh) };
     let pixels: Vec<[u8; 3]> = rgb.pixels().map(|p| p.0).collect();
@@ -447,31 +455,7 @@ pub(crate) fn render_develop(
     }
     let cache = MaskRasterCache::new(0);
     cache.set_hooks(hooks);
-    let locals = |input: &Image, groups: &[LocalAdjustment]| {
-        let mut planes = input.planes().to_vec();
-        for group in groups
-            .iter()
-            .filter(|g| g.enabled && g.amount != 0. && !g.components.is_empty())
-        {
-            let mask = cache.rasterize(
-                input,
-                group,
-                0,
-                ParamHash::of(StageId::Color, &0u8),
-                Default::default(),
-            )?;
-            let adjusted = pipeline_cpu::adjust_local(input, &group.params, group.amount)?;
-            let blended = pipeline_cpu::blend_local(input, &adjusted, &mask)?;
-            for ((out, original), changed) in
-                planes.iter_mut().zip(input.planes()).zip(blended.planes())
-            {
-                for ((out, original), changed) in out.iter_mut().zip(original).zip(changed) {
-                    *out += changed - original;
-                }
-            }
-        }
-        Image::new(input.width(), input.height(), planes)
-    };
+    let locals = |input: &Image, groups: &[LocalAdjustment]| apply_locals(&cache, input, groups);
     let depth_renderer = depth_provider
         .map(|provider| image_core::Renderer::new(Default::default()).with_depth(provider));
     let depth_effects = |input: &Image| {
@@ -492,6 +476,81 @@ pub(crate) fn render_develop(
         .map(|d| d as &dyn pipeline_cpu::PostDemosaicDenoise);
     let rgb = pipeline_cpu::render_linear_scaled_with_local_hook(
         &settings, source, scale, &context, None, denoiser, &locals,
+    )?;
+    Ok(crate::depth::tone_map(rgb))
+}
+
+/// Local adjustments through the export's mask cache, at the reference
+/// pipeline's local-adjustment barrier (before geometry and the lens warp).
+fn apply_locals(
+    cache: &MaskRasterCache,
+    input: &Image,
+    groups: &[LocalAdjustment],
+) -> EngineResult<Image> {
+    let mut planes = input.planes().to_vec();
+    for group in groups
+        .iter()
+        .filter(|g| g.enabled && g.amount != 0. && !g.components.is_empty())
+    {
+        let mask = cache.rasterize(
+            input,
+            group,
+            0,
+            ParamHash::of(StageId::Color, &0u8),
+            Default::default(),
+        )?;
+        let adjusted = pipeline_cpu::adjust_local(input, &group.params, group.amount)?;
+        let blended = pipeline_cpu::blend_local(input, &adjusted, &mask)?;
+        for ((out, original), changed) in
+            planes.iter_mut().zip(input.planes()).zip(blended.planes())
+        {
+            for ((out, original), changed) in out.iter_mut().zip(original).zip(changed) {
+                *out += changed - original;
+            }
+        }
+    }
+    Image::new(input.width(), input.height(), planes)
+}
+
+/// ENG-8b: Native AI-mask render of a source whose lens correction warps the
+/// image: the full reference pipeline (as Develop draws it) with the rasters
+/// applied at its local-adjustment barrier, Lens Blur at its depth barrier,
+/// then the export tone map of [`render_with_hooks`]. Like that path, it
+/// applies local adjustments but not retouch spots.
+fn render_hooked_native(
+    source: &RenderSource<'_>,
+    settings: &DevelopSettings,
+    hooks: Option<Arc<dyn MaskHooks>>,
+    denoiser: Option<&dyn pipeline_cpu::PostDemosaicDenoise>,
+    depth: Option<&image_core::depth::DepthProvider>,
+    warnings: &mut Vec<String>,
+) -> EngineResult<image::Rgb32FImage> {
+    let mut settings = settings.clone();
+    settings.output.proof_profile = None;
+    settings.locals.retouch.clear();
+    let cache = MaskRasterCache::new(0);
+    cache.set_hooks(hooks);
+    let locals = |input: &Image, groups: &[LocalAdjustment]| apply_locals(&cache, input, groups);
+    let warnings = std::cell::RefCell::new(warnings);
+    let blur = settings.effects.lens_blur.clone();
+    let depth_effects = |input: &Image| -> EngineResult<Image> {
+        let Some(blur) = &blur else {
+            return Ok(input.clone());
+        };
+        let provider = depth.ok_or_else(|| error("Lens Blur depth provider is missing"))?;
+        match crate::depth::estimate(provider, input, &mut warnings.borrow_mut())? {
+            Some(plane) => pipeline_cpu::lens_blur(input, &plane, blur, Default::default()),
+            None => Ok(input.clone()),
+        }
+    };
+    let context = pipeline_cpu::LensContext {
+        depth_effects: blur
+            .is_some()
+            .then_some(&depth_effects as &pipeline_cpu::DepthEffectHook<'_>),
+        ..Default::default()
+    };
+    let rgb = pipeline_cpu::render_linear_scaled_with_local_hook(
+        &settings, source, 1, &context, None, denoiser, &locals,
     )?;
     Ok(crate::depth::tone_map(rgb))
 }
