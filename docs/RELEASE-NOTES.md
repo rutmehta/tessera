@@ -13,8 +13,10 @@
   the corners are about 5% brighter. The camera's own JPEG now lines up with
   the raw much more closely.
 - **Existing Fujifilm edits shift slightly.** Crops, masks, healing spots and
-  Upright adjustments on Fujifilm raws now land on corrected content, which
-  moves by up to about 0.5% of the image width. Review crops and local
+  Upright adjustments on Fujifilm raws now land on corrected content. How far
+  it moves depends on the lens: up to about 0.5% of the image width on this
+  repo's X-E2S sample (kit zoom at a mid focal length), and 1-3% with
+  wide-angle lenses and at the wide end of zooms. Review crops and local
   adjustments on Fujifilm photos.
 - **Fujifilm Smart Previews need rebuilding.** A Smart Preview of a Fujifilm
   raw made by an earlier version opens as Stale. Its offline edits still

@@ -497,3 +497,68 @@ release note and this HANDOFF.
    the Adobe path (R2) and Adobe depth masks (R4) remain open as in ENG-8b.
    Object prompts (old R3) are fixed.
 4. S4 (Lightroom parity) remains open.
+
+---
+
+# ENG-8d: third review follow-up (REV3-ENG-8 CHANGES REQUIRED)
+
+Same branch `wp/ENG-8`, on top of `26f9c4ca`. Worker: Claude Opus 5.5.
+
+## Item table (finding → code → test; RED `6a3f6b82`)
+
+| Item | Code | Test and numbers |
+|---|---|---|
+| **NB2** bilinear prefix resample softened every Fuji photo | `embedded_lens::lanczos3` / `lanczos3_taps` (normalized separable Lanczos-3, 6×6 edge-clamped taps, the geometry map's kernel); the same taps in the `lens.wgsl` maker branch (`94a775ae`) | `pipeline-cpu/tests/maker_lens.rs::raf_prefix_resample_keeps_fine_detail`. The reviewer's method: green plane, √-encoded, full resolution, default settings, against the same render with distortion and CA amounts at 0 (the stage then samples integer positions). Per ring, **before (bilinear) → after (Lanczos-3)**: Laplacian² 0.315 / 0.305 / 0.324 / 0.325 / 0.318 → **0.699 / 0.653 / 0.691 / 0.699 / 0.683**; gradient² 0.70 / 0.68 / 0.73 / 0.71 / 0.70 → **0.97 / 0.93 / 0.98 / 0.98 / 0.95**. Bound: Laplacian² ≥ 0.6. ENG-8b's Lanczos geometry map measured 0.64–0.69 (reviewer). `lanczos_tests::fast_taps_equal_the_direct_kernel` (≤ 1e-9) |
+| Checksum re-pin | — | `raf_corrected_default_render_checksum`: `679f717b…f3cc` (ENG-8c bilinear) → `b66ad609b736d817acd529ae8019722b4f21057252cdc30b66ed8e5cacbc5e8c` (Lanczos-3). Unchanged by the fast-weight form |
+| DNG opcode warps | not changed | They run in `Embedded::apply`: separate, CPU-only code with CFA-phase sampling (stage 0 samples the mosaic on its phase lattice), bilinear as on main. It is not the same stage machinery as the maker kernel, and no opcode pin moved. Moving them to Lanczos is a follow-up |
+| **NS3** the 32 px resident limit vs real Fuji lenses | `CaPlan::halo` (displacement + kernel reach: bilinear 2, maker 4), `MAX_CA_HALO = 384`; `ca_halo`, `demosaic_ca_batch`; `resident_render::ca_fits` in `supports_resident` and the `render_region` / `render_progressive` decisions (`245618ed`) | `pipeline-gpu/tests/maker_lens.rs::gpu_raf_with_wide_zoom_barrels_stays_resident`: −4 % barrel 72 px (halo 76) and −6 % barrel 104 px (halo 108) on the RAF stay resident (`can_render_resident` true; `render_output_metrics` is Some, the resident path), GPU vs CPU **≤ 1 code** at L2 and L3, GPU L2 **0.30 / 0.31 s**. A −40 % barrel (486 px, beyond the limit) reports `can_render_resident` false and renders on the reference chain (1.66 s), within 1 code, without an error (N1) |
+| NS3 latent GPU bug found | `pipeline-gpu resident.rs::assemble`: at most 16384 spans per gather dispatch | The gather shader indexes spans by `workgroup_id.x` only, and `record()` folds > 65535 workgroups into a second dimension that the shader ignores. Wide halos clamp many one-pixel runs at the frame edges, so spans were skipped and duplicated: GPU vs CPU 124 (halo 76) and 207 (halo 136) code values before the fix, 1 after. Unreachable with the old 32 px limit (≤ ~32k spans) |
+| NS3 export | (band plan unchanged: sensor rows include the halo) | `export gpu::tests::raf_wide_zoom_barrels_export_on_bands_within_budget`: −4 % and −6 %, full chain and both web sizes on the band path, no band over its share (max live+readback 156–172 MiB of 191), full-res vs CPU 1 code; max actual/planned 0.986 over 128 bands |
+| N2 GPU test bounds | `pipeline-gpu/tests/maker_lens.rs` | 3 → **1** code value (measured 0–1) |
+| NS4 release note | `docs/RELEASE-NOTES.md` | crop shift: about 0.5 % of the width on the X-E2S sample (kit zoom, mid focal length), 1–3 % with wide-angle lenses and the wide end of zooms |
+
+## Timing
+
+Under load 7–12. Fuji AI-mask export (PNG, the legacy fast path, CPU
+prefix): **4.8 s** with Lanczos-3, vs 4.4 s bilinear (ENG-8c), 4.3 s on
+main (reviewer) and 17.2 s in ENG-8b. The CPU Lanczos uses three
+trigonometric calls per axis instead of twelve; the direct form took 5.2 s.
+Other fixtures are unchanged (CR3 4.1 s, ARW 3.9 s). Develop L2 on the GPU
+with the fixture's own correction is unchanged in kind (resident); −4 % and
+−6 % barrels take 0.30–0.31 s.
+
+## Golden and expectation audit (ENG-8d)
+
+- Re-pinned: the corrected-RAF checksum (above), reason NB2.
+- Tightened: the GPU/CPU parity bounds in `pipeline-gpu/tests/maker_lens.rs`
+  (3 → 1).
+- No other pin, golden or tolerance changed. All opcode-warp tests are
+  unchanged.
+
+## Gates (ENG-8d)
+
+The full test gate ran on `245618ed` after `cargo clean --release -p raw-decode
+-p pipeline-cpu -p image-core -p pipeline-gpu -p export -p previews -p merge
+-p pipeline-adobe -p tessera-ffi -p tessera-mcp`, target
+`~/.cache/tessera-target/ENG-8`, fixtures symlinked,
+`TESSERA_REQUIRE_RAW_FIXTURES=1`. Clippy then failed on `lanczos3_weight`
+(used only by the test). `41ae09c2` makes it `#[cfg(test)]`: no behaviour change.
+Clippy and fmt were rerun on `41ae09c2`, and so was pipeline-cpu
+(258 passed, 0 failed).
+
+| Gate | Result |
+|---|---|
+| `cargo test --release --workspace --no-fail-fast` (`245618ed`) | pass, exit 0: 701 test binaries, **3617 passed, 0 failed, 102 ignored**. No raw-fixture SKIPPED lines. Load 7.6 at start, 17.3 at end; no wall-clock failures, no reruns |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | first run failed (dead_code, above); pass on `41ae09c2` |
+| `cargo fmt --all -- --check` | pass |
+| `apps/mac/build-ffi.sh` | pass; no bindings drift (only the docs were modified) |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: XCTest 996 tests, 1 skipped, 0 failures; Swift Testing 5 passed |
+| strict release `swift build --product Tessera` | pass |
+| `five_fixture_device_peak_within_budget` (ignored, run alone, `41ae09c2`) | pass; RAF 326–361 MiB |
+
+## Residual / follow-ups (ENG-8d)
+
+1. DNG opcode warps stay bilinear (main's behaviour, CPU-only `Embedded::apply`).
+2. Corrections beyond `MAX_CA_HALO` (384 px, e.g. extreme fisheye-like
+   profiles) render on the reference chain per render (correct, slower).
+3. R1, R2, R4 and S4 remain open as before.
