@@ -22,10 +22,23 @@
   rebuilds it with the correction.
 - **Grid previews are re-rendered once more.** Cached previews from earlier
   versions are rebuilt the next time each photo is shown.
-- **Exports with AI masks.** Exporting a Fujifilm raw whose edit uses AI masks
-  (subject, sky and similar) reports that lens warps need a hook-aware
-  renderer, as such exports already did for raws with DNG lens corrections or
-  a lens profile. Develop is not affected.
+- **AI masks line up with the corrected picture.** Subject, sky and other AI
+  masks are now computed from the image in the same geometry the mask is
+  applied to, before the lens correction reshapes it. Before this fix a
+  mask on a Fujifilm raw could sit up to about 0.5% of the image width away
+  from its subject, and the same applied with a lens profile or lens
+  auto-calibration on any raw. Masks created in Develop are recomputed when
+  the photo is next opened. Masks imported from Lightroom are used as
+  stored.
+- **AI-masked exports of corrected raws work.** Exporting, printing or
+  placing in a document a photo whose edit uses AI masks no longer fails
+  with "AI masks with lens warps require a hook-aware lens renderer". In the
+  first ENG-8 build this hit every Fujifilm raw with AI masks, with no way
+  around it, because the built-in correction cannot be turned off.
+- **Some Fujifilm Smart Previews may need rebuilding later.** If a later
+  version computes the built-in correction differently, a Smart Preview made
+  with the earlier result opens as Stale and can be rebuilt from the
+  original, as above.
 - **Other cameras are unchanged.** Sony, Panasonic and Olympus/OM raws also
   carry correction data in their maker notes. Tessera does not apply it yet:
   Lightroom applies Sony's data only for some camera and lens combinations,

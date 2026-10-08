@@ -127,7 +127,7 @@ formula disputed).
 | Built-in CA regardless of Remove CA | `ResolvedLens::ca_enabled` (map, ca_active, geometry_active) | `built_in_ca_applies_whatever_the_remove_ca_switch` (resident LensPlan has CA with the switch off; CA amount 0 disables) |
 | Notices | `lens_notice` | `notices_name_the_built_in_correction` |
 | Real RAF is corrected (Auto = None) | — | `raw_fixtures_apply_maker_note_corrections_where_present` (built-in vs stripped L3 max diff 0.73 scene-linear) |
-| Independent sanity check vs the camera | — | `raf_correction_matches_the_cameras_embedded_jpeg_geometry`: per-tile shifts of the render against the camera's embedded JPEG (1920×1280), after the best global scale + shift: residual **0.382 px** with the correction (30 tiles) vs **1.098 px** without (27 tiles). Bound fixed before the corrected run: < 0.6× uncorrected and < 1 px |
+| Independent sanity check vs the camera | — | `raf_correction_matches_the_cameras_embedded_jpeg_geometry`: per-tile shifts of the render against the camera's embedded JPEG (1920×1280), after the best global scale + shift: residual **0.382 px** with the correction (30 tiles) vs **1.098 px** without (27 tiles), *in pixels of the 1920-wide JPEG* (≈0.97 px vs ≈2.8 px at full 4896 size; units corrected in ENG-8b, S3). The fitted global scale is **+0.14 %** with the correction and −1.43 % without: the autoscaled framing matches the camera's own to 0.14 %. Bound fixed before the corrected run: < 0.6× uncorrected and < 1 JPEG px |
 | Engine parity L0 exact / L3 contract model (ENG-6) | — | `image-core/tests/maker_lens.rs` (RAF, Auto / None / Auto+Remove CA: L0 diff 0; L3 ≤ 1e-5 and display 0; differs from the stripped raw) |
 | GPU resident path in mode None | `image_core::resident_lens_supported` | `pipeline-gpu/tests/maker_lens.rs` (synthetic strong correction L0/L2 and RAF L3: GPU vs CPU ≤ 1 code value; RED: RAF None L3 differed by 197) |
 | Restricted admission | `raw_admission.rs` | `unsupported_orientation_and_correction_metadata_refuse` |
@@ -201,12 +201,11 @@ Earlier run on `e0eb19b0` (before the fallout fixes): 3593 passed, 5 failed
    (darktable), Lightroom applies them, but there is no fixture to verify
    against and RawTherapee disabled Panasonic as inaccurate. Needs real
    files (and ideally Lightroom renders of them).
-3. **Native AI-mask export of a Fujifilm raw** now reports "AI masks with
-   lens warps require a hook-aware lens renderer" (`export/src/ai_masks.rs`),
-   the existing behaviour for any raw with a lens correction (opcodes,
-   profiles). Develop is unaffected. Before ENG-8 such an export rendered
-   without the correction. Switching native AI-mask exports to the
-   hook-aware `render_develop` path is a separate lane.
+3. ~~Native AI-mask export of a Fujifilm raw~~ — **wrong in this
+   section as first written** ("Develop is not affected", "the existing
+   behaviour"): AI masks were misaligned in Develop too, and the export
+   failure was new and unavoidable for every Fujifilm raw. Both fixed in
+   ENG-8b below.
 4. **X-Trans IV/V (19-value layout)** is parsed and applied like I-III.
    Lightroom applies the camera's correction by default on those bodies but
    lets users choose a lens profile ("Camera Settings"); whether its "None"
@@ -218,3 +217,130 @@ Earlier run on `e0eb19b0` (before the fallout fixes): 3593 passed, 5 failed
    0.28 px on the fixture (rms 0.085 px). Neither is necessarily
    Lightroom's exact curve; the embedded-JPEG check is the only comparison
    with the camera's own output.
+
+---
+
+# ENG-8b: review follow-up (REV-ENG-8 CHANGES REQUIRED)
+
+Same branch `wp/ENG-8`, on top of `f1402008`; origin/main had not moved
+(`42bfbc6d`), so no rebase. Worker: Claude Opus 5.5. The reviewer's S4
+(driving Lightroom Classic) was not done, per the coordinator: nothing in
+Lightroom-managed catalogs or folders was opened or written.
+
+## Root cause (B2) and what was verified
+
+Every Tessera renderer that draws local adjustments for a raw applies them
+**before** the composed geometry stage, where the lens warp of a calibration
+sample (maker-note, profile, estimate) and manual distortion run:
+
+- the Native reference (`render.rs`: locals, Lens Blur, effects, then
+  `geometry_mapped`);
+- Develop's stage graph, for **both** processes. The review expected the
+  Adobe process to be unaffected (its reference, `pipeline_adobe`, applies
+  locals after a warped base render). But Develop's renderer draws Adobe
+  recipes through the stage graph, and thumbnails (`render_imported`) and
+  Adobe exports (`adobe_render`, ENG-10) use that renderer too. Measured on
+  the RAF: a raster segmented from the warped default render lands with IoU
+  **0.952** in an Adobe-process thumbnail. The same procedure gives 1.000
+  on the four other fixtures, which have no warp. With the fix the RAF
+  measures 0.992.
+
+AI masks, however, were segmented from the default (warped) render: Develop
+(`AiMaskJob::compute`) and export (`ready_hooks`). Fix:
+`pipeline_cpu::mask_segmentation_settings(metadata)` is the as-shot default
+with `lens.distortion_scale = 0`. That removes exactly the post-local warp.
+It is kept at 100 when the raw has DNG opcode lists, whose warp runs in the
+raw prefix before the locals (so it never was misaligned). Vignetting and
+CA do not move content and stay. Develop and export use it for both
+processes.
+
+## B1
+
+`ai_masks::render_with_hooks` no longer fails on a lens warp. It used to
+finish the pre-local render with the public geometry operator, which has no
+lens warp, and errored when one existed. Now such a render goes through
+`render_hooked_native`: the full reference pipeline
+(`render_linear_scaled_with_local_hook`) with the export's rasters at the
+local barrier, Lens Blur at its depth barrier (the supplied provider, same
+estimate as before), and the same tone map as the old path. Like the old
+path, it applies local adjustments but not retouch spots. Every caller
+shares this path: file export (`render_one_cancellable`, FFI), print and
+documents (`render_pixels_with_notes`), DNG export, and the denoise/Lens
+Blur hook (`depth::render`). Non-warped AI exports keep the old path and
+bytes.
+
+## Item table (finding → code → test)
+
+| Item | Code | Test (RED → green) |
+|---|---|---|
+| B2 frame helper | `pipeline-cpu/src/lens_resolve.rs::mask_segmentation_settings` | `maker_lens.rs::mask_segmentation_settings_leave_out_post_local_warps_only` |
+| B2 reference A/B (reviewer's check) | — | `maker_lens.rs::raf_ai_mask_from_segmentation_settings_lands_on_its_content`: IoU no correction 0.9979 / corrected + new input **0.9953** / corrected + old input 0.9671 (RED: 0.9671). The 0.0026 residual is the smoothing used to make the threshold mask robust (applied before the warp for the raster, after it for the target); with a radius of 12 it is 0.0014, while the old input still loses 0.018 |
+| B2 Develop | `tessera-ffi/src/masks.rs` (`AiMaskJob::compute`) | `masks.rs::eng8b_alignment_tests::develop_ai_mask_on_the_raf_lands_on_its_content`: Develop's own job with a threshold segmenter, then Develop's renderer with the mask hooks, −3 EV: IoU **0.9944** (RED 0.9541) |
+| B2 thumbnails / Adobe process | (same input, shared renderer) | `preview.rs::eng8b_thumbnail_tests::adobe_process_thumbnail_ai_mask_on_the_raf_lands_on_its_content`: Adobe-process recipe with a stored imported raster, through `render_imported`: IoU **0.9923** (RED 0.9523) |
+| B2 export | `export/src/ai_masks.rs::ready_hooks` | `export/tests/eng8b_ai_masks.rs::raf_ai_mask_export_lands_on_its_content`: IoU 0.9873 with the correction vs 0.9888 on the same raw without it. The raster is segmented at 1/3 scale, so neither reaches 1. RED: the export failed |
+| B1 all fixtures × modes | `render_hooked_native` | `eng8b_ai_masks.rs::ai_mask_exports_succeed_on_every_fixture_and_lens_mode_and_match_develop`: 5 fixtures × Auto/None/recipe default, constant segmenter, 16-bit TIFF vs Develop's renderer with the same raster. Every export succeeds; max/mean (8-bit levels): CR3 0.977/0.333, **RAF 0.977/0.333**, NEF 1.062/0.273, DNG 0.981/0.311, ARW 0.996/0.330. Bounds are ENG-9's: 1.0 max + 0.1 Native grey-point exception, 0.35 mean. The NEF's 1.062 is on the unchanged non-warp path. RED: the RAF failed in all three modes |
+| B1 print/documents and DNG | (shared path) | `eng8b_ai_masks.rs::raf_ai_mask_print_and_dng_export_succeed` (RED: failed) |
+| B1 Lens Blur / denoise hook | `render_hooked_native` | `export/src/depth.rs::eng8b_tests::ai_mask_with_lens_warp_and_lens_blur_renders` (RED: failed). Denoise shares the same call (the denoiser is passed through); it needs model weights and is not run separately |
+| B1 old expectation | — | `export/tests/ai_masks.rs`: `ai_lens_warp_fails_explicitly_instead_of_exporting_misaligned_masks` → `ai_lens_warp_exports_through_the_hook_aware_renderer` (succeeds, the mask applies) |
+| S1 | `docs/RELEASE-NOTES.md`, HANDOFF §7.3 | — |
+| S2 | `smart_preview_codec.rs`: a stored sample ≠ today's derivation → Stale "regenerate from original" | `smart_preview_codec.rs::eng8_legacy_fujifilm_container_is_stale_and_mismatches_are_rejected` (two changed samples are Stale; source/parameter inconsistencies stay invalid and are *not* Stale) |
+| S3 | §4 above; the JPEG test now prints units and the fitted scale | `raf_correction_matches_the_cameras_embedded_jpeg_geometry`: 0.382 vs 1.098 JPEG px, scale +0.14 % vs −1.43 % (reproduces the reviewer's values) |
+| (7) checksum pin | — | `maker_lens.rs::raf_corrected_default_render_checksum`: blake3 of the 1/8 default (Auto) RAF render, `f5f82c27b09e60366a8f500d8232bdc7f250b6873b4ce36a698fc4d37348b729` (612×408; stable across thread counts) |
+| N1–N4 | comments in `pipeline-cpu/src/maker_lens.rs`, `raw-decode/src/maker_lens.rs`, `raw-decode/src/lib.rs` | — |
+
+RED commit `1bf94b9b` (all of the above failing, with a stub helper).
+Fixes: `b50dbe80` (B1/B2), `107074ac` (S2), `b3c4ec96` (nits), `2044d898`
+(S3 test output).
+
+## Golden and expectation audit (ENG-8b)
+
+- Changed expectation: `export/tests/ai_masks.rs` lens-warp test: it used to
+  expect an error, now it expects a successful export (B1).
+- Changed expectation: the ENG-8 codec test's "tampered sample" case is now
+  Stale rather than invalid (S2).
+- New pin: the corrected RAF render checksum (7).
+- No golden, fixture image, tolerance or existing pin changed. The
+  segmentation input changes only for raws whose resolved lens has a
+  post-local warp. On main's five fixtures that is only the RAF, so the
+  existing AI-mask tests and pins (synthetic or non-warped) are unaffected.
+
+## Gates (ENG-8b)
+
+Run on `2044d898` after `cargo clean --release -p raw-decode -p pipeline-cpu
+-p image-core -p pipeline-gpu -p export -p previews -p merge -p
+pipeline-adobe -p tessera-ffi -p tessera-mcp`, target
+`~/.cache/tessera-target/ENG-8`, fixtures symlinked,
+`TESSERA_REQUIRE_RAW_FIXTURES=1`. The commit that follows changes only the
+release note and this HANDOFF.
+
+| Gate | Result |
+|---|---|
+| `cargo test --release --workspace --no-fail-fast` | pass, exit 0: 701 test binaries, **3607 passed, 0 failed, 102 ignored**. No raw-fixture SKIPPED lines. Load 5.7 at start, 13.4 at end; no wall-clock failures, no reruns |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | pass |
+| `cargo fmt --all -- --check` | pass |
+| `apps/mac/build-ffi.sh` | pass; no bindings drift (only the docs were modified in the worktree) |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: XCTest 996 tests, 1 skipped, 0 failures; Swift Testing 5 passed |
+| strict release `swift build --product Tessera` | pass |
+
+## Residual risks / follow-ups (ENG-8b)
+
+1. **Imported Lightroom rasters on warped raws.** Rasters imported from
+   Lightroom (`mask_key`) are applied as stored, in the frame where the
+   locals run (pre-warp). If Lightroom stores them in its lens-corrected
+   frame, they are offset by the warp on Fujifilm raws and on any raw where
+   a profile applies. Tessera-generated rasters are now correct. Mapping
+   imported rasters through the warp needs evidence of Lightroom's raster
+   frame (S4-type parity work, not done here).
+2. **External Lightroom Smart Preview DNG proxies** with Adobe recipes
+   render locals after the warp (`pipeline_adobe` reference,
+   `smart_preview_render.rs`). Such proxies carry no maker-note data, so
+   only a profile or an AutoCalibrated estimate on a proxy would misalign.
+3. **Object prompts** (clicks and boxes for Object/Person masks) are
+   normalized coordinates from the host. I did not check whether the host
+   maps them through the lens warp. If it does not, prompts can point up to
+   ~0.5 % off on a Fujifilm raw (the raster itself is aligned).
+4. **Depth masks for Adobe-process recipes** use the pre-geometry depth
+   plane. This is consistent with the stage graph, but not checked against
+   the `pipeline_adobe` proxy path above.
+5. S4 (Lightroom parity of geometry, framing, vignetting and CA) remains
+   open.
