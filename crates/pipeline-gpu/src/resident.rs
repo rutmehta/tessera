@@ -416,6 +416,15 @@ impl<'a> Batch<'a> {
     /// bytes of wgpu staging behind it, dropping idle buffers to make room
     /// on export but never refusing: these are small (parameters) or were
     /// checked by `fit` (uploads).
+    ///
+    /// Never refusing means parameter buffers and arenas can take an export
+    /// transaction past its scratch share once no idle buffer is left to
+    /// drop. That stays unreachable only because the band planner plans each
+    /// band 5% below its share (`BAND_MARGIN_DIVISOR` in the export crate)
+    /// and charges `PARAMS_BYTES` per band: the parameters a band
+    /// writes (about 2 MiB) fit in that margin, so `finish_rows`' check of
+    /// `max(peak, live + readback) <= share` cannot trip on them (REV-ENG-14
+    /// NITS). Revisit this if the margin or the parameter volume changes.
     fn count(&self, held: u64, staged: u64) {
         let mut pool = self.pool.lock().unwrap();
         if self.gpu.export_float {
