@@ -54,13 +54,16 @@ pub use render::{
 pub use source::RawImage;
 
 /// [`resident_export_lens_supported`] for a specific image: the raw must also
-/// carry no DNG opcode lists, whose built-in corrections apply in every lens
-/// mode, `None` included (ENG-7b), and which the resident graph does not run.
+/// carry no DNG opcode lists or maker-note correction, whose built-in
+/// corrections apply in every lens mode, `None` included (ENG-7b, ENG-8).
+/// Without a lens plan the resident graph runs neither.
 pub fn resident_lens_supported(
     lens: &engine_api::recipe::settings::LensSettings,
     metadata: &raw_decode::RawMetadata,
 ) -> bool {
-    resident_export_lens_supported(lens) && metadata.opcode_lists.iter().all(Option::is_none)
+    resident_export_lens_supported(lens)
+        && metadata.opcode_lists.iter().all(Option::is_none)
+        && metadata.maker_lens.is_none()
 }
 
 /// The resident graph does not implement lens correction/auto-calibration.

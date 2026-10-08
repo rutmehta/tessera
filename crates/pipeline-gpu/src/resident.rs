@@ -989,17 +989,29 @@ impl<'a> Batch<'a> {
         }
         for (coord, spans) in spans {
             let src = self.storage(&tiles[&coord])?.clone();
-            self.dispatch(
-                &self.gpu.gather_pipeline,
-                &src,
-                &dst,
-                bytemuck::cast_slice(&spans),
-                spans.len() as u32 * 64,
-            );
+            // One workgroup per span, indexed by workgroup_id.x: keep each
+            // dispatch within the 65535-workgroup dimension limit. Wide
+            // halos (ENG-8d: maker-note stages) clamp many one-pixel runs at
+            // the frame edges and exceeded it, silently skipping spans.
+            for chunk in spans.chunks(GATHER_SPANS_PER_DISPATCH) {
+                self.dispatch(
+                    &self.gpu.gather_pipeline,
+                    &src,
+                    &dst,
+                    bytemuck::cast_slice(chunk),
+                    chunk.len() as u32 * 64,
+                );
+            }
         }
         Ok(self.tile(coord, layout, dst))
     }
 }
+/// Spans per gather dispatch: one workgroup each, indexed by
+/// `workgroup_id.x` only, so at most 65535 (`record` folds larger counts
+/// into a second grid dimension the gather shader does not read). Smaller
+/// chunks also keep each parameter block small.
+const GATHER_SPANS_PER_DISPATCH: usize = 16384;
+
 impl Batch<'_> {
     /// [`ResidentBatch::run`] for a tile whose interior starts at pixel
     /// `origin` of its frame.

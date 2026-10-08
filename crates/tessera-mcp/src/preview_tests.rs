@@ -107,6 +107,7 @@ fn raw_steps_reuse_upstream_operator_results() {
         default_crop: [0, 0, 64, 64],
         has_gain_map: false,
         has_opcode_list: false,
+        maker_lens: None,
     };
     let raw = RawImage::new(
         id,

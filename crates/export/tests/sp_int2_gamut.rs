@@ -146,6 +146,7 @@ fn adobe_original() -> RawImage {
         has_gain_map: false,
         has_opcode_list: false,
         opcode_lists: [None, None, None],
+        maker_lens: None,
     };
     let cfa = raw_decode::CfaImage::from_linear(
         w,

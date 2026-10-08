@@ -2,6 +2,57 @@
 
 ## Unreleased
 
+### Fujifilm built-in lens corrections (ENG-8)
+
+- **Fujifilm raw files are now corrected like in Lightroom.** Fujifilm X-series
+  cameras store their own distortion, vignetting and lateral chromatic
+  aberration correction in the raw file. Lightroom always applies it, and so
+  does Tessera now, in every lens setting, including with profile corrections
+  off. On the X-E2S sample in this repo (XF18-55mm at 31.5 mm) the picture is
+  slightly enlarged toward the corners, pincushion distortion is removed and
+  the corners are about 5% brighter. The camera's own JPEG now lines up with
+  the raw much more closely.
+- **Existing Fujifilm edits shift slightly.** Crops, masks, healing spots and
+  Upright adjustments on Fujifilm raws now land on corrected content. How far
+  it moves depends on the lens: up to about 0.5% of the image width on this
+  repo's X-E2S sample (kit zoom at a mid focal length), and 1-3% with
+  wide-angle lenses and at the wide end of zooms. Review crops and local
+  adjustments on Fujifilm photos.
+- **Fujifilm Smart Previews need rebuilding.** A Smart Preview of a Fujifilm
+  raw made by an earlier version opens as Stale. Its offline edits still
+  synchronize to the original; once synchronized, Build Smart Preview
+  rebuilds it with the correction.
+- **Grid previews are re-rendered once more.** Cached previews from earlier
+  versions are rebuilt the next time each photo is shown.
+- **Everything you draw lands where you draw it.** The correction is applied
+  at the very start of the pipeline, as Lightroom does with built-in
+  profiles, so brushes, radial and linear gradients, Object and Person
+  clicks and boxes, healing spots, AI masks, crops and Upright all work on
+  the corrected picture you see, and mask overlays and handles sit on the
+  adjustment. (Crop rectangles saved on Fujifilm raws before this release
+  were drawn on the uncorrected picture; see "Existing Fujifilm edits
+  shift slightly" above.)
+- **AI-masked exports work.** Exporting, printing or placing in a document a
+  Fujifilm photo whose edit uses AI masks works at the usual speed. With a
+  lens profile, lens auto-calibration or manual distortion on any raw, such
+  exports no longer fail with "AI masks with lens warps require a
+  hook-aware lens renderer"; they render the masks before the warp, as
+  Develop does. AI masks are also computed in that geometry, so they
+  stay on their subject with a profile or auto-calibration. Masks created
+  in Develop are recomputed when a photo is next opened; masks imported
+  from Lightroom are used as stored.
+- **DNG files with a built-in distortion correction look right in Develop.**
+  Develop dropped the distortion part of a DNG's built-in correction (its
+  opcode warp) while exports applied it. Develop now shows it too.
+- **Some Fujifilm Smart Previews may need rebuilding later.** If a later
+  version computes the built-in correction differently, a Smart Preview made
+  with the earlier result opens as Stale and can be rebuilt from the
+  original, as above.
+- **Other cameras are unchanged.** Sony, Panasonic and Olympus/OM raws also
+  carry correction data in their maker notes. Tessera does not apply it yet:
+  Lightroom applies Sony's data only for some camera and lens combinations,
+  and there are no Panasonic or Olympus samples to verify against.
+
 ### Faster exports and prints of Lightroom-process edits (ENG-10)
 
 - **Much faster.** Exporting or printing a photo whose edit came from
@@ -30,8 +81,8 @@
   matching lens profile, otherwise not at all. This is what Lightroom does.
 - **Built-in corrections always apply.** Like Lightroom, a raw file's built-in
   lens correction is applied even when profile corrections are off or a named
-  profile is missing. Built-in corrections stored in camera maker notes (for
-  example Fujifilm) are not read yet.
+  profile is missing. Fujifilm's maker-note corrections are read since ENG-8
+  (see above).
 - **Remove Chromatic Aberration is off by default**, as in Lightroom's Adobe
   Default. Edits that saved the setting keep it, and Lightroom imports keep
   their own setting. Documents that never stored the setting now render with

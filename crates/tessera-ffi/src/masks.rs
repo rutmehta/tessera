@@ -1138,7 +1138,11 @@ impl AiMaskJob {
                     self.progress(masks, 0.05, "Preparing image");
                     let level = default_level(&shared.image);
                     let e = shared.image.level_extent(level);
-                    let settings = renderable(&DevelopSettings::default());
+                    // In the frame the renderer applies local
+                    // adjustments in, before the lens warp (ENG-8b).
+                    let settings = renderable(&pipeline_cpu::mask_segmentation_settings(Some(
+                        shared.image.metadata(),
+                    )));
                     let tiles = shared.renderer.render_region(
                         &shared.image,
                         &settings,
@@ -3235,5 +3239,464 @@ mod lr5d_fallback_tests {
     #[test]
     fn lr5d_missing_shared_blob_second_request_failure_stays_unavailable() {
         check(true);
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod eng8b_alignment_tests {
+    //! ENG-8b (REV-ENG-8 B2): Develop segments AI masks in the frame its
+    //! renderer applies local adjustments in. On the Fujifilm RAF (built-in
+    //! maker-note warp) a mask must land on the content it was segmented
+    //! from.
+    use super::*;
+    use std::sync::Mutex as StdMutex;
+
+    /// Smoothed luma above its median, recording the threshold used.
+    pub(crate) struct Threshold(pub Arc<StdMutex<Option<f32>>>);
+
+    pub(crate) fn smooth_luma(rgb: &[u8], w: usize, h: usize) -> Vec<f32> {
+        let luma: Vec<f32> = rgb
+            .chunks(3)
+            .map(|p| 0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2]))
+            .collect();
+        let r = 4usize;
+        let pass = |src: &[f32], horizontal: bool| -> Vec<f32> {
+            let mut out = vec![0.; src.len()];
+            for y in 0..h {
+                for x in 0..w {
+                    let mut sum = 0.;
+                    for d in 0..=2 * r {
+                        let (sx, sy) = if horizontal {
+                            ((x + d).saturating_sub(r).min(w - 1), y)
+                        } else {
+                            (x, (y + d).saturating_sub(r).min(h - 1))
+                        };
+                        sum += src[sy * w + sx];
+                    }
+                    out[y * w + x] = sum / (2 * r + 1) as f32;
+                }
+            }
+            out
+        };
+        pass(&pass(&luma, true), false)
+    }
+
+    impl MaskSegmenter for Threshold {
+        fn segment(&mut self, image: &RgbImage, _: &SegmentRequest) -> anyhow::Result<Vec<f32>> {
+            let (w, h) = (image.width() as usize, image.height() as usize);
+            let luma = smooth_luma(image.as_raw(), w, h);
+            let mut sorted = luma.clone();
+            sorted.sort_by(f32::total_cmp);
+            let t = sorted[sorted.len() / 2];
+            *self.0.lock().unwrap() = Some(t);
+            Ok(luma.iter().map(|&v| f32::from(u8::from(v > t))).collect())
+        }
+    }
+
+    fn display(
+        renderer: &image_core::Renderer,
+        image: &RawImage,
+        s: &DevelopSettings,
+        level: u8,
+    ) -> (Vec<u8>, usize, usize) {
+        let e = image_core::Renderer::output_extent(image, s, level).unwrap();
+        let tiles = renderer
+            .render_region(image, s, level, PixelRect::full(e))
+            .unwrap();
+        let mut rgb = vec![0u8; e.area() as usize * 3];
+        for t in &tiles {
+            let l = t.layout();
+            let n = l.plane_len();
+            let d = t.samples::<u8>().unwrap();
+            let (ox, oy) = t.coord().pixel_origin(TILE_SIZE);
+            for y in 0..l.extent.height {
+                for x in 0..l.extent.width {
+                    let i = (y * l.extent.width + x) as usize;
+                    let o = ((oy + y) * e.width + ox + x) as usize * 3;
+                    for c in 0..3 {
+                        rgb[o + c] = d[c * n + i];
+                    }
+                }
+            }
+        }
+        (rgb, e.width as usize, e.height as usize)
+    }
+
+    pub(crate) fn interior_iou(a: &[bool], b: &[bool], w: usize, h: usize) -> f64 {
+        let (mx, my) = (w * 3 / 100, h * 3 / 100);
+        let (mut inter, mut union) = (0u64, 0u64);
+        for y in my..h - my {
+            for x in mx..w - mx {
+                let (p, q) = (a[y * w + x], b[y * w + x]);
+                inter += u64::from(p && q);
+                union += u64::from(p || q);
+            }
+        }
+        inter as f64 / union.max(1) as f64
+    }
+
+    /// A disc of radius 4 % of the width around each click (normalized
+    /// coordinates of the segmentation input).
+    struct Disc;
+    impl MaskSegmenter for Disc {
+        fn segment(
+            &mut self,
+            image: &RgbImage,
+            request: &SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            let SegmentRequest::Prompts { clicks, .. } = request else {
+                anyhow::bail!("expected prompts")
+            };
+            let (w, h) = (image.width() as f32, image.height() as f32);
+            Ok((0..image.width() * image.height())
+                .map(|i| {
+                    let (x, y) = (
+                        (i % image.width()) as f32 + 0.5,
+                        (i / image.width()) as f32 + 0.5,
+                    );
+                    let inside = clicks
+                        .iter()
+                        .any(|c| (x - c[0] * w).hypot(y - c[1] * h) < 0.04 * w);
+                    f32::from(u8::from(inside))
+                })
+                .collect())
+        }
+    }
+
+    /// A RAF Develop session, with `segmenter` installed.
+    fn raf_session(
+        test: &str,
+        segmenter: Box<dyn MaskSegmenter>,
+    ) -> Option<(tempfile::TempDir, Arc<Engine>, Arc<DevelopSession>)> {
+        let src = test_fixtures::raw::with_extension(test, "raf")?;
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        std::fs::copy(&src, photos.join(src.file_name().unwrap())).unwrap();
+        let engine = Engine::open(dir.path().join("app").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        engine.install_mask_segmenter(segmenter);
+        let session = engine.clone().open_develop_session(id).unwrap();
+        Some((dir, engine, session))
+    }
+
+    /// Centroid (pixels) of the region `edited` changed relative to `base`
+    /// (pixels changed by more than a tenth of the largest change).
+    fn change_centroid(base: &[u8], edited: &[u8], w: usize) -> [f64; 2] {
+        let d: Vec<f64> = base
+            .chunks(3)
+            .zip(edited.chunks(3))
+            .map(|(a, b)| {
+                a.iter()
+                    .zip(b)
+                    .map(|(a, b)| f64::from(a.abs_diff(*b)))
+                    .sum()
+            })
+            .collect();
+        let peak = d.iter().copied().fold(0., f64::max);
+        let (mut sx, mut sy, mut n) = (0., 0., 0.);
+        for (i, v) in d.iter().enumerate() {
+            if *v > 0.1 * peak {
+                sx += (i % w) as f64 + 0.5;
+                sy += (i / w) as f64 + 0.5;
+                n += 1.;
+            }
+        }
+        [sx / n, sy / n]
+    }
+
+    /// REV2-ENG-8 NB1: an Object click at (0.85, 0.80) of the displayed
+    /// frame (what the loupe's crop/orientation mapping hands the engine
+    /// with no crop) selects, and adjusts, what is at that point: within 1 px
+    /// at Develop's level.
+    #[test]
+    fn develop_object_prompt_on_the_raf_lands_where_clicked() {
+        let test = "develop_object_prompt_on_the_raf_lands_where_clicked";
+        let Some((_dir, _engine, session)) = raf_session(test, Box::new(Disc)) else {
+            return;
+        };
+        let kind = MaskKind::Object {
+            prompt: None,
+            region: None,
+            points: vec![[0.85, 0.80]],
+            model: None,
+        };
+        let component = MaskComponent::new(kind.clone());
+        let key = component_raster_key(&component).unwrap();
+        let plane = AiMaskJob {
+            shared: Arc::downgrade(&session.shared),
+            key: key.clone(),
+            kind,
+        }
+        .compute(
+            &session.shared,
+            &engine_api::jobs::JobContext::new(
+                engine_api::id::JobId(0),
+                engine_api::jobs::CancellationToken::new(),
+                None,
+            ),
+        )
+        .unwrap();
+        let image = session.shared.image.clone();
+        let masks = MaskShared::new(&image);
+        masks.set_ai(&key, AiEntry::Ready(Arc::new(plane)));
+        let renderer = image_core::Renderer::new(Default::default());
+        renderer
+            .mask_cache()
+            .set_hooks(Some(Arc::new(Hooks(masks))));
+        let level = default_level(&image);
+        let plain = DevelopSettings::default();
+        let mut edited = plain.clone();
+        edited.locals.adjustments.push(LocalAdjustment {
+            components: vec![component],
+            params: LocalParams {
+                exposure: 2.,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let (base, w, h) = display(&renderer, &image, &plain, level);
+        let (masked, ..) = display(&renderer, &image, &edited, level);
+        let c = change_centroid(&base, &masked, w);
+        let drawn = [0.85 * w as f64, 0.80 * h as f64];
+        let off = (c[0] - drawn[0]).hypot(c[1] - drawn[1]);
+        test_fixtures::raw::notice(
+            test,
+            &format!("Object prompt: off {off:.2} px at level {level}"),
+        );
+        assert!(off <= 1., "Object prompt lands {off} px from the click");
+        session.close().unwrap();
+    }
+
+    /// REV2-ENG-8 NB1: a clone spot drawn at (0.85, 0.80) changes the
+    /// displayed image there (retouch runs before geometry, like masks).
+    #[test]
+    fn develop_retouch_spot_on_the_raf_lands_where_drawn() {
+        use engine_api::recipe::mask::{RetouchKind, RetouchOperation, RetouchTarget};
+        let test = "develop_retouch_spot_on_the_raf_lands_where_drawn";
+        let Some(src) = test_fixtures::raw::with_extension(test, "raf") else {
+            return;
+        };
+        let image = RawImage::open(engine_api::id::ImageId(8820), &src).unwrap();
+        let renderer = image_core::Renderer::new(Default::default())
+            .with_retouch_renderer(Arc::new(brush::render_retouch));
+        let level = default_level(&image);
+        let plain = DevelopSettings::default();
+        let mut edited = plain.clone();
+        edited.locals.retouch.push(RetouchOperation {
+            id: Default::default(),
+            kind: RetouchKind::Clone {
+                source_offset: [-0.4, -0.4],
+            },
+            target: RetouchTarget::Area {
+                components: vec![MaskComponent::new(MaskKind::Brush {
+                    strokes: vec![BrushStroke {
+                        points: vec![[0.85, 0.80, 1.]],
+                        radius: 0.02,
+                        feather: 0.,
+                        flow: 100.,
+                        erase: false,
+                    }],
+                })],
+            },
+            opacity: 100.,
+            feather: 0.,
+            enabled: true,
+        });
+        // The change's centroid is weighted by how much the cloned content
+        // differs, so it is not exactly the spot centre even without a lens
+        // warp: compare with the same raw without the correction.
+        let mut stripped = image.metadata().clone();
+        stripped.maker_lens = None;
+        let plain_image = image
+            .with_metadata(engine_api::id::ImageId(8821), Arc::new(stripped))
+            .unwrap();
+        let mut offsets = Vec::new();
+        for raw in [&image, &plain_image] {
+            let (base, w, h) = display(&renderer, raw, &plain, level);
+            let (spotted, ..) = display(&renderer, raw, &edited, level);
+            let c = change_centroid(&base, &spotted, w);
+            let drawn = [0.85 * w as f64, 0.80 * h as f64];
+            offsets.push((c[0] - drawn[0]).hypot(c[1] - drawn[1]));
+        }
+        let [off, floor] = offsets[..] else {
+            unreachable!()
+        };
+        test_fixtures::raw::notice(
+            test,
+            &format!(
+                "clone spot: off {off:.2} px, without the correction {floor:.2} px, level {level}"
+            ),
+        );
+        assert!(
+            (off - floor).abs() <= 0.5,
+            "retouch spot lands {off} px from where it was drawn ({floor} px without the correction)"
+        );
+    }
+
+    /// REV2-ENG-8 NB1: with a crop, the overlay Develop draws for a radial
+    /// mask (its raster through the crop operator, `crop_plane`), the
+    /// handle position the loupe computes (`MaskSpace.fromMask`: crop and
+    /// orientation only) and the rendered effect coincide on the RAF.
+    #[test]
+    fn raf_overlay_handle_and_effect_coincide_under_a_crop() {
+        use engine_api::recipe::settings::NormalizedRect;
+        let test = "raf_overlay_handle_and_effect_coincide_under_a_crop";
+        let Some(src) = test_fixtures::raw::with_extension(test, "raf") else {
+            return;
+        };
+        let image = RawImage::open(engine_api::id::ImageId(8822), &src).unwrap();
+        let renderer = image_core::Renderer::new(Default::default());
+        let level = default_level(&image);
+        let mut plain = DevelopSettings::default();
+        let crop = NormalizedRect {
+            left: 0.1,
+            top: 0.1,
+            right: 0.95,
+            bottom: 0.9,
+        };
+        plain.geometry.crop.rect = crop;
+        let at = [0.85f32, 0.80];
+        let group = LocalAdjustment {
+            components: vec![MaskComponent::new(MaskKind::Radial {
+                center: at,
+                radii: [0.03, 0.045],
+                angle: 0.,
+                feather: 0.,
+            })],
+            params: LocalParams {
+                exposure: 2.,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut edited = plain.clone();
+        edited.locals.adjustments.push(group.clone());
+        let (base, w, h) = display(&renderer, &image, &plain, level);
+        let (masked, ..) = display(&renderer, &image, &edited, level);
+        let effect = change_centroid(&base, &masked, w);
+        // The overlay: the raster at the level's full extent through the crop.
+        let e = image.level_extent(level);
+        let raster = pipeline_cpu::masks::rasterize(
+            &pipeline_cpu::Image::new(e.width, e.height, vec![vec![0.18; e.area() as usize]; 3])
+                .unwrap(),
+            &group,
+            Default::default(),
+        )
+        .unwrap();
+        let (ow, oh, overlay) = crop_plane(&raster, e.width, e.height, &plain.geometry.crop);
+        assert_eq!((ow as usize, oh as usize), (w, h));
+        let (mut sx, mut sy, mut n) = (0., 0., 0.);
+        for (i, a) in overlay.iter().enumerate() {
+            if *a > 0.5 {
+                sx += (i % w) as f64 + 0.5;
+                sy += (i / w) as f64 + 0.5;
+                n += 1.;
+            }
+        }
+        let overlay_c = [sx / n, sy / n];
+        // The handle: MaskSpace.fromMask for an axis-aligned crop.
+        let handle = [
+            f64::from((at[0] - crop.left) / (crop.right - crop.left)) * w as f64,
+            f64::from((at[1] - crop.top) / (crop.bottom - crop.top)) * h as f64,
+        ];
+        let d = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]);
+        test_fixtures::raw::notice(
+            test,
+            &format!(
+                "effect {effect:?}, overlay {overlay_c:?}, handle {handle:?}: effect-overlay {:.2} px, \
+                 effect-handle {:.2} px",
+                d(effect, overlay_c),
+                d(effect, handle)
+            ),
+        );
+        assert!(d(effect, overlay_c) <= 1., "overlay off the effect");
+        assert!(d(effect, handle) <= 1., "handle off the effect");
+    }
+
+    #[test]
+    fn develop_ai_mask_on_the_raf_lands_on_its_content() {
+        let test = "develop_ai_mask_on_the_raf_lands_on_its_content";
+        let Some(src) = test_fixtures::raw::with_extension(test, "raf") else {
+            return;
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        std::fs::copy(&src, photos.join(src.file_name().unwrap())).unwrap();
+        let engine = Engine::open(dir.path().join("app").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        let threshold = Arc::new(StdMutex::new(None));
+        engine.install_mask_segmenter(Box::new(Threshold(threshold.clone())));
+        let session = engine.clone().open_develop_session(id).unwrap();
+        assert!(session.shared.image.metadata().maker_lens.is_some());
+        let kind = MaskKind::Subject { model: None };
+        let component = MaskComponent::new(kind.clone());
+        let key = component_raster_key(&component).unwrap();
+        // Develop's own job computes the raster (its segmentation input).
+        let plane = AiMaskJob {
+            shared: Arc::downgrade(&session.shared),
+            key: key.clone(),
+            kind,
+        }
+        .compute(
+            &session.shared,
+            &engine_api::jobs::JobContext::new(
+                engine_api::id::JobId(0),
+                engine_api::jobs::CancellationToken::new(),
+                None,
+            ),
+        )
+        .unwrap();
+        let t = threshold.lock().unwrap().expect("segmented");
+        // Develop's renderer applies it through the mask cache hooks.
+        let image = session.shared.image.clone();
+        let masks = MaskShared::new(&image);
+        masks.set_ai(&key, AiEntry::Ready(Arc::new(plane)));
+        let renderer = image_core::Renderer::new(Default::default());
+        renderer
+            .mask_cache()
+            .set_hooks(Some(Arc::new(Hooks(masks))));
+        let level = default_level(&image);
+        let plain = DevelopSettings::default();
+        let mut edited = plain.clone();
+        edited.locals.adjustments.push(LocalAdjustment {
+            components: vec![component],
+            params: LocalParams {
+                exposure: -3.,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let (base, w, h) = display(&renderer, &image, &plain, level);
+        let (masked, ..) = display(&renderer, &image, &edited, level);
+        let luma = |rgb: &[u8]| -> Vec<f32> {
+            rgb.chunks(3)
+                .map(|p| {
+                    0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2])
+                })
+                .collect()
+        };
+        let (lb, lm) = (luma(&base), luma(&masked));
+        let darkened: Vec<bool> = lm.iter().zip(&lb).map(|(m, b)| *m < 0.5 * b).collect();
+        let target: Vec<bool> = smooth_luma(&base, w, h).iter().map(|&v| v > t).collect();
+        let iou = interior_iou(&darkened, &target, w, h);
+        test_fixtures::raw::notice(test, &format!("RAF level {level}: IoU {iou:.4}"));
+        assert!(iou >= 0.99, "Develop AI mask misaligned: IoU {iou}");
+        session.close().unwrap();
     }
 }

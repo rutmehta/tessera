@@ -662,6 +662,7 @@ fn read_identified<R: Read + Seek>(
         has_gain_map: false,
         has_opcode_list: opcode_lists.iter().any(Option::is_some),
         opcode_lists,
+        maker_lens: None,
     };
     let step = thumbnail_edge.map_or(1, |edge| cw.max(ch).div_ceil(edge).max(1));
     let (out_width, out_height) = (cw.div_ceil(step), ch.div_ceil(step));

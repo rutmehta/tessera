@@ -165,6 +165,7 @@ fn metadata(opcodes: Option<Vec<u8>>, lens: Option<&str>) -> RawMetadata {
         has_gain_map: false,
         has_opcode_list: opcodes.is_some(),
         opcode_lists: [None, None, opcodes],
+        maker_lens: None,
     }
 }
 
@@ -292,7 +293,9 @@ fn raw_fixtures_default_applies_no_estimated_geometry() {
             ),
         );
         if r_auto.source() == CorrectionSource::Embedded {
-            // Camera-embedded correction: Auto keeps applying it unchanged.
+            // Camera built-in correction (DNG opcodes, or maker notes since
+            // ENG-8, in the raw prefix since ENG-8c): applied from the file's
+            // data, never estimated from content. tests/maker_lens.rs checks it.
             continue;
         }
         if estimated_geometry(&r_auto) {

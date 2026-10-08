@@ -47,6 +47,7 @@ fn fixture() -> (CfaImage, RawMetadata) {
         has_gain_map: false,
         has_opcode_list: false,
         opcode_lists: [None, None, None],
+        maker_lens: None,
     };
     let samples = (0..WIDTH * HEIGHT)
         .map(|i| 0.05 + 0.4 * ((i % WIDTH) as f32 / WIDTH as f32))

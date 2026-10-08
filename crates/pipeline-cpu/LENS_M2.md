@@ -36,8 +36,12 @@ There is no implicit filesystem lookup, network access or bundled database.
 * Built-in corrections (ENG-7b): the raw's embedded DNG opcode lists apply in
   Auto, Embedded, None and for an unavailable named profile, as Lightroom
   always applies a camera's built-in correction. An available named profile
-  and AutoCalibrated keep their own source. Maker-note built-in corrections
-  (Fujifilm, Panasonic, Olympus, Sony) are not parsed yet. A direct
+  and AutoCalibrated keep their own source. ENG-8: when the raw has no
+  opcode lists, a Fujifilm maker-note correction (`RawMetadata::maker_lens`)
+  applies in the same modes as `CorrectionSource::MakerNote`, a calibration
+  sample fitted to the camera's splines (`src/maker_lens.rs`); its CA applies
+  whatever the Remove CA switch. Sony, Panasonic and Olympus maker-note data
+  are not applied (see `tools/orchestrate/wp/ENG-8/HANDOFF.md`). A direct
   context profile is an explicitly resolved selection; otherwise the named
   profile matches `Profile.model`. Filename/digest are not resolved or verified.
 * Auto database matching uses camera make/model as camera restrictions and the

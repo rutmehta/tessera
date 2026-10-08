@@ -2,8 +2,9 @@
 use super::*;
 use std::sync::atomic::Ordering;
 
-/// Domain tag of source-revision keys; v2 since render epoch 2 (ENG-7b).
-pub(crate) const REVISION_DOMAIN: &[u8] = b"tessera-preview-revision-v2\0";
+/// Domain tag of source-revision keys; v2 since render epoch 2 (ENG-7b), v3
+/// since render epoch 3 (ENG-8).
+pub(crate) const REVISION_DOMAIN: &[u8] = b"tessera-preview-revision-v3\0";
 
 impl PreviewKey {
     /// No source open/read. On Unix, inode/device + nanosecond mtime/ctime +

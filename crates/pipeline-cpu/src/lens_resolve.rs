@@ -86,7 +86,7 @@ impl ResolvedLens {
                     && (p.distortion != Default::default()
                         || p.distortion_scale != 1.
                         || p.radial_odd != [0.; 2]))
-                    || (s.remove_chromatic_aberration
+                    || (self.ca_enabled(s)
                         && s.chromatic_aberration_scale != 0.
                         && (p.ca_red != [1., 0., 0.] || p.ca_blue != [1., 0., 0.]))
             })
@@ -101,7 +101,7 @@ impl ResolvedLens {
             let d = sample.distort(q);
             let amount = s.distortion_scale.clamp(0., 200.) as f64 / 100.;
             q = [q[0] + amount * (d[0] - q[0]), q[1] + amount * (d[1] - q[1])];
-            if s.remove_chromatic_aberration && channel != 1 {
+            if self.ca_enabled(s) && channel != 1 {
                 let c = if channel == 0 {
                     sample.ca_red
                 } else {
@@ -122,11 +122,17 @@ impl ResolvedLens {
         }
         self.embedded.map(q, channel, s)
     }
+    /// Whether sample CA applies: estimated and profile CA follow the Remove
+    /// CA switch (built-in CA, from opcodes or maker notes, runs in the raw
+    /// prefix and always applies, ENG-7b/ENG-8c).
+    fn ca_enabled(&self, s: &LensSettings) -> bool {
+        s.remove_chromatic_aberration
+    }
     pub(crate) fn ca_active(&self, s: &LensSettings) -> bool {
         // Estimated/profile CA follows the Remove CA switch; built-in per-plane
-        // warps always apply (ENG-7b). A zero scale disables both.
+        // warps and maker-note CA always apply (ENG-7b). A zero scale disables both.
         s.chromatic_aberration_scale != 0.
-            && ((s.remove_chromatic_aberration
+            && ((self.ca_enabled(s)
                 && self
                     .sample
                     .as_ref()
@@ -417,8 +423,8 @@ fn find_profile<'a>(
     })
 }
 
-/// Whether the raw's built-in correction (its embedded DNG opcode lists) is
-/// selected. Lightroom applies a camera's built-in correction whatever the
+/// Whether the raw's built-in correction (its embedded DNG opcode lists or,
+/// failing those, its maker-note correction, ENG-8) is selected. Lightroom applies a camera's built-in correction whatever the
 /// profile setting, so it applies for `Auto`, `Embedded`, `None` and a named
 /// profile that is not available (ENG-7b). An available named profile and the
 /// explicit `AutoCalibrated` estimate keep their own source.
@@ -438,6 +444,47 @@ pub(crate) fn built_in_selected(
     context: &LensContext<'_>,
 ) -> bool {
     uses_built_in(s, find_profile(s, metadata, context).is_some())
+}
+
+/// Whether these lens settings run a raw-prefix built-in correction for this
+/// raw: its DNG opcode lists or (ENG-8c) its maker-note correction, selected
+/// in every mode except an available profile and AutoCalibrated (ENG-7b).
+/// Such a warp runs before the local adjustments and uses
+/// `distortion_scale`; a sample warp (profile, estimate) runs after them.
+pub fn built_in_prefix(s: &LensSettings, metadata: Option<&RawMetadata>) -> bool {
+    metadata.is_some_and(|m| {
+        built_in_selected(s, Some(m), &LensContext::default())
+            && crate::embedded_lens::Embedded::parse(m).is_ok_and(|e| e.present())
+    })
+}
+
+/// Settings for an image drawn in the frame the local adjustments run in
+/// (the pre-geometry frame): the post-local warp (a profile or estimated
+/// sample's distortion, and manual distortion) is left out; a raw-prefix
+/// built-in warp is kept ([`built_in_prefix`]).
+pub fn defer_post_local_distortion(s: &mut LensSettings, metadata: Option<&RawMetadata>) {
+    s.manual_distortion = 0.;
+    if !built_in_prefix(s, metadata) {
+        s.distortion_scale = 0.;
+    }
+}
+
+/// ENG-8b: settings of the as-shot image AI masks are segmented from: the
+/// as-shot default drawn in the frame the local adjustments run in
+/// ([`defer_post_local_distortion`]). Since ENG-8c every built-in warp runs
+/// in the raw prefix, so this is the as-shot default for raws.
+pub fn mask_segmentation_settings(
+    metadata: Option<&RawMetadata>,
+) -> engine_api::recipe::DevelopSettings {
+    let mut s = engine_api::recipe::DevelopSettings::default();
+    defer_post_local_distortion(&mut s.lens, metadata);
+    s
+}
+
+/// The fitted model of a raw's maker-note built-in correction (ENG-8), as a
+/// calibration sample in the active-area frame. Applied in the raw prefix.
+pub fn maker_note_sample(metadata: &RawMetadata) -> Option<CalibrationSample> {
+    crate::maker_lens::sample(metadata)
 }
 
 /// A passive note about the lens profile (ENG-7b), for Develop and export.
@@ -675,6 +722,7 @@ mod tests {
             has_gain_map: false,
             has_opcode_list: false,
             opcode_lists: [None, None, None],
+            maker_lens: None,
         }
     }
 

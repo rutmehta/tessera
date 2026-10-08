@@ -725,6 +725,9 @@ pub(crate) fn camera_linear_prefix(
     }
     if use_embedded {
         out = embedded.apply(out, 1, None, &settings.lens)?;
+        // ENG-8c: a maker-note built-in correction runs here too, so the
+        // locals, masks, crop and Upright see the corrected (displayed) frame.
+        out = embedded.apply_maker(out, &settings.lens)?;
     }
     out = crate::optics::lateral_manual(
         &out,

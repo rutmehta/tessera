@@ -8,9 +8,20 @@
 fn f(i: u32) -> f32 { return bitcast<f32>(p[i]); }
 fn index(gid: vec3<u32>) -> u32 { return gid.x + gid.y * 65535u * 64u; }
 
-// ── lateral CA: optics::lateral_ca + ResolvedLens::ca_map (sample) ──
+// Lanczos-3 weight (embedded_lens::lanczos3_weight).
+fn lanczos3w(x: f32) -> f32 {
+    let ax = abs(x);
+    if ax < 1e-6 { return 1.; }
+    if ax >= 3. { return 0.; }
+    let q = 3.14159265358979 * x;
+    return sin(q) / q * sin(q / 3.) / (q / 3.);
+}
+
+// ── lateral CA: optics::lateral_ca + ResolvedLens::ca_map (sample), or a
+// maker-note prefix correction (ENG-8c: embedded_lens::MakerPrefix) ──
 // p: w, h, halo, ox, oy, sensor W, H | crop[4], centre[2], scale[2], amount,
-//    red[3], blue[3] (f32 from 7).
+//    red[3], blue[3], maker flag, distortion[6], amounts (distortion, CA,
+//    vignetting), vignette[3] (f32 from 7).
 @compute @workgroup_size(64)
 fn lateral_ca(@builtin(global_invocation_id) gid: vec3<u32>) {
     let w = p[0]; let h = p[1]; let halo = p[2];
@@ -22,7 +33,8 @@ fn lateral_ca(@builtin(global_invocation_id) gid: vec3<u32>) {
     let py = (i % n) / w;
     let stride = w + 2u * halo;
     let plane = stride * (h + 2u * halo);
-    if c == 1u {
+    let maker = f(22u) != 0.;
+    if c == 1u && !maker {
         dst[i] = src[c * plane + (py + halo) * stride + px + halo];
         return;
     }
@@ -34,31 +46,80 @@ fn lateral_ca(@builtin(global_invocation_id) gid: vec3<u32>) {
     let amount = f(15u);
     let k = select(vec3<f32>(f(19u), f(20u), f(21u)), vec3<f32>(f(16u), f(17u), f(18u)), c == 0u);
     let pn = vec2<f32>(2. * (x + 0.5 - crop.x) / crop.z - 1., 2. * (y + 0.5 - crop.y) / crop.w - 1.);
-    let m = (pn - center) * scale;
-    let r = m.x * m.x + m.y * m.y;
-    let s = 1. + (k.x - 1. + r * (k.y + r * k.z)) * amount;
-    let q = center + (pn - center) * s;
+    var q: vec2<f32>;
+    if maker {
+        let m = pn * scale;
+        let r = sqrt(m.x * m.x + m.y * m.y);
+        let ff = f(23u) + r * (f(24u) + r * (f(25u) + r * (f(26u) + r * (f(27u) + r * r * f(28u)))));
+        q = pn * (1. + f(29u) * (ff - 1.));
+        if c != 1u {
+            let mq = q * scale;
+            let rho2 = mq.x * mq.x + mq.y * mq.y;
+            let ratio = k.x + rho2 * (k.y + rho2 * k.z);
+            q = q * (1. + f(30u) * (ratio - 1.));
+        }
+    } else {
+        let m = (pn - center) * scale;
+        let r = m.x * m.x + m.y * m.y;
+        let s = 1. + (k.x - 1. + r * (k.y + r * k.z)) * amount;
+        q = center + (pn - center) * s;
+    }
     let sx = (q.x + 1.) * crop.z / 2. + crop.x - 0.5;
     let sy = (q.y + 1.) * crop.w / 2. + crop.y - 0.5;
-    let u = clamp(sx, 0., f32(p[5] - 1u));
-    let v = clamp(sy, 0., f32(p[6] - 1u));
-    let a = u32(floor(u));
-    let b = u32(floor(v));
-    let fu = u - floor(u);
-    let fv = v - floor(v);
     let x0 = i32(p[3]) - i32(halo);
     let y0 = i32(p[4]) - i32(halo);
-    let at = array<f32, 4>(
-        src[c * plane + u32(clamp(i32(b) - y0, 0, i32(h + 2u * halo) - 1)) * stride
-            + u32(clamp(i32(a) - x0, 0, i32(stride) - 1))],
-        src[c * plane + u32(clamp(i32(b) - y0, 0, i32(h + 2u * halo) - 1)) * stride
-            + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
-        src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
-            + u32(clamp(i32(a) - x0, 0, i32(stride) - 1))],
-        src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
-            + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
-    );
-    let value = (at[0] * (1. - fu) + at[1] * fu) * (1. - fv) + (at[2] * (1. - fu) + at[3] * fu) * fv;
+    var value: f32;
+    if maker {
+        // ENG-8d: normalized separable Lanczos-3, 6x6 edge-clamped taps
+        // (embedded_lens::lanczos3); the halo covers displacement + 4.
+        let fx = floor(sx);
+        let fy = floor(sy);
+        var wx: array<f32, 6>;
+        var sx_w = 0.;
+        for (var t = 0; t < 6; t++) {
+            wx[t] = lanczos3w(sx - (fx + f32(t) - 2.));
+            sx_w += wx[t];
+        }
+        var sum = 0.;
+        var sy_w = 0.;
+        for (var j = 0; j < 6; j++) {
+            let wy = lanczos3w(sy - (fy + f32(j) - 2.));
+            sy_w += wy;
+            let yy = clamp(i32(fy) + j - 2, 0, i32(p[6]) - 1);
+            let row_at = c * plane + u32(clamp(yy - y0, 0, i32(h + 2u * halo) - 1)) * stride;
+            var row = 0.;
+            for (var t = 0; t < 6; t++) {
+                let xx = clamp(i32(fx) + t - 2, 0, i32(p[5]) - 1);
+                row += wx[t] * src[row_at + u32(clamp(xx - x0, 0, i32(stride) - 1))];
+            }
+            sum += row * wy;
+        }
+        value = sum / (sx_w * sy_w);
+    } else {
+        let u = clamp(sx, 0., f32(p[5] - 1u));
+        let v = clamp(sy, 0., f32(p[6] - 1u));
+        let a = u32(floor(u));
+        let b = u32(floor(v));
+        let fu = u - floor(u);
+        let fv = v - floor(v);
+        let at = array<f32, 4>(
+            src[c * plane + u32(clamp(i32(b) - y0, 0, i32(h + 2u * halo) - 1)) * stride
+                + u32(clamp(i32(a) - x0, 0, i32(stride) - 1))],
+            src[c * plane + u32(clamp(i32(b) - y0, 0, i32(h + 2u * halo) - 1)) * stride
+                + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
+            src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
+                + u32(clamp(i32(a) - x0, 0, i32(stride) - 1))],
+            src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
+                + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
+        );
+        value = (at[0] * (1. - fu) + at[1] * fu) * (1. - fv) + (at[2] * (1. - fu) + at[3] * fu) * fv;
+    }
+    if maker {
+        let mq = q * scale;
+        let r2 = mq.x * mq.x + mq.y * mq.y;
+        let illumination = clamp(1. + r2 * (f(32u) + r2 * (f(33u) + r2 * f(34u))), 0.125, 8.);
+        value = value * clamp(1. + (1. / illumination - 1.) * f(31u), 0.125, 8.);
+    }
     dst[i] = clamp(value, -3.4028234663852886e38f, 3.4028234663852886e38f);
 }
 

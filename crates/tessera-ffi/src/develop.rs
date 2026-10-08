@@ -1549,8 +1549,8 @@ fn render_depth_input(
 ) -> Result<pipeline_cpu::Image> {
     settings.effects = Default::default();
     settings.geometry = Default::default();
-    settings.lens.distortion_scale = 0.0;
-    settings.lens.manual_distortion = 0.0;
+    // The pre-geometry frame: a raw-prefix built-in warp stays (ENG-8c).
+    pipeline_cpu::defer_post_local_distortion(&mut settings.lens, Some(image.metadata()));
     let level = (0..=MAX_LEVEL)
         .find(|&l| {
             let e = image.level_extent(l);

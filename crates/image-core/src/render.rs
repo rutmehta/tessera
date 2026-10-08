@@ -760,6 +760,9 @@ impl Renderer {
         let level = coords.first().map(|c| c.level);
 
         if (lens.is_none() && !crate::resident_lens_supported(&settings.lens, image.metadata()))
+            // A sensor-frame CA/maker-note stage beyond the resident gather
+            // halo uses the reference chain for this render (ENG-8d).
+            || !resident_render::ca_fits(r.lens, r.sensor)
             || ((self.is_adobe() || has_m2_settings(settings) || self.depth_visualisation)
                 && !self.supports_resident(&r, level))
         {
@@ -825,6 +828,7 @@ impl Renderer {
             let extent = Self::output_extent(image, settings, level)?;
             let coords = Self::tiles_in_extent(extent, level, viewport.rect.at_level(level));
             if (lens.is_none() && !crate::resident_lens_supported(&settings.lens, image.metadata()))
+                || !resident_render::ca_fits(r.lens, r.sensor)
                 || ((self.is_adobe() || has_m2_settings(settings) || self.depth_visualisation)
                     && !self.supports_resident(&r, Some(level)))
             {
@@ -919,8 +923,10 @@ impl Renderer {
             // Warped optics also need this f32 prefix: WB checkpoint rounding
             // is amplified by resampling and EDR gamut mapping.
             let mut prefix = base.clone();
-            prefix.lens.manual_distortion = 0.;
-            prefix.lens.distortion_scale = 0.;
+            // A raw's built-in warp (DNG opcode stages, a maker-note
+            // correction) runs in this prefix and must stay (REV2-ENG-8:
+            // opcode warps were dropped here).
+            pipeline_cpu::defer_post_local_distortion(&mut prefix.lens, Some(image.metadata()));
             pipeline_cpu::render_linear_scaled_with_denoise(
                 &prefix,
                 &match image.rgb() {

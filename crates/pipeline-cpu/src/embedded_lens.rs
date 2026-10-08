@@ -2,6 +2,23 @@
 #[cfg(test)]
 #[path = "embedded_lens_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod lanczos_tests {
+    #[test]
+    fn fast_taps_equal_the_direct_kernel() {
+        for i in 0..=1000 {
+            let f = f64::from(i) / 1000. * 0.999_999;
+            let fast = super::lanczos3_taps(f);
+            for (t, w) in fast.iter().enumerate() {
+                let direct = super::lanczos3_weight(f + 2. - t as f64);
+                // Near a tap (x -> 0) sin(πf) cancels: ~1e-10, far below
+                // f32 sample precision.
+                assert!((w - direct).abs() < 1e-9, "f {f} tap {t}: {w} vs {direct}");
+            }
+        }
+    }
+}
 use engine_api::{EngineError, EngineResult};
 use lens::opcodes::{CorrectionOpcode, FixVignetteRadial, WarpRectilinear, parse_opcode_list};
 use raw_decode::RawMetadata;
@@ -10,8 +27,82 @@ pub(crate) struct Embedded {
     pub stages: [Vec<CorrectionOpcode>; 3],
     pub warps: Vec<WarpRectilinear>,
     pub gains: Vec<FixVignetteRadial>,
+    /// ENG-8c: a camera's maker-note built-in correction (raws without opcode
+    /// lists), applied in the raw prefix like an opcode stage: one resample of
+    /// demosaiced camera RGB with its distortion, lateral CA and vignetting
+    /// ([`MakerPrefix`]).
+    pub maker: Option<MakerPrefix>,
     size: [f64; 2],
     crop: [f64; 4],
+}
+
+/// The maker-note correction as one raw-prefix resample, in the active-area
+/// [-1, 1] frame (`crate::maker_lens`). For output point p (green):
+/// q = p·(1 + d·(F(r) − 1)), F = s + o₀r + k₁r² + o₁r³ + k₂r⁴ + k₃r⁶ with r the
+/// half-diagonal radius of p; red/blue: q·(1 + c·(c₀ + c₁ρ² + c₂ρ⁴ − 1)) with
+/// ρ the radius of the green source q; then the Lanczos-3 sample at the
+/// channel's source (ENG-8d) times the vignetting gain there, 1 + v·(1/I − 1), I = 1 + v₀ρ² + v₁ρ⁴ +
+/// v₂ρ⁶ (both clamped to 1/8..8 like profile vignetting). d, c and v are the
+/// distortion, CA and vignetting amounts. The resident GPU kernel evaluates
+/// the same expressions.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MakerPrefix {
+    /// `[s, o₀, k₁, o₁, k₂, k₃]`.
+    pub distortion: [f64; 6],
+    pub red: [f64; 3],
+    pub blue: [f64; 3],
+    pub vignette: [f64; 3],
+    /// Axis multipliers from [-1, 1] coordinates to half-diagonal units.
+    pub coordinate_scale: [f64; 2],
+}
+
+impl MakerPrefix {
+    pub(crate) fn from_sample(s: &lens::CalibrationSample) -> Self {
+        Self {
+            distortion: [
+                s.distortion_scale,
+                s.radial_odd[0],
+                s.distortion.k1,
+                s.radial_odd[1],
+                s.distortion.k2,
+                s.distortion.k3,
+            ],
+            red: s.ca_red,
+            blue: s.ca_blue,
+            vignette: s.vignette,
+            coordinate_scale: s.coordinate_scale,
+        }
+    }
+    fn radius2(&self, q: [f64; 2]) -> f64 {
+        let x = q[0] * self.coordinate_scale[0];
+        let y = q[1] * self.coordinate_scale[1];
+        x * x + y * y
+    }
+    /// Source position of `channel` for output point `p`, with the
+    /// distortion and CA amounts.
+    pub fn map(&self, p: [f64; 2], channel: usize, amounts: [f64; 2]) -> [f64; 2] {
+        let r2 = self.radius2(p);
+        let r = r2.sqrt();
+        let d = self.distortion;
+        let f = d[0] + r * (d[1] + r * (d[2] + r * (d[3] + r * (d[4] + r * r * d[5]))));
+        let g = 1. + amounts[0] * (f - 1.);
+        let q = [p[0] * g, p[1] * g];
+        if channel == 1 {
+            return q;
+        }
+        let c = if channel == 0 { self.red } else { self.blue };
+        let rho2 = self.radius2(q);
+        let ratio = c[0] + rho2 * (c[1] + rho2 * c[2]);
+        let k = 1. + amounts[1] * (ratio - 1.);
+        [q[0] * k, q[1] * k]
+    }
+    /// Vignetting gain at source point `q`, with the vignetting amount.
+    pub fn gain(&self, q: [f64; 2], amount: f64) -> f64 {
+        let r2 = self.radius2(q);
+        let v = self.vignette;
+        let illumination = (1. + r2 * (v[0] + r2 * (v[1] + r2 * v[2]))).clamp(0.125, 8.);
+        (1. + (1. / illumination - 1.) * amount).clamp(0.125, 8.)
+    }
 }
 pub(crate) fn sample_phase(
     image: &crate::Image,
@@ -36,6 +127,71 @@ pub(crate) fn sample_phase(
     (at(a, b) * (1. - u.fract()) + at(a + 1, b) * u.fract()) * (1. - v.fract())
         + (at(a, b + 1) * (1. - u.fract()) + at(a + 1, b + 1) * u.fract()) * v.fract()
 }
+/// Lanczos-3 weight (the composed geometry map's kernel, `MapPlan::apply`):
+/// the direct form [`lanczos3_taps`] is checked against.
+#[cfg(test)]
+pub(crate) fn lanczos3_weight(x: f64) -> f64 {
+    if x.abs() < 1e-12 {
+        1.
+    } else if x.abs() >= 3. {
+        0.
+    } else {
+        let p = std::f64::consts::PI * x;
+        p.sin() / p * (p / 3.).sin() / (p / 3.)
+    }
+}
+
+/// The six Lanczos-3 weights for taps at offsets 2, 1, 0, -1, -2, -3 from a
+/// sample at fraction `f` (0 <= f < 1) past the tap `floor`: the same values
+/// as [`lanczos3_weight`] (to rounding), from three trigonometric calls via
+/// sin(π(f + n)) = (-1)ⁿ sin(πf) and the angle-addition formula.
+pub(crate) fn lanczos3_taps(f: f64) -> [f64; 6] {
+    use std::f64::consts::PI;
+    let (s1, (s3, c3)) = ((PI * f).sin(), (PI * f / 3.).sin_cos());
+    std::array::from_fn(|t| {
+        let n = 2 - t as i32;
+        let x = f + f64::from(n);
+        if x.abs() < 1e-12 {
+            return 1.;
+        }
+        if x.abs() >= 3. {
+            return 0.;
+        }
+        let sign = if n.rem_euclid(2) == 0 { 1. } else { -1. };
+        let a = PI * f64::from(n) / 3.;
+        let sin3 = s3 * a.cos() + c3 * a.sin();
+        3. * sign * s1 * sin3 / (PI * PI * x * x)
+    })
+}
+
+/// Normalized separable Lanczos-3 sample of `plane` at pixel position `q`
+/// (6x6 taps, edge-clamped). ENG-8d: the maker-note prefix resample uses it
+/// instead of bilinear, which kept only ~31 % of the fine-detail energy at
+/// the continuously varying fractional offsets of a lens warp (REV3-ENG-8).
+/// The resident GPU kernel evaluates the same taps.
+pub(crate) fn lanczos3(image: &crate::Image, plane: usize, q: [f64; 2]) -> f64 {
+    let (w, h) = (image.width() as i64, image.height() as i64);
+    let data = &image.planes()[plane];
+    let (fx, fy) = (q[0].floor(), q[1].floor());
+    let (wx, wy) = (lanczos3_taps(q[0] - fx), lanczos3_taps(q[1] - fy));
+    let (mut sum, mut weights) = (0., 0.);
+    for (j, wy) in wy.iter().enumerate() {
+        let y = (fy as i64 + j as i64 - 2).clamp(0, h - 1) as usize;
+        let mut row = 0.;
+        for (i, wx) in wx.iter().enumerate() {
+            let x = (fx as i64 + i as i64 - 2).clamp(0, w - 1) as usize;
+            row += f64::from(data[y * w as usize + x]) * wx;
+        }
+        sum += row * wy;
+    }
+    for wy in wy {
+        for wx in wx {
+            weights += wx * wy;
+        }
+    }
+    sum / weights
+}
+
 impl Embedded {
     pub fn parse(m: &RawMetadata) -> EngineResult<Self> {
         let mut out = Self {
@@ -43,6 +199,10 @@ impl Embedded {
             crop: m.default_crop.map(f64::from),
             ..Default::default()
         };
+        // Opcode lists win; the two are never combined (ENG-8).
+        if m.opcode_lists.iter().all(Option::is_none) {
+            out.maker = crate::maker_lens::sample(m).map(|s| MakerPrefix::from_sample(&s));
+        }
         for (stage, bytes) in m.opcode_lists.iter().enumerate() {
             let Some(bytes) = bytes else {
                 continue;
@@ -217,6 +377,83 @@ impl Embedded {
         self.stages.iter().any(|s| !s.is_empty())
             || !self.warps.is_empty()
             || !self.gains.is_empty()
+            || self.maker.is_some()
+    }
+    /// Only a maker-note prefix correction (no opcode stages or warps).
+    pub fn maker_only(&self) -> bool {
+        self.maker.is_some()
+            && self.stages.iter().all(Vec::is_empty)
+            && self.warps.is_empty()
+            && self.gains.is_empty()
+    }
+    /// Apply the maker-note correction to demosaiced camera RGB in the full
+    /// sensor frame (ENG-8c), where opcode stages run. Rows run in parallel;
+    /// every sample is computed independently (deterministic).
+    pub fn apply_maker(
+        &self,
+        image: crate::Image,
+        s: &engine_api::recipe::settings::LensSettings,
+    ) -> EngineResult<crate::Image> {
+        let Some(maker) = &self.maker else {
+            return Ok(image);
+        };
+        let amounts = [
+            s.distortion_scale.clamp(0., 200.) as f64 / 100.,
+            s.chromatic_aberration_scale.clamp(0., 200.) as f64 / 100.,
+        ];
+        let vignette = s.vignetting_scale.clamp(0., 200.) as f64 / 100.;
+        if amounts == [0.; 2] && vignette == 0. {
+            return Ok(image);
+        }
+        let (w, h) = (image.width() as usize, image.height() as usize);
+        let crop = self.crop;
+        let workers = std::thread::available_parallelism()
+            .map_or(1, usize::from)
+            .clamp(1, 16);
+        let rows_per = h.div_ceil(workers).max(1);
+        let mut planes = vec![vec![0f32; w * h]; image.planes().len()];
+        let image = &image;
+        let failed = std::sync::atomic::AtomicBool::new(false);
+        std::thread::scope(|scope| {
+            let mut chunks: Vec<_> = planes
+                .iter_mut()
+                .map(|p| p.chunks_mut(rows_per * w).collect::<Vec<_>>())
+                .collect();
+            for band in 0..h.div_ceil(rows_per) {
+                let mut outs: Vec<&mut [f32]> = chunks
+                    .iter_mut()
+                    .map(|c| std::mem::take(&mut c[band]))
+                    .collect();
+                let failed = &failed;
+                scope.spawn(move || {
+                    let y0 = band * rows_per;
+                    for (c, out) in outs.iter_mut().enumerate() {
+                        for (i, dst) in out.iter_mut().enumerate() {
+                            let (x, y) = (i % w, y0 + i / w);
+                            let p = [
+                                2. * (x as f64 + 0.5 - crop[0]) / crop[2] - 1.,
+                                2. * (y as f64 + 0.5 - crop[1]) / crop[3] - 1.,
+                            ];
+                            let q = maker.map(p, c.min(2), amounts);
+                            let sx = (q[0] + 1.) * crop[2] / 2. + crop[0] - 0.5;
+                            let sy = (q[1] + 1.) * crop[3] / 2. + crop[1] - 0.5;
+                            let v = lanczos3(image, c, [sx, sy]) * maker.gain(q, vignette);
+                            if !v.is_finite() || v.abs() > f32::MAX as f64 {
+                                failed.store(true, std::sync::atomic::Ordering::Relaxed);
+                            }
+                            *dst = v as f32;
+                        }
+                    }
+                });
+            }
+        });
+        if failed.into_inner() {
+            return Err(EngineError::invalid(
+                "maker-note lens correction",
+                "nonfinite output",
+            ));
+        }
+        crate::Image::new(w as u32, h as u32, planes)
     }
     /// Pixel-space centre and radius of a normalized opcode centre, and the
     /// active-area crop the public [-1, 1] coordinates refer to.

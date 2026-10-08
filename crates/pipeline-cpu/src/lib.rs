@@ -24,12 +24,14 @@ pub use output::{
 mod embedded_lens;
 mod image;
 mod lens_blur;
+mod maker_lens;
 pub use lens_blur::{LensBlurOptions, lens_blur};
 mod lens_plan;
 mod lens_resolve;
+pub use embedded_lens::MakerPrefix;
 pub use lens_plan::{
-    CaPlan, EmbeddedGain, EmbeddedWarp, LensMap, LensPlan, MAX_EMBEDDED, MapPlan, ProfileVignette,
-    SampleMap, TransformPlan, UprightAnalysis, VignettePlan,
+    CaPlan, EmbeddedGain, EmbeddedWarp, LensMap, LensPlan, MAX_CA_HALO, MAX_EMBEDDED, MakerPlan,
+    MapPlan, ProfileVignette, SampleMap, TransformPlan, UprightAnalysis, VignettePlan,
 };
 mod optics;
 mod render;
@@ -45,7 +47,8 @@ pub use display::{
 pub use image::Image;
 pub use lens_resolve::{
     CorrectionSource, DepthEffectHook, LensContext, LensNotice, ManualCaSettings, ResolvedLens,
-    lens_notice, lens_resolution_count, resolve_lens, resolve_lens_sensor,
+    built_in_prefix, defer_post_local_distortion, lens_notice, lens_resolution_count,
+    maker_note_sample, mask_segmentation_settings, resolve_lens, resolve_lens_sensor,
 };
 pub use render::{
     LocalAdjustmentHook, NATIVE_APPROXIMATED_PROFILE_NOTICE, RenderSource, Rgb8Image,

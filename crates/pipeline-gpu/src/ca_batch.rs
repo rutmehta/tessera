@@ -50,13 +50,9 @@ impl GpuStageOp {
         if frame.width == 0 || frame.height == 0 {
             return Err(EngineError::invalid("demosaic CA", "empty sensor frame"));
         }
-        let displacement = plan.max_displacement(frame.width, frame.height);
-        let Some(displacement) = displacement
-            .filter(|v| v.is_finite() && v.ceil() + 2. <= f64::from(engine_api::tile::MAX_HALO))
-        else {
+        let Some(halo) = plan.halo(frame.width, frame.height) else {
             return Ok(None);
         };
-        let halo = displacement.ceil() as u16 + 2;
         let valid_coord = |c: TileCoord| {
             c.level == 0
                 && c.x < frame.width.div_ceil(TILE_SIZE)

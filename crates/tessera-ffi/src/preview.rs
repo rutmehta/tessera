@@ -1777,3 +1777,104 @@ fn render_imported(
         image.metadata().orientation,
     ))
 }
+
+#[cfg(test)]
+mod eng8b_thumbnail_tests {
+    //! ENG-8b (REV-ENG-8 B2): grid thumbnails of imported (Lightroom-process)
+    //! photos draw with Develop's renderer, which applies local adjustments
+    //! before the lens warp for the Adobe process too (measured: a raster
+    //! segmented from the warped default render lands with IoU 0.952 on the
+    //! RAF, 1.000 on the other fixtures). A raster segmented as Develop and
+    //! export now segment lands on its content.
+    use super::*;
+    use crate::develop::masks::eng8b_alignment_tests::{interior_iou, smooth_luma};
+    use engine_api::recipe::{
+        EditMeta, LocalAdjustment, LocalParams, MaskComponent, MaskKind, mask::AdobeAiMask,
+    };
+
+    #[test]
+    fn adobe_process_thumbnail_ai_mask_on_the_raf_lands_on_its_content() {
+        let test = "adobe_process_thumbnail_ai_mask_on_the_raf_lands_on_its_content";
+        let Some(path) = test_fixtures::raw::with_extension(test, "raf") else {
+            return;
+        };
+        let root = tempfile::tempdir().unwrap();
+        let support = root.path().join("support");
+        std::fs::create_dir_all(&support).unwrap();
+        let id = engine_api::id::ImageId(1319);
+        let max_px = 1000;
+        let plain = {
+            let mut r = core::Recipe::new(id);
+            r.process_version = engine_api::recipe::ProcessVersion::adobe(6);
+            r
+        };
+        let (base, _) = render_imported(&path, id, &plain, &support, max_px).unwrap();
+        let (w, h) = (base.width() as usize, base.height() as usize);
+        // The "segmentation": smoothed luma above its median, of the input
+        // Develop and export segment (`mask_segmentation_settings`, before the
+        // lens warp), stored at the level-0 extent like an imported raster.
+        let seg_recipe = {
+            let mut r = plain.clone();
+            r.settings = pipeline_cpu::mask_segmentation_settings(Some(
+                catalog::open_image(id, &path).unwrap().metadata(),
+            ));
+            r
+        };
+        let (seg, _) = render_imported(&path, id, &seg_recipe, &support, max_px).unwrap();
+        let luma = smooth_luma(seg.as_raw(), w, h);
+        let mut sorted = luma.clone();
+        sorted.sort_by(f32::total_cmp);
+        let t = sorted[sorted.len() / 2];
+        let extent = catalog::open_image(id, &path).unwrap().level_extent(0);
+        let (fw, fh) = (extent.width as usize, extent.height as usize);
+        let full: Vec<f32> = (0..fw * fh)
+            .map(|i| {
+                let x = ((i % fw) * w / fw).min(w - 1);
+                let y = ((i / fw) * h / fh).min(h - 1);
+                f32::from(u8::from(luma[y * w + x] > t))
+            })
+            .collect();
+        let raster = ml_segment::MaskRaster::new(extent.width, extent.height, full).unwrap();
+        ml_segment::MaskStore::new(support.join("imported-masks"), 0)
+            .unwrap()
+            .put_content_pinned(&raster)
+            .unwrap();
+        let mut component = MaskComponent::new(MaskKind::Subject { model: None });
+        component.adobe_ai = Some(AdobeAiMask {
+            resource_id: None,
+            category: "Subject".into(),
+            mask_key: Some(raster.content_key()),
+            regenerate: false,
+        });
+        let mut edited = plain.clone();
+        edited
+            .edit(EditMeta::user("Imported mask", 1), |s| {
+                s.locals.adjustments.push(LocalAdjustment {
+                    components: vec![component],
+                    params: LocalParams {
+                        exposure: -3.,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+            })
+            .unwrap();
+        let (masked, _) = render_imported(&path, id, &edited, &support, max_px).unwrap();
+        let l = |img: &image::RgbImage| -> Vec<f32> {
+            img.pixels()
+                .map(|p| {
+                    0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2])
+                })
+                .collect()
+        };
+        let (lb, lm) = (l(&base), l(&masked));
+        let darkened: Vec<bool> = lm.iter().zip(&lb).map(|(m, b)| *m < 0.5 * b).collect();
+        let target: Vec<bool> = smooth_luma(base.as_raw(), w, h)
+            .iter()
+            .map(|&v| v > t)
+            .collect();
+        let iou = interior_iou(&darkened, &target, w, h);
+        test_fixtures::raw::notice(test, &format!("Adobe-process RAF thumbnail: IoU {iou:.4}"));
+        assert!(iou >= 0.98, "thumbnail AI mask misaligned: IoU {iou}");
+    }
+}

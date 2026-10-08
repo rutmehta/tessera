@@ -256,6 +256,7 @@ fn metadata() -> raw_decode::RawMetadata {
         has_gain_map: false,
         has_opcode_list: false,
         opcode_lists: [None, None, None],
+        maker_lens: None,
     }
 }
 
@@ -326,8 +327,12 @@ fn raw_subject_export_maps_display_mask_back_to_active_sensor_area() {
     assert!(delta(12, 2).abs() < 6);
 }
 
+/// ENG-8b (REV-ENG-8 B1): an AI-mask export with a lens warp used to fail
+/// ("AI masks with lens warps require a hook-aware lens renderer"). It now
+/// renders through the full reference pipeline with the masks applied before
+/// the warp, as Develop does, and segments the frame they are applied in.
 #[test]
-fn ai_lens_warp_fails_explicitly_instead_of_exporting_misaligned_masks() {
+fn ai_lens_warp_exports_through_the_hook_aware_renderer() {
     let pixels = fixture();
     let input = input(&pixels);
     let mut recipe = recipe(vec![subject()]);
@@ -339,6 +344,7 @@ fn ai_lens_warp_fails_explicitly_instead_of_exporting_misaligned_masks() {
     let dir = tempfile::tempdir().unwrap();
     let settings = ExportSettings {
         output_dir: dir.path().into(),
+        metadata: Metadata::None,
         ..Default::default()
     };
     let mut backend = Fake {
@@ -346,10 +352,28 @@ fn ai_lens_warp_fails_explicitly_instead_of_exporting_misaligned_masks() {
         fail: false,
         calls: 0,
     };
-    let error = export_one_with_segmenter(&input, &recipe, &settings, &mut backend).unwrap_err();
-    assert!(error.to_string().contains("lens warps"));
-    assert_eq!(backend.calls, 0);
-    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    let output = export_one_with_segmenter(&input, &recipe, &settings, &mut backend).unwrap();
+    assert_eq!(backend.calls, 1);
+    let actual = image::open(output).unwrap().to_rgb8();
+    assert_eq!(actual.dimensions(), (24, 16));
+    // The +1 EV subject mask (alpha 1 everywhere) brightens the export.
+    let baseline = export_one(
+        &input,
+        &Recipe::default(),
+        &ExportSettings {
+            naming: "baseline".into(),
+            ..settings
+        },
+    )
+    .unwrap();
+    let baseline = image::open(baseline).unwrap().to_rgb8();
+    let centre = |i: &image::RgbImage| i.get_pixel(12, 8).0.map(i32::from);
+    assert!(
+        centre(&actual)[1] > centre(&baseline)[1] + 20,
+        "{:?} vs {:?}",
+        centre(&actual),
+        centre(&baseline)
+    );
 }
 
 /// LR-8n (REV-LR-8n S1): a catalog-oriented RGB original in its stored frame
