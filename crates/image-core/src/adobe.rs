@@ -200,18 +200,7 @@ impl StageOp for AdobeStageOp {
                 // Every tile reads its halo from the immutable input and is
                 // written once, so tiles run in parallel with serial results
                 // (ENG-10: this loop was most of an Adobe export's time).
-                // Point operators (no halo) read and write only their own
-                // tile, so they work in place without a second frame.
                 let coords: Vec<_> = input.coords().collect();
-                if halo == 0 {
-                    let frame = Mutex::new(input);
-                    for_each_tile(&coords, cancel, |coord| {
-                        let tile = lock(&frame).tile(coord, 0, 1)?;
-                        let tile = self.barrier_tile(stage, op, tile)?;
-                        lock(&frame).put(&tile)
-                    })?;
-                    return Ok(frame.into_inner().unwrap_or_else(|e| e.into_inner()));
-                }
                 let output = Mutex::new(pipeline_cpu::Image::new(
                     input.width(),
                     input.height(),
@@ -221,27 +210,21 @@ impl StageOp for AdobeStageOp {
                     ],
                 )?);
                 for_each_tile(&coords, cancel, |coord| {
-                    let tile = self.barrier_tile(stage, op, input.tile(coord, halo, 1)?)?;
+                    let mut tile = self.run(stage, op, input.tile(coord, halo, 1)?)?;
+                    // Profile tone runs once, not in upstream WB assembly.
+                    if matches!(op, Op::Tone(_))
+                        && let Some(profile) = &self.profile
+                    {
+                        pipeline_cpu::map_rgb(&mut tile, |p| {
+                            profile.apply_tone(profile.apply_look(p))
+                        })?;
+                    }
                     lock(&output).put(&tile)
                 })?;
                 Ok(output.into_inner().unwrap_or_else(|e| e.into_inner()))
             }
             _ => self.native.run_image(stage, op, input, cancel),
         }
-    }
-}
-
-impl AdobeStageOp {
-    /// One tile of an image-level compatibility barrier.
-    fn barrier_tile(&self, stage: StageId, op: &Op<'_>, tile: Tile) -> EngineResult<Tile> {
-        let mut tile = self.run(stage, op, tile)?;
-        // Profile tone runs once, not in upstream WB assembly.
-        if matches!(op, Op::Tone(_))
-            && let Some(profile) = &self.profile
-        {
-            pipeline_cpu::map_rgb(&mut tile, |p| profile.apply_tone(profile.apply_look(p)))?;
-        }
-        Ok(tile)
     }
 }
 
