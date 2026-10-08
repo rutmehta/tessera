@@ -43,6 +43,16 @@ impl GpuContext {
         self.device_allocated_bytes()
     }
 
+    /// Submits the queue writes and mapped-at-creation uploads queued so far
+    /// (an empty submission carries them) and frees, without blocking, what
+    /// completed submissions retired. wgpu holds the staging copies of those
+    /// uploads until some submission carries them: a caller that uploads and
+    /// then declines to render (ENG-15) would otherwise leave them behind.
+    pub fn flush_uploads(&self) {
+        self.queue.submit(std::iter::empty());
+        let _ = self.device.poll(wgpu::PollType::Poll);
+    }
+
     /// The shared device handle for contexts opened by `new` or `from_shared`.
     ///
     /// # Panics
