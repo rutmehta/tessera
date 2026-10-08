@@ -3,6 +3,12 @@
 Branch `wp/ENG-12` from main `db604752`. Worker: Claude Opus 5.5.
 Input: `REV-ENG-11` SHOULD-FIX 1-3, NITS, answers 2 and 6.
 
+> **Superseded in part by ENG-12b** (`tools/orchestrate/wp/ENG-12b/HANDOFF.md`,
+> after REV-ENG-12): `set_keeping_pruned(true)` is removed (it breaks clustered
+> data), the isolated set is capped at 5% with an exact-search fallback, and
+> the export band planner is fixed, so the two five-fixture export tests below
+> now run and pass with CR3 on bands.
+
 ## Summary
 
 - **HNSW flake (SHOULD-FIX 1).** The over-fetch the ruling proposed did not
