@@ -69,9 +69,6 @@ pub enum CorrectionSource {
     Database,
     Image,
     Manual,
-    /// The camera's built-in correction from proprietary maker notes (ENG-8),
-    /// as a calibration sample; applied like embedded opcodes.
-    MakerNote,
 }
 #[derive(Clone, Debug)]
 pub struct ResolvedLens {
@@ -126,10 +123,10 @@ impl ResolvedLens {
         self.embedded.map(q, channel, s)
     }
     /// Whether sample CA applies: estimated and profile CA follow the Remove
-    /// CA switch; a built-in maker-note correction always applies, like
-    /// built-in per-plane DNG warps (ENG-7b, ENG-8).
+    /// CA switch (built-in CA, from opcodes or maker notes, runs in the raw
+    /// prefix and always applies, ENG-7b/ENG-8c).
     fn ca_enabled(&self, s: &LensSettings) -> bool {
-        s.remove_chromatic_aberration || self.source == CorrectionSource::MakerNote
+        s.remove_chromatic_aberration
     }
     pub(crate) fn ca_active(&self, s: &LensSettings) -> bool {
         // Estimated/profile CA follows the Remove CA switch; built-in per-plane
@@ -449,23 +446,45 @@ pub(crate) fn built_in_selected(
     uses_built_in(s, find_profile(s, metadata, context).is_some())
 }
 
-/// ENG-8b: settings of the as-shot image AI masks are segmented from. The
-/// renderers apply local adjustments before the composed geometry stage (the
-/// Native reference and Develop's stage graph for both processes, which
-/// export and thumbnails share), so a mask raster must be computed in that
-/// frame: the lens warp applied there (a maker-note, profile or estimated
-/// sample) is left out. A DNG opcode warp runs in the raw prefix, before local
-/// adjustments, and is kept. Vignetting and lateral CA do not move content
-/// and are kept.
+/// Whether these lens settings run a raw-prefix built-in correction for this
+/// raw: its DNG opcode lists or (ENG-8c) its maker-note correction, selected
+/// in every mode except an available profile and AutoCalibrated (ENG-7b).
+/// Such a warp runs before the local adjustments and uses
+/// `distortion_scale`; a sample warp (profile, estimate) runs after them.
+pub fn built_in_prefix(s: &LensSettings, metadata: Option<&RawMetadata>) -> bool {
+    metadata.is_some_and(|m| {
+        built_in_selected(s, Some(m), &LensContext::default())
+            && crate::embedded_lens::Embedded::parse(m).is_ok_and(|e| e.present())
+    })
+}
+
+/// Settings for an image drawn in the frame the local adjustments run in
+/// (the pre-geometry frame): the post-local warp (a profile or estimated
+/// sample's distortion, and manual distortion) is left out; a raw-prefix
+/// built-in warp is kept ([`built_in_prefix`]).
+pub fn defer_post_local_distortion(s: &mut LensSettings, metadata: Option<&RawMetadata>) {
+    s.manual_distortion = 0.;
+    if !built_in_prefix(s, metadata) {
+        s.distortion_scale = 0.;
+    }
+}
+
+/// ENG-8b: settings of the as-shot image AI masks are segmented from: the
+/// as-shot default drawn in the frame the local adjustments run in
+/// ([`defer_post_local_distortion`]). Since ENG-8c every built-in warp runs
+/// in the raw prefix, so this is the as-shot default for raws.
 pub fn mask_segmentation_settings(
     metadata: Option<&RawMetadata>,
 ) -> engine_api::recipe::DevelopSettings {
     let mut s = engine_api::recipe::DevelopSettings::default();
-    let opcodes = metadata.is_some_and(|m| m.opcode_lists.iter().any(Option::is_some));
-    if !opcodes {
-        s.lens.distortion_scale = 0.;
-    }
+    defer_post_local_distortion(&mut s.lens, metadata);
     s
+}
+
+/// The fitted model of a raw's maker-note built-in correction (ENG-8), as a
+/// calibration sample in the active-area frame. Applied in the raw prefix.
+pub fn maker_note_sample(metadata: &RawMetadata) -> Option<CalibrationSample> {
+    crate::maker_lens::sample(metadata)
 }
 
 /// A passive note about the lens profile (ENG-7b), for Develop and export.
@@ -506,10 +525,9 @@ pub fn lens_notice(
     metadata: Option<&RawMetadata>,
     context: &LensContext<'_>,
 ) -> Option<LensNotice> {
-    let built_in = metadata.is_some_and(|m| {
-        crate::embedded_lens::Embedded::parse(m).is_ok_and(|e| e.present())
-            || crate::maker_lens::sample(m).is_some()
-    });
+    let built_in = metadata
+        .and_then(|m| crate::embedded_lens::Embedded::parse(m).ok())
+        .is_some_and(|e| e.present());
     let found = find_profile(s, metadata, context).is_some();
     match &s.profile {
         LensProfileSource::Database { profile } if !found => Some(LensNotice::ProfileUnavailable {
@@ -554,13 +572,6 @@ fn resolve_with(
         out.embedded = embedded;
         if out.embedded.present() {
             out.source = CorrectionSource::Embedded;
-            return Ok(out);
-        }
-        // ENG-8: a maker-note correction when the raw has no opcode lists.
-        // Opcodes win: the two are never combined.
-        if let Some(sample) = metadata.and_then(crate::maker_lens::sample) {
-            out.sample = Some(sample);
-            out.source = CorrectionSource::MakerNote;
             return Ok(out);
         }
     }

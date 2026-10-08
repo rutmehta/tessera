@@ -66,8 +66,24 @@ impl Batch<'_> {
         p.extend(bits(&plan.center));
         p.extend(bits(&plan.coordinate_scale));
         p.extend(bits(&[plan.amount]));
-        p.extend(bits(&plan.red));
-        p.extend(bits(&plan.blue));
+        // ENG-8c: a maker-note prefix correction resamples every channel
+        // (pipeline_cpu::MakerPrefix), with its CA ratios and vignetting gain.
+        match &plan.maker {
+            Some(m) => {
+                p.extend(bits(&m.prefix.red));
+                p.extend(bits(&m.prefix.blue));
+                p.extend(bits(&[1.]));
+                p.extend(bits(&m.prefix.distortion));
+                p.extend(bits(&[m.distortion_amount, m.ca_amount, m.vignette_amount]));
+                p.extend(bits(&m.prefix.vignette));
+            }
+            None => {
+                p.extend(bits(&plan.red));
+                p.extend(bits(&plan.blue));
+                p.extend(bits(&[0.]));
+                p.extend(bits(&[0.; 12]));
+            }
+        }
         let dst = self.buffer(layout.len() * 4)?;
         let src = self.storage(tile)?.clone();
         self.lens_dispatch(0, &src, &dst, &p, layout.len() as u32);

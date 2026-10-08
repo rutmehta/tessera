@@ -46,7 +46,9 @@ impl LensPlan {
     }
 }
 
-/// Lateral CA from a calibration sample (never embedded warps).
+/// Lateral CA from a calibration sample (never embedded warps), or (ENG-8c)
+/// a maker-note built-in correction: the same sensor-frame resample stage,
+/// for all three channels, with its vignetting gain ([`MakerPlan`]).
 #[derive(Clone, Debug)]
 pub struct CaPlan {
     /// Channel radius / green radius = c0 + c1·r² + c2·r⁴, red then blue.
@@ -58,8 +60,24 @@ pub struct CaPlan {
     pub amount: f64,
     /// Sensor active area defining the optical [-1, 1] coordinates.
     pub crop: [u32; 4],
+    /// ENG-8c: the maker-note prefix correction (then `red`/`blue` are
+    /// identity and unused).
+    pub maker: Option<MakerPlan>,
     lens: ResolvedLens,
     settings: LensSettings,
+}
+
+/// A maker-note built-in correction as a resident sensor-frame stage
+/// (`embedded_lens::MakerPrefix`): every channel is resampled and scaled by
+/// the vignetting gain at its source.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MakerPlan {
+    pub prefix: crate::embedded_lens::MakerPrefix,
+    /// `distortion_scale / 100`, `chromatic_aberration_scale / 100` and
+    /// `vignetting_scale / 100`, clamped like the reference.
+    pub distortion_amount: f64,
+    pub ca_amount: f64,
+    pub vignette_amount: f64,
 }
 
 impl CaPlan {
@@ -71,10 +89,11 @@ impl CaPlan {
             2. * (x as f64 + 0.5 - c[0] as f64) / c[2] as f64 - 1.,
             2. * (y as f64 + 0.5 - c[1] as f64) / c[3] as f64 - 1.,
         ];
-        let q = self
-            .lens
-            .ca_map(p, channel, &self.settings)
-            .filter(|q| q.iter().all(|v| v.is_finite()))?;
+        let q = match &self.maker {
+            Some(m) => Some(m.prefix.map(p, channel, [m.distortion_amount, m.ca_amount])),
+            None => self.lens.ca_map(p, channel, &self.settings),
+        }
+        .filter(|q| q.iter().all(|v| v.is_finite()))?;
         Some([
             (q[0] + 1.) * c[2] as f64 / 2. + c[0] as f64 - 0.5,
             (q[1] + 1.) * c[3] as f64 / 2. + c[1] as f64 - 0.5,
@@ -89,7 +108,12 @@ impl CaPlan {
             for i in 0..=32u32 {
                 let x = (u64::from(width - 1) * u64::from(i) / 32) as u32;
                 let y = (u64::from(height - 1) * u64::from(j) / 32) as u32;
-                for channel in [0, 2] {
+                let channels: &[usize] = if self.maker.is_some() {
+                    &[0, 1, 2]
+                } else {
+                    &[0, 2]
+                };
+                for &channel in channels {
                     let s = self.source(x, y, channel)?;
                     max = max
                         .max((s[0] - x as f64).abs())
@@ -481,8 +505,10 @@ impl ResolvedLens {
         crate::optics::validate(s)?;
         if (!prefix_baked && !self.manual_ca.is_identity())
             // Embedded snapshots retain original sensor-coordinate dependencies;
-            // their tails stay scalar until independently qualified.
-            || self.embedded.present()
+            // their tails stay scalar until independently qualified. A
+            // maker-note correction alone is a resident sensor stage (ENG-8c),
+            // and is fully baked into a proxy's pixels.
+            || (self.embedded.present() && !self.embedded.maker_only())
             || s.defringe_purple.amount != 0.
             || s.defringe_green.amount != 0.
             || (analyzed.is_none()
@@ -495,7 +521,31 @@ impl ResolvedLens {
         {
             return Ok(None);
         }
-        let ca = if !prefix_baked && self.ca_active(s) {
+        let maker = self
+            .embedded
+            .maker
+            .as_ref()
+            .filter(|_| !prefix_baked)
+            .map(|prefix| MakerPlan {
+                prefix: prefix.clone(),
+                distortion_amount: s.distortion_scale.clamp(0., 200.) as f64 / 100.,
+                ca_amount: s.chromatic_aberration_scale.clamp(0., 200.) as f64 / 100.,
+                vignette_amount: s.vignetting_scale.clamp(0., 200.) as f64 / 100.,
+            })
+            .filter(|m| [m.distortion_amount, m.ca_amount, m.vignette_amount] != [0.; 3]);
+        let ca = if let Some(maker) = maker {
+            Some(CaPlan {
+                red: [1., 0., 0.],
+                blue: [1., 0., 0.],
+                center: [0.; 2],
+                coordinate_scale: maker.prefix.coordinate_scale,
+                amount: maker.ca_amount,
+                crop: metadata.default_crop,
+                maker: Some(maker),
+                lens: self.clone(),
+                settings: s.clone(),
+            })
+        } else if !prefix_baked && self.ca_active(s) {
             let Some(sample) = &self.sample else {
                 // Embedded per-channel warps need a Newton channel factorization.
                 return Ok(None);
@@ -513,6 +563,7 @@ impl ResolvedLens {
                 coordinate_scale: sample.coordinate_scale,
                 amount: s.chromatic_aberration_scale.clamp(0., 200.) as f64 / 100.,
                 crop: metadata.default_crop,
+                maker: None,
                 lens: self.clone(),
                 settings: s.clone(),
             })

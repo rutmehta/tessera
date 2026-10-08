@@ -464,13 +464,19 @@ impl CameraLinearProxy {
                     CorrectionSource::Database => Source::Database,
                     CorrectionSource::Image => Source::Image,
                     CorrectionSource::Manual => Source::Manual,
-                    CorrectionSource::MakerNote => Source::MakerNote,
                 },
                 manual_ca: [
                     self.correction.manual_ca.red_cyan,
                     self.correction.manual_ca.blue_yellow,
                 ],
-                sample: self.correction.sample.clone(),
+                // ENG-8c: a maker-note prefix correction records the model it
+                // was baked with, so a later, different derivation is Stale.
+                sample: match self.correction.source {
+                    CorrectionSource::Embedded if self.correction.embedded.maker.is_some() => {
+                        crate::maker_lens::sample(&self.metadata)
+                    }
+                    _ => self.correction.sample.clone(),
+                },
             },
         };
         let mut writer = BoundedMetadata(Vec::new());
@@ -617,9 +623,10 @@ impl CameraLinearProxy {
             return Err(invalid("late sensor opcodes require original"));
         }
         // ENG-8: a raw without opcode lists applies its maker-note correction
-        // in the same modes. A Fujifilm container written before the
-        // correction was recorded resolved none and cannot be reinterpreted.
-        let maker = (use_embedded && !parsed.present())
+        // in the same modes (ENG-8c: in the raw prefix, as an Embedded
+        // stage). A Fujifilm container written before the correction was
+        // recorded resolved none and cannot be reinterpreted.
+        let maker = (use_embedded && parsed.maker.is_some())
             .then(|| crate::maker_lens::sample(&metadata))
             .flatten();
         if use_embedded && !parsed.present() && !maker_note_recorded && is_fujifilm(&metadata.make)
@@ -635,12 +642,18 @@ impl CameraLinearProxy {
             Source::Database => CorrectionSource::Database,
             Source::Image => CorrectionSource::Image,
             Source::Manual => CorrectionSource::Manual,
-            Source::MakerNote => CorrectionSource::MakerNote,
+            // ENG-8/8b applied the maker-note correction after the local
+            // adjustments (CA baked, geometry in the tail). ENG-8c applies it
+            // in the raw prefix: the stored frame differs.
+            Source::MakerNote => {
+                return Err(EngineError::Unsupported {
+                    what: "smart preview stale: built-in maker-note lens correction applied \
+                           in an earlier frame; regenerate from original"
+                        .into(),
+                });
+            }
         };
-        let built_in = matches!(
-            source,
-            CorrectionSource::Embedded | CorrectionSource::MakerNote
-        );
+        let built_in = source == CorrectionSource::Embedded;
         let mode_matches_source = match &s.lens.profile {
             // An unavailable named profile resolves to the raw's built-in
             // correction or to no profile correction.
@@ -668,11 +681,9 @@ impl CameraLinearProxy {
         if !mode_matches_source
             || (source == CorrectionSource::Image && (cw < 8 || ch < 8))
             || (source == CorrectionSource::Embedded) != (use_embedded && parsed.present())
-            || (source == CorrectionSource::MakerNote) != maker.is_some()
-            || (matches!(
-                source,
-                CorrectionSource::Database | CorrectionSource::Image | CorrectionSource::MakerNote
-            )) != s.correction.sample.is_some()
+            || (matches!(source, CorrectionSource::Database | CorrectionSource::Image)
+                || (source == CorrectionSource::Embedded && maker.is_some()))
+                != s.correction.sample.is_some()
             || (matches!(s.lens.profile, LensProfileSource::Embedded) && !built_in)
         {
             return Err(invalid("inconsistent resolved lens snapshot"));
@@ -681,7 +692,7 @@ impl CameraLinearProxy {
         // container derived from the recorded parameters. A different
         // derivation today (a changed fit) means its pixels and tail no
         // longer match a render from the original: Stale, never corrupt.
-        if source == CorrectionSource::MakerNote && s.correction.sample != maker {
+        if source == CorrectionSource::Embedded && maker.is_some() && s.correction.sample != maker {
             return Err(EngineError::Unsupported {
                 what: "smart preview stale: built-in maker-note lens correction computed \
                        differently by this version; regenerate from original"
@@ -691,7 +702,12 @@ impl CameraLinearProxy {
         let correction = ResolvedLens {
             manual_ca,
             source,
-            sample: s.correction.sample,
+            // The maker-note model is part of `embedded`, not a sample.
+            sample: if source == CorrectionSource::Embedded {
+                None
+            } else {
+                s.correction.sample
+            },
             embedded: if use_embedded {
                 parsed
             } else {

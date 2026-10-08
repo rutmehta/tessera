@@ -8,9 +8,11 @@
 fn f(i: u32) -> f32 { return bitcast<f32>(p[i]); }
 fn index(gid: vec3<u32>) -> u32 { return gid.x + gid.y * 65535u * 64u; }
 
-// ── lateral CA: optics::lateral_ca + ResolvedLens::ca_map (sample) ──
+// ── lateral CA: optics::lateral_ca + ResolvedLens::ca_map (sample), or a
+// maker-note prefix correction (ENG-8c: embedded_lens::MakerPrefix) ──
 // p: w, h, halo, ox, oy, sensor W, H | crop[4], centre[2], scale[2], amount,
-//    red[3], blue[3] (f32 from 7).
+//    red[3], blue[3], maker flag, distortion[6], amounts (distortion, CA,
+//    vignetting), vignette[3] (f32 from 7).
 @compute @workgroup_size(64)
 fn lateral_ca(@builtin(global_invocation_id) gid: vec3<u32>) {
     let w = p[0]; let h = p[1]; let halo = p[2];
@@ -22,7 +24,8 @@ fn lateral_ca(@builtin(global_invocation_id) gid: vec3<u32>) {
     let py = (i % n) / w;
     let stride = w + 2u * halo;
     let plane = stride * (h + 2u * halo);
-    if c == 1u {
+    let maker = f(22u) != 0.;
+    if c == 1u && !maker {
         dst[i] = src[c * plane + (py + halo) * stride + px + halo];
         return;
     }
@@ -34,10 +37,24 @@ fn lateral_ca(@builtin(global_invocation_id) gid: vec3<u32>) {
     let amount = f(15u);
     let k = select(vec3<f32>(f(19u), f(20u), f(21u)), vec3<f32>(f(16u), f(17u), f(18u)), c == 0u);
     let pn = vec2<f32>(2. * (x + 0.5 - crop.x) / crop.z - 1., 2. * (y + 0.5 - crop.y) / crop.w - 1.);
-    let m = (pn - center) * scale;
-    let r = m.x * m.x + m.y * m.y;
-    let s = 1. + (k.x - 1. + r * (k.y + r * k.z)) * amount;
-    let q = center + (pn - center) * s;
+    var q: vec2<f32>;
+    if maker {
+        let m = pn * scale;
+        let r = sqrt(m.x * m.x + m.y * m.y);
+        let ff = f(23u) + r * (f(24u) + r * (f(25u) + r * (f(26u) + r * (f(27u) + r * r * f(28u)))));
+        q = pn * (1. + f(29u) * (ff - 1.));
+        if c != 1u {
+            let mq = q * scale;
+            let rho2 = mq.x * mq.x + mq.y * mq.y;
+            let ratio = k.x + rho2 * (k.y + rho2 * k.z);
+            q = q * (1. + f(30u) * (ratio - 1.));
+        }
+    } else {
+        let m = (pn - center) * scale;
+        let r = m.x * m.x + m.y * m.y;
+        let s = 1. + (k.x - 1. + r * (k.y + r * k.z)) * amount;
+        q = center + (pn - center) * s;
+    }
     let sx = (q.x + 1.) * crop.z / 2. + crop.x - 0.5;
     let sy = (q.y + 1.) * crop.w / 2. + crop.y - 0.5;
     let u = clamp(sx, 0., f32(p[5] - 1u));
@@ -58,7 +75,13 @@ fn lateral_ca(@builtin(global_invocation_id) gid: vec3<u32>) {
         src[c * plane + u32(clamp(i32(min(b + 1u, p[6] - 1u)) - y0, 0, i32(h + 2u * halo) - 1)) * stride
             + u32(clamp(i32(min(a + 1u, p[5] - 1u)) - x0, 0, i32(stride) - 1))],
     );
-    let value = (at[0] * (1. - fu) + at[1] * fu) * (1. - fv) + (at[2] * (1. - fu) + at[3] * fu) * fv;
+    var value = (at[0] * (1. - fu) + at[1] * fu) * (1. - fv) + (at[2] * (1. - fu) + at[3] * fu) * fv;
+    if maker {
+        let mq = q * scale;
+        let r2 = mq.x * mq.x + mq.y * mq.y;
+        let illumination = clamp(1. + r2 * (f(32u) + r2 * (f(33u) + r2 * f(34u))), 0.125, 8.);
+        value = value * clamp(1. + (1. / illumination - 1.) * f(31u), 0.125, 8.);
+    }
     dst[i] = clamp(value, -3.4028234663852886e38f, 3.4028234663852886e38f);
 }
 

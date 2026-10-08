@@ -27,9 +27,10 @@ pub fn linear(source: &RenderSource<'_>, settings: &DevelopSettings, scale: u32)
     base.detail.noise_reduction.luminance = 0.0;
     base.detail.noise_reduction.color = 0.0;
     // Lens optics before Detail stay in the prefix; the common distortion
-    // belongs to the composed Geometry map applied after Detail.
-    base.lens.manual_distortion = 0.0;
-    base.lens.distortion_scale = 0.0;
+    // belongs to the composed Geometry map applied after Detail. A raw's
+    // built-in warp (DNG opcode lists, a maker-note correction since ENG-8c)
+    // runs in the raw prefix and stays there.
+    pipeline_cpu::defer_post_local_distortion(&mut base.lens, Some(metadata));
     let input = render_linear_scaled(&base, source, scale).unwrap();
     let mut result = input.clone();
     for coord in input.coords() {
