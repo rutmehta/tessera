@@ -47,10 +47,11 @@ pub struct GpuStats {
     /// Surface presentation reads only the histogram, never pixels.
     pub histogram_readbacks: u64,
     pub pixel_readback_bytes: u64,
-    /// Device bytes of resident payloads the last batch held at its readback
-    /// (excludes parameters and the staging copy): recycled buffers it took
-    /// in and fresh allocations, less those released. Export budget checks
-    /// use the same count. Equal to `last_resident_live_bytes`.
+    /// Device bytes the last batch held at its readback, excluding the
+    /// readback staging copy: recycled buffers it took in and fresh
+    /// allocations (payloads, uploads, parameters and wgpu's staging copies
+    /// of uploads and parameter arenas), less those released. Export budget
+    /// checks use the same count. Equal to `last_resident_live_bytes`.
     pub last_resident_allocated_bytes: u64,
     /// Fresh payload buffers the last batch allocated.
     pub last_resident_buffers: u64,
@@ -60,7 +61,8 @@ pub struct GpuStats {
     /// (recycled buffers taken in plus fresh allocations, less those
     /// released), excluding the readback staging copy.
     pub last_resident_live_bytes: u64,
-    /// The largest such footprint during the last resident transaction.
+    /// The largest footprint during the last resident transaction,
+    /// including the readback staging copy (ENG-14).
     pub last_resident_peak_bytes: u64,
     /// Bytes of recycled buffers the last resident transaction took in.
     pub last_resident_recycled_bytes: u64,

@@ -124,12 +124,17 @@ pub(crate) fn render_resized(
 // `TESSERA_EXPORT_TRACE=1` prints on the five fixtures (ENG-12b): the worst
 // band of each camera, full chain at level 0, gives 25.1 B per sensor pixel
 // and 95.6 B per developed pixel besides the readback; the CR3 (sensor 6288
-// wide, developed 4000) separates the two. Planned bands keep
-// [`BAND_MARGIN_DIVISOR`] of headroom below their share.
+// wide, developed 4000) separates the two. ENG-14 meters wgpu's staging
+// copies and the parameter arena too: +4 B per sensor pixel and 2 MiB per
+// band restore the largest actual/planned ratio to 0.99 (it reached 1.056).
+// Planned bands keep [`BAND_MARGIN_DIVISOR`] of headroom below their share.
 /// Per uploaded sensor pixel: the sensor-domain stages (raw upload and
 /// gathers, highlights, demosaic, lateral CA), which run at the CFA width over
-/// the band's sensor rows with all their halos.
-const SENSOR_BYTES_PER_PIXEL: usize = 26;
+/// the band's sensor rows with all their halos, and wgpu's 4 B staging copy
+/// of the raw upload (metered since ENG-14).
+const SENSOR_BYTES_PER_PIXEL: usize = 30;
+/// Per band: the parameter arena and wgpu's staging copy of it (ENG-14).
+const PARAMS_BYTES: usize = 2 << 20;
 /// Per developed pixel (level-frame rows with the Detail halo): resample,
 /// matrices, vignette, Detail, Tone/Color/Effects.
 const DEVELOPED_BYTES_PER_PIXEL: usize = 96;
@@ -152,11 +157,13 @@ struct BandCost {
     mapped: usize,
     /// The readback, and the export resize when there is one.
     readback: usize,
+    /// Parameters ([`PARAMS_BYTES`]).
+    params: usize,
 }
 
 impl BandCost {
     fn total(&self) -> usize {
-        self.sensor + self.developed + self.mapped + self.readback
+        self.sensor + self.developed + self.mapped + self.readback + self.params
     }
 
     fn fits(&self, share: usize) -> bool {
@@ -346,7 +353,11 @@ pub(crate) fn render_with_options(
         cache_budget_bytes: 0,
         ..Default::default()
     };
-    let budget = budget.min(BUDGET);
+    // The output's tables live for the whole export, shared by its band
+    // workers: they come off the budget before it is split (ENG-14).
+    let fixed = usize::try_from(output.device_bytes()).unwrap_or(usize::MAX);
+    let scratch = BUDGET.saturating_sub(fixed).max(1);
+    let budget = budget.min(scratch);
     let job = Job {
         raw: &raw,
         settings: &settings,
@@ -355,6 +366,8 @@ pub(crate) fn render_with_options(
         frame,
         destination,
         budget,
+        scratch,
+        fixed,
         cancel,
     };
     if options.bands && !has_presence(&recipe.settings.tone) {
@@ -366,7 +379,7 @@ pub(crate) fn render_with_options(
             output.clone(),
             config.clone(),
             None,
-            (BUDGET / in_flight) as u64,
+            (scratch / in_flight) as u64,
         );
         #[cfg(test)]
         let base = if options.effects_map {
@@ -386,7 +399,7 @@ pub(crate) fn render_with_options(
             Err(e) => return Err(e),
         }
     }
-    let base = ManagedRenderer::new_export_budgeted(output, config, None, BUDGET as u64);
+    let base = ManagedRenderer::new_export_budgeted(output, config, None, scratch as u64);
     #[cfg(test)]
     let base = if options.effects_map {
         base.with_export_effects_map()
@@ -420,7 +433,7 @@ pub(crate) struct BandFootprint {
     pub(crate) counted: u64,
     /// Recycled buffers the band took in from the worker's previous band.
     pub(crate) recycled: u64,
-    /// The scratch the band renderer is given (`BUDGET / in_flight`).
+    /// The scratch the band renderer is given (`(BUDGET - fixed) / in_flight`).
     pub(crate) share: u64,
     /// Effects constants maps the band built (ENG-14: none in production).
     pub(crate) effects_maps: u64,
@@ -445,7 +458,13 @@ struct Job<'a> {
     /// The rendered output frame at `level` (mapped with a lens map).
     frame: engine_api::tile::Extent,
     destination: engine_api::tile::Extent,
+    /// Sizes bands (at most `scratch`; tests pass tiny ones).
     budget: usize,
+    /// The export scratch band renderers share: [`BUDGET`] less `fixed`.
+    scratch: usize,
+    /// Device bytes the export holds outside every band (the output's
+    /// tables), reserved alongside the bands' shares.
+    fixed: usize,
     cancel: &'a CancellationToken,
 }
 
@@ -532,6 +551,7 @@ fn render_bands(
                 } else {
                     0
                 },
+            params: PARAMS_BYTES,
         };
         Ok((cost, developed_rows.len() * developed.width as usize))
     };
@@ -552,11 +572,11 @@ fn render_bands(
             // smallest band exceeds the scratch each band renderer is given
             // (`budget` only sizes bands: tests pass tiny ones).
             let (smallest, _) = cost(top, 16.min(left))?;
-            if !smallest.fits(BUDGET / in_flight) {
+            if !smallest.fits(job.scratch / in_flight) {
                 trace_note(&format!(
                     "band plan: rows {top}.. need {} B, over the {} B band scratch; pyramid tiles",
                     smallest.total(),
-                    BUDGET / in_flight
+                    job.scratch / in_flight
                 ));
                 return Ok(None);
             }
@@ -616,7 +636,11 @@ fn render_bands(
             *waited.lock().unwrap_or_else(|e| e.into_inner()) += yielded;
             let band_started = std::time::Instant::now();
             if reservation.is_none() {
-                reservation = Some(Reservation::acquire(share, job.cancel)?);
+                // With its part of the export's fixed tables.
+                reservation = Some(Reservation::acquire(
+                    share + job.fixed.div_ceil(in_flight),
+                    job.cancel,
+                )?);
             }
             let resize = resizing.then_some(pipeline_gpu::ExportResize {
                 source: frame,
@@ -654,7 +678,7 @@ fn render_bands(
                         readback: rows as u64 * u64::from(destination.width) * 12,
                         counted: stats.last_resident_allocated_bytes,
                         recycled: stats.last_resident_recycled_bytes,
-                        share: (BUDGET / in_flight) as u64,
+                        share: (job.scratch / in_flight) as u64,
                         effects_maps: stats.effects_maps,
                     });
             }
@@ -782,7 +806,7 @@ fn render_tiles(job: &Job<'_>, base: &ManagedRenderer) -> EngineResult<Option<im
         )?;
         waited += yielded;
         let band_started = std::time::Instant::now();
-        let reservation = Reservation::acquire(budget, job.cancel)?;
+        let reservation = Reservation::acquire(budget + job.fixed, job.cancel)?;
         let (renderer, rect) = if resizing {
             let request = pipeline_gpu::ExportResize {
                 source: frame,

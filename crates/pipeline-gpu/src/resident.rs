@@ -60,11 +60,17 @@ struct Pool {
     /// still use them, so they are released only after a completed
     /// submission (`checkpoint`) or when the transaction ends.
     free: Vec<wgpu::Buffer>,
-    /// Recycled buffers this transaction has not handed out (oldest last):
-    /// nothing references them, so dropping one releases its memory at once.
+    /// Recycled buffers this transaction has not handed out (oldest last).
+    /// No command of this transaction references them, so dropping one lets
+    /// wgpu free it once earlier submissions that used it have completed
+    /// (they have: they come from completed transactions).
     idle: Vec<wgpu::Buffer>,
     allocations: u64,
     meter: Meter,
+    /// Counted bytes of wgpu's staging copies (queue writes, parameter
+    /// arenas mapped at creation): freed by wgpu once the submission that
+    /// carries them completes, so released at a completed `checkpoint`.
+    staged: u64,
 }
 impl Pool {
     /// Drops idle buffers, oldest first, until `bytes` more fit within `cap`;
@@ -78,6 +84,12 @@ impl Pool {
         }
         true
     }
+    /// Releases the staging copies counted so far: call only after a
+    /// submission that carries them has completed.
+    fn release_staged(&mut self) {
+        let bytes = std::mem::take(&mut self.staged);
+        self.meter.release(bytes);
+    }
     /// Drops every idle buffer (at readback no more scratch is requested).
     fn release_idle(&mut self) {
         let bytes: u64 = self.idle.drain(..).map(|b| b.size()).sum();
@@ -90,7 +102,10 @@ impl Pool {
     }
 }
 /// Device bytes a transaction holds: `recycled + fresh - released`.
-/// Budget checks and the `GpuStats` footprint both read this.
+/// Budget checks and the `GpuStats` footprint both read this. Fresh bytes
+/// include every device allocation a transaction makes (ENG-14): payload
+/// buffers, uploads and wgpu's staging copy of each, parameter buffers and
+/// arenas (with their staging copies) and the readback staging copy.
 #[derive(Default, Clone, Copy, Debug)]
 pub(crate) struct Meter {
     pub(crate) recycled: u64,
@@ -114,11 +129,14 @@ impl Meter {
     fn release(&mut self, bytes: u64) {
         self.released += bytes;
     }
-    /// Publishes this transaction's footprint to the backend's counters.
-    pub(crate) fn publish(&self, counters: &crate::batch::Counters) {
+    /// Publishes this transaction's footprint to the backend's counters at
+    /// its readback, then counts the `readback` staging copy allocated after
+    /// it: live bytes exclude that copy, the peak includes it.
+    pub(crate) fn publish(&mut self, counters: &crate::batch::Counters, readback: u64) {
         counters
             .last_resident_live_bytes
             .store(self.live(), Ordering::Relaxed);
+        self.allocate(readback);
         counters
             .last_resident_peak_bytes
             .store(self.peak, Ordering::Relaxed);
@@ -323,12 +341,17 @@ impl<'a> Batch<'a> {
     // mapped-at-creation transfer encoder for every parameter upload.
     // Always allocate fresh: queue writes execute before the compute encoder,
     // so uploading into a recycled compute buffer would overwrite earlier data.
+    //
+    // Counted (never refused: payload uploads check first with `fit`): the
+    // buffer, held until it is retired or the transaction ends, and wgpu's
+    // staging copy of `contents`, held until the carrying submission ends.
     fn host_buffer(
         &self,
         label: Option<&str>,
         contents: &[u8],
         usage: wgpu::BufferUsages,
     ) -> wgpu::Buffer {
+        self.count(contents.len() as u64, contents.len() as u64);
         let ctx = self.gpu.context();
         let buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
             label,
@@ -371,15 +394,48 @@ impl<'a> Batch<'a> {
     /// drops idle recycled buffers to make room, and refuses an allocation
     /// that would take its footprint past its scratch share.
     fn charge(&self, bytes: u64) -> EngineResult<()> {
+        self.fit(bytes)?;
+        let mut pool = self.pool.lock().unwrap();
+        pool.allocations += 1;
+        pool.meter.allocate(bytes);
+        Ok(())
+    }
+    /// Makes room for `bytes` more (export: drops idle recycled buffers),
+    /// refusing when they would take the footprint past the scratch share.
+    /// Counts nothing.
+    fn fit(&self, bytes: u64) -> EngineResult<()> {
         let mut pool = self.pool.lock().unwrap();
         if self.gpu.export_float && !pool.make_room(bytes, self.gpu.export_scratch) {
             return Err(EngineError::Unsupported {
                 what: "export GPU scratch exceeds its budget".into(),
             });
         }
-        pool.allocations += 1;
-        pool.meter.allocate(bytes);
         Ok(())
+    }
+    /// Counts `held` bytes of a fresh non-payload allocation and `staged`
+    /// bytes of wgpu staging behind it, dropping idle buffers to make room
+    /// on export but never refusing: these are small (parameters) or were
+    /// checked by `fit` (uploads).
+    fn count(&self, held: u64, staged: u64) {
+        let mut pool = self.pool.lock().unwrap();
+        if self.gpu.export_float {
+            pool.make_room(held + staged, self.gpu.export_scratch);
+        }
+        pool.meter.allocate(held + staged);
+        pool.staged += staged;
+    }
+    /// A host-written payload buffer (sensor rows, raw tiles, packed CFA):
+    /// refused like [`Batch::charge`] when it and its staging copy do not
+    /// fit, counted by [`Batch::host_buffer`].
+    fn upload_buffer(
+        &self,
+        label: &str,
+        contents: &[u8],
+        usage: wgpu::BufferUsages,
+    ) -> EngineResult<wgpu::Buffer> {
+        self.fit(2 * contents.len() as u64)?;
+        self.pool.lock().unwrap().allocations += 1;
+        Ok(self.host_buffer(Some(label), contents, usage))
     }
     fn tile(&self, coord: TileCoord, layout: TileLayout, buffer: wgpu::Buffer) -> ResidentTile {
         ResidentTile {
@@ -583,6 +639,7 @@ impl<'a> Batch<'a> {
         let staging: Vec<_> = buffers
             .iter()
             .map(|b| {
+                self.count(b.size(), 0);
                 let s = ctx.device.create_buffer(&wgpu::BufferDescriptor {
                     label: Some("resident statistics readback"),
                     size: b.size(),
@@ -670,6 +727,8 @@ impl<'a> Batch<'a> {
             .is_none_or(|(_, used)| used + size > PARAM_ARENA)
         {
             self.seal_params();
+            // Mapped at creation without MAP_WRITE: wgpu stages it too.
+            self.count(PARAM_ARENA, PARAM_ARENA);
             let buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("resident parameter arena"),
                 size: PARAM_ARENA,
@@ -1183,6 +1242,8 @@ impl ResidentBatch for Batch<'_> {
         // exact (idle recycled buffers stay available for reuse).
         let retired: u64 = pool.free.drain(..).map(|buffer| buffer.size()).sum();
         pool.meter.release(retired);
+        // The submission carried every staging copy so far, and has ended.
+        pool.release_staged();
         drop(pool);
         if yielding {
             jobs::yield_to_interactive(cancel, EXPORT_QUIET, EXPORT_MAX_YIELD)?;
@@ -1241,14 +1302,13 @@ impl ResidentBatch for Batch<'_> {
         Ok(tile.clone())
     }
     fn upload(&mut self, tile: &Tile) -> EngineResult<ResidentTile> {
-        self.charge(std::mem::size_of_val(tile.samples::<f32>()?) as u64)?;
-        let buffer = self.host_buffer(
-            Some("raw upload"),
+        let buffer = self.upload_buffer(
+            "raw upload",
             bytemuck::cast_slice(tile.samples::<f32>()?),
             wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST,
-        );
+        )?;
         self.gpu.counters.uploads.fetch_add(1, Ordering::Relaxed);
         Ok(self.tile(tile.coord(), tile.layout(), buffer))
     }
@@ -1754,9 +1814,10 @@ impl ResidentBatch for Batch<'_> {
             None
         };
         let (allocated, buffers) = {
-            let p = self.pool.lock().unwrap();
-            p.meter.publish(&self.gpu.counters);
-            (p.meter.live(), p.allocations)
+            let mut p = self.pool.lock().unwrap();
+            let live = p.meter.live();
+            p.meter.publish(&self.gpu.counters, bytes as u64);
+            (live, p.allocations)
         };
         self.gpu
             .counters
