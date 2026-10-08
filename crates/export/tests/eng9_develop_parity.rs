@@ -15,10 +15,21 @@
 //! - A 16-bit TIFF adds at most 0.5/65535 of full scale (0.002 level).
 //! - Float arithmetic order (ICC transform against the Output-stage matrix;
 //!   binary-searched against analytic Perceptual chroma, 2^-18 of chroma)
-//!   is allowed 0.03 level.
+//!   and ICC matrix quantisation (see below) are allowed 0.1 level.
 //!
-//! So max <= 0.53 level (Adobe) and max <= 1.0 level (Native); the mean
+//! So max <= 0.60 level (Adobe) and max <= 1.0 level (Native); the mean
 //! of uniformly distributed rounding error is 0.25 level, bounded at 0.35.
+//!
+//! ICC matrix quantisation (REV-ENG-10 ruling, which raised the Adobe max
+//! from 0.53): the export converts through the ICC profile's matrix, stored
+//! as s15.16 fixed point (about 1e-5 relative), while Develop's Output stage
+//! uses the exact matrix. Where a pixel has one channel well above sRGB
+//! white (clipped) and another dark, that dark channel is a small
+//! difference of large matrix terms, and the sRGB toe (slope 12.92, about
+//! 3300 levels per unit) magnifies the error to 0.05-0.1 level. The sharp
+//! saturated fixture (`eng10b_sharp_saturated_raw_export_and_print_match_develop`)
+//! measures 0.533-0.556 level there; the excess over 8-bit rounding (at most
+//! 0.056 level) is not visible.
 //!
 //! One documented exception, Native only: Native's Output stage (CPU and
 //! Metal, `pipeline_cpu::display`) takes its Perceptual grey point from the
@@ -40,7 +51,7 @@ use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RendererConfig};
 use pipeline_cpu::{CameraLinearProxy, RenderSource};
 use std::sync::Arc;
 
-const ADOBE_MAX: f32 = 0.53;
+const ADOBE_MAX: f32 = 0.60;
 const NATIVE_MAX: f32 = 1.0;
 const MEAN: f32 = 0.35;
 const NATIVE_GREY_POINT: f32 = 0.1;
