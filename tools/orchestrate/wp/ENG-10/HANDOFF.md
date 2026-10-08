@@ -10,6 +10,12 @@ follow-up. Synthetic fixtures only in tests; the benchmark reads the repo's
 Adobe-process (imported Lightroom) exports and prints of a 16 MP RAW are
 now 8-13x faster at full size and 10-13x faster at reduced sizes, use less
 memory per render, and match Develop exactly instead of approximately.
+**Corrected in ENG-10b (below):**
+- In the app, file exports always render at scale 1 and then resize. A
+  2048-px export is about 1.4 s per image, not the scale-2/4 figures.
+- `export_pipeline` and its memory admission are CLI-only.
+- Full-size output did change on CR3 and X-Trans when lens auto-calibration
+  is selected.
 Three things made them slow, and all three are fixed:
 
 1. Export drew Adobe recipes with `pipeline_adobe` at full resolution and
@@ -138,10 +144,14 @@ stage) into the export frame as they arrive.
   Effects and Geometry then run on level pixels (ENG-6). Smart Preview
   proxies keep the renderer's proxy route, which reduces after geometry.
 - Level 0 is Develop's full-resolution path. It replaces
-  `pipeline_adobe::render_linear_scaled(.., 1)`, which equals it within
-  1e-4 linear (`compat_matches_standalone_with_and_without_dcp`). On the
-  ENG-10 fixtures the old path was already bit-identical for RAW and
-  differed by 6e-5 for RGB. Now both are identical.
+  `pipeline_adobe::render_linear_scaled(.., 1)`, which matches it within
+  1e-4 linear on synthetic data
+  (`compat_matches_standalone_with_and_without_dcp`). On the ENG-10
+  fixtures the old path was already bit-identical for RAW and differed by
+  6e-5 for RGB; now both are identical. **ENG-10b correction:** on the real
+  CR3 and X-Trans RAF with lens auto-calibration selected, the old path
+  differed from Develop by up to 18 and 96 levels, so those full-size
+  exports changed toward Develop (see ENG-10b SF1).
 - Native-process recipes, and external proxies that need Develop's
   resources, keep their previous path in `render_develop`.
 
@@ -180,7 +190,8 @@ polls cancellation before every tile and stops at the first error.
   only level-size frames: a scale-4 ARW export peaks at 341-347 MiB instead
   of about 1.19 GiB.
 - `export_pipeline` concurrency is now memory-aware for Adobe renders
-  (`batch::pipeline_renders`):
+  (`batch::pipeline_renders`). This is reached only from `tessera-cli`
+  (ENG-10b SF2); the app exports one image at a time:
   - `adobe_render_bytes` estimates one render's host peak: the renderer's
     source copy, 96 MiB of demosaic chunk scratch, and 56 B per developed
     level pixel. This was fitted to the ARW, above the decoded source:
@@ -361,3 +372,107 @@ RAYON_NUM_THREADS=5`.
 | `apps/mac/build-ffi.sh` | OK, no bindings drift (worktree clean apart from this HANDOFF) |
 | `tools/orchestrate/swift-gate.sh` | SWIFT GATE OK (996 XCTest, 3 skipped, 0 failures) |
 | `swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | Build complete |
+
+## ENG-10b (REV-ENG-10 should-fix and ruling)
+
+Binding review: `~/tessera-evidence/rulings/REV-ENG-10.out.md` (APPROVE
+WITH SHOULD-FIX), plus the coordinator's ruling on the ENG-9 bound.
+
+The branch was rebased onto `origin/main` `1c344175` (batch 58, ENG-7 lens
+defaults). The rebase was clean.
+
+Tests came first:
+- `437846c1`: RED for SF3, then `deafa315` for the fix.
+- `1c79ff8c`: RED for the ruling, then `94702212` for the bound.
+
+| Item | Code | Test |
+| --- | --- | --- |
+| SF1: full-size output changed on CR3 and X-Trans; the HANDOFF and doc said it had not | Corrected the `adobe_render.rs` module doc and this HANDOFF; release note in `docs/RELEASE-NOTES.md` | `eng10b_real_fixture_parity.rs` |
+| SF2: speed claims overstated what the app gets | Restated below; new benchmark cases `app-2048`, `app20-2048`, `app20-full`. The app's export scale policy is unchanged | benchmark |
+| SF3: Adobe barriers ignored `RendererConfig.threads` | `AdobeStageOp::with_threads`, `StageOp::adobe_threads`, `Renderer::adobe_threads`. Every `AdobeStageOp` the renderer builds carries `config.threads` (`with_ops`, `for_process_version`, `prepare_dcp`'s DCP and baseline paths). `for_each_tile` uses at most that many workers, and runs on the calling thread for 1 | `image-core` `eng10b_barriers_honour_the_thread_cap`; `tests/adobe.rs` `eng10b_adobe_barriers_follow_renderer_threads` |
+| Ruling: ENG-9 Adobe bound | `eng9_develop_parity.rs`: `ADOBE_MAX` 0.53 → 0.60, with the cause documented in the file header. The mean bound (0.35) and the Native bounds are unchanged | the sharp fixture test (`eng10b_sharp_saturated_raw_export_and_print_match_develop`) |
+| Nit: per-pixel `put_pixel` | Tiles are copied into the frame row by row | `eng10_level_parity` stays bit-identical |
+| Nit: barrier doc said "one per core" | Now "up to `threads` workers" | — |
+| Nit: one extra lcms transform per band | Documented: cap the bands if a LUT-based ICC target ever appears. Not changed, since built-in matrix-shaper targets are cheap to resolve | — |
+| Nit: ToneExtra copies under the mutex | Left as measured in ENG-10 (in place saves about 190 MiB) | — |
+
+### SF1: what changed on real cameras
+
+`eng10b_real_fixture_parity.rs` tests the Canon CR3 and the Fuji X-Trans
+RAF:
+- It uses the fixture helper: `SKIPPED` without `fixtures/raw`, and a
+  failure when `TESSERA_REQUIRE_RAW_FIXTURES` is set.
+- Each camera is printed at full size, Adobe PV6, through
+  `render_pixels_with_notes`. The result must be bit-identical to Develop's
+  level-0 `SceneLinear` frame put through the same managed sRGB transform.
+- It runs with the default lens settings and with lens auto-calibration
+  selected.
+- Result: 0 differing samples in all four rows. The test takes about 50-65 s,
+  mostly the X-Trans auto-calibration.
+
+I compared the old `pipeline_adobe` path against Develop on the rebased
+main, with the same recipe, through the same transform, in 8-bit sRGB
+levels (a scratch check, not committed):
+
+| Fixture | Default lens | Lens auto-calibration |
+| --- | --- | --- |
+| Canon CR3 (4000x4000) | identical | max 17.98, mean 0.104, 0.43% of samples > 1 level |
+| Fuji X-Trans RAF (4896x3262) | identical | max 95.89, mean 0.099, 1.72% > 1 level |
+
+- The reviewer measured these differences before ENG-7, when `Auto` fell
+  back to auto-calibration. So ENG-9's file exports of those cameras did not
+  match Develop.
+- Since ENG-7 the default no longer auto-calibrates, so with default
+  settings ENG-10 changes no full-size pixels on these cameras.
+- With auto-calibration selected, ENG-10's output changed toward Develop.
+  That is a parity fix, and it is recorded in the release notes.
+- The ARW and DNG were already bit-identical (reviewer).
+
+### SF2: what the app gets
+
+- In the app, file exports always render at scale 1 and resize afterwards
+  (FFI `Engine::export`, `tessera-ffi/src/export.rs` around line 1311). A
+  reduced level is used only with `TESSERA_EXPORT_WEB_LEVEL=1`, because of
+  the docs/11 §1.3 exactness gate. This lane did not change that policy;
+  any change is a later product decision.
+- `export_batch`, `export_pipeline` and the memory admission are reached
+  only from `tessera-cli`. The app streams items one at a time.
+- In the app, scale > 1 Adobe renders happen only in print (`print_scale`).
+  There, print equals Develop's level render, the same contract Native
+  print already follows. The reviewer measured somewhat stronger sharpening
+  and edge contrast on small prints than ENG-9 produced. This is noted in
+  the release notes.
+
+In-app equivalents on the 16 MP ARW, after this change. Load average was
+12-23 over two rounds, and the first round ran under rising load:
+
+| Case | After | Before |
+| --- | --- | --- |
+| `app-2048` (Web export, long edge 2048, scale 1 + resize) | 1.41-2.43 s, peak 1148-1215 MiB | not re-measured. It needs the full-size render, which took 12.3 s before (`export-s1`), so it was at least that |
+| `app20-2048` (20 in a row) | 1.38-2.28 s per image, peak 1171-1275 MiB | — |
+| `app20-full` (20 full-size in a row) | 1.32-2.08 s per image, peak 1086-1260 MiB | at least 12.3 s per image |
+| `export-s1` | 1.30-1.40 s | 12.28-12.34 s (ENG-10 table) |
+| `print-4x6` (scale 2, in the app) | 0.36-0.41 s | 6.05-6.14 s |
+
+In ENG-10's tables:
+- `export-s4` and `batch20` (Web, scale 2) show library and CLI behaviour.
+  They are not what an in-app export costs.
+- `print-*` rows are in-app behaviour.
+- `batch20-full` and the pairing trade-off are CLI-only.
+
+### Ruling: ENG-9's Adobe bound is 0.60 level
+
+- The coordinator accepted a justified max bound of 0.60 level, keeping the
+  0.35 mean bound.
+- Cause: the export's ICC transform uses the profile's matrix, stored as
+  s15.16 fixed point, while Develop's Output stage uses the exact matrix.
+  On a dark channel next to a clipped bright one, the sRGB toe (slope 12.92)
+  magnifies the roughly 1e-5 relative difference to 0.05-0.1 level.
+- The sharp 128x96 saturated RAW now runs in `eng9_develop_parity` for
+  Perceptual and Clip, export and print. It measures 0.533 / 0.534 and
+  0.556 / 0.555 level (means 0.17 and 0.10): over the old 0.53, under 0.60.
+- Every other row is unchanged.
+
+### ENG-10b gates
+
+(filled in below after the final run)

@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Faster exports and prints of Lightroom-process edits (ENG-10)
+
+- **Much faster.** Exporting or printing a photo whose edit came from
+  Lightroom is about 8 times faster for a 16-megapixel raw file. A
+  full-size or 2048-pixel export takes about 1.4 s instead of more than
+  12 s, and a 4x6 print about 0.4-0.6 s instead of 6 s. Develop also
+  redraws these edits several times faster.
+- **Matches Develop exactly.** Exports and prints of these edits are now
+  drawn by the same renderer as Develop. With lens auto-calibration
+  selected, re-exporting a Canon CR3 or Fujifilm X-Trans photo gives a
+  slightly different file than before. In this repo's samples, up to
+  about 2% of the values change, all toward what Develop shows. With the
+  default lens settings, full-size files are unchanged.
+- **Small prints look crisper.** A print smaller than the photo is drawn
+  the way Develop draws the photo at that size, as prints of Tessera's own
+  edits already were. Sharpening and edge contrast are therefore somewhat
+  stronger than before on small prints. File exports still render at full
+  size and then resize.
+
 ### Lens corrections now match Lightroom (ENG-7, ENG-7b, ENG-7c)
 
 - **No guessed distortion.** Tessera no longer estimates lens distortion or
