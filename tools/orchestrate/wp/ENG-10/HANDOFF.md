@@ -475,4 +475,16 @@ In ENG-10's tables:
 
 ### ENG-10b gates
 
-(filled in below after the final run)
+- Code tip: `9627e33f`, on `origin/main` `1c344175`.
+- Before the run: `cargo clean --release -p export -p image-core
+  -p pipeline-cpu -p pipeline-adobe`.
+- Environment: `CARGO_BUILD_JOBS=5 RAYON_NUM_THREADS=5`.
+
+| Gate | Result |
+| --- | --- |
+| `cargo test --release --workspace --no-fail-fast` | 3552 passed, 0 failed, 109 ignored (exit 0). Load average 10.2 at the start and 26.7 at the end. No reruns |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | clean |
+| `cargo fmt --all -- --check` | clean |
+| `apps/mac/build-ffi.sh` | OK, no bindings drift (worktree clean) |
+| `tools/orchestrate/swift-gate.sh` | SWIFT GATE OK (996 XCTest, 3 skipped, 0 failures) |
+| `swift build -c release --product Tessera -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors` | Build complete |
