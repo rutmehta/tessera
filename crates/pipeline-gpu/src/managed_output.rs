@@ -200,8 +200,10 @@ impl GpuManagedOutput {
         let stride = u64::from(layout.extent.width) + 2 * u64::from(layout.halo);
         let rows = u64::from(layout.extent.height) + 2 * u64::from(layout.halo);
         let expected_bytes = stride.checked_mul(rows).and_then(|n| n.checked_mul(12));
+        // At least the layout: export recycles slightly larger buffers
+        // (ENG-15); the kernel indexes by the layout's planes.
         if layout.channels != 3
-            || expected_bytes != Some(src.size())
+            || expected_bytes.is_none_or(|bytes| bytes > src.size())
             || layout.extent.area() == 0
             || src.size() > self.context.device.limits().max_storage_buffer_binding_size
             || !src.usage().contains(wgpu::BufferUsages::STORAGE)

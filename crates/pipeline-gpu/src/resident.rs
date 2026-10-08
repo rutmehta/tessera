@@ -267,6 +267,9 @@ pub(crate) struct Batch<'a> {
     /// staging copy) per dispatch. Unmapped before every submission.
     params: Option<(wgpu::Buffer, u64)>,
 }
+/// Export transactions reuse a pooled buffer up to 1/`RECYCLE_SLACK` larger
+/// than requested (see [`Batch::buffer`]).
+const RECYCLE_SLACK: u64 = 64;
 /// Parameter arena size; blocks are offset-aligned.
 const PARAM_ARENA: u64 = 1 << 20;
 // Every submitted command of a transaction has completed (finish/read_now
@@ -372,11 +375,30 @@ impl<'a> Batch<'a> {
             ));
         }
         {
+            // Export bands differ by a row or so (246 or 247 sensor rows on
+            // the CR3), so an exact size match misses most recycled buffers
+            // and each band allocates (and wgpu zero-fills) ~150 MiB afresh
+            // (ENG-15). Export reuses a slightly larger buffer instead: every
+            // kernel takes its extents from its parameters, and the meter
+            // counts the buffer's true size.
+            let want = bytes as u64;
+            let most = if self.gpu.export_float {
+                want + want / RECYCLE_SLACK
+            } else {
+                want
+            };
+            let fits = |list: &[wgpu::Buffer]| {
+                list.iter()
+                    .enumerate()
+                    .filter(|(_, b)| (want..=most).contains(&b.size()))
+                    .min_by_key(|(_, b)| b.size())
+                    .map(|(i, _)| i)
+            };
             let mut pool = self.pool.lock().unwrap();
-            if let Some(i) = pool.free.iter().position(|b| b.size() == bytes as u64) {
+            if let Some(i) = fits(&pool.free) {
                 return Ok(pool.free.swap_remove(i));
             }
-            if let Some(i) = pool.idle.iter().position(|b| b.size() == bytes as u64) {
+            if let Some(i) = fits(&pool.idle) {
                 return Ok(pool.idle.remove(i));
             }
         }
