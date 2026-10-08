@@ -8,7 +8,7 @@ use engine_api::{
     color::ColorMatrix3,
     recipe::{DevelopSettings, settings::*},
 };
-use raw_decode::{CfaLayout, RawMetadata};
+use raw_decode::{CfaLayout, FujifilmLens, MakerLens, RawMetadata};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
@@ -65,6 +65,27 @@ enum Source {
     Database,
     Image,
     Manual,
+    MakerNote,
+}
+/// The original's maker-note correction (ENG-8). Recorded for every
+/// Fujifilm raw (`none` when absent) and omitted otherwise, so other
+/// containers keep their bytes; a Fujifilm container without it predates
+/// maker-note corrections.
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+enum MakerNote {
+    None,
+    Fujifilm {
+        knots: Vec<f64>,
+        distortion: Vec<f64>,
+        ca_red: Vec<f64>,
+        ca_blue: Vec<f64>,
+        vignetting: Vec<f64>,
+        crop_factor: f64,
+    },
+}
+fn is_fujifilm(make: &str) -> bool {
+    make.trim().eq_ignore_ascii_case("fujifilm")
 }
 #[derive(Serialize, Deserialize)]
 enum Cfa {
@@ -100,6 +121,8 @@ struct Metadata {
     opcode_lists: [Option<Vec<u8>>; 3],
     cfa: Cfa,
     camera_to_xyz: [[f64; 3]; 3],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    maker_note: Option<MakerNote>,
 }
 impl Metadata {
     fn capture(m: &RawMetadata) -> EngineResult<Self> {
@@ -141,6 +164,18 @@ impl Metadata {
             has_opcode_list: m.has_opcode_list,
             opcode_lists: m.opcode_lists.clone(),
             camera_to_xyz: m.camera_to_xyz.0,
+            maker_note: match &m.maker_lens {
+                Some(MakerLens::Fujifilm(f)) => Some(MakerNote::Fujifilm {
+                    knots: f.knots.clone(),
+                    distortion: f.distortion.clone(),
+                    ca_red: f.ca_red.clone(),
+                    ca_blue: f.ca_blue.clone(),
+                    vignetting: f.vignetting.clone(),
+                    crop_factor: f.crop_factor,
+                }),
+                None if is_fujifilm(&m.make) => Some(MakerNote::None),
+                None => None,
+            },
             cfa: match m.cfa_layout {
                 CfaLayout::Bayer(p) => Cfa::Bayer(p),
                 CfaLayout::XTrans(p) => Cfa::XTrans(p),
@@ -149,6 +184,34 @@ impl Metadata {
         })
     }
     fn restore(self) -> EngineResult<RawMetadata> {
+        let maker_lens = match self.maker_note {
+            Some(MakerNote::Fujifilm {
+                knots,
+                distortion,
+                ca_red,
+                ca_blue,
+                vignetting,
+                crop_factor,
+            }) => {
+                let n = knots.len();
+                if !(2..=64).contains(&n)
+                    || [&distortion, &ca_red, &ca_blue, &vignetting]
+                        .iter()
+                        .any(|v| v.len() != n)
+                {
+                    return Err(invalid("invalid maker-note correction"));
+                }
+                Some(MakerLens::Fujifilm(FujifilmLens {
+                    knots,
+                    distortion,
+                    ca_red,
+                    ca_blue,
+                    vignetting,
+                    crop_factor,
+                }))
+            }
+            Some(MakerNote::None) | None => None,
+        };
         let m = RawMetadata {
             make: self.make,
             model: self.model,
@@ -179,7 +242,7 @@ impl Metadata {
                 Cfa::Bayer(p) => CfaLayout::Bayer(p),
                 Cfa::XTrans(p) => CfaLayout::XTrans(p),
             },
-            maker_lens: None,
+            maker_lens,
         };
         let [x, y, w, h] = m.default_crop;
         if w == 0
@@ -401,9 +464,7 @@ impl CameraLinearProxy {
                     CorrectionSource::Database => Source::Database,
                     CorrectionSource::Image => Source::Image,
                     CorrectionSource::Manual => Source::Manual,
-                    CorrectionSource::MakerNote => {
-                        return Err(invalid("maker-note correction snapshot"));
-                    }
+                    CorrectionSource::MakerNote => Source::MakerNote,
                 },
                 manual_ca: [
                     self.correction.manual_ca.red_cyan,
@@ -470,6 +531,7 @@ impl CameraLinearProxy {
         if s.original_byte_length == 0 || length(s.width, s.height, s.encoding)? as u64 != raw_len {
             return Err(invalid("generator/source/payload length"));
         }
+        let maker_note_recorded = s.metadata.maker_note.is_some();
         let metadata = s.metadata.restore()?;
         let [_, _, cw, ch] = metadata.default_crop;
         if s.scale != cw.max(ch).div_ceil(tier.max_edge()).max(1)
@@ -554,25 +616,46 @@ impl CameraLinearProxy {
         if use_embedded && !parsed.stages[2].is_empty() {
             return Err(invalid("late sensor opcodes require original"));
         }
+        // ENG-8: a raw without opcode lists applies its maker-note correction
+        // in the same modes. A Fujifilm container written before the
+        // correction was recorded resolved none and cannot be reinterpreted.
+        let maker = (use_embedded && !parsed.present())
+            .then(|| crate::maker_lens::sample(&metadata))
+            .flatten();
+        if use_embedded && !parsed.present() && !maker_note_recorded && is_fujifilm(&metadata.make)
+        {
+            return Err(EngineError::Unsupported {
+                what: "smart preview stale: built before built-in maker-note lens corrections; \
+                       regenerate from original"
+                    .into(),
+            });
+        }
         let source = match s.correction.source {
             Source::Embedded => CorrectionSource::Embedded,
             Source::Database => CorrectionSource::Database,
             Source::Image => CorrectionSource::Image,
             Source::Manual => CorrectionSource::Manual,
+            Source::MakerNote => CorrectionSource::MakerNote,
         };
+        let built_in = matches!(
+            source,
+            CorrectionSource::Embedded | CorrectionSource::MakerNote
+        );
         let mode_matches_source = match &s.lens.profile {
             // An unavailable named profile resolves to the raw's built-in
             // correction or to no profile correction.
-            LensProfileSource::Database { .. } => matches!(
-                source,
-                CorrectionSource::Database | CorrectionSource::Manual | CorrectionSource::Embedded
-            ),
-            LensProfileSource::Embedded => source == CorrectionSource::Embedded,
+            LensProfileSource::Database { .. } => {
+                built_in
+                    || matches!(
+                        source,
+                        CorrectionSource::Database | CorrectionSource::Manual
+                    )
+            }
+            LensProfileSource::Embedded => built_in,
             LensProfileSource::None => {
-                matches!(
-                    source,
-                    CorrectionSource::Manual | CorrectionSource::Embedded
-                ) || (source == CorrectionSource::Image && s.lens.remove_chromatic_aberration)
+                built_in
+                    || source == CorrectionSource::Manual
+                    || (source == CorrectionSource::Image && s.lens.remove_chromatic_aberration)
             }
             LensProfileSource::AutoCalibrated => {
                 matches!(source, CorrectionSource::Image | CorrectionSource::Manual)
@@ -585,10 +668,13 @@ impl CameraLinearProxy {
         if !mode_matches_source
             || (source == CorrectionSource::Image && (cw < 8 || ch < 8))
             || (source == CorrectionSource::Embedded) != (use_embedded && parsed.present())
-            || (matches!(source, CorrectionSource::Database | CorrectionSource::Image))
-                != s.correction.sample.is_some()
-            || (matches!(s.lens.profile, LensProfileSource::Embedded)
-                && source != CorrectionSource::Embedded)
+            || (source == CorrectionSource::MakerNote) != maker.is_some()
+            || (matches!(
+                source,
+                CorrectionSource::Database | CorrectionSource::Image | CorrectionSource::MakerNote
+            )) != s.correction.sample.is_some()
+            || (source == CorrectionSource::MakerNote && s.correction.sample != maker)
+            || (matches!(s.lens.profile, LensProfileSource::Embedded) && !built_in)
         {
             return Err(invalid("inconsistent resolved lens snapshot"));
         }

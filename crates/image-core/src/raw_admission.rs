@@ -175,6 +175,7 @@ fn admit_metadata(decoded: &DecodedCapturedCfa) -> Result<MetadataFacts, Refusal
     if metadata.has_gain_map
         || metadata.has_opcode_list
         || metadata.opcode_lists.iter().any(Option::is_some)
+        || metadata.maker_lens.is_some()
     {
         return Err(Refusal::CorrectionMetadata);
     }
