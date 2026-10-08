@@ -919,8 +919,10 @@ impl Renderer {
             // Warped optics also need this f32 prefix: WB checkpoint rounding
             // is amplified by resampling and EDR gamut mapping.
             let mut prefix = base.clone();
-            prefix.lens.manual_distortion = 0.;
-            prefix.lens.distortion_scale = 0.;
+            // A raw's built-in warp (DNG opcode stages, a maker-note
+            // correction) runs in this prefix and must stay (REV2-ENG-8:
+            // opcode warps were dropped here).
+            pipeline_cpu::defer_post_local_distortion(&mut prefix.lens, Some(image.metadata()));
             pipeline_cpu::render_linear_scaled_with_denoise(
                 &prefix,
                 &match image.rgb() {
