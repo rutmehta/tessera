@@ -5,8 +5,7 @@
 //! else nothing. It never applies a distortion or vignette estimated from image
 //! content; that is the explicit `LensProfileSource::AutoCalibrated` opt-in.
 //! A named profile that is not available applies nothing (it used to fail).
-#[path = "common/raw_fixtures.rs"]
-mod raw_fixtures;
+use test_fixtures::raw as raw_fixtures;
 
 use engine_api::recipe::{
     DevelopSettings,

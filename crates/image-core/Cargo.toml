@@ -26,5 +26,6 @@ color-mgmt = { path = "../color-mgmt" }
 tiff = "0.11"
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 jobs = { path = "../jobs" }
 tempfile = { workspace = true }

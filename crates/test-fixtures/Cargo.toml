@@ -1,0 +1,12 @@
+[package]
+name = "test-fixtures"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Dev-only helpers for tests that need the RAW fixtures or cached model weights"
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+tempfile.workspace = true

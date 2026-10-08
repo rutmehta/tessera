@@ -1,5 +1,4 @@
-#[path = "common/raw_fixtures.rs"]
-mod raw_fixtures;
+use test_fixtures::raw as raw_fixtures;
 
 use engine_api::recipe::DevelopSettings;
 use pipeline_cpu::{RenderSource, render_scaled};

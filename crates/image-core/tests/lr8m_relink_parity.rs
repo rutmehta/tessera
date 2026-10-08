@@ -2,8 +2,7 @@
 //! normalized place, with the same look, on the full-resolution original once
 //! it is relinked. Both carry the same absolute catalog orientation.
 mod common;
-#[path = "common/raw_fixtures.rs"]
-mod raw_fixtures;
+use test_fixtures::raw as raw_fixtures;
 #[allow(dead_code)]
 #[path = "../../raw-decode/tests/support/mod.rs"]
 mod support;

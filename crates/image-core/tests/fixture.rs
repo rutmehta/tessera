@@ -7,8 +7,7 @@
 mod common;
 #[path = "common/preview.rs"]
 mod preview;
-#[path = "common/raw_fixtures.rs"]
-mod raw_fixtures;
+use test_fixtures::raw as raw_fixtures;
 
 use std::path::PathBuf;
 use std::time::Instant;

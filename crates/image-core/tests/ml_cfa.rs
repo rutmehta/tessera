@@ -1,6 +1,5 @@
 #![cfg(feature = "ml-denoise")]
-#[path = "common/raw_fixtures.rs"]
-mod raw_fixtures;
+use test_fixtures::raw as raw_fixtures;
 
 use engine_api::{
     id::ModelRef,
