@@ -572,6 +572,20 @@ impl ManagedRenderer {
             .render_export_rows(image, &scene, level, rows, lens, dst, cancel)
     }
 
+    /// How [`ManagedRenderer::render_export_rows`] bands map back to the
+    /// sensor (no GPU work): export sizes its bands with it.
+    pub fn export_band_geometry(
+        &self,
+        image: &image_core::RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        lens: Option<&pipeline_cpu::LensPlan>,
+    ) -> EngineResult<image_core::BandGeometry> {
+        let scene = self.output.scene_settings(settings)?;
+        self.renderer
+            .export_band_geometry(image, &scene, level, lens)
+    }
+
     /// Uses the resident ICC Output kernel and existing IOSurface writer.
     /// Returns false for scene operators without a resident implementation.
     pub fn render_to_surface(
