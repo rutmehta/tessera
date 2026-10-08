@@ -146,11 +146,15 @@ pub(crate) fn render_resized(
 /// of the raw upload (metered since ENG-14).
 const SENSOR_BYTES_PER_PIXEL: usize = 30;
 /// Per uploaded sensor pixel, when the lens plan has lateral CA (ENG-8: the
-/// fit above had no CA; a Fujifilm maker-note correction carries one in
-/// every mode): the CA resample's RGB output beside its input. Fitted like
-/// the others on the RAF fixture: its worst band (web pyramid level 1) needs
-/// 16.5 B for the 0.99 actual/planned ratio; 12 B left it at 1.041.
+/// fit above had no CA): the CA resample's RGB output beside its input.
+/// Fitted like the others on the RAF fixture with an estimated-CA sample:
+/// its worst band (web pyramid level 1) needs 16.5 B for the 0.99
+/// actual/planned ratio; 12 B left it at 1.041.
 const CA_BYTES_PER_PIXEL: usize = 18;
+/// The same for a maker-note built-in correction (ENG-8c), which resamples
+/// all three channels in that stage: the RAF's worst band (web pyramid level
+/// 1) needs 22.6 B for 0.99; 18 B left it at 1.045.
+const MAKER_BYTES_PER_PIXEL: usize = 24;
 /// Per band: the parameter arena and wgpu's staging copy of it (ENG-14).
 const PARAMS_BYTES: usize = 2 << 20;
 /// Per developed pixel (level-frame rows with the Detail halo): resample,
@@ -582,10 +586,10 @@ fn render_bands(
             sensor: band.sensor.len()
                 * sensor_width
                 * (SENSOR_BYTES_PER_PIXEL
-                    + if job.lens.ca.is_some() {
-                        CA_BYTES_PER_PIXEL
-                    } else {
-                        0
+                    + match &job.lens.ca {
+                        Some(ca) if ca.maker.is_some() => MAKER_BYTES_PER_PIXEL,
+                        Some(_) => CA_BYTES_PER_PIXEL,
+                        None => 0,
                     }),
             developed: band.developed.len() * developed.width as usize * DEVELOPED_BYTES_PER_PIXEL,
             mapped: if blocks.is_some() {
