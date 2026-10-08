@@ -69,6 +69,9 @@ pub enum CorrectionSource {
     Database,
     Image,
     Manual,
+    /// The camera's built-in correction from proprietary maker notes (ENG-8),
+    /// as a calibration sample; applied like embedded opcodes.
+    MakerNote,
 }
 #[derive(Clone, Debug)]
 pub struct ResolvedLens {

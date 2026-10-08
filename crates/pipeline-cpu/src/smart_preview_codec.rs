@@ -401,6 +401,9 @@ impl CameraLinearProxy {
                     CorrectionSource::Database => Source::Database,
                     CorrectionSource::Image => Source::Image,
                     CorrectionSource::Manual => Source::Manual,
+                    CorrectionSource::MakerNote => {
+                        return Err(invalid("maker-note correction snapshot"));
+                    }
                 },
                 manual_ca: [
                     self.correction.manual_ca.red_cyan,
