@@ -440,3 +440,103 @@ Earlier attempts, before the rebase, recorded for completeness:
 5. **Uncorrected view.** "Show uncorrected" (`render_uncorrected`, profile
    None) still shows the built-in correction for opcode raws, as Lightroom
    cannot disable built-in corrections either.
+
+---
+
+# ENG-7c: second re-review follow-up (REV2-ENG-7 CHANGES-REQUIRED)
+
+Same branch `wp/ENG-7`. `origin/main` is still `f77aae5d`. Worker: Claude Opus 5.5.
+
+## Item table (finding → code → test)
+
+| Item | Code | Test |
+|---|---|---|
+| **N-B1** pre-ENG-7b Smart Previews of opcode raws in mode None or with an unavailable named profile | `pipeline-cpu/src/smart_preview_codec.rs`: a snapshot for an opcode raw that should have used the built-in correction (None, or Database resolved to Manual) and recorded none is now `Unsupported` "smart preview stale: built before built-in lens corrections applied in this lens mode; regenerate from original". `smart_preview_info` therefore reports **Stale**, not Failed. `tessera-ffi/src/smart_preview.rs`: `synchronize_smart_preview` reads only the journal; it never used the pixels. `build_smart_preview` replaces a *clean* Stale preview in place. A dirty one is still refused ("synchronize edits …"), and discard still refuses dirty journals. Removal is shared by discard and rebuild | `pipeline-cpu/tests/smart_preview_codec.rs::eng7c_legacy_none_mode_opcode_container_is_stale`: OpcodeList1/2/3 × None/unavailable named profile. `tessera-ffi/tests/eng7c_legacy_smart_preview.rs`: a real ARW preview built through the public API with lens None, optionally edited offline, then rewritten to the pre-ENG-7b snapshot shape for an opcode raw (OpcodeList1 or OpcodeList3, source Manual, pixels untouched), × with/without edits. The test checks: Stale with "regenerate from original"; dirty previews refuse rebuild and discard; sync publishes the edit (exposure 0.75 in the sidecar and `get_recipe`); the synced preview rebuilds in place; the edit survives. RED reproduced the reviewer's two messages exactly |
+| **N-B2** warnings file on every default export | `export/src/lib.rs`: only `ProfileUnavailable` is a per-file warning | `export/tests/lens_notes.rs`: the Auto case expects no warning, and `default_raw_export_writes_no_warnings_file` checks that `export_one` of a default raw leaves no `.tessera-warnings.txt` |
+| **S-1** every commit compiles | Folded `d8dab664` (import fix) into the built-in-corrections commit. I also folded the `RawMetadata` field fix-up into the two RED commits whose test literals needed it. Done by scripted `git rebase -i --autosquash` (GIT_SEQUENCE_EDITOR); messages and authorship are kept. Every commit was checked with `cargo check --workspace --lib` (see Gates) | — |
+| **S-2** no new Smart Previews in mode None for OpcodeList3 raws | Documented below and in `docs/RELEASE-NOTES.md`. Build reports the graceful Unsupported "OpcodeList3 sensor-coordinate corrections require original", as Auto already did | — |
+| **S-3** L3 parity for an opcode raw in mode None | — | `image-core/tests/builtin_lens.rs::profile_none_level3_preview_matches_reference_with_built_in_opcodes`. The engine at L3 matches the ENG-6 contract-order model (`common/preview.rs`, ≤ 1e-5), equals the Embedded mode, and differs from the same raw without opcodes. It passed on first run; L3 already took the CPU chain for opcode raws |
+| Nit: CA default scope | `docs/RELEASE-NOTES.md` now says documents that never stored the setting (old schema-1.2 documents, partial or scripted recipes, XMP without `AutoLateralCA`) render with CA removal off | — |
+
+**N-B2 decision: no batch line either.** "No lens profile available" is true
+for nearly every raw while Tessera has no lens database. A batch-level line
+would repeat on every export and carry no per-photo information. Develop
+already omits it for the same reason. Lightroom catalog imports still record
+it per photo where Lightroom asked for a profile, and the release note says
+Tessera has no profile database. An unavailable *named* profile remains a
+per-file note, in both export and Develop. `pipeline_cpu::LensNotice::NoProfile`
+is kept in the API, with its unit test, for a future lens-database UI.
+
+## Behaviour after ENG-7c (changes to the ENG-7b table)
+
+| Case | ENG-7b | ENG-7c |
+|---|---|---|
+| Pre-ENG-7b Smart Preview, opcode raw, mode None or unavailable named profile | Failed ("inconsistent resolved lens snapshot" or "late sensor opcodes require original"). Edits stuck: no sync, discard or rebuild | **Stale**, "regenerate from original". Sync publishes offline edits. Once synced (clean), Build rebuilds in place. Unsynced edits block rebuild and discard, so nothing is lost |
+| New Smart Preview, mode None, raw with OpcodeList3 | refused: "OpcodeList3 sensor-coordinate corrections require original" | same. A graceful Unsupported error, as for Auto; now documented. OpcodeList3 replay on the proxy is a follow-up |
+| Default (Auto) raw export, no profile available | per-file warning and a warnings file | **no warning, no file** |
+| Export, unavailable named profile | per-file warning | unchanged |
+
+## Golden and expectation audit (ENG-7c)
+
+- **Changed expectation:** `export/tests/lens_notes.rs`, Auto case.
+  Before: one warning, "No lens profile available — no profile correction
+  applied". After: no warning. Reason: N-B2.
+- **New tests only otherwise:** the codec stale test, four FFI legacy-preview
+  tests, the export no-file test and the L3 parity test.
+- **No golden, fingerprint, pin or tolerance changed in ENG-7c.**
+
+## Gates (ENG-7c)
+
+The final gates ran on `82e56ad0` (code), after `cargo clean -p engine-api
+-p pipeline-cpu -p image-core -p import-lrcat -p previews -p export -p sidecar
+-p tessera-ffi -p pipeline-gpu`, with target `~/.cache/tessera-target/ENG-7`
+and the fixtures symlinked.
+
+| Gate | Result |
+|---|---|
+| `cargo test --release --workspace --no-fail-fast` | pass: 684 test binaries, **3530 passed, 0 failed, 107 ignored**, 0 SKIPPED lines. The ENG-7c tests all ran: codec stale, 4 FFI legacy-preview cases, export no-file, L3 parity. Load was 16.1 at the start and 32.0 at the end; no wall-clock failures, no reruns |
+| `cargo clippy --release --workspace --all-targets -- -D warnings` | pass |
+| `cargo fmt --all -- --check` | pass |
+| `apps/mac/build-ffi.sh` | pass; 0 changed paths (no bindings drift, no FFI surface change) |
+| `tools/orchestrate/swift-gate.sh` | **SWIFT GATE OK**: XCTest 996 tests, 3 skipped, 0 failures; Swift Testing 5 passed |
+| strict release `swift build --product Tessera` | pass |
+| every commit's libraries compile (S-1): `cargo check --workspace --lib` on each commit `origin/main..HEAD`, in a throwaway worktree and target dir | all 18 OK (list below) |
+
+The first ENG-7c gate run, on `4267ad2d`, passed everything except clippy:
+the L3 test's `mod preview` left `preview::display` unused (dead code). I
+fixed it with `#[allow(dead_code)]` on that module import, folded into the
+ENG-7c RED commit, and reran every gate above on the result.
+
+Per-commit check (`cargo check --workspace --lib`), the current series:
+
+- `e7b8d91b` test(ENG-7): RED - default lens mode must not apply image-content estimates : lib OK
+- `dfcbcae0` test(ENG-7): RED - use a stripe pattern the k1 estimator detects : lib OK
+- `638d9f59` fix(ENG-7): default lens mode never applies an image-content estimate : lib OK
+- `720a5316` docs(ENG-7): handoff - behaviour before/after, golden audit, gates : lib OK
+- `bd88b3be` test(ENG-7b): RED - preview epoch, CA default, built-in corrections, lens notes : lib OK
+- `82898073` fix(ENG-7b): preview disk cache render epoch 2 (B1) : lib OK
+- `4679fc6f` fix(ENG-7b): Remove Chromatic Aberration defaults to off (S1) : lib OK
+- `90aeb61e` fix(ENG-7b): built-in DNG opcode corrections apply in every profile mode : lib OK
+- `96ddad03` docs(ENG-7b): user-facing release note for the lens default changes (S2) : lib OK
+- `306deb80` fix(ENG-7b): const-assert the preview render epoch (clippy assertions_on_constants) : lib OK
+- `5f3ad4cd` docs(ENG-7b): handoff - rulings table, golden audit, gates : lib OK
+- `a09fb460` test(ENG-7b): RED - Develop render notices name an unavailable lens profile (S3) : lib OK
+- `fca65f20` feat(ENG-7b): Develop shows an unavailable named lens profile (S3) : lib OK
+- `2743a796` docs(ENG-7b): handoff - rebase onto f77aae5d, render_notices, final gates : lib OK
+- `78b18729` test(ENG-7c): RED - legacy opcode Smart Previews are Stale, default exports write no warnings : lib OK
+- `2b245dc7` fix(ENG-7c): legacy opcode Smart Previews open as Stale; sync needs only the journal (N-B1) : lib OK
+- `4509949d` fix(ENG-7c): default raw exports write no lens warnings file (N-B2) : lib OK
+- `82e56ad0` docs(ENG-7c): release note - stale legacy Smart Previews, OpcodeList3 build limit, CA default scope, export note : lib OK
+
+The RED test commits fail their own tests by design (tests first). The
+two RED commits that add new API (`lens_notice`, the preview epoch) also
+fail to compile their tests until the next commit. Every commit's
+libraries compile.
+
+## Commit map after the S-1 history rewrite
+
+The `--autosquash` rebases rewrote every hash on the branch, including
+commits before the fixup targets, because they were replayed. The trees
+are identical: `git diff` between the pre-rewrite tip and the rewritten
+tip is empty. The hashes cited in the ENG-7 and ENG-7b sections refer to
+the earlier branch states. The current series is listed under Gates above; the HANDOFF commit follows it.
