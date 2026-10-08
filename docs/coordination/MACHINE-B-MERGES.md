@@ -42,3 +42,10 @@ From 2026-10-07 Machine B is the sole coordinator and main merger (Machine A is 
 - Independent review: APPROVE with should-fix; HDR notice and retouch parity row added in ENG-9b.
 - Known cost: Adobe-process exports are CPU-only at full resolution — roughly 20–60× slower than main's previous (wrong-look) GPU path. ENG-10 (scaled prefix, GPU Adobe path, memory bounds) is running.
 - Gates on 9fc49548: Rust 3,511 / 0 / 107 ignored; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
+
+## Batch 58 (main eeb5a955)
+
+- ENG-7/7b/7c lens corrections match Lightroom (user decision 2026-10-07): the default Auto lens mode applies the raw's embedded correction or a matching profile, never a distortion/vignette estimated from image content (estimation only via explicit AutoCalibrated); "Remove Chromatic Aberration" defaults to off for recipes that never stored it (imports honour AutoLateralCA); built-in DNG opcode corrections always apply, including per-colour CA, even with lens mode None or an unavailable named profile; unavailable named profiles render uncorrected with a note in Develop and export (no per-file "no lens profile" warning files); preview cache render epoch bumped so old distorted thumbnails are not served; legacy Smart Previews of opcode raws in mode None open as Stale ("regenerate from original") with journal-only sync and no edit loss. Release notes in docs/RELEASE-NOTES.md (existing edits on previously estimated photos shift slightly).
+- Re-pins: default recipe hash, six serialisation pins, import-lrcat digests/baselines/compat files, sidecar ACR packet pins — reviewer verified by decode diff that they differ only by the CA default and its history patch.
+- Independent reviews: REV-ENG-7 CHANGES-REQUIRED → REV2 CHANGES-REQUIRED → REV3 APPROVE-WITH-NITS. Nit left: rebuilding a Stale preview deletes it before regenerating.
+- Gates on eeb5a955: Rust 3,541 / 0 / 107 ignored; clippy 0; fmt 0; drift 0; swift-gate OK; strict 0.
