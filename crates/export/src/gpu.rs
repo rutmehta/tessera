@@ -903,7 +903,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "ENG-12: canon-cr3 full-resolution GPU export declines the band renderer (export GPU scratch exceeds its budget) and falls back to tiles, so the bands assertion fails; precision passes on all five fixtures; follow-up. Run: cargo test --release -p export --lib gpu::tests::five_fixture -- --ignored --nocapture"]
     fn five_fixture_full_chain_tolerance() {
         let Some(fixtures) = five_fixtures() else {
             return;
@@ -1244,7 +1243,6 @@ mod tests {
     /// the full-chain tolerance; the pyramid-level (Web-scale) development is
     /// measured and reported.
     #[test]
-    #[ignore = "ENG-12: canon-cr3 full-resolution GPU export declines the band renderer (export GPU scratch exceeds its budget) and falls back to tiles, so the bands assertion fails; precision passes on all five fixtures; follow-up. Run: cargo test --release -p export --lib gpu::tests::five_fixture -- --ignored --nocapture"]
     fn five_fixture_web_scale_tolerance() {
         let Some(fixtures) = five_fixtures() else {
             return;
