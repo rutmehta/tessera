@@ -646,7 +646,8 @@ fn render_bands(
                 let mib = |b: u64| b as f64 / (1 << 20) as f64;
                 eprintln!(
                     "EXPORT_TRACE band rows={}..{} yielded={:.1} ms render={:.1} ms scratch={:.1} MiB ({:.0} B/px) dispatches={} \
-                     actual={:.2} MiB planned={:.2} MiB (sensor {}x{} {:.2}, developed {}x{} {:.2}, mapped {:.2}, readback {:.2})",
+                     actual={:.2} MiB planned={:.2} MiB (sensor {}x{} {:.2}, developed {}x{} {:.2}, mapped {:.2}, readback {:.2}) \
+                     peak={:.2} MiB recycled_in={:.2} MiB fresh_buffers={}",
                     source.start,
                     source.end,
                     yielded.as_secs_f64() * 1e3,
@@ -665,6 +666,9 @@ fn render_bands(
                     mib(planned.developed as u64),
                     mib(planned.mapped as u64),
                     mib(planned.readback as u64),
+                    mib(stats.last_resident_peak_bytes),
+                    mib(stats.last_resident_recycled_bytes),
+                    stats.last_resident_buffers,
                 );
             }
         }

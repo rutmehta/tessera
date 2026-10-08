@@ -166,3 +166,23 @@ fn shape_changing_bands_stay_within_their_scratch() {
 fn shape_changing_resized_bands_stay_within_their_scratch() {
     check(Some(Extent::new(1600, 800)));
 }
+
+/// Concurrent band renderers report their own band's statistics: one
+/// band's `last_resident_*` values are not overwritten by another's.
+#[test]
+fn band_renderers_keep_their_own_statistics() {
+    let output = output(&settings());
+    let image = common::synthetic(1302, WIDTH, HEIGHT, common::RGGB, [0, 0, WIDTH, HEIGHT]);
+    let base = ManagedRenderer::new_export_budgeted(output, config(), None, 1 << 30);
+    let (tall, short) = (base.export_band(None), base.export_band(None));
+    band(&tall, &image, None, 0, 256);
+    let before = tall.stats();
+    band(&short, &image, None, 512, 16);
+    let after = tall.stats();
+    assert_eq!(
+        before.last_resident_live_bytes,
+        after.last_resident_live_bytes
+    );
+    assert_eq!(before.readbacks, after.readbacks);
+    assert!(short.stats().last_resident_live_bytes < after.last_resident_live_bytes);
+}

@@ -463,6 +463,10 @@ impl ManagedRenderer {
         let mut ops = (*self.ops).clone();
         ops.export_resize = resize;
         ops.recycled = recycled;
+        // Its own counters: concurrent bands' `last_resident_*` statistics
+        // (the export trace and footprint checks) must not overwrite each
+        // other.
+        ops.counters = Arc::default();
         ops.resident_cache = crate::resident::cache(self.renderer.config().cache_budget_bytes);
         let ops = Arc::new(ops);
         let renderer = self.renderer.for_backend(ops.clone());

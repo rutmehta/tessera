@@ -47,8 +47,12 @@ pub struct GpuStats {
     /// Surface presentation reads only the histogram, never pixels.
     pub histogram_readbacks: u64,
     pub pixel_readback_bytes: u64,
-    /// Unique resident payload allocations in the last batch (excludes parameters).
+    /// Device bytes of resident payloads the last batch held at its readback
+    /// (excludes parameters and the staging copy): recycled buffers it took
+    /// in and fresh allocations, less those released. Export budget checks
+    /// use the same count. Equal to `last_resident_live_bytes`.
     pub last_resident_allocated_bytes: u64,
+    /// Fresh payload buffers the last batch allocated.
     pub last_resident_buffers: u64,
     /// Compute dispatches encoded in the last resident transaction.
     pub last_resident_dispatches: u64,
