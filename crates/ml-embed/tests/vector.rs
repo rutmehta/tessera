@@ -35,30 +35,49 @@ fn auto_selects_and_promotes_only_above_fifty_thousand() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[test]
-fn hnsw_top_five_matches_exact_for_seeded_thousand_vectors() -> anyhow::Result<()> {
-    let dir = tempfile::tempdir()?;
-    let mut approximate = HnswVectorIndex::open(dir.path(), "v1", 32)?;
+/// A deterministic stream of 32-dimensional vectors (only the data is seeded:
+/// hnsw_rs draws graph levels from the OS RNG, so every run builds a different
+/// graph).
+fn lcg_vectors() -> impl FnMut() -> Vec<f32> {
     let mut seed = 0x1234_5678_u64;
-    let mut random_vector = || -> Vec<f32> {
+    move || {
         (0..32)
             .map(|_| {
                 seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
                 ((seed >> 32) as u32 as f64 / u32::MAX as f64 * 2.0 - 1.0) as f32
             })
             .collect()
-    };
+    }
+}
+
+fn thousand_vector_indexes(
+    dir: &std::path::Path,
+    random_vector: &mut impl FnMut() -> Vec<f32>,
+) -> anyhow::Result<(HnswVectorIndex, SqliteVectorIndex)> {
+    let mut approximate = HnswVectorIndex::open(dir, "v1", 32)?;
     for id in 0..1000 {
         approximate.insert(ImageId(id), &random_vector())?;
     }
-    let exact = SqliteVectorIndex::open(dir.path(), "v1", 32)?;
+    Ok((approximate, SqliteVectorIndex::open(dir, "v1", 32)?))
+}
+
+#[test]
+fn hnsw_top_five_recall_on_a_thousand_random_vectors() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut random_vector = lcg_vectors();
+    let (approximate, exact) = thousand_vector_indexes(dir.path(), &mut random_vector)?;
     for _ in 0..20 {
         let query = random_vector();
         let expected = exact.search(&query, 5)?;
         let actual = approximate.search(&query, 5)?;
         assert_eq!(actual.len(), 5);
-        assert_eq!(actual[0].0, expected[0].0);
-        // HNSW is approximate: graph construction can omit a lower-ranked neighbor.
+        // HNSW is approximate: the exact nearest neighbour must be found, and
+        // graph construction may omit at most one lower-ranked neighbour.
+        assert!(
+            actual.iter().any(|(id, _)| *id == expected[0].0),
+            "exact top-1 {:?} missing from {actual:?}",
+            expected[0]
+        );
         let overlap = actual
             .iter()
             .filter(|(id, _)| expected.iter().any(|(exact_id, _)| id == exact_id))
@@ -73,6 +92,27 @@ fn hnsw_top_five_matches_exact_for_seeded_thousand_vectors() -> anyhow::Result<(
             }
         }
     }
+    Ok(())
+}
+
+/// Search over-fetches graph candidates and re-ranks them by exact cosine, so
+/// the nearest neighbour is not lost to the graph's ordering of a short list.
+#[test]
+fn hnsw_top_one_is_the_exact_nearest_neighbour_after_reranking() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut random_vector = lcg_vectors();
+    let (approximate, exact) = thousand_vector_indexes(dir.path(), &mut random_vector)?;
+    let mut misses = Vec::new();
+    for query in 0..200 {
+        let query_vector = random_vector();
+        let expected = exact.search(&query_vector, 1)?;
+        let actual = approximate.search(&query_vector, 1)?;
+        assert_eq!(actual.len(), 1);
+        if actual[0].0 != expected[0].0 {
+            misses.push((query, actual[0], expected[0]));
+        }
+    }
+    assert!(misses.is_empty(), "top-1 misses: {misses:?}");
     Ok(())
 }
 
