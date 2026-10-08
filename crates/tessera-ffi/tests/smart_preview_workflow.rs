@@ -1,7 +1,7 @@
-//! Opt-in public-API acceptance on a disposable COPY of a real mosaic RAW.
-//! Run only in the serialized native lane:
-//! TESSERA_SMART_PREVIEW_RAW=/read-only/source.ARW cargo test -p tessera-ffi \
-//!   --test smart_preview_workflow --release -- --ignored --nocapture
+//! Public-API acceptance on a disposable COPY of a real mosaic RAW: the
+//! repository's `fixtures/raw/sony-arw.ARW` by default, or the read-only file
+//! named by `TESSERA_SMART_PREVIEW_RAW`. It is the only test in this binary, so
+//! it runs in its own process.
 use std::{fs, io::Read, path::Path};
 use tessera_ffi::*;
 
@@ -66,11 +66,16 @@ fn edit_preview(session: &std::sync::Arc<DevelopSession>, exposure: f32) {
 }
 
 #[test]
-#[ignore = "requires TESSERA_SMART_PREVIEW_RAW and the exclusive native test lane"]
 fn public_engine_offline_restart_sync_original_export_and_conflict() {
-    let fixture =
-        std::env::var_os("TESSERA_SMART_PREVIEW_RAW").expect("set read-only real RAW fixture path");
-    let fixture = Path::new(&fixture);
+    // TESSERA_SMART_PREVIEW_RAW overrides the repository's Sony ARW fixture.
+    let fixture = match std::env::var_os("TESSERA_SMART_PREVIEW_RAW") {
+        Some(path) => std::path::PathBuf::from(path),
+        None => match test_fixtures::raw::file(&test_fixtures::current_test(), "sony-arw.ARW") {
+            Some(path) => path,
+            None => return,
+        },
+    };
+    let fixture = fixture.as_path();
     let fixture_before = digest(fixture);
     let dir = tempfile::tempdir().unwrap();
     let photos = dir.path().join("photos");
