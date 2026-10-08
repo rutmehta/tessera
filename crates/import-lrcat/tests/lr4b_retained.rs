@@ -5,50 +5,53 @@ fn lr4c_approximate_promotions_and_untranslated_byte_pins() {
     // LR-4c intentionally promotes only brush/color indices 0,1,7,8.
     // LR-4d changes only those four diagnostic envelopes to the shared channel.
     // Other values remain pinned to a88440a4; malformed/unknown forms do not change.
+    // ENG-7b: every case +2 bytes, "remove_chromatic_aberration": true -> false
+    // in the history base and settings (Remove CA defaults to off). Was a88440a4-era:
+    // 9468/b38d9b1f, 8458/6a00aa81, 6653/23de4681, 6589/1cbfbfc1, 6559/05af8f21, 6451/8c342293, 6499/efeb750f, 9278/6dd154e9, 9443/5ebc245d, 7271/60e30261, 7232/062f71e4
     let expected = [
         (
-            9468,
-            "b38d9b1f8cae792f235f949bade9f39b4831c2b6b9fa5bf576cf5d7549a645fb",
+            9470,
+            "546154d6c339cbb43da60119141fb95af5feedf212f5edbcea9e908629a843cd",
         ),
         (
-            8458,
-            "6a00aa810387599912de150354ccdfc462cf484f5309b25d04e7c3dff2f958fc",
+            8460,
+            "9009924d801f073317427303242cb5b65b6fcef36160d4c79f308f89601a356d",
         ),
         (
-            6653,
-            "23de468146a603a5f9243684885206db554e9bf710682cf244d9e963e6a450f0",
+            6655,
+            "2c2f21028ac055b57ba06f6ae5cea689a66fa3b27ebd5c7090c1627926fd07b3",
         ),
         (
-            6589,
-            "1cbfbfc12e35918b0ec3fdbbd387f105718773e17b9395d20cb1f9c00ac9fb65",
+            6591,
+            "1119195bef3f7f55d99e5032fa3fa1f24b03d29633fe6d655ebc991bc2cf771a",
         ),
         (
-            6559,
-            "05af8f21013f5d97418985b9ff8ee1e9ada5f2d3060331d9c352aa6d8aa95401",
+            6561,
+            "52d56addc99ed75e36be8c950bd3c12701c6289e6e1bbfb6e4a32cde5a5c5892",
         ),
         (
-            6451,
-            "8c3422935d63e21231bb696c1e86880343d71b4565bb504b96bdfcab1e10c01f",
+            6453,
+            "c7ccc1373573e06fa2136b5094c55bf50b77d0f031e655925c98153585e0fb48",
         ),
         (
-            6499,
-            "efeb750fcfd403097091448cca65d3db40c1e6e52e83c6d6c2e84f539abf79c4",
+            6501,
+            "74878558407a67c8ab3c70766f810faa1bfb84d4a7365a5f74d5a7cf2656e164",
         ),
         (
-            9278,
-            "6dd154e9b5f2c0487da994788635defc1161d31876feb2f4220a7dc55cde298c",
+            9280,
+            "4d39bf2edb429a8427cfb0b012049237424ef654b8aeeb8210144c9992bfc090",
         ),
         (
-            9443,
-            "5ebc245d5c5390a00efecc0a617898fbe95707271d1c4233ab90cdd5d6bcc463",
+            9445,
+            "4fd68b1f5b116cdea78c689ed8cd956da30245f3e41d7d3488e502a49453f007",
         ),
         (
-            7271,
-            "60e3026103584e777f0944e12bf1e722944f810d4145fd2128f6e3141962a7d8",
+            7273,
+            "45c1a0ecad4aba7ab8fc3f90863dc7b4090f1bc8909d3d3060298e7953a3e887",
         ),
         (
-            7232,
-            "062f71e400c5a9864cdb477f77dac3dfbbf66f98954ef9cb26b9b30f36b87a82",
+            7234,
+            "a7c25f94c375693f24ced4d99a953391216be20805331bf01453f169bbb6dd7c",
         ),
     ];
     let got = fixtures::digests();

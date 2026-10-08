@@ -29,6 +29,50 @@ fn selected(test: &str) -> Vec<PathBuf> {
     raw_fixtures::selected(test, SELECT_ENV)
 }
 
+/// Default settings with the explicit lens auto-calibration opt-in. Since
+/// ENG-7 the default `Auto` applies no image-estimated distortion, so with
+/// plain defaults no fixture would exercise the Geometry stage; the opt-in
+/// keeps the estimated CR3/RAF distortion in these engine/reference checks.
+fn geometry_settings() -> DevelopSettings {
+    let mut s = DevelopSettings::default();
+    s.lens.profile = engine_api::recipe::settings::LensProfileSource::AutoCalibrated;
+    s
+}
+
+/// ENG-7b guard: the L0/L3 parity tests exercise the Geometry stage only
+/// because `geometry_settings()` resolves a distortion on some fixture. If the
+/// estimator changes so that none does, Geometry silently drops out of both
+/// tests; fail instead. Uses every fixture present, ignoring the speed filter.
+#[test]
+fn geometry_settings_resolve_a_distortion_on_some_fixture() {
+    let test = "geometry_settings_resolve_a_distortion_on_some_fixture";
+    let files = raw_fixtures::all(test);
+    if files.is_empty() {
+        return;
+    }
+    let s = geometry_settings();
+    let mut found = Vec::new();
+    for path in &files {
+        let image = RawImage::open(ImageId(45), path).unwrap();
+        let r = pipeline_cpu::resolve_lens_sensor(
+            image.cfa().pyramid().pixels(),
+            image.metadata(),
+            &s,
+            &Default::default(),
+        )
+        .unwrap();
+        if r.source() == pipeline_cpu::CorrectionSource::Image
+            && r.sample().is_some_and(|p| p.distortion.k1 != 0.0)
+        {
+            found.push(raw_fixtures::name(path));
+        }
+    }
+    assert!(
+        !found.is_empty(),
+        "no fixture resolves a distortion under geometry_settings(); L0/L3 no longer exercise Geometry"
+    );
+}
+
 /// Every selected camera is compared, and every mismatch is reported, before
 /// the test fails: one camera's failure must not hide another's.
 #[test]
@@ -37,7 +81,7 @@ fn fixture_level3_matches_pipeline_cpu() {
     for path in selected("fixture_level3_matches_pipeline_cpu") {
         let name = raw_fixtures::name(&path);
         let image = RawImage::open(ImageId(42), &path).unwrap();
-        let s = DevelopSettings::default();
+        let s = geometry_settings();
         let source = RenderSource::Cfa {
             image: image.cfa(),
             metadata: image.metadata(),
@@ -87,7 +131,7 @@ fn fixture_level0_matches_pipeline_cpu_reference() {
     for path in selected("fixture_level0_matches_pipeline_cpu_reference") {
         let name = raw_fixtures::name(&path);
         let image = RawImage::open(ImageId(44), &path).unwrap();
-        let s = DevelopSettings::default();
+        let s = geometry_settings();
         let e = image.level_extent(0);
         let t = Instant::now();
         let linear = Renderer::new(RendererConfig::default())

@@ -350,6 +350,7 @@ impl ResolvedLens {
     ) -> EngineResult<crate::Image> {
         let mut common = settings.lens.clone();
         common.remove_chromatic_aberration = false;
+        common.chromatic_aberration_scale = 0.;
         crate::geometry_effects::geometry_mapped(
             image,
             &settings.geometry,
@@ -368,6 +369,7 @@ impl ResolvedLens {
     ) -> EngineResult<crate::Image> {
         let mut common = settings.lens.clone();
         common.remove_chromatic_aberration = false;
+        common.chromatic_aberration_scale = 0.;
         crate::geometry_effects::geometry_mapped_with_upright(
             image,
             &settings.geometry,
@@ -406,6 +408,7 @@ impl ResolvedLens {
     ) -> EngineResult<UprightAnalysis> {
         let mut common = settings.lens.clone();
         common.remove_chromatic_aberration = false;
+        common.chromatic_aberration_scale = 0.;
         let inverse = crate::upright::inverse(image, &settings.geometry, &|p, c| {
             Some(self.map(p, c, &common))
         })?;
@@ -550,6 +553,7 @@ impl ResolvedLens {
             (profile.is_some() || manual.is_some()).then_some(VignettePlan { profile, manual });
         let mut common = s.clone();
         common.remove_chromatic_aberration = false;
+        common.chromatic_aberration_scale = 0.;
         let lens_active = self.geometry_active(&common);
         let upright = if let Some(upright) = analyzed {
             upright

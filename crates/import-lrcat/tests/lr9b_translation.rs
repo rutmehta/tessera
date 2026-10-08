@@ -209,10 +209,12 @@ fn legacy_fixture_bytes_remain_unchanged() {
     let notes = diagnostics::entries(&r);
     assert!(notes.is_empty());
     let bytes = r.to_json().unwrap();
-    assert_eq!(bytes.len(), 11633);
+    // ENG-7b (was 11633 / fe85a1a4…38ce): Remove CA defaults to off, so the
+    // row's AutoLateralCA=0 is no longer an edit and the base flips to false.
+    assert_eq!(bytes.len(), 11500);
     assert_eq!(
         engine_api::id::Digest::derive("LR-1 byte compatibility", &bytes).to_string(),
-        "fe85a1a43d4268ab1aa6f24ba8add80325b3cd274d5b54e181f66bfbe6e438ce"
+        "38e7cca47daca4037c65502aaebe13de2722c054eb82cc0a0f2d36ad10c8a95b"
     );
 }
 

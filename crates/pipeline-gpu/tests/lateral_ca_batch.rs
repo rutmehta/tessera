@@ -23,7 +23,9 @@ fn plan(metadata: &raw_decode::RawMetadata) -> CaPlan {
             ..Default::default()
         }],
     };
-    let settings = DevelopSettings::default();
+    let mut settings = DevelopSettings::default();
+    // Profile CA follows Remove CA, which is off by default since ENG-7b.
+    settings.lens.remove_chromatic_aberration = true;
     let image = Image::new(1, 1, vec![vec![0.2]; 3]).unwrap();
     let resolved = pipeline_cpu::resolve_lens(
         &image,

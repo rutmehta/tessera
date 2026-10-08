@@ -531,7 +531,8 @@ fn unsafe_cache_paths_fail_without_external_writes_and_recover_without_identity_
             .unwrap()
             .join("previews")
             .join(format!(
-                "{}-{}-{}",
+                "e{}-{}-{}-{}",
+                previews::RENDER_EPOCH,
                 hex(&key.file_hash),
                 key.orientation,
                 hex(&key.recipe_hash)

@@ -455,7 +455,7 @@ impl CameraLinearProxy {
         if bytes[64..96] != container_digest {
             return Err(invalid("container digest"));
         }
-        let s: Snapshot =
+        let mut s: Snapshot =
             serde_json::from_slice(&bytes[HEADER..HEADER + metadata_len]).map_err(invalid)?;
         validate_nested_schema(&bytes[HEADER..HEADER + metadata_len], version)?;
         let tier = match (version, s.generator, s.tier) {
@@ -491,6 +491,25 @@ impl CameraLinearProxy {
             blue_yellow: s.correction.manual_ca[1],
         };
         manual_ca.validate()?;
+        // ENG-7: before Auto stopped estimating from image content, an Auto
+        // snapshot could capture an image-estimated distortion/vignette.
+        // Reopen it with the current meaning of Auto, exactly what generating
+        // it today resolves: the estimate is dropped. An image-estimated
+        // lateral CA is kept: generation applied it to the stored camera-linear
+        // pixels (`render::camera_linear_prefix` runs `optics::lateral_ca`
+        // before the proxy is downsampled) and the tail never replays it, so it
+        // cannot be removed here. AutoCalibrated keeps its estimate.
+        if matches!(s.lens.profile, LensProfileSource::Auto)
+            && matches!(s.correction.source, Source::Image)
+            && let Some(sample) = s.correction.sample.as_mut()
+        {
+            sample.distortion = Default::default();
+            sample.vignette = [0.; 3];
+            if *sample == lens::CalibrationSample::default() {
+                s.correction.sample = None;
+                s.correction.source = Source::Manual;
+            }
+        }
         if let Some(sample) = &s.correction.sample {
             lens::Profile {
                 model: "snapshot".into(),
@@ -501,10 +520,33 @@ impl CameraLinearProxy {
             .map_err(invalid)?;
         }
         let parsed = crate::embedded_lens::Embedded::parse(&metadata)?;
-        let use_embedded = matches!(
-            s.lens.profile,
-            LensProfileSource::Auto | LensProfileSource::Embedded
-        );
+        // Built-in (embedded opcode) corrections apply in every mode except an
+        // available named profile and AutoCalibrated (ENG-7b); a snapshot of a
+        // named profile records which of the two it resolved.
+        let use_embedded = match &s.lens.profile {
+            LensProfileSource::Auto | LensProfileSource::Embedded | LensProfileSource::None => true,
+            LensProfileSource::Database { .. } => !matches!(s.correction.source, Source::Database),
+            LensProfileSource::AutoCalibrated => false,
+        };
+        // ENG-7c: before ENG-7b, mode None and an unavailable named profile
+        // skipped the raw's built-in opcodes, so such a snapshot recorded no
+        // built-in correction and its pixels lack the raw-domain stages. It
+        // cannot be reinterpreted; report it as stale (regenerate from the
+        // original) rather than as a corrupt container.
+        if use_embedded
+            && parsed.present()
+            && matches!(
+                s.lens.profile,
+                LensProfileSource::None | LensProfileSource::Database { .. }
+            )
+            && !matches!(s.correction.source, Source::Embedded)
+        {
+            return Err(EngineError::Unsupported {
+                what: "smart preview stale: built before built-in lens corrections applied in \
+                       this lens mode; regenerate from original"
+                    .into(),
+            });
+        }
         if use_embedded && !parsed.stages[2].is_empty() {
             return Err(invalid("late sensor opcodes require original"));
         }
@@ -515,16 +557,26 @@ impl CameraLinearProxy {
             Source::Manual => CorrectionSource::Manual,
         };
         let mode_matches_source = match &s.lens.profile {
-            LensProfileSource::Database { .. } => source == CorrectionSource::Database,
+            // An unavailable named profile resolves to the raw's built-in
+            // correction or to no profile correction.
+            LensProfileSource::Database { .. } => matches!(
+                source,
+                CorrectionSource::Database | CorrectionSource::Manual | CorrectionSource::Embedded
+            ),
             LensProfileSource::Embedded => source == CorrectionSource::Embedded,
             LensProfileSource::None => {
-                source == CorrectionSource::Manual
-                    || (source == CorrectionSource::Image && s.lens.remove_chromatic_aberration)
+                matches!(
+                    source,
+                    CorrectionSource::Manual | CorrectionSource::Embedded
+                ) || (source == CorrectionSource::Image && s.lens.remove_chromatic_aberration)
             }
             LensProfileSource::AutoCalibrated => {
                 matches!(source, CorrectionSource::Image | CorrectionSource::Manual)
             }
-            LensProfileSource::Auto => true,
+            // Auto never estimates geometry (see above); image CA needs its switch.
+            LensProfileSource::Auto => {
+                source != CorrectionSource::Image || s.lens.remove_chromatic_aberration
+            }
         };
         if !mode_matches_source
             || (source == CorrectionSource::Image && (cw < 8 || ch < 8))
@@ -698,6 +750,8 @@ mod tests {
         p.metadata.height = 8;
         p.metadata.default_crop = [0, 0, 8, 8];
         p.pixels = Image::new(8, 8, vec![vec![0.2; 64]; 3]).unwrap();
+        // Image-estimated geometry is the explicit opt-in only (ENG-7).
+        p.lens.profile = LensProfileSource::AutoCalibrated;
         p.correction.source = CorrectionSource::Image;
         let sample = lens::CalibrationSample {
             vignette: [-0.12345678901234567, 0., 0.],

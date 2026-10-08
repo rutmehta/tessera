@@ -1300,3 +1300,33 @@ fn eng9b_adobe_hdr_shows_the_sdr_notice() {
     assert!(!noticed(&session), "no notice with HDR off");
     session.close().unwrap();
 }
+
+/// ENG-7b (S3): a named lens profile Tessera does not have shows a passive
+/// Develop notice through the session's render notices, and the frame is drawn
+/// with no profile correction rather than failing.
+#[test]
+fn unavailable_named_lens_profile_is_a_visible_render_notice() {
+    let Some(h) = harness("nef") else {
+        return;
+    };
+    let mut open = Open::new(&h.engine, &h.image_id);
+    let _ = open.attach((640, 480), 2);
+    open.next_final();
+    let lens_note = |notices: &[String]| notices.iter().any(|n| n.starts_with("Lens profile '"));
+    assert!(!lens_note(&open.session.render_notices().unwrap()));
+    open.session
+        .set_settings(
+            serde_json::json!({"lens": {"profile": {"kind": "database", "profile": "Adobe (Synthetic Missing Lens)"}}})
+                .to_string(),
+            false,
+        )
+        .unwrap();
+    open.next_final();
+    let notices = open.session.render_notices().unwrap();
+    assert!(
+        notices.iter().any(|n| n
+            == "Lens profile 'Adobe (Synthetic Missing Lens)' not available — no profile correction applied"),
+        "{notices:?}"
+    );
+    open.session.close().unwrap();
+}

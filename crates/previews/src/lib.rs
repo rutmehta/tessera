@@ -35,6 +35,14 @@ pub struct PreviewKey {
     pub orientation: u8,
     pub recipe_hash: [u8; 32],
 }
+/// Bumped when the renderer's output for an unchanged recipe changes, so disk
+/// previews rendered by an older engine are never served. Epoch 1 used
+/// unprefixed directories. Epoch 2 (ENG-7/7b): the default lens mode no
+/// longer applies image-estimated distortion, built-in DNG opcode corrections
+/// apply in every profile mode, and automatic CA is off by default. Stale
+/// directories are left to LRU eviction.
+pub const RENDER_EPOCH: u32 = 2;
+
 impl PreviewKey {
     pub fn new(bytes: &[u8], orientation: u8, recipe_hash: [u8; 32]) -> Self {
         Self {
@@ -43,9 +51,11 @@ impl PreviewKey {
             recipe_hash,
         }
     }
+    /// On-disk location. The render epoch is part of the path only, so key
+    /// equality and every key constructor stay unchanged.
     fn directory(&self) -> String {
         format!(
-            "{}-{}-{}",
+            "e{RENDER_EPOCH}-{}-{}-{}",
             hex(&self.file_hash),
             self.orientation,
             hex(&self.recipe_hash)
@@ -266,6 +276,48 @@ fn orient(img: RgbImage, orientation: u8) -> RgbImage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// ENG-7b: renders cached before the default lens mode stopped applying
+    /// image-estimated distortion (render epoch 1: unprefixed directories)
+    /// must not be served. Only the on-disk location changes; key equality,
+    /// `recipe_hash` and every key constructor are untouched.
+    #[test]
+    fn previews_cached_under_an_earlier_render_epoch_miss() {
+        let dir = tempfile::tempdir().unwrap();
+        let k = PreviewKey::new(b"epoch", 1, [3; 32]);
+        let legacy = format!(
+            "{}-{}-{}",
+            hex(&k.file_hash),
+            k.orientation,
+            hex(&k.recipe_hash)
+        );
+        for level in Level::ALL {
+            let d = dir.path().join(&legacy);
+            fs::create_dir_all(&d).unwrap();
+            fs::write(d.join(format!("{}.jpg", level.divisor())), [7; 16]).unwrap();
+        }
+        let s = PreviewStore::new(dir.path(), u64::MAX).unwrap();
+        assert_ne!(k.directory(), legacy);
+        assert!(k.directory().starts_with(&format!("e{RENDER_EPOCH}-")));
+        const { assert!(RENDER_EPOCH >= 2) };
+        for level in Level::ALL {
+            assert!(
+                s.get(&k, level).is_none(),
+                "{level:?} served a stale render"
+            );
+        }
+        s.put(&k, Level::Full, &[1; 16]).unwrap();
+        assert_eq!(s.get(&k, Level::Full).unwrap(), [1; 16]);
+        // Revision aliases use a new domain tag as well.
+        let photo = dir.path().join("photo.jpg");
+        fs::write(&photo, [0; 8]).unwrap();
+        let revision = PreviewKey::for_source(&photo, 64, 1, [0; 32]).unwrap();
+        assert!(
+            revision
+                .directory()
+                .starts_with(&format!("e{RENDER_EPOCH}-"))
+        );
+        assert_eq!(revision::REVISION_DOMAIN, b"tessera-preview-revision-v2\0");
+    }
     #[test]
     fn restart_recovers_cap_and_abandoned_writes() {
         let (p, s) = store(u64::MAX);

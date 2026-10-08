@@ -464,6 +464,7 @@ fn render_linear_impl(
         if !before_geometry {
             let mut common = settings.lens.clone();
             common.remove_chromatic_aberration = false;
+            common.chromatic_aberration_scale = 0.;
             rgb = crate::geometry_effects::geometry_mapped(
                 &rgb,
                 &settings.geometry,
@@ -661,11 +662,8 @@ pub(crate) fn camera_linear_prefix(
     };
     // Parse regardless of profile selection; malformed required data fails closed.
     let embedded = crate::embedded_lens::Embedded::parse(metadata)?;
-    let use_embedded = matches!(
-        settings.lens.profile,
-        engine_api::recipe::settings::LensProfileSource::Auto
-            | engine_api::recipe::settings::LensProfileSource::Embedded
-    );
+    let use_embedded =
+        crate::lens_resolve::built_in_selected(&settings.lens, Some(metadata), context);
     let raw = Image::from_pyramid(image.pyramid())?;
     let raw = if use_embedded {
         embedded.apply(raw, 0, Some(cfa), &settings.lens)?

@@ -7,6 +7,9 @@ fn composed_optics_edr_matches_f32_scalar_reference() {
     let raw = common::synthetic(2203, 257, 190, common::RGGB, [0, 0, 257, 190]);
     let mut settings = DevelopSettings::default();
     settings.tone.exposure = 2.;
+    // Calibrated distortion is the explicit opt-in since ENG-7 (Auto never
+    // estimates from image content).
+    settings.lens.profile = engine_api::recipe::settings::LensProfileSource::AutoCalibrated;
     let lens = pipeline_cpu::resolve_lens_sensor(
         raw.cfa().pyramid().pixels(),
         raw.metadata(),

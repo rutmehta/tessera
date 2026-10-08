@@ -1020,6 +1020,21 @@ pub fn render_one_cancellable(
     // source-copy export has its own path and retains editable instructions.
     let packet = packet.map(|p| p.without_development()).transpose()?;
     gpu::trace("CPU render/orient/resize/sharpen", started);
+    // ENG-7b/7c: a named lens profile that is not available is a per-file
+    // warning. "No lens profile available" for an Auto raw is not: with no
+    // lens database it is the normal case for nearly every raw, so as a
+    // per-file warning it would write a warnings file beside every export and
+    // drown real omissions (REV2 N-B2). Develop omits it for the same reason.
+    let lens_metadata = match &image.source {
+        RenderSource::Cfa { metadata, .. } => Some(*metadata),
+        RenderSource::CameraLinear(proxy) => Some(proxy.original_metadata()),
+        _ => None,
+    };
+    warnings.extend(
+        pipeline_cpu::lens_notice(&recipe.settings.lens, lens_metadata, &Default::default())
+            .filter(|n| matches!(n, pipeline_cpu::LensNotice::ProfileUnavailable { .. }))
+            .map(|n| n.to_string()),
+    );
     Ok(RenderedExport {
         warnings,
         used_gpu,

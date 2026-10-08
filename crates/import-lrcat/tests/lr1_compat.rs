@@ -4,6 +4,7 @@ use import_lrcat::{lua_develop, xmp};
 fn untranslated_recipe_bytes_match_pre_lr1() {
     let lua = [
         ("empty", "s = {}"),
+        // ENG-7: LensProfileEnable=1 adds one info note (lens profile unavailable).
         ("global", include_str!("data/lrc155/global.lua")),
         // LR-3f: this row now translates its explicit-source heal; its pin includes retouch.
         ("structures", include_str!("data/lrc155/structures.lua")),
@@ -22,6 +23,9 @@ fn untranslated_recipe_bytes_match_pre_lr1() {
             "s = { LensBlur = { Active = true }, RetouchInfo = { 'opaque' } }",
         ),
     ];
+    // ENG-7b: every row re-pinned: Remove CA defaults to off (history base,
+    // and settings for rows without AutoLateralCA; rows that set it now record
+    // the explicit value as an edit). Verified: no other byte differs.
     let mut actual = String::new();
     for (name, text) in lua {
         let r = lua_develop::parse(text, "15.4").unwrap().0;

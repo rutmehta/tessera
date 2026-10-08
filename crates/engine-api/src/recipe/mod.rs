@@ -722,13 +722,20 @@ mod tests {
         assert_eq!(got, PINNED_SERIALISATION);
     }
 
+    /// ENG-7b: every case re-pinned because `remove_chromatic_aberration`
+    /// defaults to false (Lightroom's Adobe Default). Recipes built from the
+    /// default, the 1.2 fixture (which has no `lens` object) and the partial
+    /// JSON take the new default; a stored value is never changed. Before:
+    /// default 3f57329d…35a7, sample 91de48b0…cc5d, sample compact 283b4a80…f8c4,
+    /// fixture 1.2 69a56ca6…b18c, legacy in memory 7c183437…2094,
+    /// partial a71da654…1bfe.
     const PINNED_SERIALISATION: [&str; 6] = [
-        "default 3f57329d481738be98d31b75551713a375640c16500ab43e15c83ba66ad335a7",
-        "sample 91de48b0ab9032ee76e1d850038fc122c28a895e973fce4e40299ea5a962cc5d",
-        "sample compact 283b4a801fae8d8beed93ef13fd6c70a8e5b49767cc0cc0328f6cb722d66f8c4",
-        "fixture 1.2 69a56ca65ca750fd0f6946002095e5e14bebcec60992012c60ec23d57026b18c",
-        "legacy in memory 7c183437c898e517f51131b4529eff27efa7ed1cafec9b0be7fb127f54322094",
-        "partial a71da65418bee6206f05fa874b161a8506e9003005ce82598bb1aa74e4d61bfe",
+        "default 97ffc6905b52e06bbd40070ae50779023b730da8320ce28cf1ded72a04daaeb6",
+        "sample 211d82d22d094a041ee1b662ff7417def02ccf7c546ebdd56067bc84ba4a9c1e",
+        "sample compact de83db3984ca3ad9b88ae12fed77cd718710e7f0aa3d74f9a726df88868f86b7",
+        "fixture 1.2 ba0790a206aff1bba37639674c0771f18c78f5bd183950441f2dac201ad17afc",
+        "legacy in memory 9558ba8f2d1202f1a2b4c2c5b38e3d3a0099af4504c70983352032517f2505ba",
+        "partial a645492a4e4602ccc5da1f64f538b3f294a1e38e5d34f82f193d31f334e850c8",
     ];
 
     #[test]
@@ -759,11 +766,14 @@ mod tests {
         // Golden value: if this changes, every render cache is invalidated.
         // Update deliberately, together with a note in CONTRACTS.md.
         // M2-04b: native process revision 2 (schema remains unchanged).
+        // ENG-7b (was b053649a…fd9e): the default recipe's
+        // remove_chromatic_aberration is now false. Stored recipes keep their
+        // stored value and hash; only new default recipes hash differently.
         let h = Recipe::default().recipe_hash().to_string();
         assert_eq!(h.len(), 64);
         assert_eq!(
             h,
-            "b053649aeb073ef9c9f3bd92d653c9cec26c5a2b5b9037e3399988355209fd9e"
+            "41831fe4732daaeacbcb9500b91388cb2a5b03d45b35f680d3e9756d25760542"
         );
     }
 

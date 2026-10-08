@@ -220,6 +220,11 @@ fn automatic_rgb_ca_and_vignette_are_real_corrections() {
         s.detail.noise_reduction.color = 0.;
         if ca {
             s.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
+            // Automatic CA is off by default since ENG-7b.
+            s.lens.remove_chromatic_aberration = true;
+        } else {
+            // Image-estimated vignetting is the explicit opt-in since ENG-7.
+            s.lens.profile = engine_api::recipe::settings::LensProfileSource::AutoCalibrated;
         }
         let cancel = CancellationToken::new();
         let actual = renderer.render_rgb_linear(&src, 0, &s, &cancel).unwrap();

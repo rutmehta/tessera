@@ -4,6 +4,7 @@ pub mod diagnostics;
 #[cfg(feature = "fixture")]
 pub mod fixture;
 mod geometry;
+mod lens_profile;
 mod lr2;
 pub mod noop;
 pub use lr2::LR2_APPROXIMATE_FIELDS;

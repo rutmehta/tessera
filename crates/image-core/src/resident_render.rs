@@ -102,7 +102,7 @@ impl Renderer {
         cancel.check()?;
         self.validate_settings(settings)?;
         let lens = self.interactive_lens_plan(image, settings, cancel)?;
-        if lens.is_none() && !crate::resident_export_lens_supported(&settings.lens) {
+        if lens.is_none() && !crate::resident_lens_supported(&settings.lens, image.metadata()) {
             return Ok(None);
         }
         let mut r = self.resolve(image, settings)?;
@@ -138,7 +138,7 @@ impl Renderer {
             self.validate_camera_linear_proxy(image, settings)?;
             return Ok(None);
         }
-        if !crate::resident_export_lens_supported(&settings.lens)
+        if !crate::resident_lens_supported(&settings.lens, image.metadata())
             || settings.geometry != Default::default()
         {
             return Ok(None);
@@ -468,7 +468,7 @@ impl Renderer {
         }
         self.validate_settings(settings)?;
         let lens = self.interactive_lens_plan(image, settings, &CancellationToken::new())?;
-        if lens.is_none() && !crate::resident_export_lens_supported(&settings.lens) {
+        if lens.is_none() && !crate::resident_lens_supported(&settings.lens, image.metadata()) {
             return Ok(false);
         }
         let mut r = self.resolve(image, settings)?;
@@ -626,7 +626,7 @@ impl Renderer {
         cancel: &CancellationToken,
     ) -> EngineResult<Option<pipeline_cpu::LensPlan>> {
         cancel.check()?;
-        if crate::resident_export_lens_supported(&settings.lens)
+        if crate::resident_lens_supported(&settings.lens, image.metadata())
             && settings.geometry == Default::default()
         {
             return Ok(None);
@@ -754,7 +754,7 @@ impl Renderer {
         }
         cancel.check()?;
         let lens = self.interactive_lens_plan(image, settings, cancel)?;
-        if lens.is_none() && !crate::resident_export_lens_supported(&settings.lens) {
+        if lens.is_none() && !crate::resident_lens_supported(&settings.lens, image.metadata()) {
             return Ok(None);
         }
         let mut r = self.resolve(image, settings)?;

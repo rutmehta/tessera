@@ -123,12 +123,14 @@ impl ResolvedLens {
         self.embedded.map(q, channel, s)
     }
     pub(crate) fn ca_active(&self, s: &LensSettings) -> bool {
-        s.remove_chromatic_aberration
-            && s.chromatic_aberration_scale != 0.
-            && (self
-                .sample
-                .as_ref()
-                .is_some_and(|p| p.ca_red != [1., 0., 0.] || p.ca_blue != [1., 0., 0.])
+        // Estimated/profile CA follows the Remove CA switch; built-in per-plane
+        // warps always apply (ENG-7b). A zero scale disables both.
+        s.chromatic_aberration_scale != 0.
+            && ((s.remove_chromatic_aberration
+                && self
+                    .sample
+                    .as_ref()
+                    .is_some_and(|p| p.ca_red != [1., 0., 0.] || p.ca_blue != [1., 0., 0.]))
                 || self.embedded.warps.iter().any(|w| {
                     w.coefficients.len() == 3
                         && (w.coefficients[0] != w.coefficients[1]
@@ -388,6 +390,110 @@ fn analysis_grid(width: u32, height: u32) -> (Vec<(u32, u32)>, usize, usize) {
     (points, w, h)
 }
 
+/// The supplied or database profile the lens setting selects: `Auto` matches
+/// the lens metadata, `Database` the profile name. Other modes select none.
+fn find_profile<'a>(
+    s: &LensSettings,
+    metadata: Option<&RawMetadata>,
+    context: &LensContext<'a>,
+) -> Option<&'a Profile> {
+    let named = match &s.profile {
+        LensProfileSource::Database { profile } => Some(profile.name.as_str()),
+        LensProfileSource::Auto => None,
+        _ => return None,
+    };
+    context.profile.or_else(|| {
+        context.database.and_then(|db| {
+            if let Some(name) = named {
+                db.profiles.iter().find(|p| p.model == name)
+            } else {
+                metadata.and_then(|m| {
+                    m.lens
+                        .as_ref()
+                        .and_then(|model| db.find_for_camera(&m.make, &m.model, "", model))
+                })
+            }
+        })
+    })
+}
+
+/// Whether the raw's built-in correction (its embedded DNG opcode lists) is
+/// selected. Lightroom applies a camera's built-in correction whatever the
+/// profile setting, so it applies for `Auto`, `Embedded`, `None` and a named
+/// profile that is not available (ENG-7b). An available named profile and the
+/// explicit `AutoCalibrated` estimate keep their own source.
+fn uses_built_in(s: &LensSettings, profile_found: bool) -> bool {
+    match s.profile {
+        LensProfileSource::Auto | LensProfileSource::Embedded | LensProfileSource::None => true,
+        LensProfileSource::Database { .. } => !profile_found,
+        LensProfileSource::AutoCalibrated => false,
+    }
+}
+
+/// [`uses_built_in`] for renderers that apply the raw-domain opcode stages
+/// before resolving the lens.
+pub(crate) fn built_in_selected(
+    s: &LensSettings,
+    metadata: Option<&RawMetadata>,
+    context: &LensContext<'_>,
+) -> bool {
+    uses_built_in(s, find_profile(s, metadata, context).is_some())
+}
+
+/// A passive note about the lens profile (ENG-7b), for Develop and export.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LensNotice {
+    /// A named profile is not available: no profile correction is applied
+    /// (the raw's built-in correction is, when it carries one).
+    ProfileUnavailable { name: String, built_in: bool },
+    /// `Auto` on a raw found neither a built-in correction nor a profile.
+    NoProfile,
+}
+
+impl std::fmt::Display for LensNotice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ProfileUnavailable { name, built_in } => {
+                write!(
+                    f,
+                    "Lens profile '{name}' not available — no profile correction applied"
+                )?;
+                if *built_in {
+                    write!(f, " (built-in lens correction applied)")?;
+                }
+                Ok(())
+            }
+            Self::NoProfile => write!(
+                f,
+                "No lens profile available — no profile correction applied"
+            ),
+        }
+    }
+}
+
+/// The lens profile notice for these settings, if any. `metadata` is `None`
+/// for RGB sources, which only get the unavailable-named-profile notice.
+pub fn lens_notice(
+    s: &LensSettings,
+    metadata: Option<&RawMetadata>,
+    context: &LensContext<'_>,
+) -> Option<LensNotice> {
+    let built_in = metadata
+        .and_then(|m| crate::embedded_lens::Embedded::parse(m).ok())
+        .is_some_and(|e| e.present());
+    let found = find_profile(s, metadata, context).is_some();
+    match &s.profile {
+        LensProfileSource::Database { profile } if !found => Some(LensNotice::ProfileUnavailable {
+            name: profile.name.as_str().to_owned(),
+            built_in,
+        }),
+        LensProfileSource::Auto if metadata.is_some() && !built_in && !found => {
+            Some(LensNotice::NoProfile)
+        }
+        _ => None,
+    }
+}
+
 fn resolve_with(
     (width, height): (u32, u32),
     analysis: impl FnOnce() -> EngineResult<(lens::GrayImage, lens::RgbImage)>,
@@ -414,86 +520,57 @@ fn resolve_with(
         .map(crate::embedded_lens::Embedded::parse)
         .transpose()?
         .unwrap_or_default();
-    if matches!(
-        s.profile,
-        LensProfileSource::Auto | LensProfileSource::Embedded
-    ) {
+    let profile = find_profile(s, metadata, context);
+    if uses_built_in(s, profile.is_some()) {
         out.embedded = embedded;
         if out.embedded.present() {
             out.source = CorrectionSource::Embedded;
             return Ok(out);
         }
-        if matches!(s.profile, LensProfileSource::Embedded) {
-            return Err(EngineError::invalid(
-                "lens profile",
-                "embedded calibration unavailable",
-            ));
-        }
     }
-    if matches!(
-        s.profile,
-        LensProfileSource::Auto | LensProfileSource::Database { .. }
-    ) {
-        let named = match &s.profile {
-            LensProfileSource::Database { profile } => Some(profile.name.as_str()),
-            _ => None,
+    if matches!(s.profile, LensProfileSource::Embedded) {
+        return Err(EngineError::invalid(
+            "lens profile",
+            "embedded calibration unavailable",
+        ));
+    }
+    if let Some(p) = profile {
+        let first = p
+            .samples
+            .first()
+            .ok_or_else(|| EngineError::invalid("lens profile", "empty profile"))?;
+        let positive = |x: f32, fallback: f64| {
+            if x.is_finite() && x > 0. {
+                x as f64
+            } else {
+                fallback
+            }
         };
-        let profile = context.profile.or_else(|| {
-            context.database.and_then(|db| {
-                if let Some(name) = named {
-                    db.profiles.iter().find(|p| p.model == name)
-                } else {
-                    metadata.and_then(|m| {
-                        m.lens
-                            .as_ref()
-                            .and_then(|model| db.find_for_camera(&m.make, &m.model, "", model))
-                    })
-                }
+        let capture = context.capture.unwrap_or_else(|| {
+            metadata.map_or([first.focal, first.aperture, first.distance], |m| {
+                [
+                    positive(m.focal_mm, first.focal),
+                    positive(m.aperture, first.aperture),
+                    first.distance,
+                ]
             })
         });
-        if let Some(p) = profile {
-            let first = p
-                .samples
-                .first()
-                .ok_or_else(|| EngineError::invalid("lens profile", "empty profile"))?;
-            let positive = |x: f32, fallback: f64| {
-                if x.is_finite() && x > 0. {
-                    x as f64
-                } else {
-                    fallback
-                }
-            };
-            let capture = context.capture.unwrap_or_else(|| {
-                metadata.map_or([first.focal, first.aperture, first.distance], |m| {
-                    [
-                        positive(m.focal_mm, first.focal),
-                        positive(m.aperture, first.aperture),
-                        first.distance,
-                    ]
-                })
-            });
-            out.sample = Some(
-                p.sample(capture[0], capture[1], capture[2])
-                    .ok_or_else(|| {
-                        EngineError::invalid(
-                            "lens profile",
-                            "invalid profile or capture coordinates",
-                        )
-                    })?,
-            );
-            out.source = CorrectionSource::Database;
-        } else if named.is_some() {
-            return Err(EngineError::invalid(
-                "lens profile",
-                "named profile not supplied",
-            ));
-        }
-    }
-    let calibrate = out.sample.is_none()
-        && matches!(
-            s.profile,
-            LensProfileSource::Auto | LensProfileSource::AutoCalibrated
+        out.sample = Some(
+            p.sample(capture[0], capture[1], capture[2])
+                .ok_or_else(|| {
+                    EngineError::invalid("lens profile", "invalid profile or capture coordinates")
+                })?,
         );
+        out.source = CorrectionSource::Database;
+    }
+    // A named profile that is not supplied (e.g. an imported Lightroom LCP
+    // Tessera does not have) applies no profile correction, like Lightroom with
+    // a missing profile; the raw's built-in correction still applies (above).
+    // It is never replaced by an estimate.
+    // Content-based distortion/vignette estimation is the explicit
+    // AutoCalibrated opt-in only. Auto (the recipe default) matches Lightroom:
+    // embedded correction, else a supplied/database profile, else nothing.
+    let calibrate = out.sample.is_none() && matches!(s.profile, LensProfileSource::AutoCalibrated);
     let ca_only = out.sample.is_none() && s.remove_chromatic_aberration;
     if (calibrate || ca_only) && width >= 8 && height >= 8 {
         let (gray, rgb) = analysis()?;

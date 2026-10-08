@@ -298,8 +298,16 @@ fn authenticated_lens_mode_source_mismatches_are_rejected() {
         ..Default::default()
     })
     .unwrap();
+    // ENG-7: an unavailable named profile legitimately resolves to no
+    // profile correction (it used to fail to resolve at all).
+    let unavailable = change_json(&bytes, |v| {
+        v["lens"]["profile"] = named.clone();
+        v["correction"]["source"] = serde_json::json!("Manual");
+        v["correction"]["sample"] = serde_json::Value::Null;
+    });
+    assert!(CameraLinearProxy::decode_persistent(&unavailable).is_ok());
     for (mode, source, with_sample) in [
-        (named.clone(), "Manual", false),
+        (named.clone(), "Manual", true),
         (named, "Image", true),
         (serde_json::json!({"kind":"none"}), "Database", true),
         (
@@ -779,4 +787,103 @@ fn legacy_ca_lr7b_optional_prefix_survives_persistent_codec() {
     assert!(
         render_linear_scaled(&settings, &RenderSource::CameraLinear(&decoded.proxy), 1).is_err()
     );
+}
+
+/// ENG-7: a container written before Auto stopped estimating may carry an
+/// image-estimated distortion/vignette under `Auto`. Reopening it applies the
+/// current meaning of Auto (embedded, else profile, else nothing): the estimate
+/// is dropped and an image-estimated CA (baked by generation, governed by
+/// `remove_chromatic_aberration`) is kept. `AutoCalibrated` keeps its estimate.
+#[test]
+fn eng7_legacy_auto_estimate_is_not_applied_on_reopen() {
+    let bytes = proxy().encode_persistent(100).unwrap();
+    let estimate = |ca: bool| {
+        serde_json::to_value(lens::CalibrationSample {
+            distortion: lens::BrownConrady {
+                k1: -0.101,
+                ..Default::default()
+            },
+            vignette: [-0.05, 0., 0.],
+            ca_red: if ca { [1.01, 0., 0.] } else { [1., 0., 0.] },
+            ..Default::default()
+        })
+        .unwrap()
+    };
+    let legacy = |mode: serde_json::Value, ca: bool| {
+        change_json(&bytes, |v| {
+            v["lens"]["profile"] = mode;
+            v["lens"]["remove_chromatic_aberration"] = serde_json::json!(true);
+            v["correction"]["source"] = serde_json::json!("Image");
+            v["correction"]["sample"] = estimate(ca);
+        })
+    };
+    let reopened = |bytes: &[u8]| {
+        let decoded = CameraLinearProxy::decode_persistent(bytes).unwrap();
+        snapshot(&decoded.proxy.encode_persistent(100).unwrap())["correction"].clone()
+    };
+    // Estimate plus CA: only the CA survives.
+    let c = reopened(&legacy(serde_json::json!({"kind":"auto"}), true));
+    assert_eq!(c["source"], "Image", "{c}");
+    assert_eq!(c["sample"]["distortion"]["k1"], 0.0, "{c}");
+    assert_eq!(c["sample"]["vignette"], serde_json::json!([0.0, 0.0, 0.0]));
+    assert_eq!(c["sample"]["ca_red"], serde_json::json!([1.01, 0.0, 0.0]));
+    // Estimate only: nothing is applied.
+    let c = reopened(&legacy(serde_json::json!({"kind":"auto"}), false));
+    assert_eq!(c["source"], "Manual", "{c}");
+    assert!(c["sample"].is_null(), "{c}");
+    // The explicit opt-in is unchanged.
+    let c = reopened(&legacy(serde_json::json!({"kind":"auto_calibrated"}), true));
+    assert_eq!(c["source"], "Image");
+    assert_eq!(c["sample"]["distortion"]["k1"], -0.101);
+}
+
+/// One DNG FixVignetteRadial opcode payload (a built-in correction).
+fn eng7c_vignette_opcode() -> Vec<u8> {
+    let mut b = Vec::new();
+    for x in [1_u32, 3, 0x01030000, 0, 56] {
+        b.extend(x.to_be_bytes());
+    }
+    for x in [0.5_f64, 0., 0., 0., 0., 0.5, 0.5] {
+        b.extend(x.to_be_bytes());
+    }
+    b
+}
+
+/// ENG-7c (REV2 N-B1): a container generated before ENG-7b for a raw with
+/// built-in opcodes in lens mode None (or with an unavailable named profile)
+/// recorded no built-in correction (source Manual). It cannot be reinterpreted
+/// (its pixels lack the built-in stage), so it is reported as stale, to be
+/// regenerated from the original, never as a corrupt container.
+#[test]
+fn eng7c_legacy_none_mode_opcode_container_is_stale() {
+    use engine_api::{
+        EngineError,
+        recipe::settings::{LensProfileRef, LensProfileSource},
+    };
+    let bytes = proxy().encode_persistent(100).unwrap();
+    let named = serde_json::to_value(LensProfileSource::Database {
+        profile: LensProfileRef::named("Adobe (Synthetic Missing Lens)"),
+    })
+    .unwrap();
+    for list in 0..3 {
+        for mode in [serde_json::json!({"kind":"none"}), named.clone()] {
+            let legacy = change_json(&bytes, |v| {
+                let mut lists = serde_json::json!([null, null, null]);
+                lists[list] = serde_json::to_value(eng7c_vignette_opcode()).unwrap();
+                v["metadata"]["opcode_lists"] = lists;
+                v["metadata"]["has_opcode_list"] = serde_json::json!(true);
+                v["lens"]["profile"] = mode.clone();
+                v["correction"]["source"] = serde_json::json!("Manual");
+                v["correction"]["sample"] = serde_json::Value::Null;
+            });
+            match CameraLinearProxy::decode_persistent(&legacy) {
+                Err(EngineError::Unsupported { what }) => assert!(
+                    what.contains("stale") && what.contains("regenerate from original"),
+                    "list {list} {mode}: {what}"
+                ),
+                Err(e) => panic!("list {list} {mode}: not reported stale: {e}"),
+                Ok(_) => panic!("list {list} {mode}: legacy snapshot accepted"),
+            }
+        }
+    }
 }

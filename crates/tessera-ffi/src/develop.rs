@@ -2880,6 +2880,16 @@ impl DevelopSession {
         {
             notes.push(export::ADOBE_HDR_NOTICE.to_owned());
         }
+        // ENG-7b: a named lens profile that is not available renders with no
+        // profile correction, whatever the recipe's origin (native, sidecar
+        // XMP, Lightroom catalog).
+        let image = &self.shared.image;
+        let metadata = image.rgb().is_none().then(|| image.metadata());
+        notes.extend(
+            pipeline_cpu::lens_notice(&st.live.lens, metadata, &Default::default())
+                .filter(|n| matches!(n, pipeline_cpu::LensNotice::ProfileUnavailable { .. }))
+                .map(|n| n.to_string()),
+        );
         notes.sort();
         notes.dedup();
         Ok(notes)

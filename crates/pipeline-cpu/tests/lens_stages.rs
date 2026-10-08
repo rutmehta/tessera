@@ -211,6 +211,8 @@ fn exact_profile_ca_precedes_bayer_demosaic_and_channel_mixing() {
         s.detail.sharpening.amount = 0.;
         s.detail.noise_reduction.color = 0.;
         s.tone.contrast = 37.;
+        // Profile CA follows Remove CA, which is off by default since ENG-7b.
+        s.lens.remove_chromatic_aberration = true;
         for method in [DemosaicMethod::Auto, DemosaicMethod::Bilinear] {
             s.demosaic.method = method;
             let cfa = raw_decode::CfaImage::from_linear(32, 24, raw.clone()).unwrap();

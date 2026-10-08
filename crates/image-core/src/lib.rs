@@ -52,8 +52,19 @@ pub use render::{
 };
 pub use source::RawImage;
 
+/// [`resident_export_lens_supported`] for a specific image: the raw must also
+/// carry no DNG opcode lists, whose built-in corrections apply in every lens
+/// mode, `None` included (ENG-7b), and which the resident graph does not run.
+pub fn resident_lens_supported(
+    lens: &engine_api::recipe::settings::LensSettings,
+    metadata: &raw_decode::RawMetadata,
+) -> bool {
+    resident_export_lens_supported(lens) && metadata.opcode_lists.iter().all(Option::is_none)
+}
+
 /// The resident graph does not implement lens correction/auto-calibration.
-/// Auto is not inert even when RAW metadata has no embedded lens opcodes.
+/// Auto still resolves embedded opcodes or a supplied profile when present
+/// (it never estimates from image content since ENG-7), so only None qualifies.
 pub fn resident_export_lens_supported(lens: &engine_api::recipe::settings::LensSettings) -> bool {
     lens.profile == engine_api::recipe::settings::LensProfileSource::None
         && lens.legacy_ca_red.unwrap_or(0.) == 0.

@@ -15,8 +15,11 @@ fn lr7e_acr_packets_match_main() {
         let bytes = recipe.to_json().unwrap();
         eprintln!("{name}: {} {}", bytes.len(), blake3::hash(&bytes));
         let expected = match name {
-            "original" => "bd82c6ac0009c1f11342a8d837117c3c6f598591f43feb7096b1217d8cca0dbb",
-            "extended" => "9b94b7dff899062b78c11e353b61aa95735145585db9a59e4396782c92c41de9",
+            // ENG-7b: re-pinned (was bd82c6ac…0dbb); Remove CA defaults to off
+            // and neither packet sets crs:AutoLateralCA.
+            "original" => "c1d516e43f369225c94d36ebcf28a77fef67c4351c57edcef4b1472c3525e22c",
+            // ENG-7b: re-pinned (was 9b94b7df…1de9), same reason.
+            "extended" => "4ae81080433d4cd97649810fffc50c5a88143c99d5d5e6ef6c02e739c81ced23",
             _ => unreachable!(),
         };
         assert_eq!(blake3::hash(&bytes).to_hex().as_str(), expected, "{name}");

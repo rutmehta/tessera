@@ -172,10 +172,8 @@ impl CameraLinearProxy {
         // Late sensor-coordinate operations cannot be replayed on crop-first
         // pixels without explicit original-sensor bin-centre transforms.
         let embedded = crate::embedded_lens::Embedded::parse(metadata)?;
-        let use_embedded = matches!(
-            settings.lens.profile,
-            LensProfileSource::Auto | LensProfileSource::Embedded
-        );
+        let use_embedded =
+            crate::lens_resolve::built_in_selected(&settings.lens, Some(metadata), context);
         if use_embedded && !embedded.stages[2].is_empty() {
             return Err(required(
                 "OpcodeList3 sensor-coordinate corrections require original",
