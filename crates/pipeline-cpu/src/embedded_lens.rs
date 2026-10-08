@@ -127,7 +127,9 @@ pub(crate) fn sample_phase(
     (at(a, b) * (1. - u.fract()) + at(a + 1, b) * u.fract()) * (1. - v.fract())
         + (at(a, b + 1) * (1. - u.fract()) + at(a + 1, b + 1) * u.fract()) * v.fract()
 }
-/// Lanczos-3 weight (the composed geometry map's kernel, `MapPlan::apply`).
+/// Lanczos-3 weight (the composed geometry map's kernel, `MapPlan::apply`):
+/// the direct form [`lanczos3_taps`] is checked against.
+#[cfg(test)]
 pub(crate) fn lanczos3_weight(x: f64) -> f64 {
     if x.abs() < 1e-12 {
         1.
