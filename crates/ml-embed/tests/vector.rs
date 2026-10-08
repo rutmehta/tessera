@@ -71,13 +71,11 @@ fn hnsw_top_five_recall_on_a_thousand_random_vectors() -> anyhow::Result<()> {
         let expected = exact.search(&query, 5)?;
         let actual = approximate.search(&query, 5)?;
         assert_eq!(actual.len(), 5);
-        // HNSW is approximate: the exact nearest neighbour must be found, and
-        // graph construction may omit at most one lower-ranked neighbour.
-        assert!(
-            actual.iter().any(|(id, _)| *id == expected[0].0),
-            "exact top-1 {:?} missing from {actual:?}",
-            expected[0]
-        );
+        // Both indexes rank the same stored vectors by the same cosine and
+        // tie-break, so the exact nearest neighbour, once found, is first.
+        // HNSW is approximate: graph construction may omit at most one
+        // lower-ranked neighbour.
+        assert_eq!(actual[0].0, expected[0].0, "{actual:?} vs {expected:?}");
         let overlap = actual
             .iter()
             .filter(|(id, _)| expected.iter().any(|(exact_id, _)| id == exact_id))
@@ -92,6 +90,48 @@ fn hnsw_top_five_recall_on_a_thousand_random_vectors() -> anyhow::Result<()> {
             }
         }
     }
+    Ok(())
+}
+
+/// Photo embeddings are clustered (bursts, near-duplicates), the case HNSW
+/// link pruning handles worst: 200 clusters of 20 points with 5% noise, and
+/// 100 queries near random cluster centres. The exact nearest neighbour must
+/// be in the approximate top-5 for at least 98 of them.
+#[test]
+fn hnsw_recall_on_clustered_vectors() -> anyhow::Result<()> {
+    const DIMENSION: usize = 64;
+    let dir = tempfile::tempdir()?;
+    let mut seed = 0x9e37_79b9_u64;
+    let mut uniform = move || {
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        ((seed >> 32) as u32 as f64 / u32::MAX as f64 * 2.0 - 1.0) as f32
+    };
+    let centres: Vec<Vec<f32>> = (0..200)
+        .map(|_| (0..DIMENSION).map(|_| uniform()).collect())
+        .collect();
+    let mut near =
+        |centre: &[f32]| -> Vec<f32> { centre.iter().map(|c| c + 0.05 * uniform()).collect() };
+    let mut approximate = HnswVectorIndex::open(dir.path(), "v1", DIMENSION)?;
+    for (cluster, centre) in centres.iter().enumerate() {
+        for member in 0..20 {
+            approximate.insert(ImageId((cluster * 20 + member) as u128), &near(centre))?;
+        }
+    }
+    let exact = SqliteVectorIndex::open(dir.path(), "v1", DIMENSION)?;
+    let mut found = 0;
+    for query in 0..100 {
+        let query = near(&centres[(query * 37) % centres.len()]);
+        let expected = exact.search(&query, 1)?;
+        let actual = approximate.search(&query, 5)?;
+        if actual.iter().any(|(id, _)| *id == expected[0].0) {
+            found += 1;
+        }
+    }
+    eprintln!("clustered recall: exact top-1 in the top-5 for {found} of 100 queries");
+    assert!(
+        found >= 98,
+        "exact top-1 in the top-5 for {found} of 100 queries"
+    );
     Ok(())
 }
 
