@@ -9,16 +9,10 @@ use std::time::{Duration, Instant};
 use tessera_ffi::surface::testing::{create_r8, create_rgba8};
 use tessera_ffi::*;
 
+/// The first RAW fixture with extension `ext`. Absent: a SKIPPED line naming
+/// the running test, or a failure under `TESSERA_REQUIRE_RAW_FIXTURES`.
 fn fixture(ext: &str) -> Option<PathBuf> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
-    let found = std::fs::read_dir(&root)
-        .ok()?
-        .map(|e| e.unwrap().path())
-        .find(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case(ext)));
-    if found.is_none() {
-        eprintln!("skipping: no .{ext} fixture in {}", root.display());
-    }
-    found
+    test_fixtures::raw::with_extension(&test_fixtures::current_test(), ext)
 }
 
 struct Listener {
@@ -567,9 +561,9 @@ fn subject_mask_on_the_canon_fixture_with_cached_models() {
                 .join("../../tools/orchestrate/wp/M3-04/.cache/segment-registry")
         });
     if !cache.is_dir() {
-        eprintln!(
-            "SKIP offline: no segmentation weights at {}",
-            cache.display()
+        test_fixtures::models::skipped(
+            "subject_mask_on_the_canon_fixture_with_cached_models",
+            "no segmentation weights (set TESSERA_SEGMENT_MODELS, see crates/ml-segment/README.md)",
         );
         return;
     }

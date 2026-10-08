@@ -3,7 +3,7 @@
 #![cfg(target_os = "macos")]
 
 use engine_api::tile::{Extent, Tile, TileCoord, TileLayout};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 use tessera_ffi::surface::{Surface, testing::create_rgba8, write_rgba8};
@@ -81,16 +81,10 @@ fn iosurface_writer_round_trips_a_known_pattern() {
 
 // ───────────────────────────── session helpers ─────────────────────────────
 
+/// The first RAW fixture with extension `ext`. Absent: a SKIPPED line naming
+/// the running test, or a failure under `TESSERA_REQUIRE_RAW_FIXTURES`.
 fn fixture(ext: &str) -> Option<PathBuf> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
-    let found = std::fs::read_dir(&root)
-        .ok()?
-        .map(|e| e.unwrap().path())
-        .find(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case(ext)));
-    if found.is_none() {
-        eprintln!("skipping: no .{ext} fixture in {}", root.display());
-    }
-    found
+    test_fixtures::raw::with_extension(&test_fixtures::current_test(), ext)
 }
 
 #[derive(Default)]
@@ -1055,7 +1049,6 @@ fn export_batch_does_not_starve_slider_drag() {
         eprintln!("CI: skipping export/slider starvation test");
         return;
     }
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
     let names = [
         "canon-cr3.CR3",
         "sony-arw.ARW",
@@ -1063,10 +1056,10 @@ fn export_batch_does_not_starve_slider_drag() {
         "fuji-raf.RAF",
         "sample.dng",
     ];
-    if names.iter().any(|n| !root.join(n).is_file()) {
-        eprintln!("skipping: five RAW fixtures required in {}", root.display());
+    if test_fixtures::raw::files("export_batch_does_not_starve_slider_drag", &names).is_none() {
         return;
     }
+    let root = test_fixtures::raw::root();
     let dir = tempfile::tempdir().unwrap();
     let photos = dir.path().join("photos");
     std::fs::create_dir(&photos).unwrap();

@@ -19,4 +19,5 @@ kamadak-exif.workspace = true
 blake3.workspace = true
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 tempfile.workspace = true

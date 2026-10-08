@@ -106,18 +106,7 @@ fn lens_falls_back_to_makernotes() {
 
 #[test]
 fn fixture_previews_select_largest_jpeg_not_bitmap() {
-    let root = std::env::var_os("RAW_DECODE_FIXTURES")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw"));
-    if !root.exists() {
-        eprintln!("skipping preview fixtures: fixtures/raw is absent");
-        return;
-    }
-    for entry in std::fs::read_dir(root).unwrap() {
-        let path = entry.unwrap().path();
-        if !path.is_file() {
-            continue;
-        }
+    for path in test_fixtures::raw::all(&test_fixtures::current_test()) {
         let mut raw = RawFile::open(&path).unwrap();
         let largest = unsafe {
             let list = &(*raw.raw).thumbs_list;

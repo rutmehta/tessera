@@ -1215,13 +1215,10 @@ fn soft_proof_lut_flags_out_of_gamut_and_simulates_paper() {
 
 #[test]
 fn raw_export_with_the_web_preset_and_a_binned_print_render() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
-    let Some(raw) = std::fs::read_dir(&root).ok().and_then(|d| {
-        d.flatten()
-            .map(|e| e.path())
-            .find(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("nef")))
-    }) else {
-        eprintln!("skipping: no NEF fixture in {}", root.display());
+    let Some(raw) = test_fixtures::raw::with_extension(
+        "raw_export_with_the_web_preset_and_a_binned_print_render",
+        "nef",
+    ) else {
         return;
     };
     let dir = tempfile::tempdir().unwrap();

@@ -20,7 +20,6 @@ fn json(app: &Path, args: &[&str]) -> Value {
 }
 #[test]
 fn raw_workflow() {
-    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
     let names = [
         "canon-cr3.CR3",
         "nikon-nef.NEF",
@@ -28,10 +27,10 @@ fn raw_workflow() {
         "fuji-raf.RAF",
         "sample.dng",
     ];
-    if names.iter().any(|name| !fixtures.join(name).is_file()) {
-        eprintln!("SKIP: raw fixture set absent");
+    if test_fixtures::raw::files("raw_workflow", &names).is_none() {
         return;
     }
+    let fixtures = test_fixtures::raw::root();
     let temp = tempfile::tempdir().unwrap();
     let photos = temp.path().join("photos");
     std::fs::create_dir(&photos).unwrap();

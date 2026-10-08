@@ -2203,6 +2203,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "test-fixtures",
  "thiserror 2.0.21",
  "walkdir",
 ]
@@ -2704,6 +2705,7 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "cc",
+ "test-fixtures",
  "thiserror 2.0.21",
 ]
 
@@ -3662,6 +3664,7 @@ dependencies = [
  "pollster",
  "raw-decode",
  "tempfile",
+ "test-fixtures",
  "wgpu",
 ]
 
@@ -4110,6 +4113,7 @@ dependencies = [
  "libc",
  "libraw-ffi",
  "tempfile",
+ "test-fixtures",
  "zune-jpeg 0.5.15",
 ]
 
@@ -5002,6 +5006,7 @@ dependencies = [
  "style-profile",
  "tempfile",
  "tessera-mcp",
+ "test-fixtures",
  "tether",
 ]
 
@@ -5052,6 +5057,7 @@ dependencies = [
  "sidecar",
  "style-profile",
  "tempfile",
+ "test-fixtures",
  "tether",
  "thiserror 2.0.21",
  "tiff 0.10.3",

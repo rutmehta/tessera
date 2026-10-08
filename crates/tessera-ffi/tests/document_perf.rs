@@ -14,7 +14,6 @@ use compositor::{
     raster::Depth,
 };
 use engine_api::tile::{Extent, Tile, TileCoord};
-use std::path::Path;
 use std::sync::{
     Arc, Condvar, Mutex,
     atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -437,12 +436,12 @@ fn bench_p14_mutations_during_slow_style_frames() {
 #[test]
 #[ignore]
 fn bench_p17_document_frames_during_photo_export() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
-    let raw = root.join("sample.dng");
-    if !raw.exists() {
-        eprintln!("skipping: no {}", raw.display());
+    let Some(raw) = test_fixtures::raw::file(
+        "bench_p17_document_frames_during_photo_export",
+        "sample.dng",
+    ) else {
         return;
-    }
+    };
     let (dir, engine) = engine();
     let photos = dir.path().join("raw");
     std::fs::create_dir(&photos).unwrap();

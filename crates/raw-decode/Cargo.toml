@@ -20,6 +20,7 @@ blake3.workspace = true
 libc = "0.2"
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 criterion = "0.5"
 
 [[bench]]

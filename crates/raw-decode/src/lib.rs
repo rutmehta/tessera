@@ -323,32 +323,11 @@ mod fixture_tests {
 
     #[test]
     fn fixtures_decode() {
-        let root = std::env::var_os("RAW_DECODE_FIXTURES")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw"));
-        if !root.exists() {
-            eprintln!("skipping RAW fixture tests: fixtures/raw is absent");
+        let entries = test_fixtures::raw::all(&test_fixtures::current_test());
+        if entries.is_empty() {
             return;
         }
-        let mut entries: Vec<_> = std::fs::read_dir(root)
-            .unwrap()
-            .map(|e| e.unwrap().path())
-            .filter(|p| {
-                p.is_file()
-                    && p.extension().is_some_and(|e| {
-                        matches!(
-                            e.to_string_lossy().to_ascii_lowercase().as_str(),
-                            "cr3" | "arw" | "nef" | "raf" | "dng"
-                        )
-                    })
-            })
-            .collect();
-        entries.sort();
-        assert!(
-            !entries.is_empty(),
-            "fixture directory exists but contains no RAW files"
-        );
-        for extension in ["cr3", "arw", "nef", "raf", "dng"] {
+        for extension in test_fixtures::raw::EXTENSIONS {
             assert!(
                 entries
                     .iter()
