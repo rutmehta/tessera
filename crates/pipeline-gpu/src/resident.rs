@@ -50,11 +50,82 @@ impl Drop for Storage {
         }
     }
 }
+/// A transaction's transient buffers. Every byte it holds is counted
+/// ([`Meter`]): recycled buffers when the transaction takes them in, fresh
+/// allocations when made, and both until they are released. Export budget
+/// checks compare that true footprint with the scratch share (ENG-13).
 #[derive(Default)]
 struct Pool {
+    /// Buffers returned during this transaction. Commands already encoded may
+    /// still use them, so they are released only after a completed
+    /// submission (`checkpoint`) or when the transaction ends.
     free: Vec<wgpu::Buffer>,
-    allocated_bytes: u64,
+    /// Recycled buffers this transaction has not handed out (oldest last):
+    /// nothing references them, so dropping one releases its memory at once.
+    idle: Vec<wgpu::Buffer>,
     allocations: u64,
+    meter: Meter,
+}
+impl Pool {
+    /// Drops idle buffers, oldest first, until `bytes` more fit within `cap`;
+    /// false when they still do not.
+    fn make_room(&mut self, bytes: u64, cap: u64) -> bool {
+        while self.meter.live().saturating_add(bytes) > cap {
+            let Some(buffer) = self.idle.pop() else {
+                return false;
+            };
+            self.meter.release(buffer.size());
+        }
+        true
+    }
+    /// Drops every idle buffer (at readback no more scratch is requested).
+    fn release_idle(&mut self) {
+        let bytes: u64 = self.idle.drain(..).map(|b| b.size()).sum();
+        self.meter.release(bytes);
+    }
+    /// Bytes this transaction has used (live payloads and returned buffers),
+    /// excluding recycled buffers it has not touched.
+    fn touched(&self) -> u64 {
+        self.meter.live() - self.idle.iter().map(wgpu::Buffer::size).sum::<u64>()
+    }
+}
+/// Device bytes a transaction holds: `recycled + fresh - released`.
+/// Budget checks and the `GpuStats` footprint both read this.
+#[derive(Default, Clone, Copy, Debug)]
+pub(crate) struct Meter {
+    pub(crate) recycled: u64,
+    pub(crate) fresh: u64,
+    pub(crate) released: u64,
+    /// Largest `live()` seen during the transaction.
+    pub(crate) peak: u64,
+}
+impl Meter {
+    pub(crate) fn live(&self) -> u64 {
+        self.recycled + self.fresh - self.released
+    }
+    fn take_in(&mut self, bytes: u64) {
+        self.recycled += bytes;
+        self.peak = self.peak.max(self.live());
+    }
+    fn allocate(&mut self, bytes: u64) {
+        self.fresh += bytes;
+        self.peak = self.peak.max(self.live());
+    }
+    fn release(&mut self, bytes: u64) {
+        self.released += bytes;
+    }
+    /// Publishes this transaction's footprint to the backend's counters.
+    pub(crate) fn publish(&self, counters: &crate::batch::Counters) {
+        counters
+            .last_resident_live_bytes
+            .store(self.live(), Ordering::Relaxed);
+        counters
+            .last_resident_peak_bytes
+            .store(self.peak, Ordering::Relaxed);
+        counters
+            .last_resident_recycled_bytes
+            .store(self.recycled, Ordering::Relaxed);
+    }
 }
 
 struct Entry {
@@ -192,7 +263,12 @@ struct Recycler {
 }
 impl Drop for Recycler {
     fn drop(&mut self) {
-        let free = std::mem::take(&mut self.pool.lock().unwrap().free);
+        let mut pool = self.pool.lock().unwrap();
+        // Most recently retired first: this transaction's buffers, then the
+        // recycled ones it never used.
+        let mut free = std::mem::take(&mut pool.free);
+        free.append(&mut pool.idle);
+        drop(pool);
         if !free.is_empty() {
             crate::batch::recycle(&self.recycled, free, self.cap);
         }
@@ -204,8 +280,11 @@ impl<'a> Batch<'a> {
         // Buffers retired by completed transactions: no submitted work uses
         // them any more, and reuse skips allocation and wgpu's zero fill.
         let free = std::mem::take(&mut *gpu.recycled.lock().unwrap());
+        let mut meter = Meter::default();
+        meter.take_in(free.iter().map(wgpu::Buffer::size).sum());
         let pool = Arc::new(Mutex::new(Pool {
-            free,
+            idle: free,
+            meter,
             ..Default::default()
         }));
         Self {
@@ -269,19 +348,16 @@ impl<'a> Batch<'a> {
                 "size exceeds device storage limit",
             ));
         }
-        let mut pool = self.pool.lock().unwrap();
-        if let Some(i) = pool.free.iter().position(|b| b.size() == bytes as u64) {
-            return Ok(pool.free.swap_remove(i));
-        }
-        if self.gpu.export_float
-            && pool.allocated_bytes.saturating_add(bytes as u64) > self.gpu.export_scratch
         {
-            return Err(EngineError::Unsupported {
-                what: "export GPU scratch exceeds its budget".into(),
-            });
+            let mut pool = self.pool.lock().unwrap();
+            if let Some(i) = pool.free.iter().position(|b| b.size() == bytes as u64) {
+                return Ok(pool.free.swap_remove(i));
+            }
+            if let Some(i) = pool.idle.iter().position(|b| b.size() == bytes as u64) {
+                return Ok(pool.idle.remove(i));
+            }
         }
-        pool.allocated_bytes += bytes as u64;
-        pool.allocations += 1;
+        self.charge(bytes as u64)?;
         Ok(device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("resident tile"),
             size: bytes as u64,
@@ -290,6 +366,20 @@ impl<'a> Batch<'a> {
                 | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         }))
+    }
+    /// Counts a fresh allocation of `bytes`. An export transaction first
+    /// drops idle recycled buffers to make room, and refuses an allocation
+    /// that would take its footprint past its scratch share.
+    fn charge(&self, bytes: u64) -> EngineResult<()> {
+        let mut pool = self.pool.lock().unwrap();
+        if self.gpu.export_float && !pool.make_room(bytes, self.gpu.export_scratch) {
+            return Err(EngineError::Unsupported {
+                what: "export GPU scratch exceeds its budget".into(),
+            });
+        }
+        pool.allocations += 1;
+        pool.meter.allocate(bytes);
+        Ok(())
     }
     fn tile(&self, coord: TileCoord, layout: TileLayout, buffer: wgpu::Buffer) -> ResidentTile {
         ResidentTile {
@@ -1052,8 +1142,7 @@ impl ResidentBatch for Batch<'_> {
         // boundaries: drain its own submitted work, then wait for the
         // viewport (spec 08 §2). Nothing is read back or published.
         let yielding = self.gpu.export_float && jobs::interactive_pending() > 0;
-        if !yielding
-            && (!self.gpu.export_float || self.pool.lock().unwrap().allocated_bytes < 128 << 20)
+        if !yielding && (!self.gpu.export_float || self.pool.lock().unwrap().touched() < 128 << 20)
         {
             return Ok(());
         }
@@ -1077,8 +1166,10 @@ impl ResidentBatch for Batch<'_> {
             .poll(wgpu::PollType::wait_indefinitely())
             .map_err(|e| EngineError::internal(e.to_string()))?;
         let mut pool = self.pool.lock().unwrap();
+        // Every byte in `free` is counted, so releasing it keeps the count
+        // exact (idle recycled buffers stay available for reuse).
         let retired: u64 = pool.free.drain(..).map(|buffer| buffer.size()).sum();
-        pool.allocated_bytes = pool.allocated_bytes.saturating_sub(retired);
+        pool.meter.release(retired);
         drop(pool);
         if yielding {
             jobs::yield_to_interactive(cancel, EXPORT_QUIET, EXPORT_MAX_YIELD)?;
@@ -1137,6 +1228,7 @@ impl ResidentBatch for Batch<'_> {
         Ok(tile.clone())
     }
     fn upload(&mut self, tile: &Tile) -> EngineResult<ResidentTile> {
+        self.charge(std::mem::size_of_val(tile.samples::<f32>()?) as u64)?;
         let buffer = self.host_buffer(
             Some("raw upload"),
             bytemuck::cast_slice(tile.samples::<f32>()?),
@@ -1144,11 +1236,6 @@ impl ResidentBatch for Batch<'_> {
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST,
         );
-        {
-            let mut pool = self.pool.lock().unwrap();
-            pool.allocations += 1;
-            pool.allocated_bytes += buffer.size();
-        }
         self.gpu.counters.uploads.fetch_add(1, Ordering::Relaxed);
         Ok(self.tile(tile.coord(), tile.layout(), buffer))
     }
@@ -1616,15 +1703,11 @@ impl ResidentBatch for Batch<'_> {
             0
         };
         let bytes = if histogram { 4096 } else { pixel_bytes };
-        if self.gpu.export_float
-            && self
-                .pool
-                .lock()
-                .unwrap()
-                .allocated_bytes
-                .saturating_add(bytes as u64)
-                > self.gpu.export_scratch
-        {
+        if self.gpu.export_float && {
+            let mut pool = self.pool.lock().unwrap();
+            pool.release_idle();
+            pool.meter.live().saturating_add(bytes as u64) > self.gpu.export_scratch
+        } {
             return Err(EngineError::Unsupported {
                 what: "export GPU scratch plus readback exceeds its budget".into(),
             });
@@ -1659,7 +1742,8 @@ impl ResidentBatch for Batch<'_> {
         };
         let (allocated, buffers) = {
             let p = self.pool.lock().unwrap();
-            (p.allocated_bytes, p.allocations)
+            p.meter.publish(&self.gpu.counters);
+            (p.meter.live(), p.allocations)
         };
         self.gpu
             .counters

@@ -91,16 +91,12 @@ impl Batch<'_> {
         }
         // Never obtain this from the compute pool: queue writes execute before
         // the entire pending compute submission, regardless of encode order.
+        self.charge(std::mem::size_of_val(payload.as_slice()) as u64)?;
         let src = self.host_buffer(
             Some("packed CFA output"),
             bytemuck::cast_slice(&payload),
             wgpu::BufferUsages::STORAGE,
         );
-        {
-            let mut pool = self.pool.lock().unwrap();
-            pool.allocations += 1;
-            pool.allocated_bytes += src.size();
-        }
         self.gpu.counters.uploads.fetch_add(1, Ordering::Relaxed);
         let out_layout = TileLayout {
             channels: 2,

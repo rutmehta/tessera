@@ -47,11 +47,23 @@ pub struct GpuStats {
     /// Surface presentation reads only the histogram, never pixels.
     pub histogram_readbacks: u64,
     pub pixel_readback_bytes: u64,
-    /// Unique resident payload allocations in the last batch (excludes parameters).
+    /// Device bytes of resident payloads the last batch held at its readback
+    /// (excludes parameters and the staging copy): recycled buffers it took
+    /// in and fresh allocations, less those released. Export budget checks
+    /// use the same count. Equal to `last_resident_live_bytes`.
     pub last_resident_allocated_bytes: u64,
+    /// Fresh payload buffers the last batch allocated.
     pub last_resident_buffers: u64,
     /// Compute dispatches encoded in the last resident transaction.
     pub last_resident_dispatches: u64,
+    /// Device bytes the last resident transaction held at its readback
+    /// (recycled buffers taken in plus fresh allocations, less those
+    /// released), excluding the readback staging copy.
+    pub last_resident_live_bytes: u64,
+    /// The largest such footprint during the last resident transaction.
+    pub last_resident_peak_bytes: u64,
+    /// Bytes of recycled buffers the last resident transaction took in.
+    pub last_resident_recycled_bytes: u64,
 }
 #[derive(Default)]
 pub(crate) struct Counters {
@@ -64,6 +76,9 @@ pub(crate) struct Counters {
     pub(crate) last_resident_allocated_bytes: AtomicU64,
     pub(crate) last_resident_buffers: AtomicU64,
     pub(crate) last_resident_dispatches: AtomicU64,
+    pub(crate) last_resident_live_bytes: AtomicU64,
+    pub(crate) last_resident_peak_bytes: AtomicU64,
+    pub(crate) last_resident_recycled_bytes: AtomicU64,
 }
 
 /// Metal operators. X-Trans neighbourhood and unported M2 operators fall back
@@ -281,6 +296,18 @@ impl GpuStageOp {
             last_resident_dispatches: self
                 .counters
                 .last_resident_dispatches
+                .load(Ordering::Relaxed),
+            last_resident_live_bytes: self
+                .counters
+                .last_resident_live_bytes
+                .load(Ordering::Relaxed),
+            last_resident_peak_bytes: self
+                .counters
+                .last_resident_peak_bytes
+                .load(Ordering::Relaxed),
+            last_resident_recycled_bytes: self
+                .counters
+                .last_resident_recycled_bytes
                 .load(Ordering::Relaxed),
         }
     }

@@ -76,6 +76,7 @@ impl Batch<'_> {
             channels: 1,
         };
         check_area(layout)?;
+        self.charge(((to - from) * 4) as u64)?;
         let buffer = self.host_buffer(
             Some("sensor rows"),
             bytemuck::cast_slice(&samples[from..to]),
@@ -83,11 +84,6 @@ impl Batch<'_> {
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST,
         );
-        {
-            let mut pool = self.pool.lock().unwrap();
-            pool.allocations += 1;
-            pool.allocated_bytes += buffer.size();
-        }
         self.gpu.counters.uploads.fetch_add(1, Ordering::Relaxed);
         Ok(self.tile(TileCoord::new(0, 0, 0), layout, buffer))
     }
@@ -255,9 +251,13 @@ impl Batch<'_> {
         cancel.check()?;
         self.encode_compute();
         let ctx = self.gpu.context();
+        // Recycled buffers this band never used are dropped before the
+        // staging copy is allocated: the footprint is the band's own.
         let (allocated, buffers) = {
-            let p = self.pool.lock().unwrap();
-            (p.allocated_bytes, p.allocations)
+            let mut p = self.pool.lock().unwrap();
+            p.release_idle();
+            p.meter.publish(&self.gpu.counters);
+            (p.meter.live(), p.allocations)
         };
         if allocated.saturating_add(bytes as u64) > self.gpu.export_scratch {
             return Err(EngineError::Unsupported {
