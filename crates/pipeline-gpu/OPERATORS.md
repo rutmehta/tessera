@@ -494,9 +494,11 @@ copies. Renderer cache semantics, frame ordering and engine-api are unchanged.
 
 ## Verification
 
-Tests require Metal. The fixture gate requires Sony ARW by default (no silent
-skip). `PIPELINE_GPU_ALL_FIXTURES=1` requires one of each ARW/CR3/NEF/RAF/DNG.
-`PIPELINE_RAW_FIXTURES` optionally overrides `fixtures/raw`.
+Tests require Metal. The fixture gate runs every RAW fixture by default;
+`PIPELINE_GPU_FIXTURES=arw,nef` narrows it for speed (a filter matching nothing
+fails). Without fixtures it prints a SKIPPED line, and fails when
+`TESSERA_REQUIRE_RAW_FIXTURES` is set. `PIPELINE_RAW_FIXTURES` optionally
+overrides `fixtures/raw`.
 
 - Synthetic tests cover all Bayer phases, both demosaicers, both highlight modes,
   CAT16 WB, tone controls, both display gamut modes, halo preservation, partial

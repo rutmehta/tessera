@@ -58,6 +58,10 @@ fn jxl_linear_dng_preserves_16_bit_camera_codes() {
 #[test]
 fn private_sample_cpu_render() {
     let Some(path) = std::env::var_os("TESSERA_SMART_PREVIEW_SAMPLE") else {
+        test_fixtures::opt_in_skipped(
+            "private_sample_cpu_render",
+            "set TESSERA_SMART_PREVIEW_SAMPLE to a private Smart Preview",
+        );
         return;
     };
     let decoded = image_core::RawImage::open(engine_api::id::ImageId(830), path).unwrap();

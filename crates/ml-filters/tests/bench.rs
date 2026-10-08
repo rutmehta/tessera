@@ -21,7 +21,10 @@ fn frame() -> Result<Raster> {
 }
 fn registry(id: &str) -> Result<Option<ModelRegistry>> {
     let Some(cache) = std::env::var_os("TESSERA_FILTER_MODEL_CACHE") else {
-        eprintln!("SKIP bench: no model cache");
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            "set TESSERA_FILTER_MODEL_CACHE",
+        );
         return Ok(None);
     };
     let r = ModelRegistry::open(
@@ -39,7 +42,10 @@ fn registry(id: &str) -> Result<Option<ModelRegistry>> {
     })?
     .is_none()
     {
-        eprintln!("SKIP bench: {id} absent");
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            &format!("{id} absent from TESSERA_FILTER_MODEL_CACHE"),
+        );
         return Ok(None);
     }
     Ok(Some(r))

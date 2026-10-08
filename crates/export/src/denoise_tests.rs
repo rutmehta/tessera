@@ -11,12 +11,18 @@ use std::sync::Arc;
 fn drunet_raw_is_nonblack_reduces_flat_noise_and_matches_preview() {
     let Some(cache) = std::env::var_os("TESSERA_ENHANCE_MODEL_CACHE").map(std::path::PathBuf::from)
     else {
-        eprintln!("SKIP: set TESSERA_ENHANCE_MODEL_CACHE to verified DRUNet cache");
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            "set TESSERA_ENHANCE_MODEL_CACHE to a verified DRUNet cache",
+        );
         return;
     };
     let weights = cache.join(format!("{}.onnx", ml_enhance::DENOISE_SHA256));
     if !weights.is_file() {
-        eprintln!("SKIP: DRUNet weights not cached");
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            "DRUNet weights absent from TESSERA_ENHANCE_MODEL_CACHE",
+        );
         return;
     }
     let support = tempfile::tempdir().unwrap();

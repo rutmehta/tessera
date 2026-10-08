@@ -43,7 +43,10 @@ fn corrupt_cache_is_not_repaired_or_downloaded() {
 #[test]
 fn optional_cached_models_execute_without_downloads() {
     let Some(cache) = std::env::var_os("TESSERA_ENHANCE_MODEL_CACHE") else {
-        eprintln!("SKIP: set TESSERA_ENHANCE_MODEL_CACHE for cached model execution");
+        test_fixtures::models::skipped(
+            "optional_cached_models_execute_without_downloads",
+            "set TESSERA_ENHANCE_MODEL_CACHE for cached model execution",
+        );
         return;
     };
     let manifest =
@@ -60,7 +63,10 @@ fn optional_cached_models_execute_without_downloads() {
         assert_eq!(output.shape(), input.shape());
         assert!(output.data().iter().all(|v| v.is_finite()));
     } else {
-        eprintln!("SKIP: DRUNet weights absent");
+        test_fixtures::models::skipped(
+            "optional_cached_models_execute_without_downloads",
+            "DRUNet part: weights absent from TESSERA_ENHANCE_MODEL_CACHE",
+        );
     }
     if cache
         .join(format!("{}.onnx", ml_enhance::SR_X2_SHA256))
@@ -72,6 +78,9 @@ fn optional_cached_models_execute_without_downloads() {
         assert_eq!(output.shape(), [1, 3, 16, 16]);
         assert!(output.data().iter().all(|v| v.is_finite()));
     } else {
-        eprintln!("SKIP: Real-ESRGAN x2 weights absent");
+        test_fixtures::models::skipped(
+            "optional_cached_models_execute_without_downloads",
+            "Real-ESRGAN x2 part: weights absent from TESSERA_ENHANCE_MODEL_CACHE",
+        );
     }
 }

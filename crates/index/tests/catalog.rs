@@ -82,11 +82,11 @@ fn rendered_formats_reach_metadata_and_scan_incrementally() {
 
 #[test]
 fn raw_fixtures_scan_incrementally_when_available() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
-    if !root.is_dir() {
-        eprintln!("skipping raw fixture scan: fixtures/raw is absent");
+    let test = "raw_fixtures_scan_incrementally_when_available";
+    if test_fixtures::raw::all(test).is_empty() {
         return;
     }
+    let root = test_fixtures::raw::root();
     let mut i = Index::open(":memory:").unwrap();
     let count = i
         .scan(&root, &NoopSidecarReader, &NoopMetadataProvider)

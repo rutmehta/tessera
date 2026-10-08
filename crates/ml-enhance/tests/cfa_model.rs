@@ -5,13 +5,17 @@ use std::{path::PathBuf, process::Command, time::Instant};
 #[test]
 fn trained_model_quality_tiling_and_partition_report() -> anyhow::Result<()> {
     if std::env::var_os("CI").is_some() {
-        eprintln!("SKIP cfa_model: training is disabled under CI");
+        test_fixtures::opt_in_skipped(
+            "trained_model_quality_tiling_and_partition_report",
+            "training is disabled under CI",
+        );
         return Ok(());
     }
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let Some(python) = std::env::var_os("TESSERA_TRAIN_PYTHON") else {
-        eprintln!(
-            "SKIP cfa_model: TESSERA_TRAIN_PYTHON is unset; see crates/ml-enhance/training/README.md"
+        test_fixtures::opt_in_skipped(
+            "trained_model_quality_tiling_and_partition_report",
+            "TESSERA_TRAIN_PYTHON is unset; see crates/ml-enhance/training/README.md",
         );
         return Ok(());
     };
@@ -19,9 +23,9 @@ fn trained_model_quality_tiling_and_partition_report() -> anyhow::Result<()> {
     // Cargo runs tests from the crate directory; resolve paths from the repo root.
     let python = root.join(python);
     if !python.try_exists()? {
-        eprintln!(
-            "SKIP cfa_model: training venv interpreter {} is missing; see crates/ml-enhance/training/README.md",
-            python.display()
+        test_fixtures::opt_in_skipped(
+            "trained_model_quality_tiling_and_partition_report",
+            "the TESSERA_TRAIN_PYTHON interpreter is missing; see crates/ml-enhance/training/README.md",
         );
         return Ok(());
     }

@@ -11,8 +11,9 @@ fn registry() -> Result<Option<ModelRegistry>> {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../ml-runtime/models.toml"),
         &cache,
     )?;
-    static READY: OnceLock<bool> = OnceLock::new();
-    let ready = *READY.get_or_init(|| {
+    // Resolve once per process; every test that needs the models reports a skip.
+    static OFFLINE: OnceLock<Option<String>> = OnceLock::new();
+    let offline = OFFLINE.get_or_init(|| {
         for id in ["opencv/yunet", "opencv/sface"] {
             if let Err(error) = registry.resolve(id) {
                 // Skip only transport failures; hash corruption and filesystem errors fail.
@@ -25,19 +26,18 @@ fn registry() -> Result<Option<ModelRegistry>> {
                             | ureq::Error::Io(_)
                     )
                 }) {
-                    assert!(
-                        std::env::var_os("TESSERA_REQUIRE_MODELS").is_none(),
-                        "models required: {error:#}"
-                    );
-                    eprintln!("SKIP offline model tests: {error:#}");
-                    return false;
+                    return Some(format!("offline, models not downloaded: {error:#}"));
                 }
                 panic!("model resolution failed: {error:#}");
             }
         }
-        true
+        None
     });
-    Ok(ready.then_some(registry))
+    if let Some(reason) = offline {
+        test_fixtures::models::skipped(&test_fixtures::current_test(), reason);
+        return Ok(None);
+    }
+    Ok(Some(registry))
 }
 
 fn pattern() -> (RgbImage, Face) {

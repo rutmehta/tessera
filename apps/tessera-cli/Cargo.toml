@@ -39,5 +39,6 @@ ctrlc = "3"
 libc = "0.2"
 
 [dev-dependencies]
+test-fixtures = { path = "../../crates/test-fixtures" }
 assert_cmd = "2"
 rusqlite.workspace = true

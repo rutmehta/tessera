@@ -24,7 +24,7 @@ use image_core::{
 };
 use pipeline_cpu::Image;
 use pipeline_gpu::{GpuContext, GpuStageOp};
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 fn gpu() -> Arc<GpuStageOp> {
     Arc::new(GpuStageOp::new(Arc::new(GpuContext::new().unwrap())))
@@ -298,21 +298,6 @@ fn abandoned_dehaze_batch_does_not_publish_statistics() {
     assert!(max_abs(&actual, &expected) <= 1e-4);
 }
 
-fn fixtures() -> Vec<PathBuf> {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
-    let mut paths: Vec<_> = std::fs::read_dir(root)
-        .map(|d| d.map(|e| e.unwrap().path()).collect())
-        .unwrap_or_default();
-    paths.retain(|p| {
-        p.extension().is_some_and(|e| {
-            ["nef", "cr3", "raf", "arw", "dng"]
-                .contains(&e.to_string_lossy().to_ascii_lowercase().as_str())
-        })
-    });
-    paths.sort();
-    paths
-}
-
 fn renderer(gpu: &Arc<GpuStageOp>, preview: bool) -> Renderer {
     let config = RendererConfig {
         preview_approximations: preview,
@@ -382,14 +367,10 @@ fn preview_approximation_is_bounded_on_synthetic_scenes() {
 /// measured bound so the opt-in approximation cannot silently get worse.
 #[test]
 fn preview_approximation_is_bounded_on_real_fixtures() {
-    let paths = fixtures();
-    if paths.is_empty() {
-        eprintln!("skipping: no RAW fixtures");
-        return;
-    }
+    let paths = test_fixtures::raw::all("preview_approximation_is_bounded_on_real_fixtures");
     for path in paths {
         let image = RawImage::open(ImageId(4244), &path).unwrap();
-        preview_bound(&image, &[2], &path.display().to_string(), 8);
+        preview_bound(&image, &[2], &test_fixtures::raw::name(&path), 8);
     }
 }
 

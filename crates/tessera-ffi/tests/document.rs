@@ -1004,11 +1004,12 @@ fn frames_are_coalesced_and_straight_alpha() {
 
 #[test]
 fn open_document_from_image_is_the_developed_raw() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw/sample.dng");
-    if !root.exists() {
-        eprintln!("skipping: no fixtures/raw/sample.dng");
+    let Some(root) = test_fixtures::raw::file(
+        "open_document_from_image_is_the_developed_raw",
+        "sample.dng",
+    ) else {
         return;
-    }
+    };
     let (dir, engine) = engine();
     let photos = dir.path().join("photos");
     std::fs::create_dir(&photos).unwrap();

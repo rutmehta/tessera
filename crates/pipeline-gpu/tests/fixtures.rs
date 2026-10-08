@@ -14,35 +14,15 @@ use std::{
     time::Instant,
 };
 
-fn fixtures(all: bool) -> Vec<PathBuf> {
-    let root = std::env::var_os("PIPELINE_RAW_FIXTURES")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw"));
-    let mut selected = Vec::new();
-    for ext in if all {
-        &["arw", "cr3", "nef", "raf", "dng"][..]
-    } else {
-        &["arw"][..]
-    } {
-        let mut files: Vec<_> = std::fs::read_dir(&root)
-            .unwrap_or_else(|e| {
-                panic!(
-                    "fixtures required at {} (or set PIPELINE_RAW_FIXTURES): {e}",
-                    root.display()
-                )
-            })
-            .map(|e| e.unwrap().path())
-            .filter(|p| p.is_file() && p.extension().is_some_and(|e| e.eq_ignore_ascii_case(ext)))
-            .collect();
-        files.sort();
-        assert!(
-            !files.is_empty(),
-            "missing {ext} fixture at {}",
-            root.display()
-        );
-        selected.push(files.remove(0));
-    }
-    selected
+/// Narrows the fixture gates for speed: comma-separated extensions or file
+/// name substrings (`PIPELINE_GPU_FIXTURES=arw,nef`). Unset runs every camera;
+/// a filter matching nothing fails.
+const SELECT_ENV: &str = "PIPELINE_GPU_FIXTURES";
+
+/// Every RAW fixture, narrowed by [`SELECT_ENV`]. Absent fixtures print a
+/// SKIPPED line (a failure under `TESSERA_REQUIRE_RAW_FIXTURES`).
+fn fixtures(test: &str) -> Vec<PathBuf> {
+    test_fixtures::raw::selected(test, SELECT_ENV)
 }
 
 fn difference(a: &Tile, b: &Tile) -> f32 {
@@ -166,9 +146,8 @@ fn fixture_level3_tolerance_per_operator_and_output() {
         "adapter: {:?}; capabilities: {:?}",
         context.adapter_info, context.capabilities
     );
-    let all = std::env::var("PIPELINE_GPU_ALL_FIXTURES").as_deref() == Ok("1");
     let mut failures = Vec::new();
-    for path in fixtures(all) {
+    for path in fixtures("fixture_level3_tolerance_per_operator_and_output") {
         let image = RawImage::open(ImageId(42), &path).unwrap();
         let mut s = DevelopSettings::default();
         s.tone.exposure = 0.35;
@@ -264,7 +243,7 @@ fn fixture_level3_tolerance_per_operator_and_output() {
 #[ignore]
 fn bench_full_level2_tone_only_gpu_vs_cpu() {
     let context = Arc::new(GpuContext::new().unwrap());
-    for path in fixtures(true) {
+    for path in fixtures("bench_full_level2_tone_only_gpu_vs_cpu") {
         let image = RawImage::open(ImageId(7), &path).unwrap();
         let rect = PixelRect::full(image.level_extent(2));
         // Retain the entire L2 WB image, but don't spend this benchmark's
@@ -330,7 +309,7 @@ fn bench_full_level2_tone_only_gpu_vs_cpu() {
 #[ignore]
 fn bench_full_level2_m2_chain_gpu_vs_cpu() {
     let context = Arc::new(GpuContext::new().unwrap());
-    for path in fixtures(true) {
+    for path in fixtures("bench_full_level2_m2_chain_gpu_vs_cpu") {
         let image = RawImage::open(ImageId(7), &path).unwrap();
         let rect = PixelRect::full(image.level_extent(2));
         let config = RendererConfig::default();

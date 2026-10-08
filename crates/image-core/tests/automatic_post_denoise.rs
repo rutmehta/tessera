@@ -13,7 +13,10 @@ fn cached_post_adapter_uses_automatic_sigma_for_masked_and_unmasked_images() {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| root.join("tools/orchestrate/wp/M3-05/.cache"));
     if !cache.join(format!("{DENOISE_SHA256}.onnx")).is_file() {
-        eprintln!("SKIP: DRUNet not cached");
+        test_fixtures::models::skipped(
+            "cached_post_adapter_uses_automatic_sigma_for_masked_and_unmasked_images",
+            "DRUNet not cached (TESSERA_ENHANCE_MODEL_CACHE)",
+        );
         return;
     }
     let registry =

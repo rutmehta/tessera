@@ -16,6 +16,7 @@ cull = { path = "../cull" }
 engine-api = { path = "../engine-api" }
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 tempfile.workspace = true
 raw-decode = { path = "../raw-decode" }
 previews = { path = "../previews" }

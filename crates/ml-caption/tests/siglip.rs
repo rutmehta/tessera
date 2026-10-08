@@ -16,7 +16,10 @@ fn cached_red_disc_ranks_circle_and_red_in_top_five() {
     .iter()
     .all(|p| cache.join(p).is_file())
     {
-        eprintln!("SKIP offline: tools/fetch_siglip.py --cache DIR; set TESSERA_SIGLIP_CACHE");
+        test_fixtures::models::skipped(
+            "cached_red_disc_ranks_circle_and_red_in_top_five",
+            "SigLIP not cached (tools/fetch_siglip.py --cache DIR; set TESSERA_SIGLIP_CACHE)",
+        );
         return;
     }
     let registry = ModelRegistry::open(

@@ -1,6 +1,5 @@
 //! Exercise staged corrections when an opcode-bearing RAW fixture is available.
-#[path = "common/raw_fixtures.rs"]
-mod raw_fixtures;
+use test_fixtures::raw as raw_fixtures;
 
 use pipeline_cpu::{RenderSource, render_linear_scaled};
 use raw_decode::RawSource;

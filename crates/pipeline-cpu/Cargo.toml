@@ -20,4 +20,5 @@ blake3 = { workspace = true }
 zstd = { version = "0.13", default-features = false }
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 png = { workspace = true }

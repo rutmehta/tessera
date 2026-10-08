@@ -15,13 +15,9 @@ fn generated_multiface_cached_models() -> Result<()> {
     for id in ["opencv/yunet", "opencv/sface"] {
         let spec = registry.models().iter().find(|s| s.id == id).unwrap();
         if !cache.join(format!("{}.onnx", spec.sha256)).is_file() {
-            eprintln!(
-                "SKIP generated multi-face integration: {id} not cached at {} (no download)",
-                cache.display()
-            );
-            assert!(
-                std::env::var_os("TESSERA_REQUIRE_MODELS").is_none(),
-                "cached models required"
+            test_fixtures::models::skipped(
+                "generated_multiface_cached_models",
+                &format!("{id} not cached (TESSERA_FACE_MODEL_CACHE; no download)"),
             );
             return Ok(());
         }

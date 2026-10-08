@@ -242,18 +242,7 @@ mod tests {
     }
     #[test]
     fn fixture_decode() {
-        let root = std::env::var_os("RAW_DECODE_FIXTURES")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw"));
-        if !root.exists() {
-            eprintln!("skipping RAW fixture tests: fixtures/raw is absent");
-            return;
-        }
-        for entry in std::fs::read_dir(root).unwrap().flatten() {
-            let path = entry.path();
-            if !path.is_file() {
-                continue;
-            }
+        for path in test_fixtures::raw::all(&test_fixtures::current_test()) {
             let mut raw = RawFile::open(&path).unwrap();
             raw.unpack().unwrap();
             let image = raw.cfa_data();

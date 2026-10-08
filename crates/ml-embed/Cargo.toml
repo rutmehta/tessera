@@ -18,5 +18,6 @@ tokenizers = { version = "0.22", default-features = false, features = ["fancy-re
 sha2 = "0.10"
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 tempfile.workspace = true
 jobs = { path = "../jobs" }

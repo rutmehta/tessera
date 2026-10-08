@@ -3,7 +3,7 @@
 #![cfg(target_os = "macos")]
 
 use engine_api::tile::{Extent, Tile, TileCoord, TileLayout};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 use tessera_ffi::surface::{
@@ -139,16 +139,10 @@ fn presentation_selects_sdr_fallback_and_caps_headroom() {
 
 // ───────────────────────────── session tests ─────────────────────────────
 
+/// The first RAW fixture with extension `ext`. Absent: a SKIPPED line naming
+/// the running test, or a failure under `TESSERA_REQUIRE_RAW_FIXTURES`.
 fn fixture(ext: &str) -> Option<PathBuf> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
-    let found = std::fs::read_dir(&root)
-        .ok()?
-        .map(|e| e.unwrap().path())
-        .find(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case(ext)));
-    if found.is_none() {
-        eprintln!("skipping: no .{ext} fixture in {}", root.display());
-    }
-    found
+    test_fixtures::raw::with_extension(&test_fixtures::current_test(), ext)
 }
 
 struct Listener {

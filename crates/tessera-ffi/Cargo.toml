@@ -66,6 +66,7 @@ typography = { path = "../typography" }
 transform = { path = "../transform" }
 
 [dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
 import-lrcat = { path = "../import-lrcat", features = ["fixture"] }
 
 [[bin]]

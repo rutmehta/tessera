@@ -16,23 +16,10 @@ use std::{
 };
 use tessera_ffi::*;
 
+/// The ARW fixture. Absent: a SKIPPED line naming the running test, or a
+/// failure under `TESSERA_REQUIRE_RAW_FIXTURES`.
 fn fixture() -> Option<PathBuf> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/raw");
-    let found = fs::read_dir(&root).ok().and_then(|d| {
-        d.map(|e| e.unwrap().path())
-            .find(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("arw")))
-    });
-    if found.is_none() {
-        assert!(
-            std::env::var_os("TESSERA_REQUIRE_RAW_FIXTURES").is_none(),
-            "no .ARW fixture in {}",
-            root.display()
-        );
-        eprintln!(
-            "test eng7c_legacy_smart_preview ... SKIPPED: no .ARW fixture; it checked nothing"
-        );
-    }
-    found
+    test_fixtures::raw::with_extension(&test_fixtures::current_test(), "arw")
 }
 
 /// One DNG FixVignetteRadial opcode payload.

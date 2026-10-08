@@ -15,7 +15,10 @@ fn cached_models_batch_cancellation_resume_and_duplicate_preflight()
         .unwrap_or_else(|| root.join("tools/orchestrate/wp/M3-05/.cache"));
     for (factor, sha) in [(2, ml_enhance::SR_X2_SHA256), (4, ml_enhance::SR_X4_SHA256)] {
         if !cache.join(format!("{sha}.onnx")).is_file() {
-            eprintln!("SKIP: Real-ESRGAN x{factor} not cached");
+            test_fixtures::models::skipped(
+                "cached_models_batch_cancellation_resume_and_duplicate_preflight",
+                &format!("Real-ESRGAN x{factor} part: not cached (TESSERA_ENHANCE_MODEL_CACHE)"),
+            );
             continue;
         }
         let registry = ModelRegistry::open(root.join("crates/ml-runtime/models.toml"), &cache)?;
@@ -111,7 +114,10 @@ fn cached_model_exports_doubled_png() -> Result<(), Box<dyn std::error::Error>> 
         .join(ml_enhance::SR_X2_SHA256.to_owned() + ".onnx")
         .is_file()
     {
-        eprintln!("SKIP: Real-ESRGAN x2 not cached");
+        test_fixtures::models::skipped(
+            "cached_model_exports_doubled_png",
+            "Real-ESRGAN x2 not cached (TESSERA_ENHANCE_MODEL_CACHE)",
+        );
         return Ok(());
     }
     let registry = ModelRegistry::open(root.join("crates/ml-runtime/models.toml"), cache)?;

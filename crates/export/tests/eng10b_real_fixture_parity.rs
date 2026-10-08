@@ -12,9 +12,6 @@
 //!
 //! Without `fixtures/raw` the test prints `SKIPPED` (or fails when
 //! `TESSERA_REQUIRE_RAW_FIXTURES` is set).
-#[path = "../../image-core/tests/common/raw_fixtures.rs"]
-mod raw_fixtures;
-
 use engine_api::{
     id::ImageId,
     jobs::CancellationToken,
@@ -52,7 +49,7 @@ fn recipe(auto_calibrated: bool) -> Recipe {
 #[test]
 fn eng10b_cr3_and_xtrans_full_size_print_matches_develop() {
     const TEST: &str = "eng10b_cr3_and_xtrans_full_size_print_matches_develop";
-    let files: Vec<_> = raw_fixtures::all(TEST)
+    let files: Vec<_> = test_fixtures::raw::all(TEST)
         .into_iter()
         .filter(|p| {
             p.extension().is_some_and(|e| {
@@ -61,7 +58,7 @@ fn eng10b_cr3_and_xtrans_full_size_print_matches_develop() {
         })
         .collect();
     if files.is_empty() {
-        raw_fixtures::skipped(TEST, "no CR3 or RAF fixture");
+        test_fixtures::raw::skipped(TEST, "no CR3 or RAF fixture");
         return;
     }
     for path in files {
@@ -169,7 +166,7 @@ fn check(path: &std::path::Path, recipe: &Recipe, auto_calibrated: bool) {
             .zip(expected.as_raw())
             .filter(|(a, b)| a.to_bits() != b.to_bits())
             .count();
-        raw_fixtures::notice(
+        test_fixtures::raw::notice(
             TEST,
             &format!(
                 "{name} {}x{} (lens auto-calibration {auto_calibrated}): {differing} samples \

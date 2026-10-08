@@ -25,8 +25,9 @@ fn registry() -> Option<ModelRegistry> {
         .unwrap_or_else(|| root.join("tools/orchestrate/wp/M3-20/.cache"));
     let fetch = std::env::var("TESSERA_REMOVE_MODELS").as_deref() == Ok("1");
     if !fetch && !cache.join(format!("{REMOVE_SHA256}.onnx")).is_file() {
-        eprintln!(
-            "SKIP: pinned LaMa weights absent; set TESSERA_REMOVE_MODELS=1 to fetch or TESSERA_REMOVE_MODEL_CACHE to an existing cache"
+        test_fixtures::models::skipped(
+            &test_fixtures::current_test(),
+            "pinned LaMa weights absent; set TESSERA_REMOVE_MODELS=1 to fetch or TESSERA_REMOVE_MODEL_CACHE to an existing cache",
         );
         return None;
     }

@@ -15,3 +15,6 @@ bindgen = "0.71"
 [lib]
 name = "libraw_ffi"
 path = "src/lib.rs"
+
+[dev-dependencies]
+test-fixtures = { path = "../test-fixtures" }
