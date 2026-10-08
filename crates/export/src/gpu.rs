@@ -887,20 +887,29 @@ mod tests {
         }
     }
 
-    #[test]
-    #[ignore = "full-chain precision on all five real RAW fixtures"]
-    fn five_fixture_full_chain_tolerance() {
-        let root = std::path::PathBuf::from(
-            std::env::var_os("PIPELINE_RAW_FIXTURES").expect("fixture directory required"),
-        );
-        for name in [
+    /// The five camera fixtures (`test_fixtures::raw::root()`), with their
+    /// file names; `None` after a visible SKIPPED (a failure under
+    /// `TESSERA_REQUIRE_RAW_FIXTURES`).
+    fn five_fixtures() -> Option<Vec<(&'static str, std::path::PathBuf)>> {
+        const NAMES: [&str; 5] = [
             "canon-cr3.CR3",
             "sony-arw.ARW",
             "nikon-nef.NEF",
             "fuji-raf.RAF",
             "sample.dng",
-        ] {
-            let raw = RawImage::open(ImageId(1), root.join(name)).unwrap();
+        ];
+        let paths = test_fixtures::raw::files(&test_fixtures::current_test(), &NAMES)?;
+        Some(NAMES.into_iter().zip(paths).collect())
+    }
+
+    #[test]
+    #[ignore = "ENG-12: canon-cr3 full-resolution GPU export declines the band renderer (export GPU scratch exceeds its budget) and falls back to tiles, so the bands assertion fails; precision passes on all five fixtures; follow-up. Run: cargo test --release -p export --lib gpu::tests::five_fixture -- --ignored --nocapture"]
+    fn five_fixture_full_chain_tolerance() {
+        let Some(fixtures) = five_fixtures() else {
+            return;
+        };
+        for (name, path) in fixtures {
+            let raw = RawImage::open(ImageId(1), &path).unwrap();
             let image = ExportImage {
                 source: RenderSource::Cfa {
                     image: raw.cfa(),
@@ -1235,22 +1244,16 @@ mod tests {
     /// the full-chain tolerance; the pyramid-level (Web-scale) development is
     /// measured and reported.
     #[test]
-    #[ignore = "Web-scale precision on all five real RAW fixtures"]
+    #[ignore = "ENG-12: canon-cr3 full-resolution GPU export declines the band renderer (export GPU scratch exceeds its budget) and falls back to tiles, so the bands assertion fails; precision passes on all five fixtures; follow-up. Run: cargo test --release -p export --lib gpu::tests::five_fixture -- --ignored --nocapture"]
     fn five_fixture_web_scale_tolerance() {
-        let root = std::path::PathBuf::from(
-            std::env::var_os("PIPELINE_RAW_FIXTURES").expect("fixture directory required"),
-        );
+        let Some(fixtures) = five_fixtures() else {
+            return;
+        };
         let mode = crate::Resize::LongEdge(2048);
         let cancel = CancellationToken::new();
         let mut failures = Vec::new();
-        for name in [
-            "canon-cr3.CR3",
-            "sony-arw.ARW",
-            "nikon-nef.NEF",
-            "fuji-raf.RAF",
-            "sample.dng",
-        ] {
-            let raw = RawImage::open(ImageId(1), root.join(name)).unwrap();
+        for (name, path) in fixtures {
+            let raw = RawImage::open(ImageId(1), &path).unwrap();
             let image = ExportImage {
                 source: RenderSource::Cfa {
                     image: raw.cfa(),
