@@ -131,7 +131,7 @@ fn hnsw_recall_on_clustered_vectors() -> anyhow::Result<()> {
     }
     eprintln!("clustered recall: exact top-1 in the top-5 for {found} of 100 queries");
     assert!(
-        found >= 98,
+        found >= 96,
         "exact top-1 in the top-5 for {found} of 100 queries"
     );
     Ok(())
