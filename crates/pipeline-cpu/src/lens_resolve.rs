@@ -89,7 +89,7 @@ impl ResolvedLens {
                     && (p.distortion != Default::default()
                         || p.distortion_scale != 1.
                         || p.radial_odd != [0.; 2]))
-                    || (s.remove_chromatic_aberration
+                    || (self.ca_enabled(s)
                         && s.chromatic_aberration_scale != 0.
                         && (p.ca_red != [1., 0., 0.] || p.ca_blue != [1., 0., 0.]))
             })
@@ -104,7 +104,7 @@ impl ResolvedLens {
             let d = sample.distort(q);
             let amount = s.distortion_scale.clamp(0., 200.) as f64 / 100.;
             q = [q[0] + amount * (d[0] - q[0]), q[1] + amount * (d[1] - q[1])];
-            if s.remove_chromatic_aberration && channel != 1 {
+            if self.ca_enabled(s) && channel != 1 {
                 let c = if channel == 0 {
                     sample.ca_red
                 } else {
@@ -125,11 +125,17 @@ impl ResolvedLens {
         }
         self.embedded.map(q, channel, s)
     }
+    /// Whether sample CA applies: estimated and profile CA follow the Remove
+    /// CA switch; a built-in maker-note correction always applies, like
+    /// built-in per-plane DNG warps (ENG-7b, ENG-8).
+    fn ca_enabled(&self, s: &LensSettings) -> bool {
+        s.remove_chromatic_aberration || self.source == CorrectionSource::MakerNote
+    }
     pub(crate) fn ca_active(&self, s: &LensSettings) -> bool {
         // Estimated/profile CA follows the Remove CA switch; built-in per-plane
-        // warps always apply (ENG-7b). A zero scale disables both.
+        // warps and maker-note CA always apply (ENG-7b). A zero scale disables both.
         s.chromatic_aberration_scale != 0.
-            && ((s.remove_chromatic_aberration
+            && ((self.ca_enabled(s)
                 && self
                     .sample
                     .as_ref()
@@ -420,8 +426,8 @@ fn find_profile<'a>(
     })
 }
 
-/// Whether the raw's built-in correction (its embedded DNG opcode lists) is
-/// selected. Lightroom applies a camera's built-in correction whatever the
+/// Whether the raw's built-in correction (its embedded DNG opcode lists or,
+/// failing those, its maker-note correction, ENG-8) is selected. Lightroom applies a camera's built-in correction whatever the
 /// profile setting, so it applies for `Auto`, `Embedded`, `None` and a named
 /// profile that is not available (ENG-7b). An available named profile and the
 /// explicit `AutoCalibrated` estimate keep their own source.
@@ -481,9 +487,10 @@ pub fn lens_notice(
     metadata: Option<&RawMetadata>,
     context: &LensContext<'_>,
 ) -> Option<LensNotice> {
-    let built_in = metadata
-        .and_then(|m| crate::embedded_lens::Embedded::parse(m).ok())
-        .is_some_and(|e| e.present());
+    let built_in = metadata.is_some_and(|m| {
+        crate::embedded_lens::Embedded::parse(m).is_ok_and(|e| e.present())
+            || crate::maker_lens::sample(m).is_some()
+    });
     let found = find_profile(s, metadata, context).is_some();
     match &s.profile {
         LensProfileSource::Database { profile } if !found => Some(LensNotice::ProfileUnavailable {
@@ -528,6 +535,13 @@ fn resolve_with(
         out.embedded = embedded;
         if out.embedded.present() {
             out.source = CorrectionSource::Embedded;
+            return Ok(out);
+        }
+        // ENG-8: a maker-note correction when the raw has no opcode lists.
+        // Opcodes win: the two are never combined.
+        if let Some(sample) = metadata.and_then(crate::maker_lens::sample) {
+            out.sample = Some(sample);
+            out.source = CorrectionSource::MakerNote;
             return Ok(out);
         }
     }

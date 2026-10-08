@@ -24,6 +24,7 @@ pub use output::{
 mod embedded_lens;
 mod image;
 mod lens_blur;
+mod maker_lens;
 pub use lens_blur::{LensBlurOptions, lens_blur};
 mod lens_plan;
 mod lens_resolve;

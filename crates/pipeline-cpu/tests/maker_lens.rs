@@ -53,7 +53,15 @@ fn barrel() -> FujifilmLens {
         distortion: (0..9).map(|i| -0.35 * i as f64).collect(),
         ca_red: (0..9).map(|i| 4e-5 * i as f64).collect(),
         ca_blue: (0..9).map(|i| -6e-5 * i as f64).collect(),
-        vignetting: (0..9).map(|i| 100. - 2.5 * i as f64).collect(),
+        // A smooth (even) falloff, like real lenses: the sample's illumination
+        // polynomial has no odd terms, so a spline linear in r near the
+        // centre fits to about 1 % only.
+        vignetting: (0..9)
+            .map(|i| {
+                let r = 1.25 * (0.05 + i as f64 / 9.);
+                100. - 20. * r * r
+            })
+            .collect(),
         crop_factor: 1.25,
     }
 }
