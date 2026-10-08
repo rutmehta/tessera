@@ -96,7 +96,9 @@ fn hnsw_top_five_recall_on_a_thousand_random_vectors() -> anyhow::Result<()> {
 /// Photo embeddings are clustered (bursts, near-duplicates), the case HNSW
 /// link pruning handles worst: 200 clusters of 20 points with 5% noise, and
 /// 100 queries near random cluster centres. The exact nearest neighbour must
-/// be in the approximate top-5 for at least 98 of them.
+/// be in the approximate top-5 for at least 96 of them (600 runs without
+/// keep_pruned: 100 in 598, 99 once, 98 once; with it: 85 to 99, below 96 in
+/// about 88% of runs).
 #[test]
 fn hnsw_recall_on_clustered_vectors() -> anyhow::Result<()> {
     const DIMENSION: usize = 64;
