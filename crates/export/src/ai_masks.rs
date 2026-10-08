@@ -108,10 +108,10 @@ pub(crate) fn render_with_hooks(
     };
     let input = pipeline_cpu::render_linear_before_geometry(&pre, source, denoiser)?;
     let lens = pipeline_cpu::resolve_lens(&input, &pre.lens, metadata, &Default::default())?;
-    if pre.lens.manual_distortion != 0.0
-        || lens.sample().is_some()
-        || lens.source() == pipeline_cpu::CorrectionSource::Embedded
-    {
+    // A raw's built-in correction (DNG opcode stages, a maker-note
+    // correction since ENG-8c) runs in the pre-local render above, so only a
+    // sample (profile, estimate) or manual distortion needs the full path.
+    if pre.lens.manual_distortion != 0.0 || lens.sample().is_some() {
         let hooks = ready_hooks(source, settings, segmenter, warnings, mask_support)?;
         return render_hooked_native(source, settings, hooks, denoiser, depth, warnings);
     }
