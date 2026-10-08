@@ -13,9 +13,10 @@
 //!
 //! The splines are fitted once, deterministically, to the sample's
 //! polynomials (radial ratio in 1, r, r², r³, r⁴, r⁶; CA ratio in 1, r², r⁴;
-//! illumination in r², r⁴, r⁶). On the X-E2S fixture the fitted geometry is
-//! within 0.5 px of the spline model at full resolution
-//! (`tests/maker_lens.rs`).
+//! illumination in r², r⁴, r⁶). On the X-E2S fixture the fitted geometry
+//! differs from darktable's spline table by at most 0.281 px (rms 0.085 px)
+//! at full resolution, CA by 0.071 px and vignetting by 0.15 %
+//! (`tests/maker_lens.rs`, bound 0.5 px).
 use lens::{BrownConrady, CalibrationSample};
 use raw_decode::{FujifilmLens, MakerLens, RawMetadata};
 

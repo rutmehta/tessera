@@ -202,7 +202,9 @@ impl RawSource {
     pub fn open(path: impl AsRef<Path>) -> EngineResult<Self> {
         let raw = RawFile::open(&path).map_err(|e| decode_error(e.to_string()))?;
         // Maker-note corrections are optional data: an unreadable or malformed
-        // block applies no correction and never fails the decode.
+        // block applies no correction and never fails the decode. Every raw is
+        // reopened, but non-RAF input returns after the 16-byte magic check
+        // (the 108-byte RAF directory read).
         let maker_lens = std::fs::File::open(&path)
             .ok()
             .and_then(|f| maker_lens::extract_raf_lens(&mut std::io::BufReader::new(f)).ok())

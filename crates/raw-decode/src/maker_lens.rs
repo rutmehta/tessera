@@ -212,7 +212,8 @@ fn parse_fujifilm(cfa: &[u8], jpeg: &[u8]) -> Option<FujifilmLens> {
                 v[12..23].to_vec(),
             )
         }
-        // X-Trans IV/V: 9 knots.
+        // X-Trans IV/V: 9 knots. The CA tag's last value (index 28) is not
+        // used, as in darktable and RawTherapee.
         (19, 29, 19) => {
             let knots = d[1..10].to_vec();
             if !same(&c[1..10], &knots) || !same(&v[1..10], &knots) {
@@ -247,6 +248,8 @@ fn parse_fujifilm(cfa: &[u8], jpeg: &[u8]) -> Option<FujifilmLens> {
         ca_red,
         ca_blue,
         vignetting,
+        // CropMode 2 and 4 are the 1.25x crops. 8 (digital teleconverter) is
+        // deliberately ignored, as in darktable and RawTherapee.
         crop_factor: if matches!(crop_mode(jpeg), Some(2 | 4)) {
             1.25
         } else {
