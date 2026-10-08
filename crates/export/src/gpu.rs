@@ -385,6 +385,33 @@ thread_local! {
     pub(crate) static LAST_PATH: std::cell::Cell<&'static str> = const { std::cell::Cell::new("") };
 }
 
+/// One rendered band's device footprint (ENG-13), as the backend measured it.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BandFootprint {
+    pub(crate) top: u32,
+    pub(crate) rows: u32,
+    /// Bytes the band's transaction held at readback (`recycled + fresh -
+    /// released`), excluding the readback staging copy.
+    pub(crate) live: u64,
+    /// The largest footprint during the band.
+    pub(crate) peak: u64,
+    /// The readback staging copy, allocated after the scratch.
+    pub(crate) readback: u64,
+    /// What the budget counter (and the trace's "actual") reported.
+    pub(crate) counted: u64,
+    /// Recycled buffers the band took in from the worker's previous band.
+    pub(crate) recycled: u64,
+    /// The scratch the band renderer is given (`BUDGET / in_flight`).
+    pub(crate) share: u64,
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Footprints of the bands of GPU exports run on this thread.
+    pub(crate) static BAND_FOOTPRINTS: std::cell::RefCell<Vec<BandFootprint>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
 fn has_presence(tone: &engine_api::recipe::settings::ToneSettings) -> bool {
     tone.texture != 0. || tone.clarity != 0. || tone.dehaze != 0.
 }
@@ -542,6 +569,8 @@ fn render_bands(
     // Any worker's failure stops the others at their next band.
     let stop = std::sync::atomic::AtomicBool::new(false);
     let waited = Mutex::new(std::time::Duration::ZERO);
+    #[cfg(test)]
+    let footprints = Mutex::new(Vec::new());
     let band_worker = || -> EngineResult<()> {
         // A worker's share of the budget covers its band in flight and the
         // idle buffers it retains for its next band, so it is held from the
@@ -590,6 +619,23 @@ fn render_bands(
                 unsupported.store(true, std::sync::atomic::Ordering::Relaxed);
                 stop.store(true, std::sync::atomic::Ordering::Relaxed);
                 return Ok(());
+            }
+            #[cfg(test)]
+            {
+                let stats = renderer.stats();
+                footprints
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push(BandFootprint {
+                        top,
+                        rows,
+                        live: stats.last_resident_live_bytes,
+                        peak: stats.last_resident_peak_bytes,
+                        readback: rows as u64 * u64::from(destination.width) * 12,
+                        counted: stats.last_resident_allocated_bytes,
+                        recycled: stats.last_resident_recycled_bytes,
+                        share: (BUDGET / in_flight) as u64,
+                    });
             }
             if std::env::var_os("TESSERA_EXPORT_TRACE").is_some() {
                 let stats = renderer.stats();
@@ -640,6 +686,12 @@ fn render_bands(
             })
             .collect()
     });
+    #[cfg(test)]
+    {
+        let mut bands = footprints.into_inner().unwrap_or_else(|e| e.into_inner());
+        bands.sort_by_key(|b| b.top);
+        BAND_FOOTPRINTS.with(|f| f.borrow_mut().extend(bands));
+    }
     // Cancellation first, then any other failure (e.g. an unsupported band).
     job.cancel.check()?;
     for result in results {
@@ -988,11 +1040,51 @@ mod tests {
         Some(NAMES.into_iter().zip(paths).collect())
     }
 
+    /// Takes the band footprints of the exports run on this thread since the
+    /// last call, prints one summary line, and describes every band whose
+    /// true footprint (the larger of its peak, and its scratch at readback
+    /// plus the readback staging copy) exceeds the scratch its renderer is
+    /// given (`BUDGET / in_flight`).
+    fn footprint_overruns(label: &str) -> Vec<String> {
+        let bands = BAND_FOOTPRINTS.with(|f| std::mem::take(&mut *f.borrow_mut()));
+        assert!(!bands.is_empty(), "{label}: no band footprints recorded");
+        let mib = |b: u64| b as f64 / (1 << 20) as f64;
+        let used = |b: &BandFootprint| (b.live + b.readback).max(b.peak);
+        let max = |f: &dyn Fn(&BandFootprint) -> u64| bands.iter().map(f).max().unwrap_or(0);
+        let over: Vec<String> = bands
+            .iter()
+            .filter(|b| used(b) > b.share)
+            .map(|b| {
+                format!(
+                    "{label} rows {}+{}: live {:.1} + readback {:.1} MiB (peak {:.1}, recycled {:.1}) > {:.1} MiB",
+                    b.top,
+                    b.rows,
+                    mib(b.live),
+                    mib(b.readback),
+                    mib(b.peak),
+                    mib(b.recycled),
+                    mib(b.share)
+                )
+            })
+            .collect();
+        eprintln!(
+            "FOOTPRINT {label} bands={} over_share={} max_live_plus_readback={:.1} MiB max_peak={:.1} MiB max_counted_plus_readback={:.1} MiB share={:.1} MiB",
+            bands.len(),
+            over.len(),
+            mib(max(&|b| b.live + b.readback)),
+            mib(max(&|b| b.peak)),
+            mib(max(&|b| b.counted + b.readback)),
+            mib(max(&|b| b.share)),
+        );
+        over
+    }
+
     #[test]
     fn five_fixture_full_chain_tolerance() {
         let Some(fixtures) = five_fixtures() else {
             return;
         };
+        let mut overruns = Vec::new();
         for (name, path) in fixtures {
             let raw = RawImage::open(ImageId(1), &path).unwrap();
             let image = ExportImage {
@@ -1022,6 +1114,7 @@ mod tests {
                 .unwrap()
                 .expect("fixture must use GPU");
                 assert_eq!(LAST_PATH.get(), "bands", "{name} {label}");
+                overruns.extend(footprint_overruns(&format!("full-chain {name} {label}")));
                 let (linear, codes) = compare(&cpu, &gpu);
                 eprintln!("PRECISION {name} {label} linear_max={linear} codes_max={codes}");
                 assert!(
@@ -1030,6 +1123,7 @@ mod tests {
                 );
             }
         }
+        assert!(overruns.is_empty(), "{overruns:#?}");
     }
 
     #[test]
@@ -1336,6 +1430,7 @@ mod tests {
         let mode = crate::Resize::LongEdge(2048);
         let cancel = CancellationToken::new();
         let mut failures = Vec::new();
+        let mut overruns = Vec::new();
         for (name, path) in fixtures {
             let raw = RawImage::open(ImageId(1), &path).unwrap();
             let image = ExportImage {
@@ -1353,6 +1448,14 @@ mod tests {
             let reference = crate::filter::resize(cpu, mode, &cancel).unwrap();
             for web_level in [false, true] {
                 let gpu = render_opts(&image, &recipe, ColorSpace::Srgb, BUDGET, mode, web_level);
+                overruns.extend(footprint_overruns(&format!(
+                    "web {name} {}",
+                    if web_level {
+                        "pyramid-level"
+                    } else {
+                        "full-res"
+                    }
+                )));
                 assert_eq!(gpu.dimensions(), reference.dimensions());
                 let (linear, codes, over, p999) = error_stats(&reference, &gpu);
                 eprintln!(
@@ -1370,5 +1473,6 @@ mod tests {
             }
         }
         assert!(failures.is_empty(), "{failures:?}");
+        assert!(overruns.is_empty(), "{overruns:#?}");
     }
 }

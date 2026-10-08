@@ -100,6 +100,7 @@ impl Batch<'_> {
             let mut pool = self.pool.lock().unwrap();
             pool.allocations += 1;
             pool.allocated_bytes += src.size();
+            pool.meter.allocate(src.size());
         }
         self.gpu.counters.uploads.fetch_add(1, Ordering::Relaxed);
         let out_layout = TileLayout {

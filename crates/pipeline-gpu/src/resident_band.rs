@@ -87,6 +87,7 @@ impl Batch<'_> {
             let mut pool = self.pool.lock().unwrap();
             pool.allocations += 1;
             pool.allocated_bytes += buffer.size();
+            pool.meter.allocate(buffer.size());
         }
         self.gpu.counters.uploads.fetch_add(1, Ordering::Relaxed);
         Ok(self.tile(TileCoord::new(0, 0, 0), layout, buffer))
@@ -257,6 +258,7 @@ impl Batch<'_> {
         let ctx = self.gpu.context();
         let (allocated, buffers) = {
             let p = self.pool.lock().unwrap();
+            p.meter.publish(&self.gpu.counters);
             (p.allocated_bytes, p.allocations)
         };
         if allocated.saturating_add(bytes as u64) > self.gpu.export_scratch {

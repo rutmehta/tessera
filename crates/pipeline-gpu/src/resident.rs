@@ -55,6 +55,47 @@ struct Pool {
     free: Vec<wgpu::Buffer>,
     allocated_bytes: u64,
     allocations: u64,
+    /// The transaction's true device footprint (ENG-13), kept apart from the
+    /// budget counter: bytes of recycled buffers taken in, fresh allocations,
+    /// and buffers released (dropped) during the transaction.
+    meter: Meter,
+}
+/// Device bytes a transaction holds: `recycled + fresh - released`.
+#[derive(Default, Clone, Copy, Debug)]
+pub(crate) struct Meter {
+    pub(crate) recycled: u64,
+    pub(crate) fresh: u64,
+    pub(crate) released: u64,
+    /// Largest `live()` seen during the transaction.
+    pub(crate) peak: u64,
+}
+impl Meter {
+    pub(crate) fn live(&self) -> u64 {
+        self.recycled + self.fresh - self.released
+    }
+    fn take_in(&mut self, bytes: u64) {
+        self.recycled += bytes;
+        self.peak = self.peak.max(self.live());
+    }
+    fn allocate(&mut self, bytes: u64) {
+        self.fresh += bytes;
+        self.peak = self.peak.max(self.live());
+    }
+    fn release(&mut self, bytes: u64) {
+        self.released += bytes;
+    }
+    /// Publishes this transaction's footprint to the backend's counters.
+    pub(crate) fn publish(&self, counters: &crate::batch::Counters) {
+        counters
+            .last_resident_live_bytes
+            .store(self.live(), Ordering::Relaxed);
+        counters
+            .last_resident_peak_bytes
+            .store(self.peak, Ordering::Relaxed);
+        counters
+            .last_resident_recycled_bytes
+            .store(self.recycled, Ordering::Relaxed);
+    }
 }
 
 struct Entry {
@@ -204,8 +245,11 @@ impl<'a> Batch<'a> {
         // Buffers retired by completed transactions: no submitted work uses
         // them any more, and reuse skips allocation and wgpu's zero fill.
         let free = std::mem::take(&mut *gpu.recycled.lock().unwrap());
+        let mut meter = Meter::default();
+        meter.take_in(free.iter().map(wgpu::Buffer::size).sum());
         let pool = Arc::new(Mutex::new(Pool {
             free,
+            meter,
             ..Default::default()
         }));
         Self {
@@ -282,6 +326,7 @@ impl<'a> Batch<'a> {
         }
         pool.allocated_bytes += bytes as u64;
         pool.allocations += 1;
+        pool.meter.allocate(bytes as u64);
         Ok(device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("resident tile"),
             size: bytes as u64,
@@ -1079,6 +1124,7 @@ impl ResidentBatch for Batch<'_> {
         let mut pool = self.pool.lock().unwrap();
         let retired: u64 = pool.free.drain(..).map(|buffer| buffer.size()).sum();
         pool.allocated_bytes = pool.allocated_bytes.saturating_sub(retired);
+        pool.meter.release(retired);
         drop(pool);
         if yielding {
             jobs::yield_to_interactive(cancel, EXPORT_QUIET, EXPORT_MAX_YIELD)?;
@@ -1148,6 +1194,7 @@ impl ResidentBatch for Batch<'_> {
             let mut pool = self.pool.lock().unwrap();
             pool.allocations += 1;
             pool.allocated_bytes += buffer.size();
+            pool.meter.allocate(buffer.size());
         }
         self.gpu.counters.uploads.fetch_add(1, Ordering::Relaxed);
         Ok(self.tile(tile.coord(), tile.layout(), buffer))
@@ -1659,6 +1706,7 @@ impl ResidentBatch for Batch<'_> {
         };
         let (allocated, buffers) = {
             let p = self.pool.lock().unwrap();
+            p.meter.publish(&self.gpu.counters);
             (p.allocated_bytes, p.allocations)
         };
         self.gpu
