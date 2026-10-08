@@ -15,10 +15,21 @@
 //! - A 16-bit TIFF adds at most 0.5/65535 of full scale (0.002 level).
 //! - Float arithmetic order (ICC transform against the Output-stage matrix;
 //!   binary-searched against analytic Perceptual chroma, 2^-18 of chroma)
-//!   is allowed 0.03 level.
+//!   and ICC matrix quantisation (see below) are allowed 0.1 level.
 //!
-//! So max <= 0.53 level (Adobe) and max <= 1.0 level (Native); the mean
+//! So max <= 0.60 level (Adobe) and max <= 1.0 level (Native); the mean
 //! of uniformly distributed rounding error is 0.25 level, bounded at 0.35.
+//!
+//! ICC matrix quantisation (REV-ENG-10 ruling, which raised the Adobe max
+//! from 0.53): the export converts through the ICC profile's matrix, stored
+//! as s15.16 fixed point (about 1e-5 relative), while Develop's Output stage
+//! uses the exact matrix. Where a pixel has one channel well above sRGB
+//! white (clipped) and another dark, that dark channel is a small
+//! difference of large matrix terms, and the sRGB toe (slope 12.92, about
+//! 3300 levels per unit) magnifies the error to 0.05-0.1 level. The sharp
+//! saturated fixture (`eng10b_sharp_saturated_raw_export_and_print_match_develop`)
+//! measures 0.533-0.556 level there; the excess over 8-bit rounding (at most
+//! 0.056 level) is not visible.
 //!
 //! One documented exception, Native only: Native's Output stage (CPU and
 //! Metal, `pipeline_cpu::display`) takes its Perceptual grey point from the
@@ -40,7 +51,7 @@ use image_core::{PixelRect, RawImage, RenderOutput, Renderer, RendererConfig};
 use pipeline_cpu::{CameraLinearProxy, RenderSource};
 use std::sync::Arc;
 
-const ADOBE_MAX: f32 = 0.53;
+const ADOBE_MAX: f32 = 0.60;
 const NATIVE_MAX: f32 = 1.0;
 const MEAN: f32 = 0.35;
 const NATIVE_GREY_POINT: f32 = 0.1;
@@ -845,4 +856,72 @@ fn eng9b_adobe_hdr_export_warns_that_it_is_sdr() {
             );
         }
     }
+}
+
+/// A 128x96 Bayer original with hard-edged saturated blocks (ENG-10's level
+/// fixture): sharpened, contrasty edits put one channel above sRGB white
+/// next to a dark one, where the export's ICC matrix and the Output
+/// stage's matrix part most (see `ADOBE_MAX`).
+fn sharp_raw() -> Fixture {
+    let (w, h) = (128u32, 96u32);
+    let cfa = raw_decode::CfaImage::from_linear(
+        w,
+        h,
+        (0..w * h)
+            .map(|i| {
+                let (x, y) = (i % w, i / w);
+                let block = ((x / 6 + y / 5) % 4) as f32;
+                match (x % 2, y % 2) {
+                    (0, 0) => 0.03 + 0.5 * (x as f32 / w as f32) + 0.1 * block,
+                    (1, 1) => 0.02 + 0.4 * (y as f32 / h as f32),
+                    _ => 0.04 + 0.12 * block,
+                }
+            })
+            .collect(),
+    )
+    .unwrap();
+    Fixture {
+        image: RawImage::new(ImageId(9904), Arc::new(cfa), Arc::new(raw_metadata(w, h))).unwrap(),
+        rgb: None,
+        proxy: None,
+    }
+}
+
+/// REV-ENG-10 ruling: the sharp saturated fixture, Adobe PV6, Perceptual and
+/// Clip, file export and print against Develop at full resolution. On
+/// ENG-9's code this reached 0.533 (Perceptual) and 0.556 (Clip) level.
+#[test]
+fn eng10b_sharp_saturated_raw_export_and_print_match_develop() {
+    let fixture = sharp_raw();
+    let mut failures = Vec::new();
+    for mapping in [GamutMapping::Perceptual, GamutMapping::Clip] {
+        let mut r = recipe(ProcessVersion::adobe(6), mapping, 40.);
+        r.edit(EditMeta::user("eng10b", 1), |s| {
+            s.tone.contrast = 35.;
+            s.tone.highlights = -30.;
+            s.tone.shadows = 25.;
+            s.detail.sharpening.amount = 60.;
+        })
+        .unwrap();
+        assert!(
+            out_of_srgb(&fixture.image, &r) > 0,
+            "the sharp fixture must leave sRGB"
+        );
+        let shown = develop(&fixture.image, &r);
+        check(
+            &format!("SharpRaw Adobe6 saturated {mapping:?} export"),
+            ADOBE_MAX,
+            &shown,
+            &export_file(&fixture, &r),
+            &mut failures,
+        );
+        check(
+            &format!("SharpRaw Adobe6 saturated {mapping:?} print sRGB"),
+            ADOBE_MAX,
+            &shown,
+            &print(&fixture, &r, ColorSpace::Srgb),
+            &mut failures,
+        );
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
 }

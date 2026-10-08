@@ -326,7 +326,7 @@ impl Renderer {
         let mask_cache = Arc::new(crate::MaskRasterCache::new(cache.budget()));
         let native_ops = ops.clone();
         let ops = if config.process_version.family == engine_api::recipe::ProcessFamily::Adobe {
-            Arc::new(crate::AdobeStageOp::new(ops)) as Arc<dyn StageOp>
+            Arc::new(crate::AdobeStageOp::new(ops).with_threads(config.threads)) as Arc<dyn StageOp>
         } else {
             ops
         };
@@ -381,7 +381,9 @@ impl Renderer {
         next.config.process_version = process_version;
         next.dcp_resolved = false;
         next.ops = if process_version.family == engine_api::recipe::ProcessFamily::Adobe {
-            Arc::new(crate::AdobeStageOp::new(self.native_ops.clone()))
+            Arc::new(
+                crate::AdobeStageOp::new(self.native_ops.clone()).with_threads(next.config.threads),
+            )
         } else {
             self.native_ops.clone()
         };
@@ -449,18 +451,24 @@ impl Renderer {
             }
         }
         if let Some((profile, _)) = &next.dcp {
-            next.ops = Arc::new(crate::AdobeStageOp::with_profile(
-                self.native_ops.clone(),
-                profile.clone(),
-                image,
-                settings,
-            )?);
+            next.ops = Arc::new(
+                crate::AdobeStageOp::with_profile(
+                    self.native_ops.clone(),
+                    profile.clone(),
+                    image,
+                    settings,
+                )?
+                .with_threads(self.config.threads),
+            );
         }
         if next.dcp.is_none() && image.metadata().baseline_exposure != 0. {
-            next.ops = Arc::new(crate::AdobeStageOp::with_baseline(
-                self.native_ops.clone(),
-                image.metadata().baseline_exposure,
-            )?);
+            next.ops = Arc::new(
+                crate::AdobeStageOp::with_baseline(
+                    self.native_ops.clone(),
+                    image.metadata().baseline_exposure,
+                )?
+                .with_threads(self.config.threads),
+            );
         }
         next.dcp_resolved = true;
         Ok(Some(next))
@@ -596,6 +604,12 @@ impl Renderer {
         self.ops.adobe_invocations(stage)
     }
 
+    /// Worker cap of the compatibility image barriers: the configured
+    /// `threads` for an Adobe-process renderer, zero for a native one.
+    pub fn adobe_threads(&self) -> usize {
+        self.ops.adobe_threads()
+    }
+
     /// The memo cache.
     pub fn cache(&self) -> &Arc<TileCache> {
         &self.cache
@@ -655,6 +669,34 @@ impl Renderer {
         rect: PixelRect,
         output: RenderOutput,
     ) -> EngineResult<Vec<Tile>> {
+        let mut out = Vec::new();
+        self.render_region_into(
+            image,
+            settings,
+            level,
+            rect,
+            output,
+            &CancellationToken::new(),
+            &mut |t| out.push(t),
+        )?;
+        Ok(out)
+    }
+
+    /// [`Renderer::render_region_as`] with the caller's cancellation,
+    /// delivering each tile to `sink` in raster order instead of collecting
+    /// them (ENG-10: Adobe-process exports draw whole frames this way, so no
+    /// tile vector of the frame is retained beside the caller's copy).
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_region_into(
+        &self,
+        image: &RawImage,
+        settings: &DevelopSettings,
+        level: u8,
+        rect: PixelRect,
+        output: RenderOutput,
+        cancel: &CancellationToken,
+        sink: &mut dyn FnMut(Tile),
+    ) -> EngineResult<()> {
         let planned;
         let settings = if let Some(proxy) = image.camera_linear_proxy() {
             planned = proxy
@@ -670,7 +712,7 @@ impl Renderer {
             settings
         };
         if let Some(prepared) = self.prepare_dcp(image, settings)? {
-            return prepared.render_region_as(image, settings, level, rect, output);
+            return prepared.render_region_into(image, settings, level, rect, output, cancel, sink);
         }
         if image.camera_linear_proxy().is_some() {
             self.validate_camera_linear_proxy(image, settings)?;
@@ -678,16 +720,7 @@ impl Renderer {
         self.validate_settings(settings)?;
         let extent = Self::output_extent(image, settings, level)?;
         let coords = Self::tiles_in_extent(extent, level, rect);
-        let mut out = Vec::with_capacity(coords.len());
-        self.render_tiles(
-            image,
-            settings,
-            &coords,
-            output,
-            &CancellationToken::new(),
-            &mut |t| out.push(t),
-        )?;
-        Ok(out)
+        self.render_tiles(image, settings, &coords, output, cancel, sink)
     }
 
     /// Renders specific output tiles (all of one level), delivering each to

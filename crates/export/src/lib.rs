@@ -1,4 +1,5 @@
 //! Full-resolution image export.
+mod adobe_render;
 mod ai_masks;
 mod batch;
 mod depth;
@@ -225,7 +226,7 @@ fn render_scaled_cpu(
     let mut settings = recipe.settings.clone();
     // Proofing is a display-only preview, never baked into a file export.
     settings.output.proof_profile = None;
-    Ok(pipeline_cpu::render_managed_scaled(
+    pipeline_cpu::render_managed_scaled_pixels(
         &settings,
         &image.source,
         scale,
@@ -235,8 +236,7 @@ fn render_scaled_cpu(
             proof: None,
             options: color_mgmt::TransformOptions::default(),
         },
-    )?
-    .pixels)
+    )
 }
 
 /// Recorded with every HDR export of an Adobe-process recipe and shown in
@@ -297,11 +297,22 @@ fn encode_output_profile(
     recipe: &Recipe,
     space: ColorSpace,
 ) -> EngineResult<image::Rgb32FImage> {
+    let started = std::time::Instant::now();
+    let rgb = encode_output_profile_untraced(rgb, recipe, space);
+    gpu::trace("output transform", started);
+    rgb
+}
+
+fn encode_output_profile_untraced(
+    rgb: image::Rgb32FImage,
+    recipe: &Recipe,
+    space: ColorSpace,
+) -> EngineResult<image::Rgb32FImage> {
     let mut registry = color_mgmt::Registry::new();
     let target = codec::profile(&mut registry, space)?;
     let mut settings = recipe.settings.clone();
     settings.output.proof_profile = None;
-    Ok(pipeline_cpu::output_managed_linear(
+    pipeline_cpu::output_managed_pixels(
         &settings,
         rgb,
         &mut pipeline_cpu::OutputContext {
@@ -310,8 +321,7 @@ fn encode_output_profile(
             proof: None,
             options: color_mgmt::TransformOptions::default(),
         },
-    )?
-    .pixels)
+    )
 }
 
 fn encode_error(e: impl std::fmt::Display) -> EngineError {
@@ -473,6 +483,7 @@ pub fn render_pixels_with_notes(
             &mut notes,
             support,
             retouch,
+            cancel,
         )?;
         encode_output_profile(rgb, recipe, render.color_space)?
     } else if !recipe.settings.locals.retouch.is_empty() {
@@ -875,6 +886,7 @@ pub fn render_one_cancellable(
             &mut warnings,
             settings.mask_support.as_deref(),
             settings.retouch.clone(),
+            cancel,
         )?;
         let rgb = match upscale {
             Some(model) => upscale_rgb(rgb, model)?,

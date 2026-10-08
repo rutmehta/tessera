@@ -74,6 +74,7 @@ pub(crate) fn render(
             warnings,
             settings.mask_support.as_deref(),
             settings.retouch.clone(),
+            cancel,
         )?;
         let planes = (0..3)
             .map(|c| rgb.pixels().map(|p| p.0[c]).collect())

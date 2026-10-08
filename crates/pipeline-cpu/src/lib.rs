@@ -17,8 +17,9 @@ pub use tone_extra::{tone_extra, tone_extra_image};
 mod display;
 mod output;
 pub use output::{
-    ManagedOutput, OutputContext, OutputTarget, output_managed_linear, render_managed_scaled,
-    render_managed_scaled_resolved, render_output_linear_scaled,
+    ManagedOutput, OutputContext, OutputTarget, output_managed_linear, output_managed_pixels,
+    render_managed_scaled, render_managed_scaled_pixels, render_managed_scaled_resolved,
+    render_output_linear_scaled,
 };
 mod embedded_lens;
 mod image;
