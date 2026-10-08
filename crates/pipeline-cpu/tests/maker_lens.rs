@@ -465,7 +465,10 @@ fn gradient(src: &[f32], w: usize, h: usize) -> Vec<f32> {
 /// Per-tile displacement of `moving` relative to `fixed` (best normalized
 /// cross-correlation over integer shifts, parabolic sub-pixel refinement):
 /// (tile centre, shift) for textured tiles with a clear peak.
-fn tile_shifts(fixed: &[f32], moving: &[f32], w: usize, h: usize) -> Vec<([f64; 2], [f64; 2])> {
+/// A tile centre (relative to the frame centre) and its measured shift.
+type TileShift = ([f64; 2], [f64; 2]);
+
+fn tile_shifts(fixed: &[f32], moving: &[f32], w: usize, h: usize) -> Vec<TileShift> {
     const T: usize = 96;
     const S: i64 = 14;
     let mut out = Vec::new();
@@ -534,10 +537,10 @@ fn tile_shifts(fixed: &[f32], moving: &[f32], w: usize, h: usize) -> Vec<([f64; 
 
 /// Residual RMS (pixels) of tile shifts after the best global scale and
 /// translation (the JPEG's framing may differ slightly from the raw's crop).
-fn similarity_residual(shifts: &[([f64; 2], [f64; 2])]) -> f64 {
+fn similarity_residual(shifts: &[TileShift]) -> f64 {
     // shift = a·p + t, solved per axis with a shared a.
     let n = shifts.len() as f64;
-    let mean = |f: &dyn Fn(&([f64; 2], [f64; 2])) -> f64| shifts.iter().map(f).sum::<f64>() / n;
+    let mean = |f: &dyn Fn(&TileShift) -> f64| shifts.iter().map(f).sum::<f64>() / n;
     let (px, py) = (mean(&|s| s.0[0]), mean(&|s| s.0[1]));
     let (sx, sy) = (mean(&|s| s.1[0]), mean(&|s| s.1[1]));
     let num: f64 = shifts

@@ -155,10 +155,9 @@ fn tags([d, c, v]: [Vec<f64>; 3]) -> Vec<(u16, u16, Vec<f64>)> {
 }
 
 fn extract(file: Vec<u8>) -> Option<FujifilmLens> {
-    match extract_raf_lens(&mut Cursor::new(file)).unwrap() {
-        Some(MakerLens::Fujifilm(f)) => Some(f),
-        None => None,
-    }
+    extract_raf_lens(&mut Cursor::new(file))
+        .unwrap()
+        .map(|MakerLens::Fujifilm(f)| f)
 }
 
 fn close(a: &[f64], b: &[f64]) -> bool {
