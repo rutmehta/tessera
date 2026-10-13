@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Tessera mark: a 3 × 3 mosaic of quiet tiles with one warm tessera lifted and turned.
+       Tokens: canvas #0A0A0A, raised #1F1E1C, accent #F0A52A. -->
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161514"/><stop offset="1" stop-color="#0A0A0A"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F7B948"/><stop offset="1" stop-color="#E8951F"/>
+    </linearGradient>
+    <filter id="lift" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#plate)" stroke="#fff" stroke-opacity="0.08" stroke-width="3"/>
+  <g fill="#2C2B28">
+    <rect x="264" y="264" width="150.7" height="150.7" rx="24"/>
+    <rect x="436.7" y="264" width="150.7" height="150.7" rx="24"/>
+    <rect x="609.3" y="264" width="150.7" height="150.7" rx="24"/>
+    <rect x="264" y="436.7" width="150.7" height="150.7" rx="24"/>
+    <rect x="609.3" y="436.7" width="150.7" height="150.7" rx="24"/>
+    <rect x="264" y="609.3" width="150.7" height="150.7" rx="24"/>
+    <rect x="436.7" y="609.3" width="150.7" height="150.7" rx="24"/>
+    <rect x="609.3" y="609.3" width="150.7" height="150.7" rx="24"/>
+  </g>
+  <g transform="rotate(-7 512 512)" filter="url(#lift)">
+    <rect x="424.6" y="424.6" width="174.8" height="174.8" rx="28" fill="url(#amber)"/>
+    <rect x="424.6" y="424.6" width="174.8" height="10" rx="5" fill="#fff" fill-opacity="0.18"/>
+  </g>
+</svg>

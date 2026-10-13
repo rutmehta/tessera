@@ -30,6 +30,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN_DIR/Tessera" "$APP/Contents/MacOS/Tessera"
 cp Support/Info.plist "$APP/Contents/Info.plist"
+# App icon (Support/make-icon.swift regenerates it from the design tokens).
+cp Support/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 VERSION="$(bash Support/release/version.sh)"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"

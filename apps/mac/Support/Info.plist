@@ -91,6 +91,8 @@
 	<string>Tessera</string>
 	<key>CFBundleExecutable</key>
 	<string>Tessera</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>dev.tessera.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>
