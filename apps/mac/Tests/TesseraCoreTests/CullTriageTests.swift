@@ -11,29 +11,34 @@ final class CullTriageTests: XCTestCase {
     }
 
     func testBucketsFollowThePickAndTheDefects() {
-        // Two bursts and two singles; the pick of the second burst has its eyes closed.
+        // Two bursts and two singles; the pick of the second burst has its eyes closed. Frame 2
+        // is far below the shoot's sharpness (0.03 against 0.5–0.9), frame 0 shares the pick's
+        // hash, frame 4 shares its burst's capture window only.
         let groups = [0..<3, 3..<5, 5..<6, 6..<7]
         let best = [1, 3, 5, 6]
         let signals: [Int: FrameSignals] = [
-            0: sig(0.6), 1: sig(0.9, eyes: 0.9), 2: sig(0.2),
+            0: sig(0.6), 1: sig(0.9, eyes: 0.9), 2: sig(0.03),
             3: sig(0.8, eyes: 0.1), 4: sig(0.7, eyes: 0.9),
             5: sig(0.8, quality: 0.8), 6: sig(0.5, quality: 0.3),
         ]
-        let t = CullTriage.compute(groups: groups, best: best, signals: signals)
+        let hashes: [Int: UInt64] = [0: 0xFF00, 1: 0xFF03, 2: 0xFF00, 3: 0x0F0F, 4: 0xF0F0, 5: 1, 6: 2]
+        let t = CullTriage.compute(groups: groups, best: best, signals: signals, hashes: hashes)
         XCTAssertEqual(t.burstCount, 2)
         XCTAssertEqual(t.burstItems, [0, 1, 2, 3, 4])
         XCTAssertEqual(t.keepers, [1, 5], "the sharp pick and the well-scored single")
         XCTAssertEqual(t.rejects[2], .blurry)
-        XCTAssertEqual(t.rejects[0], .nearDuplicate)
+        XCTAssertEqual(t.rejects[0], .nearDuplicate, "two bits from the pick's hash")
         XCTAssertEqual(t.rejects[3], .eyesClosed, "a defective pick is a reject, not a keeper")
-        XCTAssertEqual(t.rejects[4], .nearDuplicate)
-        XCTAssertEqual(t.rest, [6])
-        XCTAssertEqual(t.count(.rejects), 4)
+        XCTAssertNil(t.rejects[4], "a different frame in the same capture window is not a duplicate")
+        XCTAssertEqual(t.rest, [4, 6])
+        XCTAssertEqual(t.count(.rejects), 3)
         XCTAssertEqual(t.count(.blurry), 1)
         XCTAssertEqual(t.measured, 7)
         XCTAssertEqual(t.total, 7)
-        XCTAssertEqual(t.items(.rejects), [0, 2, 3, 4])
+        XCTAssertEqual(t.items(.rejects), [0, 2, 3])
         XCTAssertEqual(t.items(.eyesClosed), [3])
+        // Without hashes nothing is called a near-duplicate.
+        XCTAssertNil(CullTriage.compute(groups: groups, best: best, signals: signals).rejects[0])
     }
 
     func testUnmeasuredFramesWaitForThePass() {
@@ -45,9 +50,42 @@ final class CullTriageTests: XCTestCase {
         XCTAssertEqual(CullTriage.compute(groups: [0..<2], best: [0], signals: [:]).burstCount, 1, "bursts count without signals")
     }
 
-    func testMotionBlurCountsAsBlurry() {
-        XCTAssertTrue(sig(0.8, blur: 0.9).isBlurry)
-        XCTAssertFalse(sig(0.8, blur: 0.4).isBlurry)
+    /// The Sony shoot: sharpness median 0.31, a fixed 0.30 cutoff flagged 110 of 226 frames.
+    /// Blur is relative to the shoot with an absolute floor.
+    func testBlurIsRelativeToTheShootWithAnAbsoluteFloor() {
+        // 200 frames spread evenly over 0.10…0.84 (the shoot's spread), 8 frames at 0.03–0.08
+        // that read soft, and 3 sharp frames whose motion score is high.
+        var signals: [Int: FrameSignals] = [:]
+        for i in 0..<200 { signals[i] = sig(0.10 + 0.74 * Double(i) / 199, blur: 0.1) }
+        let soft = [0.025, 0.049, 0.05, 0.053, 0.065, 0.069, 0.073, 0.079]
+        for (n, s) in soft.enumerated() { signals[200 + n] = sig(s, blur: 0.17) }
+        for n in 0..<3 { signals[208 + n] = sig(0.6, blur: 0.65) }
+        signals[211] = sig(0.18, blur: 0.46)   // a dark, moving frame
+        let groups = (0..<212).map { $0..<($0 + 1) }
+        let t = CullTriage.compute(groups: groups, best: Array(0..<212), signals: signals)
+        XCTAssertEqual(t.items(.blurry), Array(200..<208) + [211])
+        XCTAssertLessThan(t.blur.softBelow, 0.0801)
+        XCTAssertLessThanOrEqual(t.blur.softBelow, CullTriage.softFloor)
+        // Sharp frames with a high motion score are not blurry.
+        for n in 208..<211 { XCTAssertNil(t.rejects[n]) }
+        // A uniformly sharp shoot flags nothing, even though it has a bottom 15 %.
+        var sharp: [Int: FrameSignals] = [:]
+        for i in 0..<100 { sharp[i] = sig(0.4 + 0.5 * Double(i) / 99) }
+        let none = CullTriage.compute(groups: (0..<100).map { $0..<($0 + 1) }, best: Array(0..<100), signals: sharp)
+        XCTAssertEqual(none.count(.blurry), 0)
+        // A soft shoot (a dim party) flags its bottom slice only, never the half under 0.30.
+        var dim: [Int: FrameSignals] = [:]
+        for i in 0..<100 { dim[i] = sig(0.02 + 0.4 * Double(i) / 99) }
+        let dimT = CullTriage.compute(groups: (0..<100).map { $0..<($0 + 1) }, best: Array(0..<100), signals: dim)
+        XCTAssertEqual(dimT.count(.blurry), 15)
+        XCTAssertTrue(FrameSignals(sharpness: 0.2).isBlurry(.none) == false, "unmeasured shoot: nothing is blurry")
+    }
+
+    func testMotionBlurCountsOnlyOnASoftFrame() {
+        let t = CullTriage.BlurThresholds(softBelow: 0.08, motionSoftBelow: 0.2)
+        XCTAssertTrue(sig(0.15, blur: 0.5).isBlurry(t))
+        XCTAssertFalse(sig(0.6, blur: 0.7).isBlurry(t), "fine texture scores as motion on a sharp frame")
+        XCTAssertFalse(sig(0.15, blur: 0.3).isBlurry(t))
         XCTAssertFalse(FrameSignals().isMeasured)
         XCTAssertEqual(FrameSignals(faceSharpness: 0.5, quality: 0.8).technicalScore!, 0.8 * 0.75, accuracy: 1e-12)
     }
@@ -61,7 +99,8 @@ final class CullTriageTests: XCTestCase {
     }
 
     func testRemapFollowsFramesAndDropsTheGone() {
-        var t = CullTriage.compute(groups: [0..<3], best: [1], signals: [0: sig(0.5), 1: sig(0.9), 2: sig(0.1)])
+        var t = CullTriage.compute(groups: [0..<3], best: [1], signals: [0: sig(0.5), 1: sig(0.9), 2: sig(0.1)],
+                                   hashes: [0: 7, 1: 7, 2: 7])
         t = t.remapped { $0 == 2 ? nil : $0 + 10 }
         XCTAssertEqual(t.keepers, [11])
         XCTAssertEqual(t.rejects, [10: .nearDuplicate])

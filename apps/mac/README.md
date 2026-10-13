@@ -274,8 +274,11 @@ Cull opens on one burst at a time. The left column (260 pt; Tab hides it, like e
 panel) is the agent's **triage** of the shoot, computed from the analysis pass as it runs
 (`AssistController.triage`, `TesseraCore/Assist/CullTriage.swift`): *Likely keepers* (the pick of
 every burst without a defect, singles with a quality score ≥ 0.6), *Bursts to decide* (groups of
-2+ frames), *Suggested rejects* (blurry: sharpness < 0.30 or motion blur > 0.7 · eyes closed:
-the eyes proxy < 0.30 · near-duplicates: a burst's other frames), *Nothing to flag*. Each row is a
+2+ frames), *Suggested rejects* (blurry: sharpness in the shoot's bottom 15 % and under 0.08, or
+motion blur ≥ 0.45 on a frame in the softer 30 % and under 0.25 (`CullTriage.BlurThresholds`;
+a uniformly sharp shoot flags nothing) · eyes closed: the eyes proxy < 0.30 · near-duplicates: a
+burst's other frames whose preview dHash is within 6 bits of the pick's, the grouper's own rule,
+read back through `CullSession.previewHashes`), *Nothing to flag*. Each row is a
 filter on the view (the same row again clears it); the counts do not move when you decide. Below
 it: your keeps / rejects / undecided, and progress through the bursts. The centre shows the focused
 frame large with its signals as HUD pills (sharpness bar, eyes, face sharpness, the engine's

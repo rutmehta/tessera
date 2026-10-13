@@ -176,6 +176,11 @@ extension EngineLibrary {
         return out
     }
 
+    /// Preview dHash per image id, as the grouper compared them (safe off the main actor).
+    public func rawPreviewHashes() throws -> [String: UInt64] {
+        Dictionary(try session.previewHashes().compactMap { h in h.hash.map { (h.imageId, $0) } }, uniquingKeysWith: { a, _ in a })
+    }
+
     /// Real culling signals for `itemIDs` (blocking; call off the main actor). `progress` gets
     /// (done, total, name) before each image; returning false stops early. Failures are
     /// collected per file rather than stopping the pass.

@@ -147,6 +147,8 @@ extension AppModel {
         if let new {
             let n = visibleCount
             statusMessage = "Showing \(new.title.lowercased()): \(n.formatted()) frame\(n == 1 ? "" : "s")"
+        } else {
+            statusMessage = "Showing the whole shoot"
         }
     }
 

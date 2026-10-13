@@ -29,10 +29,14 @@ public struct FrameSignals: Sendable, Equatable {
     /// Any quality signal has been measured.
     public var isMeasured: Bool { sharpness != nil || quality != nil }
 
-    /// Missed focus or motion blur (the defect sweep's thresholds).
-    public var isBlurry: Bool {
-        if let s = sharpness, s < DefectRule.focus.threshold { return true }
-        if let m = motionBlur, m > CullTriage.motionBlurAbove { return true }
+    /// Visibly soft, relative to the shoot (`CullTriage.BlurThresholds`): sharpness in the shoot's
+    /// bottom slice and below the absolute floor, or strong motion blur on a frame that is also
+    /// among the softer ones. ml-quality's global sharpness drops for shallow depth of field and
+    /// its motion score rises on fine texture, so neither signal is read against a fixed cutoff.
+    public func isBlurry(_ t: CullTriage.BlurThresholds) -> Bool {
+        guard let s = sharpness else { return false }
+        if s <= t.softBelow { return true }
+        if let m = motionBlur, m >= CullTriage.strongMotion, s <= t.motionSoftBelow { return true }
         return false
     }
 
@@ -83,11 +87,39 @@ public struct CullTriage: Sendable, Equatable {
         }
     }
 
-    /// Motion blur above this counts as blurry (the sweep has no motion rule; ml-quality's scale
-    /// puts hand-held softness around 0.3–0.5).
-    public static let motionBlurAbove = 0.7
+    /// Blur is judged against the shoot (SPEC §4 "blurry"): the sharpness cut is the lower of the
+    /// shoot's 15th percentile and `softFloor`, so a uniformly sharp shoot flags nothing; strong
+    /// motion counts only on a frame in the shoot's softer 30 % and under `motionSoftFloor`.
+    public struct BlurThresholds: Sendable, Equatable {
+        public var softBelow: Double
+        public var motionSoftBelow: Double
+        public init(softBelow: Double, motionSoftBelow: Double) {
+            self.softBelow = softBelow
+            self.motionSoftBelow = motionSoftBelow
+        }
+        /// Nothing is blurry until the shoot is measured.
+        public static let none = BlurThresholds(softBelow: -1, motionSoftBelow: -1)
+
+        /// From the measured sharpness values of the shoot.
+        public static func from(sharpness values: [Double]) -> BlurThresholds {
+            guard !values.isEmpty else { return .none }
+            let sorted = values.sorted()
+            func percentile(_ p: Double) -> Double { sorted[min(sorted.count - 1, Int((Double(sorted.count) * p).rounded(.down)))] }
+            return BlurThresholds(softBelow: min(percentile(0.15), softFloor),
+                                  motionSoftBelow: min(percentile(0.30), motionSoftFloor))
+        }
+    }
+    /// Below this global sharpness a frame reads soft on any shoot (the Sony shoot's visibly soft
+    /// frames measured 0.03–0.08; sharp faces with blurred backgrounds measured 0.10–0.13).
+    public static let softFloor = 0.08
+    /// Motion blur at or above this is strong (the scale tops out near 0.7).
+    public static let strongMotion = 0.45
+    public static let motionSoftFloor = 0.25
+    /// Near-duplicates share a preview dHash within this many bits (the grouper's rule).
+    public static let nearDuplicateBits = 6
     /// A single frame with a quality score at or above this is a likely keeper.
     public static let keeperQuality = 0.6
+    public var blur = BlurThresholds.none
 
     /// Likely keepers: the pick of every burst without a defect, and single frames that score well.
     public var keepers: Set<Int> = []
@@ -133,11 +165,16 @@ public struct CullTriage: Sendable, Equatable {
     }
 
     /// `groups` are the library's display groups, `best` the engine's pick per group,
-    /// `signals` the measured frames (missing: not analysed yet).
-    public static func compute(groups: [Range<Int>], best: [Int], signals: [Int: FrameSignals]) -> CullTriage {
+    /// `signals` the measured frames (missing: not analysed yet), `hashes` the preview dHashes
+    /// the grouper compared (a burst's other frame is a near-duplicate of the pick only when
+    /// its hash is within `nearDuplicateBits`; a frame that merely shares the capture window
+    /// has nothing to flag).
+    public static func compute(groups: [Range<Int>], best: [Int], signals: [Int: FrameSignals],
+                               hashes: [Int: UInt64] = [:]) -> CullTriage {
         var t = CullTriage()
         t.total = groups.reduce(0) { $0 + $1.count }
         t.measured = signals.values.filter(\.isMeasured).count
+        t.blur = BlurThresholds.from(sharpness: signals.values.compactMap(\.sharpness))
         for (g, range) in groups.enumerated() {
             let pick = best.indices.contains(g) ? best[g] : range.lowerBound
             if range.count > 1 {
@@ -146,15 +183,17 @@ public struct CullTriage: Sendable, Equatable {
             }
             for id in range {
                 guard let s = signals[id], s.isMeasured else { continue }
-                if s.isBlurry {
+                if s.isBlurry(t.blur) {
                     t.rejects[id] = .blurry
                 } else if s.eyesClosed {
                     t.rejects[id] = .eyesClosed
                 } else if range.count > 1 {
                     if id == pick {
                         t.keepers.insert(id)
-                    } else {
+                    } else if let a = hashes[id], let b = hashes[pick], (a ^ b).nonzeroBitCount <= nearDuplicateBits {
                         t.rejects[id] = .nearDuplicate
+                    } else {
+                        t.rest.insert(id)
                     }
                 } else if (s.quality ?? 0) >= keeperQuality {
                     t.keepers.insert(id)
@@ -194,6 +233,7 @@ public struct CullTriage: Sendable, Equatable {
         t.measured = measured
         t.total = total
         t.bursts = bursts
+        t.blur = blur
         return t
     }
 }

@@ -41,6 +41,8 @@ final class AssistController {
     private(set) var signals: [Int: FrameSignals] = [:]
     /// The engine's technical score and keep likelihood per frame (`review`, Assist on or off).
     private(set) var scores: [Int: (technical: Double, pKeep: Double)] = [:]
+    /// Preview dHashes (near-duplicates are within 6 bits of their burst's pick).
+    @ObservationIgnored private(set) var hashes: [Int: UInt64] = [:]
     @ObservationIgnored private var triageRefreshing = false
     @ObservationIgnored private var triageStale = false
     @ObservationIgnored private var lastTriageRefresh: CFAbsoluteTime = 0
@@ -71,6 +73,7 @@ final class AssistController {
         facesItem = facesItem.flatMap(remap)
         signals = Dictionary(signals.compactMap { id, s in remap(id).map { ($0, s) } }, uniquingKeysWith: { a, _ in a })
         scores = Dictionary(scores.compactMap { id, s in remap(id).map { ($0, s) } }, uniquingKeysWith: { a, _ in a })
+        hashes = Dictionary(hashes.compactMap { id, h in remap(id).map { ($0, h) } }, uniquingKeysWith: { a, _ in a })
         triage = triage.remapped(remap)
         // New frames (a tether, an import) get measured and bucketed by the next refresh.
         refreshTriage()
@@ -92,6 +95,7 @@ final class AssistController {
         labels = 0
         signals = [:]
         scores = [:]
+        hashes = [:]
         triage = CullTriage()
         triageStale = false
         guard let app, let lib = app.engineLibrary, !lib.isReadOnly else {
@@ -180,21 +184,26 @@ final class AssistController {
         Task.detached(priority: .utility) {
             let raw = try? lib.rawFrameSignals()
             let review = try? lib.session.review()
-            await MainActor.run { box.value?.triageDidRefresh(lib, raw: raw, review: review) }
+            let hashes = try? lib.rawPreviewHashes()
+            await MainActor.run { box.value?.triageDidRefresh(lib, raw: raw, review: review, hashes: hashes) }
         }
     }
 
-    private func triageDidRefresh(_ lib: EngineLibrary, raw: [String: FrameSignals]?, review: [KeepPrediction]?) {
+    private func triageDidRefresh(_ lib: EngineLibrary, raw: [String: FrameSignals]?, review: [KeepPrediction]?,
+                                  hashes rawHashes: [String: UInt64]?) {
         triageRefreshing = false
         guard let app, app.engineLibrary === lib else { return }
         if let raw {
             signals = Dictionary(raw.compactMap { imageID, s in lib.itemOfImage[imageID].map { ($0, s) } }, uniquingKeysWith: { a, _ in a })
         }
+        if let rawHashes {
+            hashes = Dictionary(rawHashes.compactMap { imageID, h in lib.itemOfImage[imageID].map { ($0, h) } }, uniquingKeysWith: { a, _ in a })
+        }
         if let review {
             scores = Dictionary(review.compactMap { p in lib.itemOfImage[p.imageId].map { ($0, (p.technicalScore, p.pKeep)) } },
                                 uniquingKeysWith: { a, _ in a })
         }
-        let fresh = CullTriage.compute(groups: app.cull.groups, best: app.cull.bestOfGroup, signals: signals)
+        let fresh = CullTriage.compute(groups: app.cull.groups, best: app.cull.bestOfGroup, signals: signals, hashes: hashes)
         if fresh != triage {
             triage = fresh
             app.triageDidChange()

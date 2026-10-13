@@ -303,6 +303,11 @@ impl<I: Deref<Target = Index>> CullSession<I> {
     pub fn images(&self) -> &[ImageId] {
         &self.images
     }
+    /// dHash of the image's embedded preview, once computed (None while the
+    /// deferred hash is pending, unreadable, or near-duplicates are off).
+    pub fn preview_hash(&self, id: ImageId) -> Option<u64> {
+        self.hashes.get(&id).copied().flatten()
+    }
     pub fn position(&self) -> Option<usize> {
         self.current().map(|_| self.position)
     }
