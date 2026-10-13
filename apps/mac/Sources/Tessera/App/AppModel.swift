@@ -455,6 +455,12 @@ final class AppModel {
     var deliverMode = false
     /// UX-11: bumped by ⌘K; the agent field of the current mode takes the keyboard.
     var agentFieldFocusRequest = 0
+    /// UX-13: the slider the dial is driving, so the Edit panel highlights it (UX-12 reads it).
+    var highlightedDevelopControl: DevelopControl?
+    /// UX-13: the Before button or `\` is held; the loupe shows the original (AppModel+Shell).
+    var showingBefore = false
+    /// The history step to return to when the Before hold ends.
+    @ObservationIgnored var beforeHeadStep: UInt64?
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }
@@ -2799,6 +2805,25 @@ final class AppModel {
         d.commit(label: label)
         undoDomain = .develop
         developHistory = d.history
+    }
+
+    /// UX-13: the Before toolbar button or `\` held shows the photo's original state through the
+    /// history checkout the Edits stack uses (no step is recorded); releasing returns to the head
+    /// step. Nothing happens with nothing to compare (no applied step).
+    func setShowingBefore(_ on: Bool) {
+        guard let d = develop, developStatus == .ready, isPhotoEditing, on != showingBefore else { return }
+        if on {
+            d.flushPending()
+            guard let head = d.historyItems().first(where: { $0.isHead && $0.applied }) else { return }
+            beforeHeadStep = head.id
+            guard (try? d.checkoutHistory(nil)) != nil else { beforeHeadStep = nil; return }
+        } else if let head = beforeHeadStep {
+            beforeHeadStep = nil
+            _ = try? d.checkoutHistory(head)
+        }
+        showingBefore = on
+        developHistory = d.history
+        developRevision += 1
     }
 
     func resetDevelop() {

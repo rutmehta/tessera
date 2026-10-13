@@ -94,7 +94,14 @@ final class LoupeToolOverlay: NSView {
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    private var armed: Bool { tools.model.isPhotoEditing && (tools.cropActive || tools.hslPicker != nil || tools.detailPicking || masks.active || guidesArmed) }
+    private var armed: Bool {
+        tools.model.isPhotoEditing && (tools.cropActive || tools.hslPicker != nil || tools.detailPicking || masks.active || guidesArmed
+                                       || dial.armed || dial.healActive)
+    }
+    /// The dial (UX-13): a plain click on the photo in Edit picks the mask under the cursor.
+    var dial: PhotoDial { .shared }
+    /// Where a possible dial click began (a short press without a drag).
+    private var clickStart: CGPoint?
     var guideTool: UprightGuideTool { .shared }
     /// Guided Upright owns the loupe (crop and masking take precedence).
     var guidesArmed: Bool { guideTool.active && !tools.cropActive && !masks.active }
@@ -112,7 +119,7 @@ final class LoupeToolOverlay: NSView {
     func endWorkspaceInteraction() {
         drag = nil; maskDrag = nil; guideDrag = nil
         frozen = nil; startGeometry = nil; straightenLine = nil
-        pointer = nil
+        pointer = nil; clickStart = nil
         window?.invalidateCursorRects(for: self)
         needsDisplay = true
     }
@@ -168,6 +175,87 @@ final class LoupeToolOverlay: NSView {
         } else if tools.detailPicking {
             hint("Click the photo to choose the 1:1 detail area")
         }
+        drawDial()
+    }
+
+    // MARK: Dial, ring and heal spots (UX-13)
+
+    /// The target mask's ring with its chip, and the heal spots while healing.
+    private func drawDial() {
+        guard tools.model.isPhotoEditing, !tools.cropActive, let loupe else { return }
+        if !dial.ring.isEmpty, dial.isOpen || dial.masksToolShown, let space = dialSpace {
+            let toView = { (m: (x: Double, y: Double)) -> CGPoint? in
+                let uv = space.fromMask(m.x, m.y)
+                return loupe.viewPoint(u: uv.u, v: uv.v)
+            }
+            var top: CGPoint?
+            for outline in dial.ring {
+                let pts = outline.compactMap(toView)
+                guard pts.count > 2 else { continue }
+                let path = NSBezierPath()
+                path.move(to: pts[0])
+                pts.dropFirst().forEach { path.line(to: $0) }
+                path.close()
+                path.lineWidth = 3
+                Theme.Palette.OnImage.shadow.withAlphaComponent(0.35).setStroke()
+                path.stroke()
+                path.lineWidth = 1.5
+                path.setLineDash([5, 4], count: 2, phase: 0)
+                Theme.Palette.accent.withAlphaComponent(0.9).setStroke()
+                path.stroke()
+                if let t = pts.min(by: { $0.y < $1.y }), top == nil || t.y < top!.y { top = t }
+            }
+            if let top { chip(dial.target.title, above: top) }
+        }
+        if dial.healActive, let space = dialSpace, let width = loupe.pictureWidthPoints {
+            for spot in dial.healSpots {
+                let uv = space.fromMask(spot.center.x, spot.center.y)
+                guard let c = loupe.viewPoint(u: uv.u, v: uv.v) else { continue }
+                let r = spot.radius * width
+                let ring = NSBezierPath(ovalIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r))
+                Theme.Palette.accent.withAlphaComponent(spot.enabled ? 0.15 : 0.05).setFill()
+                ring.fill()
+                ring.lineWidth = 1.5
+                Theme.Palette.accent.withAlphaComponent(spot.enabled ? 0.9 : 0.4).setStroke()
+                ring.stroke()
+            }
+            if clickStart == nil { hint("Click a spot on the photo to heal it · Esc leaves healing") }
+        }
+    }
+
+    /// The accent chip that names the ring's mask, just above its top.
+    private func chip(_ text: String, above p: CGPoint) {
+        let font = Theme.NSFonts.labelMedium
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: Theme.Palette.textOnAccent]
+        let size = (text as NSString).size(withAttributes: attrs)
+        let h = Theme.Height.regular
+        var r = NSRect(x: p.x - size.width / 2 - Theme.Space.m, y: p.y - h - Theme.Space.s, width: ceil(size.width) + 2 * Theme.Space.m, height: h)
+        r.origin.x = min(max(r.origin.x, Theme.Space.s), bounds.width - r.width - Theme.Space.s)
+        r.origin.y = max(r.origin.y, Theme.Space.s)
+        Theme.Palette.accent.setFill()
+        NSBezierPath(roundedRect: r, xRadius: h / 2, yRadius: h / 2).fill()
+        (text as NSString).draw(at: NSPoint(x: r.minX + Theme.Space.m, y: r.midY - ceil(font.ascender - font.descender) / 2), withAttributes: attrs)
+    }
+
+    /// Mask space of the open session (the loupe's displayed picture is cropped and oriented).
+    private var dialSpace: MaskSpace? {
+        guard let d = dial.develop else { return nil }
+        return MaskSpace(orientation: Int(d.info.orientation), crop: tools.storedCrop())
+    }
+
+    /// A short press on the photo: a heal spot with the Heal tool, else the dial.
+    private func dialClick(_ p: CGPoint) {
+        guard let loupe, let uv = loupe.displayUV(p), (0...1).contains(uv.u), (0...1).contains(uv.v),
+              let space = dialSpace else { return }
+        let m = space.toMask(uv.u, uv.v)
+        if dial.healActive {
+            dial.heal(at: m)
+            return
+        }
+        // Face boxes are normalised to the uncropped, oriented preview.
+        let full: (u: Double, v: Double) = tools.storedCrop().map { $0.imageUV(fromCropUV: uv.u, uv.v) } ?? (uv.u, uv.v)
+        let face = tools.model.assist.faces.contains { $0.rect.contains(CGPoint(x: full.u, y: full.v)) }
+        dial.click(at: p, mask: m, face: face)
     }
 
     func hint(_ text: String) {
@@ -313,6 +401,10 @@ final class LoupeToolOverlay: NSView {
         if masks.active, !tools.cropActive { maskCursor(p); return }
         if guidesArmed { guideCursor(p); return }
         if tools.hslPicker != nil || tools.detailPicking || tools.straightening { NSCursor.crosshair.set(); return }
+        if !tools.cropActive {
+            (dial.healActive ? NSCursor.crosshair : NSCursor.arrow).set()
+            return
+        }
         guard let g = tools.crop, let view = loupe?.cropView else { return }
         let box = view.box(g)
         if let (sx, sy) = handle(at: p, box: box) {
@@ -330,8 +422,14 @@ final class LoupeToolOverlay: NSView {
         guard tools.model.isPhotoEditing else { return }
         let p = convert(event.locationInWindow, from: nil)
         dragStart = p
-        if masks.active, !tools.cropActive { maskMouseDown(p, event); return }
+        clickStart = nil
+        // Masking keeps its tools and handles; a plain click with nothing armed goes to the dial.
+        if masks.active, !tools.cropActive, masks.tool != nil || handleHit(p) != nil { maskMouseDown(p, event); return }
         if guidesArmed { guideMouseDown(p, event); return }
+        if !tools.cropActive, tools.hslPicker == nil, !tools.detailPicking, dial.armed || dial.healActive {
+            clickStart = p
+            return
+        }
         if let _ = tools.hslPicker {
             guard let rgb = loupe?.sampleColor(at: p), let t = tools.beginTargetedHSL(sample: rgb) else {
                 tools.model.statusMessage = "No colour there to adjust (neutral or outside the photo)"
@@ -419,6 +517,11 @@ final class LoupeToolOverlay: NSView {
         let p = convert(event.locationInWindow, from: nil)
         if maskDrag != nil { maskMouseUp(p, event); return }
         if guideDrag != nil { guideMouseUp(p); updateCursor(p); return }
+        if let start = clickStart {
+            clickStart = nil
+            if hypot(p.x - start.x, p.y - start.y) < 4 { dialClick(p) }
+            return
+        }
         switch drag {
         case .targeted(let t, let start):
             tools.dragTargetedHSL(t, delta: ((start.y - p.y) * 0.5).rounded(), final: true)

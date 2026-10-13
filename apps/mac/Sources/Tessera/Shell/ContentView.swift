@@ -104,7 +104,11 @@ struct ContentView: View {
                                 .padding(Theme.Space.m)
                                 .allowsHitTesting(false)
                             }
-                            if model.isPhotoEditing { MaskToolbar(model: model, masks: .shared) }
+                            if model.isPhotoEditing {
+                                MaskToolbar(model: model, masks: .shared)
+                                // UX-13: the mask chips, the crop aspect chips and the dial.
+                                EditPhotoHUDs(model: model)
+                            }
                         }
                         if model.viewMode == .compare, model.compare != nil {
                             CompareView(model: model)
@@ -407,6 +411,10 @@ struct ContentView: View {
             }
         }
         .flatToolbarItem()
+        ToolbarItem(id: "before", placement: .primaryAction) {
+            if model.isPhotoEditing { BeforeAfterButton(model: model) }
+        }
+        .flatToolbarItem()
         ToolbarItem(id: "inspector", placement: .primaryAction) {
             Toggle(isOn: Binding(get: { model.showInspector }, set: { _ in model.toggleInspectorPanel() })) {
                 Label("Panel", systemImage: "sidebar.right")
@@ -485,6 +493,40 @@ private struct ToolbarButtonBody: View {
                 .fill(configuration.isPressed || on ? Theme.pressed : hovering ? Theme.hover : Theme.clear))
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
+    }
+}
+
+/// Before / after (SPEC §1, UX-13): hold the button (or `\`) to see the original; the loupe shows
+/// the edit again on release. Drawn like a toolbar button, pressed while held.
+struct BeforeAfterButton: View {
+    let model: AppModel
+    @State private var hovering = false
+    @Environment(\.toolbarCompact) private var compact
+
+    var body: some View {
+        let on = model.showingBefore
+        Group {
+            if compact {
+                Label("Before", systemImage: "rectangle.split.2x1").labelStyle(.iconOnly)
+            } else {
+                Label("Before", systemImage: "rectangle.split.2x1").labelStyle(.titleAndIcon)
+            }
+        }
+        .font(Theme.Fonts.label)
+        .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
+        .padding(.horizontal, Theme.Space.s)
+        .frame(height: Theme.Height.large)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.control)
+            .fill(on ? Theme.pressed : hovering ? Theme.hover : Theme.clear))
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .onLongPressGesture(minimumDuration: .infinity, maximumDistance: Theme.Space.xxl, perform: {},
+                            onPressingChanged: { model.setShowingBefore($0) })
+        .disabled(model.developStatus != .ready)
+        .help("Hold to see the original (\\)")
+        .accessibilityLabel("Before")
+        .accessibilityValue(on ? "showing the original" : "showing the edit")
+        .accessibilityIdentifier("develop.toolbar.before")
     }
 }
 

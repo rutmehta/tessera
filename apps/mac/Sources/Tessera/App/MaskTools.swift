@@ -42,6 +42,8 @@ final class MaskTools: LibraryObserver {
     @ObservationIgnored var onLoupeChange: (() -> Void)?
     /// A new overlay plane for the loupe.
     @ObservationIgnored var onOverlayFrame: ((MaskOverlayFrame?) -> Void)?
+    /// An AI mask finished segmenting (the dial re-targets a pending click, UX-13).
+    @ObservationIgnored var onAIMaskDone: (() -> Void)?
     @ObservationIgnored private var valuesToken: NSObjectProtocol?
     @ObservationIgnored private var thumbnailsDirty = true
 
@@ -229,6 +231,7 @@ final class MaskTools: LibraryObserver {
             } else {
                 model.statusMessage = "\(u.title) mask ready"
             }
+            onAIMaskDone?()
         }
     }
 

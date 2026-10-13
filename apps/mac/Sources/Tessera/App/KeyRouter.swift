@@ -16,7 +16,8 @@ import TesseraCore
 ///   Assist (toolbar): Y confirm every suggested decision in view · N dismiss the suggestion here
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
 ///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
-///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning
+///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning · \ held shows the original (UX-13) ·
+///   Esc closes the dial, then leaves Heal, then hides the mask chips (`PhotoDial`)
 ///   Document mode (B5-02, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels (over the canvas;
 ///   a focused panel / toolbar view keeps Tab for the key-view loop, B5-21; over such a view ⌫ / ⌦ do
 ///   nothing and Space presses a focused button once instead of panning, B5-25) ·
@@ -83,8 +84,12 @@ final class KeyRouter {
         return true
     }
 
-    /// Space released: the document viewport stops panning.
+    /// Space released: the document viewport stops panning. `\` released: the edit comes back (UX-13).
     func handleKeyUp(_ event: NSEvent) -> Bool {
+        if event.keyCode == 42, model.showingBefore {
+            model.setShowingBefore(false)
+            return true
+        }
         guard event.keyCode == 49, model.documents.spaceHeld else { return false }
         model.documents.spaceHeld = false
         model.documents.current?.viewport?.cursorDidChange()
@@ -132,6 +137,12 @@ final class KeyRouter {
         if model.source == .people && !model.isPhotoEditing { return false }
         // Develop tools receive shortcuts only when a key-owning control is not focused.
         if model.isPhotoEditing {
+            // UX-13: `\` held shows the original (released in `handleKeyUp`); Esc closes the dial first.
+            if event.keyCode == 42, event.modifierFlags.intersection([.shift, .option, .control, .command]).isEmpty {
+                if !event.isARepeat { model.setShowingBefore(true) }
+                return true
+            }
+            if PhotoDial.shared.model === model, PhotoDial.shared.handleKey(event) { return true }
             if MaskTools.shared.model === model, MaskTools.shared.handleKey(event) { return true }
             if DevelopTools.shared.model === model, DevelopTools.shared.handleKey(event) { return true }
             return handlePhotoEdit(event)

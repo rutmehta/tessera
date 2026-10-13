@@ -154,7 +154,8 @@ extension LoupeToolOverlay {
 
     // MARK: Mouse
 
-    private func handleHit(_ p: CGPoint) -> MaskDrag? {
+    /// The selected group's gradient handle under `p`, if any (the dial takes other clicks, UX-13).
+    func handleHit(_ p: CGPoint) -> MaskDrag? {
         guard let g = masks.selected else { return nil }
         let near = { (m: (x: Double, y: Double)) -> Bool in
             guard let v = self.toView(m) else { return false }

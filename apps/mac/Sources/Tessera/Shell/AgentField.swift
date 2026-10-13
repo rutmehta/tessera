@@ -2,19 +2,23 @@ import SwiftUI
 import TesseraCore
 
 /// Bottom centre of every mode (SPEC §1, WP UX-11): the tools strip (Edit only), the agent field
-/// and, so the field stays centred, an invisible copy of the strip on the other side.
+/// and, so the field stays centred, an invisible copy of the strip on the other side. In Edit the
+/// Try cards sit above the field (SPEC §3, UX-13).
 struct AgentRow: View {
     let model: AppModel
 
     var body: some View {
         let mode = model.shellMode
-        HStack(alignment: .center, spacing: Theme.Space.m) {
-            if mode == .edit {
-                ToolsStrip(model: model)
-                AgentField(model: model, mode: mode)
-                ToolsStrip(model: model).hidden().accessibilityHidden(true)
-            } else {
-                AgentField(model: model, mode: mode)
+        VStack(spacing: Theme.Space.m) {
+            if mode == .edit, model.viewMode == .loupe { TryCardsRow(model: model) }
+            HStack(alignment: .center, spacing: Theme.Space.m) {
+                if mode == .edit {
+                    ToolsStrip(model: model)
+                    AgentField(model: model, mode: mode)
+                    ToolsStrip(model: model).hidden().accessibilityHidden(true)
+                } else {
+                    AgentField(model: model, mode: mode)
+                }
             }
         }
     }
@@ -82,26 +86,28 @@ struct KeyCap: View {
     }
 }
 
-/// Masks · Crop · Heal, left of the agent field in Edit (SPEC §3). Masks and Crop toggle the
-/// existing loupe tools (`MaskTools`, `DevelopTools`); click-to-heal has no photo tool yet (UX-13).
+/// Masks · Crop · Heal, left of the agent field in Edit (SPEC §3, UX-13). Masks shows the Subject /
+/// Sky / Background / Whole photo chips over the photo (the brush and gradient toolbar stays on M);
+/// Crop is the existing crop tool with the aspect chips; Heal is click-to-heal.
 struct ToolsStrip: View {
     let model: AppModel
-    private var masks: MaskTools { .shared }
+    private var dial: PhotoDial { .shared }
     private var tools: DevelopTools { .shared }
-    private var owned: Bool { masks.model === model && tools.model === model }
+    private var owned: Bool { dial.model === model && tools.model === model }
 
     var body: some View {
         HStack(spacing: Theme.Space.xs) {
-            IconButton(symbol: "circle.lefthalf.filled", help: "Masks (M)", on: owned && masks.active, size: Theme.Height.toolStrip) {
-                if owned { masks.toggle() }
+            IconButton(symbol: "circle.lefthalf.filled", help: "Masks: target the subject, sky or background (M for the brush and gradients)",
+                       on: owned && dial.masksToolShown, size: Theme.Height.toolStrip) {
+                if owned { dial.toggleMasksTool() }
             }
             .accessibilityIdentifier("develop.tools.masks")
             IconButton(symbol: "crop", help: "Crop and straighten (R)", on: owned && tools.cropActive, size: Theme.Height.toolStrip) {
                 if owned { tools.toggleCrop() }
             }
             .accessibilityIdentifier("develop.tools.crop")
-            IconButton(symbol: "bandage", help: "Heal: click-to-heal arrives with UX-13", size: Theme.Height.toolStrip) {
-                model.statusMessage = "Heal is not available yet (UX-13)"
+            IconButton(symbol: "bandage", help: "Heal: click a spot on the photo", on: owned && dial.healActive, size: Theme.Height.toolStrip) {
+                if owned { dial.toggleHeal() }
             }
             .accessibilityIdentifier("develop.tools.heal")
         }

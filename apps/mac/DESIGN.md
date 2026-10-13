@@ -627,3 +627,61 @@ Review consumes cull letters and owns its arrows after text, numeric, sheet and
 Document guards. Escape cancels a draft before leaving Review. Undo/Redo in Review
 do not consume Library history; the inspector directs the user to Edit photo for
 recipe history. Accept's learned feedback is not advertised as undoable.
+
+## 13. Pointing at the photo (UX-13)
+
+Edit's on-photo layer (SPEC §3): the dial, the mask ring, the Masks / Crop / Heal tools of the
+strip, the Try cards and before / after. Everything draws over the native loupe; nothing is
+added to the panel.
+
+**The dial.** A click on the photo (not a drag, not with Crop, Heal, a mask brush, the HSL
+picker or the detail target armed) picks the mask under the cursor with the existing AI masks:
+Subject if the point is inside the subject mask, Sky if inside the sky, otherwise Background,
+and the whole photo when the segmenter found nothing. The three masks are created on first use
+as one history step ("Subject, Sky and Background masks") and found again by their single
+Subject / Sky / Background component, so a photo that already has them gets no second set.
+While they segment the dial says so and re-targets the click when they finish. The ring is the
+mask's outline (marching squares on the engine's mask thumbnail, dashed accent, 1.5 pt over a
+soft shadow) with an accent chip naming it. The HUD is 236 pt wide, radius 14, the HUD ground
+(canvas at 86 %) with `hairlineStrong`: title and value (17 pt semibold, accent, tabular), a
+120 pt knob whose conic fill is the value (drag up or down), chips for Exposure · Shadows ·
+Warmth · Highlights (+ Skin when a detected face is under the cursor) and one line, "Applies to
+the subject only." Default control: Shadows on the subject, Highlights on the sky, Exposure
+elsewhere. The value is a local adjustment of that mask (Warmth is the local Temperature, Skin
+is local Texture) or the matching panel slider on the whole photo, coalesced per frame while
+dragging and one history step on release, so the Edits stack shows it.
+`AppModel.highlightedDevelopControl` names the slider the dial drives; the panel highlights it.
+Esc closes; a click elsewhere re-targets. `PhotoDial` owns all of this (Loupe/PhotoDial.swift);
+the hit-test and outline are `MaskRaster` in TesseraCore.
+
+**Masks tool (strip).** Shows the Subject · Sky · Background · Whole photo chips top centre
+(a 999-radius pill of chips, the selected one filled with the accent) and the ring; a chip
+targets that mask for the dial and selects its group in the Masks panel. M still opens the
+brush / gradient / range toolbar; the chips move under it while it is up.
+
+**Crop tool.** The existing crop overlay (rule-of-thirds guides by default) with an aspect pill
+at the top: 3:2 · 4:5 · 1:1 · 16:9 · Free, the same `CropAspect` values as the panel.
+
+**Heal tool.** Click-to-heal: each click appends one heal operation to the recipe's
+`locals.retouch` list (a round brush spot, feather 50, healed from a source 2.6 radii beside it,
+inside the frame), committed as the step "Heal spot". The develop pipeline's registered retouch
+renderer draws it (`brush::render_retouch`: additive explicit-source heal / clone spots). Spots
+show as accent circles while the tool is active. A Smart Preview session keeps the operation in
+the recipe and reports it as a render notice (retouch needs the complete sensor).
+
+**Try cards.** A row of 132 × (64 + 28) cards above the agent field in Edit: Relight face,
+Deeper sky, Film look, Clear the crowd, Black and white, and "More from how you usually edit".
+Each thumbnail is a real render of this photo with the look, through the open session's own
+pipeline: `DevelopController.renderLooks` attaches a card-sized surface, renders each look as an
+interactive patch, restores the live state with the patch's inverse and re-plans the loupe
+ring; renders are cached per photo. Mask looks render once the AI masks exist (the dial, the
+Masks tool or the card itself creates them). A click applies the look as the step
+"Try · <name>" (amber border, "on"); clicking again undoes that step when it is still the head,
+else records "Remove <name>". "Clear the crowd" quietens the background mask (darker, softer,
+less colour): the engine's object removal exists in Layers only. The style card runs the style
+profile as an agent edit (reviewed like any other run), since the profile has no synchronous
+recipe. Tokens: `Theme.Width.tryCard`, `Theme.Height.tryThumbnail` / `tryCaption`.
+
+**Before / after.** A toolbar button left of Panel ("Before"), held, and the `\` key show the
+original through the history checkout the Edits stack uses (no step is recorded); releasing
+returns to the head step. Nothing happens with no applied step.
