@@ -152,17 +152,17 @@ struct AppCommands: Commands {
                 .disabled(!model.assist.enabled)
             Button("Dismiss Suggestion    (N)") { model.assist.dismiss(model.targetIDs) }
                 .disabled(!model.assist.enabled)
-            Button("Analyze Shoot Again") { model.assist.analyze(faces: false, force: true, title: "Analyzing") }
+            Button("Analyze Shoot Again") { model.assist.analyze(faces: false, force: true, title: "Measuring sharpness and exposure for culling") }
                 .disabled(!model.isEngineBacked || model.assist.isRunning)
             Button("Analyze Faces") { model.assist.analyze(faces: true, force: false, title: "Finding faces") }
                 .disabled(!model.isEngineBacked || model.assist.isRunning)
             Button("Clear Person Filter") { model.assist.clearPersonFilter() }
                 .disabled(model.assist.personFilter == nil)
             Divider()
-            Button("Next Group    (→ in loupe, ⌥→ in grid)") { model.navigate(.right, groupwise: true, extend: false) }
-            Button("Previous Group    (← in loupe, ⌥← in grid)") { model.navigate(.left, groupwise: true, extend: false) }
-            Button("Next Frame in Group    (↓ in loupe, ⌥↓ in grid)") { model.navigate(.down, groupwise: true, extend: false) }
-            Button("Previous Frame in Group    (↑ in loupe, ⌥↑ in grid)") { model.navigate(.up, groupwise: true, extend: false) }
+            Button("Next Group    (⌥→)") { model.navigate(.right, groupwise: true, extend: false) }
+            Button("Previous Group    (⌥←)") { model.navigate(.left, groupwise: true, extend: false) }
+            Button("Next Frame in Group    (⌥↓)") { model.navigate(.down, groupwise: true, extend: false) }
+            Button("Previous Frame in Group    (⌥↑)") { model.navigate(.up, groupwise: true, extend: false) }
             Divider()
             Toggle("Auto-Advance    (A)", isOn: Binding(get: { model.autoAdvance }, set: { model.autoAdvance = $0 }))
             Divider()

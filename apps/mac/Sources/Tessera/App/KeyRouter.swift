@@ -7,8 +7,9 @@ import TesseraCore
 ///
 ///   X reject · U undecided · P keep (auto-advance)       1 / 2 / 3 grade (implies Keep)
 ///   6 7 8 9 toggle mark · B basket · A auto-advance      G grid · E / Return loupe · Esc grid
-///   Loupe: ← → previous/next group, ↑ ↓ previous/next frame within the group
-///   Grid:  arrows move spatially (⇧ extends), ⌥ + arrows = group navigation as in the loupe
+///   Loupe: arrows step one frame (← ↑ previous, → ↓ next), as in Lightroom
+///   Grid:  arrows move spatially (⇧ extends)
+///   Both:  ⌥ ← → previous/next group, ⌥ ↑ ↓ previous/next frame within the group
 ///   K keep the group's suggested best and reject the rest · C compare · ⌫ remove from album
 ///   Assist (toolbar): Y confirm every suggested decision in view · N dismiss the suggestion here
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
@@ -132,10 +133,10 @@ final class KeyRouter {
         }
         switch event.keyCode {
         case 51, 117: model.deletePressed(); return true                          // ⌫ / ⌦
-        case 123: model.navigate(.left, groupwise: loupe || option, extend: shift); return true
-        case 124: model.navigate(.right, groupwise: loupe || option, extend: shift); return true
-        case 126: model.navigate(.up, groupwise: loupe || option, extend: shift); return true
-        case 125: model.navigate(.down, groupwise: loupe || option, extend: shift); return true
+        case 123: model.navigate(.left, groupwise: option, extend: shift); return true
+        case 124: model.navigate(.right, groupwise: option, extend: shift); return true
+        case 126: model.navigate(.up, groupwise: option, extend: shift); return true
+        case 125: model.navigate(.down, groupwise: option, extend: shift); return true
         case 36, 76: model.requestViewMode(loupe ? .grid : .loupe); return true      // Return / Enter
         case 53: if loupe { model.requestViewMode(.grid); return true }; return false  // Esc
         default: break

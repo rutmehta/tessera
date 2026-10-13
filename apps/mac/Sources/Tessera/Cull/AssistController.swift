@@ -77,7 +77,7 @@ final class AssistController {
         if seedFaces {
             do { try lib.seedSyntheticFaces() } catch { app.statusMessage = "Synthetic faces: \(error.localizedDescription)" }
         }
-        analyze(faces: false, force: false, title: "Analyzing", announce: false)
+        analyze(faces: false, force: false, title: "Measuring sharpness and exposure for culling", announce: false)
         refreshPeople()
     }
 

@@ -76,6 +76,10 @@ impl Default for TransformOptions {
 }
 
 type RgbTransform = lcms2::Transform<[f32; 3], [f32; 3]>;
+/// The display transform, shareable across threads (`NO_CACHE` only drops LCMS's
+/// 16-bit one-pixel cache, which float transforms never use).
+type SharedRgbTransform =
+    lcms2::Transform<[f32; 3], [f32; 3], lcms2::GlobalContext, lcms2::DisallowCache>;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct GamutWarning {
     pub monitor: bool,
@@ -141,7 +145,7 @@ impl RoundTrip {
 }
 
 pub struct Transform {
-    output: RgbTransform,
+    output: SharedRgbTransform,
     to_lab: RgbTransform,
     monitor: RoundTrip,
     threshold: f32,
@@ -173,11 +177,12 @@ impl Transform {
                 Y: 1.0,
             },
         )?;
-        let mut flags = Flags::NO_OPTIMIZE;
+        let mut flags = Flags::NO_CACHE | Flags::NO_OPTIMIZE;
         if options.black_point_compensation {
             flags = flags | Flags::BLACKPOINT_COMPENSATION;
         }
-        let output = RgbTransform::new_flags(
+        let output = SharedRgbTransform::new_flags_context(
+            lcms2::GlobalContext::new(),
             &working,
             PixelFormat::RGB_FLT,
             &display,
@@ -224,11 +229,15 @@ impl Transform {
                 Y: 1.0,
             },
         )?;
-        let mut flags = Flags::NO_OPTIMIZE | Flags::SOFT_PROOFING | Flags::NO_WHITE_ON_WHITE_FIXUP;
+        let mut flags = Flags::NO_CACHE
+            | Flags::NO_OPTIMIZE
+            | Flags::SOFT_PROOFING
+            | Flags::NO_WHITE_ON_WHITE_FIXUP;
         if options.black_point_compensation {
             flags = flags | Flags::BLACKPOINT_COMPENSATION;
         }
-        result.output = RgbTransform::new_proofing(
+        result.output = SharedRgbTransform::new_proofing_context(
+            lcms2::GlobalContext::new(),
             &working,
             PixelFormat::RGB_FLT,
             &display,
@@ -272,6 +281,24 @@ impl Transform {
         let mut result = [[0.0; 3]];
         self.output.transform_pixels(&[rgb], &mut result);
         result[0]
+    }
+    /// [`Self::apply`] over many pixels in place, split across cores. Whole-image
+    /// conversions (decoding an RGB file, the culling analysis preview) spent
+    /// seconds per photo in the one-pixel-at-a-time loop.
+    pub fn apply_in_place(&self, pixels: &mut [[f32; 3]]) {
+        const MIN_CHUNK: usize = 1 << 16;
+        let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+        let chunk = pixels.len().div_ceil(threads).max(MIN_CHUNK);
+        if chunk >= pixels.len() {
+            self.output.transform_in_place(pixels);
+            return;
+        }
+        let output = &self.output;
+        std::thread::scope(|scope| {
+            for part in pixels.chunks_mut(chunk) {
+                scope.spawn(move || output.transform_in_place(part));
+            }
+        });
     }
     pub fn gamut_warning(&self, rgb: [f32; 3]) -> GamutWarning {
         let [monitor, proof] = self.gamut_delta(rgb);

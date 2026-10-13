@@ -300,20 +300,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppModel.shared.tether.disconnect()
     }
 
+    /// Quit saves and closes an open Develop session itself; it never refuses silently. Only an
+    /// export or print still running, or a save that fails, asks the photographer first.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let model = AppModel.shared
-        guard model.developRecovery.allowsTermination else {
-            model.statusMessage = "Finish the current photo save or operation before quitting"
+        if model.developRecovery.hasActiveReservations {
             model.mainWindow?.makeKeyAndOrderFront(nil)
-            return .terminateCancel
+            guard Self.confirmQuit(
+                "An export or print is still running.",
+                detail: "Quitting now stops it; files it has not finished are left incomplete.") else {
+                return .terminateCancel
+            }
         }
-        // Join cull workers for at most a few seconds, then quit regardless: a provider
-        // stuck on a stalled volume must not turn Quit into Force Quit.
         Task { @MainActor in
+            if let failure = await model.closeDevelopForQuit(timeout: .seconds(10)) {
+                model.mainWindow?.makeKeyAndOrderFront(nil)
+                guard Self.confirmQuit("The edits to the open photo could not be saved.",
+                                       detail: failure + "\n\nEdits made so far were autosaved as you worked.") else {
+                    model.statusMessage = "Develop: " + failure
+                    sender.reply(toApplicationShouldTerminate: false)
+                    return
+                }
+            }
+            // Join cull workers for at most a few seconds, then quit regardless: a provider
+            // stuck on a stalled volume must not turn Quit into Force Quit.
             _ = await model.shutdownCullSessions(timeout: .seconds(3))
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
+    }
+
+    private static func confirmQuit(_ message: String, detail: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.informativeText = detail
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Quit Anyway")
+        return alert.runModal() == .alertSecondButtonReturn
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

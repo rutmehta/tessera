@@ -326,6 +326,13 @@ final class DevelopRecoveryCoordinator {
         return task
     }
 
+    /// Quit: cancels pending opens and saves and closes every open session. A session whose
+    /// close already failed reports that failure again rather than retrying.
+    func requestCloseAll() -> [Task<Outcome, Never>] {
+        for ticket in opens.values { ticket.task.cancel() }
+        return records.keys.sorted { $0.value.uuidString < $1.value.uuidString }.map(requestClose)
+    }
+
     func retryClose(_ id: SessionID) -> Task<Outcome, Never> {
         if let record = records[id], record.task == nil, record.lastFailure != nil {
             record.lastFailure = nil

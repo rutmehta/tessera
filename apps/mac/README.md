@@ -260,7 +260,8 @@ groups, 12 with 2+ frames); grain varies so the default best-frame score differs
 |---|---|
 | X · U · P | Reject · Undecided · Keep (auto-advance on) |
 | 1 · 2 · 3 | Grade (implies Keep) · 6–9 toggle a mark · B toggle the basket target album |
-| ← → / ↑ ↓ (loupe), ⌥ + arrows (grid) | Previous/next group (lands on its first frame) · previous/next frame in group |
+| ← → / ↑ ↓ (loupe) | Previous/next frame |
+| ⌥ + arrows (loupe and grid) | Previous/next group (lands on its first frame) · previous/next frame in group |
 | K | Keep the group's suggested best, reject the rest: one undo step, a toast with Undo, then the next group |
 | C | Compare: the two selected frames, or the focused frame and its group neighbour |
 | Compare: ← → · Return · Z · Esc | Pick side · "choose this" (keep it, reject the other; the next undecided frame of the group takes the rejected side) · fit ↔ 1:1 · back |
@@ -405,10 +406,14 @@ Support/                      Info.plist, make-app.sh, make-sample-folder.swift
 - **Undo.** ⌘Z/⇧⌘Z go to the history of the last kind of change: develop edits use the develop
   session (persisted in the recipe, so it survives relaunch), culling uses the cull session. When the
   cull session has nothing to undo, ⌘Z falls through to the develop history.
+- **Quit.** ⌘Q saves and closes an open Develop session, then quits (bounded: a save that never
+  returns cannot hold the app hostage; edits autosave as you work). Only an export or print still
+  running, or a save that fails, asks first with Cancel / Quit Anyway.
 - **Keys** (docs/06 §2–3). A local event monitor handles them, so they work whichever pane has focus.
   They pass through while text is being edited, while a panel or sheet is open, and when ⌘ or ⌃ is
-  held. In the loupe, ←/→ move between groups and ↑/↓ move within a group. In the grid, the arrow keys
-  move spatially (⇧ extends the selection), and ⌥+arrows navigate groups the way the loupe does.
+  held. In the loupe, the arrow keys step one frame at a time. In the grid, the arrow keys move
+  spatially (⇧ extends the selection). In both, ⌥+arrows navigate groups: ←/→ between groups, ↑/↓
+  within a group.
 - **Style.** Dark-first neutral greys with one amber focus accent. Semantic colours are used only for
   decisions, marks and the basket. Badges are text pills and there are no symbol icons.
 

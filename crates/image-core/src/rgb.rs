@@ -232,11 +232,11 @@ impl RgbSource {
             .map_err(color_error)?;
         let transform =
             color_mgmt::Transform::new(&input, &output, Default::default()).map_err(color_error)?;
-        let mut planes: Vec<_> = (0..3)
-            .map(|_| Vec::with_capacity(decoded.len() / 3))
-            .collect();
-        for pixel in decoded.pixels() {
-            for (plane, value) in planes.iter_mut().zip(transform.apply(pixel.0)) {
+        let mut pixels: Vec<[f32; 3]> = decoded.pixels().map(|p| p.0).collect();
+        transform.apply_in_place(&mut pixels);
+        let mut planes: Vec<_> = (0..3).map(|_| Vec::with_capacity(pixels.len())).collect();
+        for pixel in pixels {
+            for (plane, value) in planes.iter_mut().zip(pixel) {
                 plane.push(value);
             }
         }

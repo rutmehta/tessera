@@ -54,6 +54,59 @@ final class DevelopRecoveryCoordinatorTests: XCTestCase {
         XCTAssertEqual(openCount, 1, "A failed close must keep this owner/photo out of normal reopen admission")
     }
 
+    /// Quit must save and close an open Develop session itself, never refuse while one is open
+    /// (first-use feedback 2026-10-09: ⌘Q "did nothing" and the app had to be force quit).
+    func testQuitClosesOpenDevelopSessionAndAdmitsTermination() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("develop-recovery-quit-\(UUID().uuidString)")
+        let support = root.appendingPathComponent("support")
+        let folder = root.appendingPathComponent("photos")
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        try Self.writePhoto(to: folder)
+        let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        let model = AppModel(agent: AgentController(arguments: ["--fake-planner"], supportDirectory: support))
+        model.install(library)
+        let item = try XCTUnwrap(library.items.first)
+        let ref = try XCTUnwrap(item.engineImage)
+
+        model.openDevelop(for: item)
+        await settleDevelop(model, imageID: ref.imageID, owner: library)
+        XCTAssertNotNil(model.develop)
+        XCTAssertFalse(model.developRecovery.allowsTermination, "an open session blocks a plain terminate")
+
+        let failure = await model.closeDevelopForQuit(timeout: .seconds(10))
+        XCTAssertNil(failure)
+        XCTAssertTrue(model.developRecovery.allowsTermination, "quit closed the session, nothing left to refuse")
+    }
+
+    func testQuitReportsAFailedSaveInsteadOfHanging() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("develop-recovery-quit-fail-\(UUID().uuidString)")
+        let support = root.appendingPathComponent("support")
+        let folder = root.appendingPathComponent("photos")
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        try Self.writePhoto(to: folder)
+        let library = try EngineLibrary.scan(folder: folder, appSupport: support)
+        let closeGate = FailedCloseGate()
+        let model = AppModel(
+            agent: AgentController(arguments: ["--fake-planner"], supportDirectory: support),
+            developControllerOpener: { ref, itemID in
+                let session = CloseFailureSession(try ref.engine.openDevelopSession(imageId: ref.imageID), gate: closeGate)
+                return try DevelopController(session: session, itemID: itemID, imageID: ref.imageID)
+            }
+        )
+        model.install(library)
+        let item = try XCTUnwrap(library.items.first)
+        let ref = try XCTUnwrap(item.engineImage)
+        model.openDevelop(for: item)
+        await settleDevelop(model, imageID: ref.imageID, owner: library)
+
+        closeGate.failNextClose()
+        let failure = await model.closeDevelopForQuit(timeout: .seconds(10))
+        XCTAssertEqual(failure, "injected develop close failure")
+        XCTAssertEqual(closeGate.failureCount, 1)
+    }
+
     func testFailedCleanupOfStaleOpenDoesNotAdmitSameOwnerPhotoOpen() async throws {
         let f = try fixture()
         let opener = GatedOpener()

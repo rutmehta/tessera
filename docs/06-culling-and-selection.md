@@ -39,7 +39,7 @@ Import from a Lightroom catalog also maps existing 1–5 stars, flags and labels
 ## 3. Culling UX
 
 - **Instant previews**: the culling grid and loupe use the embedded camera JPEG until our render exists; zoom to 1:1 never shows "Loading" ([08-performance.md](08-performance.md)).
-- **Group-by-group review**: bursts and near-duplicates are auto-grouped; ←/→ moves between groups, ↑/↓ within a group; the suggested best frame is pre-highlighted; one key keeps the best and rejects the rest of the group.
+- **Group-by-group review**: bursts and near-duplicates are auto-grouped; in the loupe the arrows step frame by frame and ⌥←/⌥→ moves between groups, ⌥↑/⌥↓ within a group; the suggested best frame is pre-highlighted; one key keeps the best and rejects the rest of the group.
 - **Face strip**: every detected face in the frame shown as close-ups with green/yellow/red focus and eyes-open badges (Narrative-style); per-person filters ("show frames where the bride's eyes are closed").
 - **Defect sweep**: one-click "reject all frames with missed focus / closed eyes / blown highlights" using adjustable thresholds, always undoable and shown as a reviewable list before applying.
 - **Compare**: 2–6 up with synced zoom/pan, swap, and a "choose this" key; survey mode that eliminates by dismissing.

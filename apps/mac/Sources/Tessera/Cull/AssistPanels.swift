@@ -131,6 +131,8 @@ struct AssistProgressBar: View {
                 Button("Stop") { assist.cancel() }.accessibilityIdentifier("library.assist.stop")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
+            .help("Scores each photo's sharpness, motion blur, noise and clipping so Assist can suggest keepers. "
+                  + "Runs in the background. Stop pauses it; it picks up where it left off the next time this folder opens.")
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("analysis-progress")
         }

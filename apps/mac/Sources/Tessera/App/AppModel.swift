@@ -1753,8 +1753,8 @@ final class AppModel {
 
     enum Move { case left, right, up, down }
 
-    /// Grid: spatial arrows. Loupe (and ⌥ in the grid): ←/→ between groups, ↑/↓ within a group
-    /// (docs/06 §3). Unfiltered, group moves come from the Rust session.
+    /// Grid: spatial arrows. Loupe: one frame at a time. `groupwise` (⌥ + arrows): ←/→ between groups,
+    /// ↑/↓ within a group (docs/06 §3). Unfiltered, group moves come from the Rust session.
     func navigate(_ move: Move, groupwise: Bool, extend: Bool) {
         if isReviewing || isReviewEditing {
             moveReviewSelection(move == .left || move == .up ? -1 : 1)
@@ -2557,6 +2557,33 @@ final class AppModel {
         guard let sessionID = developSessionID else { return nil }
         let task = developRecovery.requestClose(sessionID)
         return task
+    }
+
+    /// Quit: saves and closes every Develop session, waiting at most `timeout`. Returns the first
+    /// save failure to put to the photographer; nil when everything saved or the bound elapsed
+    /// (edits autosave as they are made, so a close that never returns loses nothing on disk).
+    func closeDevelopForQuit(timeout: Duration) async -> String? {
+        closeDevelop()
+        let closes = developRecovery.requestCloseAll()
+        guard !closes.isEmpty else { return nil }
+        statusMessage = "Saving edits before quitting…"
+        let (outcomes, sink) = AsyncStream<String?>.makeStream()
+        Task {
+            var failure: String?
+            for close in closes {
+                if case .failed(_, let message) = await close.value, failure == nil { failure = message }
+            }
+            sink.yield(failure)
+        }
+        let timer = Task {
+            try? await Task.sleep(for: timeout)
+            sink.yield(nil)
+        }
+        var first = outcomes.makeAsyncIterator()
+        let failure = await first.next() ?? nil
+        timer.cancel()
+        sink.finish()
+        return failure
     }
 
     /// Reserve target photos before a consumer can suspend or read their recipes.

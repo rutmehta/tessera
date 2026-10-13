@@ -102,10 +102,10 @@ Keeping the guards here avoids documenting context-dependent keys as global shor
 | Library/Compare override | Escape | model.exitCompare(); return true |
 | Library/Cull | Delete | model.deletePressed(); return true |
 | Library/Cull | ForwardDelete | model.deletePressed(); return true |
-| Library/Cull | Left | model.navigate(.left, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | Right | model.navigate(.right, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | Up | model.navigate(.up, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | Down | model.navigate(.down, groupwise: loupe &#124;&#124; option, extend: shift); return true |
+| Library/Cull | Left | model.navigate(.left, groupwise: option, extend: shift); return true |
+| Library/Cull | Right | model.navigate(.right, groupwise: option, extend: shift); return true |
+| Library/Cull | Up | model.navigate(.up, groupwise: option, extend: shift); return true |
+| Library/Cull | Down | model.navigate(.down, groupwise: option, extend: shift); return true |
 | Library/Cull | Return | model.requestViewMode(loupe ? .grid : .loupe); return true |
 | Library/Cull | Enter | model.requestViewMode(loupe ? .grid : .loupe); return true |
 | Library/Cull | Escape | if loupe { model.requestViewMode(.grid); return true }; return false |
@@ -211,18 +211,18 @@ Keeping the guards here avoids documenting context-dependent keys as global shor
 | Library/Cull | ⇧ForwardDelete | model.deletePressed(); return true |
 | Library/Cull | ⌥ForwardDelete | model.deletePressed(); return true |
 | Library/Cull | ⌥⇧ForwardDelete | model.deletePressed(); return true |
-| Library/Cull | ⇧Left | model.navigate(.left, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⌥Left | model.navigate(.left, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⌥⇧Left | model.navigate(.left, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⇧Right | model.navigate(.right, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⌥Right | model.navigate(.right, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⌥⇧Right | model.navigate(.right, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⇧Up | model.navigate(.up, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⌥Up | model.navigate(.up, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⌥⇧Up | model.navigate(.up, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⇧Down | model.navigate(.down, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⌥Down | model.navigate(.down, groupwise: loupe &#124;&#124; option, extend: shift); return true |
-| Library/Cull | ⌥⇧Down | model.navigate(.down, groupwise: loupe &#124;&#124; option, extend: shift); return true |
+| Library/Cull | ⇧Left | model.navigate(.left, groupwise: option, extend: shift); return true |
+| Library/Cull | ⌥Left | model.navigate(.left, groupwise: option, extend: shift); return true |
+| Library/Cull | ⌥⇧Left | model.navigate(.left, groupwise: option, extend: shift); return true |
+| Library/Cull | ⇧Right | model.navigate(.right, groupwise: option, extend: shift); return true |
+| Library/Cull | ⌥Right | model.navigate(.right, groupwise: option, extend: shift); return true |
+| Library/Cull | ⌥⇧Right | model.navigate(.right, groupwise: option, extend: shift); return true |
+| Library/Cull | ⇧Up | model.navigate(.up, groupwise: option, extend: shift); return true |
+| Library/Cull | ⌥Up | model.navigate(.up, groupwise: option, extend: shift); return true |
+| Library/Cull | ⌥⇧Up | model.navigate(.up, groupwise: option, extend: shift); return true |
+| Library/Cull | ⇧Down | model.navigate(.down, groupwise: option, extend: shift); return true |
+| Library/Cull | ⌥Down | model.navigate(.down, groupwise: option, extend: shift); return true |
+| Library/Cull | ⌥⇧Down | model.navigate(.down, groupwise: option, extend: shift); return true |
 | Library/Cull | ⇧Return | model.requestViewMode(loupe ? .grid : .loupe); return true |
 | Library/Cull | ⌥Return | model.requestViewMode(loupe ? .grid : .loupe); return true |
 | Library/Cull | ⌥⇧Return | model.requestViewMode(loupe ? .grid : .loupe); return true |
@@ -584,10 +584,10 @@ final class KeyRouter {
         }
         switch event.keyCode {
         case 51, 117: model.deletePressed(); return true
-        case 123: model.navigate(.left, groupwise: loupe || option, extend: shift); return true
-        case 124: model.navigate(.right, groupwise: loupe || option, extend: shift); return true
-        case 126: model.navigate(.up, groupwise: loupe || option, extend: shift); return true
-        case 125: model.navigate(.down, groupwise: loupe || option, extend: shift); return true
+        case 123: model.navigate(.left, groupwise: option, extend: shift); return true
+        case 124: model.navigate(.right, groupwise: option, extend: shift); return true
+        case 126: model.navigate(.up, groupwise: option, extend: shift); return true
+        case 125: model.navigate(.down, groupwise: option, extend: shift); return true
         case 36, 76: model.requestViewMode(loupe ? .grid : .loupe); return true
         case 53: if loupe { model.requestViewMode(.grid); return true }; return false
         default: break
