@@ -133,10 +133,18 @@ Widths: sidebar 200–300 (ideal 220), inspector 288–380 (ideal 296), label co
 
 ### 3.4 Window structure
 
-Toolbar (real `NSToolbar` via SwiftUI `.toolbar`, flat — no per-item glass on macOS 26):
-Open Folder (leading) · Grid / Loupe / Compare segmented (centre) · thumbnail size (Grid only),
-Auto-advance, Inspector (trailing; icon + label). Below: filter bar (panel, hairline) · content
-(canvas) · progress strips · status bar · filmstrip. Sidebar left, inspector right.
+One toolbar (real `NSToolbar` via SwiftUI `.toolbar`, flat — no per-item glass on macOS 26), the
+only bar (redesign SPEC §1, WP UX-11): Open Folder and the folder name (leading; the name opens
+the source sidebar's content — folders, albums, people, culling lists — as a popover) ·
+**Cull · Edit · Deliver** segmented (centre; ⌘1 ⌘2 ⌘3) · the search field (trailing; widens while
+it has the keyboard, the facet menus hang off its filter button as a popover), thumbnail size
+(Grid only), the panel toggle (Tab) and Export. Review stays reachable from the View and Develop
+menus. Below: content (canvas) with the agent field bottom centre (`Shell/AgentField.swift`:
+560 × 48, sparkle mark, the mode's placeholder, mic, ⌘K; in Edit the Masks / Crop / Heal strip
+beside it) · progress strips · status bar · filmstrip. The source sidebar is hidden by default
+(View ▸ Show Library Sidebar, persisted); the inspector is the one panel, hidden and shown by Tab
+with the state remembered per mode (`Shell.panel.<mode>` in user defaults). With the panel hidden
+in Edit the photo fills the window. Deliver covers the canvas with the export entry until UX-15.
 
 ### 3.5 Layout contracts (WP M2-56)
 
