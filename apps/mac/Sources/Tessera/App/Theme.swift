@@ -478,7 +478,7 @@ final class AppearanceSettings {
         }
     }
 
-    private static func redraw(_ view: NSView) {
+    @MainActor private static func redraw(_ view: NSView) {
         view.viewDidChangeEffectiveAppearance()
         view.needsDisplay = true
         view.subviews.forEach(redraw)
