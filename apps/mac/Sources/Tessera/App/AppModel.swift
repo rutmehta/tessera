@@ -453,9 +453,24 @@ final class AppModel {
     var autoAdvance = true
     var showInspector = true
     var showFilmstrip = true
-    /// UX-11: Deliver covers the Library canvas until UX-15 makes it a workspace of its own
-    /// (see AppModel+Shell.swift). Cleared by every Library / Edit / Review navigation.
-    var deliverMode = false
+    /// UX-11 / UX-15: the Deliver workspace (What · How · Where over the Library canvas; see
+    /// AppModel+Deliver.swift). Cleared by every Library / Edit / Review navigation.
+    var deliverMode = false {
+        didSet { if !deliverMode { deliverResult = nil } }
+    }
+    /// UX-15: the What and How rows, remembered across launches.
+    var deliverWhat: DeliverWhat = DeliverWhat(rawValue: UserDefaults.standard.string(forKey: AppModel.deliverWhatKey) ?? "") ?? .keeps {
+        didSet { if deliverWhat != oldValue { UserDefaults.standard.set(deliverWhat.rawValue, forKey: Self.deliverWhatKey) } }
+    }
+    var deliverHow: DeliverHow = DeliverHow(rawValue: UserDefaults.standard.string(forKey: AppModel.deliverHowKey) ?? "") ?? .web {
+        didSet { if deliverHow != oldValue { UserDefaults.standard.set(deliverHow.rawValue, forKey: Self.deliverHowKey) } }
+    }
+    /// UX-15: the last export Deliver finished ("Done · n files · Reveal"); cleared by the next
+    /// change of What or How and by leaving Deliver.
+    var deliverResult: DeliverResult?
+    /// UX-15: pixel sizes read from the files' headers for photos the library does not size
+    /// (engine items), by item id.
+    @ObservationIgnored var deliverPixelSizes: [Int: (width: Int, height: Int)] = [:]
     /// UX-11: bumped by ⌘K; the agent field of the current mode takes the keyboard.
     var agentFieldFocusRequest = 0
     /// UX-14: Cull shows one burst at a time or the grid grouped by burst (G); remembered.

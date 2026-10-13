@@ -3,9 +3,9 @@ import SwiftUI
 import TesseraCore
 
 /// The three modes of the shell (redesign SPEC §1, WP UX-11): one segmented control, top centre.
-/// Cull is the Library (grid, loupe, compare, people); Edit is Photo Edit; Deliver covers the canvas
-/// with the export entry until UX-15 makes it a workspace. Review stays reachable from the View and
-/// Develop menus and is shown as Cull in the control.
+/// Cull is the Library (grid, loupe, compare, people); Edit is Photo Edit; Deliver is the export
+/// workspace (UX-15, AppModel+Deliver.swift). Review stays reachable from the View and Develop
+/// menus and is shown as Cull in the control.
 enum ShellMode: String, CaseIterable, Identifiable {
     case cull, edit, deliver
     var id: String { rawValue }
@@ -60,7 +60,7 @@ extension AppModel {
             enterPhotoEdit()
         case .deliver:
             if isPhotoEditing || isReviewing { returnToLibrary() }
-            deliverMode = true
+            enterDeliver()
         }
     }
 
@@ -113,11 +113,13 @@ extension AppModel {
     /// Return in the agent field. In Edit the text is the instruction of an agent run on the focused
     /// photo (the planner's free-text redo path, one named group in its history, reviewed in the
     /// queue as every run is). In Cull simple phrases (blurry, the pick, eyes, a person's name) are
-    /// the quick actions (UX-14); other text, and Deliver's until UX-15, is reported.
+    /// the quick actions (UX-14); in Deliver a How and a What ("export the keeps for Instagram")
+    /// pick the rows and run the export (UX-15); other text is reported.
     func submitAgentInstruction(_ raw: String) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         if shellMode == .cull, isLibraryWorkspace, cullAgent(text) { return }
+        if shellMode == .deliver, deliverAgent(text) { return }
         guard shellMode == .edit else { statusMessage = "Agent: \(text)"; return }
         guard let item = editTarget, item.engineImage != nil, isEngineBacked else {
             statusMessage = "The agent edits photos opened from a folder on the engine"

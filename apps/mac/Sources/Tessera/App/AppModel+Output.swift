@@ -75,6 +75,7 @@ extension AppModel {
         let (headline, details) = report.toastLines
         statusMessage = headline
         showToast(headline, undoable: false, details: details)
+        deliverDidFinish(report)
         // Derived status: the grid's EXPORTED pills.
         let exportedIDs = Set(report.items.filter { $0.outputPath != nil }.map(\.imageId))
         if let lib = engineLibrary, !exportedIDs.isEmpty {
@@ -90,15 +91,19 @@ extension AppModel {
 
     /// ⌘P: the selection (several) or the current view.
     func presentPrint() {
-        guard !printing.isRunning else { statusMessage = "Printing is already in progress"; return }
-        guard let lib = engineLibrary else { statusMessage = "Printing needs a folder opened on the engine"; return }
         let items = (selectionCount > 1 ? selectedItems : (source == .all ? selectedItems : visibleItems))
             .filter { $0.engineImage != nil }
+        presentPrint(items: items, title: selectionCount > 1 || source == .all ? "Selection" : source.title)
+    }
+
+    /// The print flow on `items` (⌘P's choice, or Deliver's What row; UX-15).
+    func presentPrint(items: [PhotoItem], title: String) {
+        guard !printing.isRunning else { statusMessage = "Printing is already in progress"; return }
+        guard let lib = engineLibrary else { statusMessage = "Printing needs a folder opened on the engine"; return }
         guard !items.isEmpty else { statusMessage = "Select photos to print"; return }
         let imageIDs = Set(items.compactMap { $0.engineImage?.imageID })
         let selected = selection
         let revision = libraryRevision
-        let title = selectionCount > 1 || source == .all ? "Selection" : source.title
         let gate = prepareForRecipeRead(imageIDs: imageIDs, library: lib)
         Task { [weak self] in
             var previewOwnsGate = false

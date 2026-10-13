@@ -208,8 +208,9 @@ enum LayoutProbeHarness {
 /// never made key, and captures use `screencapture -l <window> -x` (never the screen).
 @MainActor
 enum ShellHarness {
-    /// `library` is Cull's burst view (UX-14), `cullGrid` its grouped grid over the same shoot.
-    enum State: String, CaseIterable { case library, cullGrid, raw, document, photoEditDevelop, photoEditMasks }
+    /// `library` is Cull's burst view (UX-14), `cullGrid` its grouped grid over the same shoot,
+    /// `deliver` the Deliver workspace (UX-15) on it with every photo chosen.
+    enum State: String, CaseIterable { case library, cullGrid, deliver, raw, document, photoEditDevelop, photoEditMasks }
 
     static let sizes: [CGSize] = [CGSize(width: 960, height: 600), CGSize(width: 1280, height: 800),
                                   CGSize(width: 1440, height: 900), CGSize(width: 1728, height: 1117)]
@@ -224,12 +225,16 @@ enum ShellHarness {
     static func model(_ state: State, scratch: URL) throws -> AppModel {
         let model = AppModel()
         switch state {
-        case .library, .cullGrid:
+        case .library, .cullGrid, .deliver:
             let folder = scratch.appendingPathComponent("shoot")
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             for n in 0..<24 { try writeJPEG(folder.appendingPathComponent(String(format: "IMG_%04d.jpg", n)), shade: 20 + n * 9) }
             model.install(try EngineLibrary.scan(folder: folder, appSupport: scratch.appendingPathComponent("support")))
             model.cullLayout = state == .cullGrid ? .grid : .burst
+            if state == .deliver {
+                model.selectShellMode(.deliver)
+                model.setDeliverWhat(.shoot)
+            }
         case .raw:
             let raw = scratch.appendingPathComponent("raw")
             try FileManager.default.copyItem(at: repoRoot.appendingPathComponent("fixtures/raw"), to: raw)

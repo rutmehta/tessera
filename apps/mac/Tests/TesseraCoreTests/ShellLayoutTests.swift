@@ -82,9 +82,11 @@ final class ShellLayoutTests: XCTestCase {
                     let toolbar = all.filter { !$0.view.isDescendant(of: host) && $0.frame.maxY <= top + 1 }
                     // The empty, preview-only Masks tab has one native control: its fixed
                     // inspector picker. SwiftUI text/buttons are not in this native traversal.
-                    // Cull's burst view (UX-14) is SwiftUI over CALayers: at the minimum size, with
-                    // the filmstrip yielded, its one native control is the agent field.
-                    let minimumNativeControls = state == .photoEditMasks || (state == .library && size.height <= 600) ? 1 : 2
+                    // Cull's burst view (UX-14; `library` and `raw`) and Deliver (UX-15) are SwiftUI
+                    // over CALayers: at the minimum size, with the filmstrip yielded, their one
+                    // native control is the agent field.
+                    let swiftUICanvas = state == .library || state == .raw || state == .deliver
+                    let minimumNativeControls = state == .photoEditMasks || (swiftUICanvas && size.height <= 600) ? 1 : 2
                     if content.count < minimumNativeControls { failures.append("\(tag) only \(content.count) content controls found") }
                     if state == .photoEditMasks {
                         XCTAssertTrue(model.isPhotoEditing)

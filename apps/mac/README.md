@@ -265,8 +265,8 @@ centre of every mode; in Edit the Masks / Crop / Heal strip sits beside it.
 |---|---|
 | ⌘1 · ⌘2 · ⌘3 | Cull · Edit · Deliver (View menu; plain 1 2 3 stay the grade keys) |
 | Tab | Show or hide the panel; remembered per mode. A focused text field or control keeps Tab for the key-view loop |
-| ⌘K | Focus the agent field. Return submits: in Edit it starts an agent run on the focused photo with the text as its instruction; in Cull simple phrases are the quick actions (below); Deliver reports `Agent: <text>` in the status bar for now |
-| Esc (Deliver) | Back to Cull |
+| ⌘K | Focus the agent field. Return submits: in Edit it starts an agent run on the focused photo with the text as its instruction; in Cull simple phrases are the quick actions (below); in Deliver "export the keeps for Instagram" picks the rows and runs the export (below); anything else reports `Agent: <text>` in the status bar |
+| Esc (Deliver) | Back to Cull (⌘1 and ⌘2 leave it too) |
 
 ## Cull, burst-first (redesign SPEC §4, WP UX-14)
 
@@ -307,6 +307,21 @@ blink, a named person); anything else reports `Agent: <text>`.
 | P · X | Keep / reject the focused frame, then the burst's next undecided frame; when every frame is decided, the next burst (auto-advance on) |
 | G | Burst view ↔ grouped grid (from the loupe: the grid) |
 | E · C · ⌥⌘2 · ⌥⌘3 | Loupe and Compare, as before; ↑ ↓ in the grouped grid move a burst row at a time |
+
+## Deliver (redesign SPEC §5, WP UX-15)
+
+⌘3, or Deliver in the mode control. The left column (320 pt; Tab hides it) is **What** (Keeps ·
+Selection · Whole shoot, each with its photo count), **How** (Web JPEG: the shipped "Web 2048
+sRGB" preset · Instagram: JPEG fitted inside 1080 × 1350, built in · Full size: the "16-bit TIFF
+ProPhoto" preset · Print: the print flow) with **More…** for the full Export sheet on the same
+photos, and **Where** (the export folder, "change" opens the folder panel; the first file's name
+from the naming template; both shared with the sheet). The right side lists the files that will
+be written with their output pixel size, a size estimate ("about 3.1 MB", from the format's
+typical bytes per megapixel), a progress bar during the run and the status: **Done · n files ·
+Reveal** (Reveal selects them in Finder). **Export n** beside the agent field runs it; the agent
+field understands a How (insta / tiff / full / print / web / jpeg) and a What (keeps / selected /
+all / whole / everything), either alone keeping the other row (`DeliverAgentPhrase`). The
+choices persist (`Deliver.what`, `Deliver.how`).
 
 ## Culling (docs/06 §3–4)
 
