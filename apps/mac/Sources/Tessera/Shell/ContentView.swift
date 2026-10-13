@@ -412,7 +412,7 @@ struct ContentView: View {
                         Toggle("Sort by Keep Confidence", isOn: Binding(get: { model.assist.sortByConfidence },
                                                                          set: { model.assist.sortByConfidence = $0 }))
                             .accessibilityIdentifier("library.toolbar.sortConfidence")
-                        Button("Confirm \(model.assist.suggestionCount) Suggested    (Y)") { model.assist.confirmAll() }
+                        Button("Confirm \(model.assist.suggestionCount) Suggested") { model.assist.confirmAll() }
                             .accessibilityIdentifier("library.toolbar.confirmSuggestions")
                             .disabled(model.assist.suggestionCount == 0)
                     } label: {
@@ -634,7 +634,7 @@ struct StatusBar: View {
             if !compact, model.showRenderReadout, let readout = model.renderReadout {
                 Text(readout)
                     .foregroundStyle(Theme.textTertiary)
-                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Render Timing)")
+                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Engine Readouts)")
                     .accessibilityIdentifier("renderReadout")
                     .fixedSize()
                 separator

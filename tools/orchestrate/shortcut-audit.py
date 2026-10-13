@@ -51,7 +51,8 @@ def chord(key, modifiers):
         raise ValueError('Unknown modifiers: ' + modifiers)
     key = key.strip('"')
     key = {'.delete': 'Delete', '.tab': 'Tab', '.space': 'Space', '.escape': 'Escape',
-           '.return': 'Return', ' ': 'Space', '\\t': 'Tab'}.get(key, key)
+           '.return': 'Return', ' ': 'Space', '\\t': 'Tab', '.leftArrow': 'Left',
+           '.rightArrow': 'Right', '.upArrow': 'Up', '.downArrow': 'Down'}.get(key, key)
     return ''.join(symbol for name, symbol in MODS.items() if name in names) + (key.upper() if len(key) == 1 else key)
 
 
