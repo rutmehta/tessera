@@ -29,12 +29,15 @@ struct TesseraApp: App {
             }
         }
         // Settings ▸ AI (WP M3-11): providers, Keychain-stored keys, guardrails, style profile.
+        // Settings ▸ Appearance (UX-10): accent and ground.
         Settings {
             TabView {
                 AISettingsView(agent: model.agent, model: model)
                     .tabItem { Label("AI", systemImage: "sparkles") }
                 LibrarySettingsView(people: model.people)
                     .tabItem { Label("Library", systemImage: "books.vertical") }
+                AppearanceSettingsView()
+                    .tabItem { Label("Appearance", systemImage: "paintpalette") }
             }
         }
     }
@@ -100,7 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(nonactivating ? .accessory : .regular)
-        // Follows the system unless View ▸ Appearance picks one (DESIGN.md: dark first, full light).
+        // Tooltips after 250 ms (SPEC §2); the registration domain, so a user default still wins.
+        UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 250])
+        // Dark unless View ▸ Appearance picks another (DESIGN.md §1; light parity comes later).
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "--appearance"), i + 1 < args.count, let forced = AppearancePreference(rawValue: args[i + 1]) {
             forced.apply()

@@ -11,64 +11,71 @@ The defects this system replaced are listed in `DESIGN_AUDIT.md`.
 **A quiet, precise pro tool.** The photo is the loudest thing on screen; the interface is the
 frame around it. Three ideas carry the identity:
 
-* **Graphite, not grey.** Surfaces are warm neutrals (a hint of red-yellow in every step), from a
-  near-black canvas to raised controls. Adobe's cool mid-greys, grey tiles and bevels are out.
+* **Black and warm white.** The ground is true black (`#0A0A0A`) with two steps of near-black for
+  panels and controls, and one warm-white ink family. Adobe's cool mid-greys, grey tiles and
+  bevels are out. The person can choose a graphite or navy ground instead (§2.5).
 * **Hairlines, not boxes.** Structure comes from 1 px separators and spacing. Panels have no
   borders, thumbnails have no tiles, cards are rare.
-* **One accent, used sparingly.** Warm amber marks exactly three things: *content selection*
+* **One accent, used sparingly.** The accent marks exactly three things: *content selection*
   (grid cells, list rows, history head), *focus* (the focused photo's ring, slider drag) and *the
-  primary action* of a sheet. Controls' own modes (segmented controls, toolbar toggles) stay
-  neutral.
+  primary action* of a sheet, plus the agent mark. Controls' own modes (segmented controls,
+  toolbar toggles) stay neutral.
 
-Why amber: it is warm, like the graphite, so the palette reads as one family; it is far from
-every decision colour (sage keep, brick reject, slate basket) and from the macOS default blue and
-Adobe's blue; and it carries continuity from the app's original focus ring.
+Why amber by default: it is warm, like the ink, so the palette reads as one family; it is far
+from every decision colour (sage keep, brick reject, slate basket) and from the macOS default
+blue and Adobe's blue; and it carries continuity from the app's original focus ring. The accent
+is the person's to change (§2.5); the decision colours are not.
 
-Dark is the primary appearance. Light is complete, not an afterthought: every token has both
-values and the app follows the system (View ▸ Appearance overrides it: System / Dark / Light).
+Dark is the only appearance during the redesign (docs/design/redesign-2026-10/SPEC.md §2): View ▸
+Appearance defaults to Dark. Every token still has a Light value, kept as it was until light
+parity is restored.
 
 ## 2. Colour tokens
 
 Hex values are sRGB. `Theme.Palette.*` are dynamic `NSColor`s (AppKit drawing); `Theme.*` are the
-same colours as SwiftUI `Color`s. Contrast is WCAG 2 against the surface named.
+same colours as SwiftUI `Color`s. Contrast is WCAG 2 against the surface named. Dark values
+below are for the default ground (Black) and accent (Amber); §2.5 lists the alternatives.
 
 ### 2.1 Surfaces
 
 | Token | Dark | Light | Use |
 | --- | --- | --- | --- |
-| `canvas` | `#131312` | `#E3E2DF` | Grid, compare, loupe surround |
-| `panel` | `#1C1B1A` | `#F5F4F2` | Inspector, filter bar, status bar, sheets |
-| `raised` | `#272624` | `#FFFFFF` | Fields, bordered buttons, selected segment, cards |
-| `well` | `#0E0E0D` | `#E9E8E5` | Segmented tracks |
+| `canvas` | `#0A0A0A` | `#E3E2DF` | Window ground: grid, compare, loupe surround, behind the photo |
+| `panel` | `#161616` | `#F5F4F2` | Inspector, toolbar, filter bar, status bar, sheets, cards |
+| `raised` | `#1C1C1C` | `#FFFFFF` | Fields, bordered buttons, selected segment, hover |
+| `track` | `#2A2A2A` | `#CFCDC9` | Slider tracks, inactive toggles |
+| `well` | `#0F0F0F` | `#E9E8E5` | Segmented tracks |
 | `plotWell` | `#121211` | `#121211` | Scopes: histogram, curve, 1:1 detail (dark in both, like FCP scopes) |
 | `hover` | white 6 % | black 5 % | Hover fill |
 | `pressed` | white 11 % | black 9 % | Pressed fill, toolbar toggle on |
-| `hairline` | white 9 % | black 11 % | 1 px separators, quiet outlines |
-| `hairlineStrong` | white 16 % | black 18 % | Control outlines, slider tracks |
+| `hairline` | white 8 % | black 11 % | 1 px separators, quiet outlines |
+| `hairlineStrong` | white 14 % | black 18 % | Field and HUD outlines |
 | `groupAlt` | white 3.5 % | black 4 % | Alternate burst groups in the grid |
-| `hud` | `#1A1918` 88 % | `#FBFAF8` 92 % | Loupe tool bars, toast |
+| `hud` | canvas 86 % | `#FBFAF8` 92 % | Dial, mask chips, loupe tool bars, toast (with `hairlineStrong`, radius 14) |
 
-The sidebar uses the native source-list material (vibrancy) rather than a token.
+`canvas`, `panel`, `raised`, `well` and `hud` follow the chosen ground (§2.5). The sidebar uses
+the native source-list material (vibrancy) rather than a token.
 
 ### 2.2 Ink
 
 | Token | Dark | Light | Contrast (on panel) | Use |
 | --- | --- | --- | --- | --- |
-| `textPrimary` | `#ECEAE6` | `#1D1C1A` | 14.3 / 15.5 | Titles, values, row text |
-| `textSecondary` | `#A7A39C` | `#5E5A54` | 6.8 / 6.2 | Labels, sub-headers, captions |
-| `textTertiary` | `#7C7872` | `#858079` | 3.9 / 3.6 | Hints, counts, key caps (never the only carrier of meaning) |
-| `textOnAccent` | `#17130B` | `#FFFFFF` | 8.3 / 4.8 on accent | Primary button text |
+| `textPrimary` | `#F2EFE9` | `#1D1C1A` | 15.8 / 15.5 | Titles, values, row text |
+| `textSecondary` | `#B5B1AA` | `#5E5A54` | 8.5 / 6.2 | Values, labels, sub-headers, captions |
+| `textTertiary` | `#8D8A84` | `#858079` | 5.3 / 3.6 | Hints, counts (never the only carrier of meaning) |
+| `textQuaternary` | `#5A5852` | `#A19D96` | 2.5 / 2.5 | Disabled text, key caps |
+| `textOnAccent` | `#1A1200` | `#FFFFFF` | 9.0 / 4.8 on accent | Primary button text; computed from the accent's luminance (§2.5) |
 
 ### 2.3 Accent and semantics
 
 | Token | Dark | Light | Contrast (on panel) | Use |
 | --- | --- | --- | --- | --- |
-| `accent` | `#E2A04A` | `#A8620C` | 7.7 / 4.5 | Selection, focus, primary action |
+| `accent` | `#F0A52A` (user-set) | `#A8620C` | 8.7 / 4.5 | Selection, focus, primary action, the agent mark |
 | `accentSubtle` | accent 18 % | accent 14 % | – | Selection fill |
-| `keep` | `#80B38C` | `#2F7A46` | 7.2 / 4.8 | Keep, grades |
-| `reject` | `#D8786C` | `#B23B2F` | 5.6 / 5.4 | Reject, errors |
-| `basket` | `#88A8CE` | `#3B6699` | 7.0 / 5.4 | Basket target album |
-| `warning` | `#D8B55C` | `#8A690B` | 8.7 / 4.7 | Warnings (always with an icon) |
+| `keep` | `#6F9A60` | `#2F7A46` | 5.6 / 4.8 | Keep, grades (decisions only) |
+| `reject` | `#C0584A` | `#B23B2F` | 4.1 / 5.4 | Reject, errors (decisions only) |
+| `basket` | `#88A8CE` | `#3B6699` | 7.4 / 5.4 | Basket target album |
+| `warning` | `#D8B55C` | `#8A690B` | 9.2 / 4.7 | Warnings (always with an icon) |
 
 Semantic colours are desaturated to the same lightness family so no decision shouts. They are
 never used for chrome, grammar or mode (the smart-album rule rails used to be blue / amber / red;
@@ -88,6 +95,26 @@ keep `#80B38C`, reject `#D9786B`, basket `#87A8CF` fills with ink `#141312` (≥
 Custom controls show focus with the accent. Native AppKit fields and pop-ups draw the macOS
 focus ring in the user's system accent: that is an accessibility preference and there is no
 per-app override without an asset-catalog `AccentColor`, so it is left alone.
+
+### 2.5 Appearance settings (SPEC §6)
+
+Settings ▸ Appearance holds two choices, both persisted in user defaults and applied live
+(`AppearanceSettings` in Theme.swift; `AppearanceSettingsView` in Settings/):
+
+* **Accent**: six swatches or any colour from the system colour well. Default Amber `#F0A52A`;
+  Coral `#FF7A66`, Cobalt `#4F7BFF`, Teal `#2FB3A6`, Rose `#E8709A`, Lime `#A6D24A`. The
+  choice sets `accent` and `accentSubtle`; `textOnAccent` is computed from the accent's
+  luminance (the warm ink `#1A1200` or the warm white `#F2EFE9`, whichever contrasts more; pure
+  black or white if neither clears 4.5:1, so any colour stays legible). Keep and reject never
+  follow the accent.
+* **Ground**: Black (default) `#0A0A0A` / `#161616` / `#1C1C1C`, Graphite `#131312` / `#1C1B1A`
+  / `#272624` (the pre-redesign set), Navy `#12151C` / `#1A1E27` / `#232833`, as canvas / panel
+  / raised; `well` and `hud` follow. The loupe surround is the chosen canvas in linear light.
+
+Views name tokens only. The ground- and accent-dependent `Theme.*` / `Theme.Palette.*` tokens are
+computed properties that read the settings object: a SwiftUI body that uses them observes the
+choice, and AppKit views get their `viewDidChangeEffectiveAppearance` pass and a redraw when it
+changes. The Light values of these tokens are the pre-redesign ones and do not follow the choice.
 
 ## 3. Layout
 
@@ -113,9 +140,12 @@ gutter and sit 16 pt apart.
 | --- | --- | --- |
 | `Radius.chip` | 4 | Chips, badges, inputs, list thumbnails, plot wells |
 | `Radius.control` | 6 | Buttons, menus, segmented controls, grid selection, sidebar selection |
-| `Radius.card` | 8 | HUD bars, toasts, cards, sheets |
+| `Radius.card` | 8 | Bars, toasts, cards, sheets |
+| `Radius.field` | 12 | The agent field |
+| `Radius.hud` | 14 | HUD: the dial, mask chips, toasts over the photo |
+| `Radius.pill` | 999 | Pill chips |
 
-No capsules anywhere. Circles only for slider thumbs, colour wells and dots.
+No capsules on buttons. Circles only for slider thumbs, colour wells, accent swatches and dots.
 
 ### 3.3 Heights
 
@@ -363,8 +393,16 @@ group's suggested best; the filmstrip at 72 pt; a one-line status bar in three g
   `viewDidChangeEffectiveAppearance`.
 * `Theme.loupeBackgroundLinear` is the canvas colour in linear light for the current appearance;
   the Metal presenter reads the token on each draw (presentation code unchanged).
-* `AppearancePreference` stores View ▸ Appearance in user defaults; `--appearance dark|light`
-  overrides it for one run (screenshots).
+* `AppearancePreference` stores View ▸ Appearance in user defaults (default Dark);
+  `--appearance dark|light` overrides it for one run (screenshots).
+* `AppearanceSettings.shared` (Theme.swift) holds the accent (`AccentColor`, 0xRRGGBB hex) and
+  the ground (`Ground`) in user defaults and rebuilds its `tokens` on every change; the
+  ground- and accent-dependent `Theme.Palette` tokens are computed properties over it (§2.5).
+* Engine readouts (render timing, the open summary's RAW / group counts and scan time) appear in
+  the status bar only with Debug ▸ Show Engine Readouts (`ShowRenderReadout`), SPEC §7.
+* Menu titles never carry a shortcut in parentheses; single keys route through `KeyRouter` and
+  are listed in docs/shortcuts.md (`tools/orchestrate/shortcut-audit.py --write-doc`).
+* Tooltips appear after 250 ms: `NSInitialToolTipDelay` is registered at launch.
 * The toolbar opts out of macOS 26's per-item glass with `sharedBackgroundVisibility(.hidden)`
   (`flatToolbarItem()`); macOS 15 ignores it.
 
