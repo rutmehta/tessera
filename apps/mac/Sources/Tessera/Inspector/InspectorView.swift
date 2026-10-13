@@ -150,62 +150,15 @@ struct DecisionChip: View {
     }
 }
 
-struct BasicPanel: View {
-    let model: AppModel
-    var body: some View {
-        let id = model.focusedItem?.id
-        let ready = model.developStatus == .ready
-        let revision = model.developRevision
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: Theme.Space.xs) {
-                Button("Reset") { model.resetDevelop() }
-                    .accessibilityIdentifier("develop.basic.reset")
-                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                    .help("Reset all develop settings (one undo step)")
-                Menu("Snapshots") {
-                    Button("New Snapshot…") { model.promptSnapshot() }.accessibilityIdentifier("develop.basic.newSnapshot")
-                    let names = model.developHistory?.snapshots ?? []
-                    if !names.isEmpty { Divider() }
-                    ForEach(Array(names.enumerated()), id: \.element) { index, name in
-                        Button(name) { model.restoreSnapshot(name) }.accessibilityIdentifier("develop.basic.restoreSnapshot.\(index)")
-                    }
-                }
-                .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
-                .accessibilityIdentifier("develop.basic.snapshots").accessibilityLabel("Snapshots")
-                Spacer(minLength: Theme.Space.xs)
-                Text(statusText).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary).lineLimit(1)
-            }
-            .disabled(!ready)
-            .padding(.bottom, Theme.Space.xs)
-            ForEach(BasicKey.sections, id: \.0) { section in
-                SubHeader(section.0)
-                ForEach(section.1) { key in
-                    AdjustmentSlider(model: model, key: key, itemID: ready ? id : nil, revision: revision)
-                        .frame(height: Theme.Height.slider)
-                }
-            }
-        }
-    }
-
-    private var statusText: String {
-        switch model.developStatus {
-        case .none: model.photoEditAvailabilityHint
-        case .loading: "Opening…"
-        case .ready: model.developHistory.map { h in
-            h.headLabel.map { "History: \($0)" } ?? "Unedited"
-        } ?? ""
-        case .unavailable(let why): why
-        }
-    }
-}
-
 /// Bridges one `ValueSlider` into SwiftUI. SwiftUI only re-runs `updateNSView` when the focused
-/// image or the develop revision (open, undo, reset) changes; drag updates bypass SwiftUI entirely.
+/// image, the develop revision (open, undo, reset) or the dial's highlight changes; drag updates
+/// bypass SwiftUI entirely.
 struct AdjustmentSlider: NSViewRepresentable {
     let model: AppModel
     let key: BasicKey
     let itemID: Int?
     let revision: Int
+    @Environment(\.highlightedDevelopControl) private var highlighted
 
     final class Coordinator {
         var itemID: Int?
@@ -235,6 +188,7 @@ struct AdjustmentSlider: NSViewRepresentable {
         let enabled = itemID != nil && key.parameter != nil
         context.coordinator.itemID = enabled ? itemID : nil
         s.isEnabled = enabled
+        s.dialHighlighted = highlighted == .basic(key)
         s.defaultValue = model.defaultValue(key)
         s.doubleValue = itemID.map { model.adjustment(key, for: $0) } ?? model.defaultValue(key)
         s.needsDisplay = true

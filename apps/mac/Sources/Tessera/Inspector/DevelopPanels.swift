@@ -16,6 +16,7 @@ struct ControlSlider: NSViewRepresentable {
     var onDragEnded: (() -> Void)?
     @Environment(\.developReady) private var ready
     @Environment(\.developRevision) private var revision
+    @Environment(\.highlightedDevelopControl) private var highlighted
     /// `.disabled(_:)` from the panel (e.g. a control the engine cannot render yet).
     @Environment(\.isEnabled) private var enabled
 
@@ -73,13 +74,23 @@ struct ControlSlider: NSViewRepresentable {
         s.maxValue = control.range.upperBound
         s.isEnabled = ready && enabled
         s.trackColors = trackColors
+        s.dialHighlighted = highlighted == .control(control)
         if !s.isDragging { s.doubleValue = ready ? DevelopTools.shared.value(control) : control.defaultValue }
         s.needsDisplay = true
     }
 }
 
+/// One panel slider, as the loupe dial names it (UX-12 / UX-13): a Basic key (Exposure, Shadows,
+/// Highlights, Temperature…) or any `DevelopControl` of the other sections.
+/// `AppModel.highlightedDevelopControl` holds the one the dial targets.
+enum DevelopPanelControl: Hashable {
+    case basic(BasicKey)
+    case control(DevelopControl)
+}
+
 private struct DevelopReadyKey: EnvironmentKey { static let defaultValue = false }
 private struct DevelopRevisionKey: EnvironmentKey { static let defaultValue = 0 }
+private struct HighlightedDevelopControlKey: EnvironmentKey { static let defaultValue: DevelopPanelControl? = nil }
 
 extension EnvironmentValues {
     var developReady: Bool {
@@ -90,13 +101,19 @@ extension EnvironmentValues {
         get { self[DevelopRevisionKey.self] }
         set { self[DevelopRevisionKey.self] = newValue }
     }
+    /// The slider the dial targets; every `ControlSlider` / `AdjustmentSlider` compares itself.
+    var highlightedDevelopControl: DevelopPanelControl? {
+        get { self[HighlightedDevelopControlKey.self] }
+        set { self[HighlightedDevelopControlKey.self] = newValue }
+    }
 }
 
 extension View {
-    /// Supplies the develop state the panel controls refresh on.
+    /// Supplies the develop state the panel controls refresh on, and the dial's highlight.
     func developContext(_ model: AppModel, _ tools: DevelopTools) -> some View {
         environment(\.developReady, model.developStatus == .ready)
             .environment(\.developRevision, model.developRevision &+ tools.revision &* 7919)
+            .environment(\.highlightedDevelopControl, model.highlightedDevelopControl)
     }
 }
 
@@ -130,6 +147,9 @@ struct ToneCurvePanel: View {
             }
             CurveEditor(model: model, tools: tools)
                 .aspectRatio(1, contentMode: .fit)
+                .help(tools.curveMode == .point
+                      ? "Click to add a point, drag to move, double-click to remove. Arrows nudge the selected point (⇧ ×10)"
+                      : "Drag a region up or down; drag the split points along the bottom")
             if tools.curveMode == .parametric {
                 ForEach(ParametricRegion.allCases, id: \.self) { r in
                     ControlSlider(control: r.control).frame(height: Theme.Height.slider)
@@ -151,7 +171,6 @@ struct ToneCurvePanel: View {
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     Spacer()
                 }
-                Hint("Click to add a point, drag to move, double-click to remove. Arrows nudge the selected point (⇧ ×10).")
             }
         }
         .disabled(!ready)
@@ -342,6 +361,8 @@ struct GradeWheel: NSViewRepresentable {
 struct DetailPanel: View {
     let model: AppModel
     let tools: DevelopTools
+    /// Behind the Detail section's More (UX-12): the section itself shows the Sharpen amount.
+    var amountShown = true
 
     var body: some View {
         let ready = model.developStatus == .ready
@@ -360,7 +381,7 @@ struct DetailPanel: View {
             if ready {
                 DetailPreview1to1().frame(height: 120).padding(.vertical, Theme.Space.xs)
             }
-            ControlSlider(control: DetailControls.amount).frame(height: Theme.Height.slider)
+            if amountShown { ControlSlider(control: DetailControls.amount).frame(height: Theme.Height.slider) }
             ControlSlider(control: DetailControls.radius).frame(height: Theme.Height.slider)
             ControlSlider(control: DetailControls.detail).frame(height: Theme.Height.slider)
             ControlSlider(control: DetailControls.masking,
@@ -386,6 +407,8 @@ struct DetailPanel: View {
 struct EffectsPanel: View {
     let model: AppModel
     let tools: DevelopTools
+    /// Behind the Effects section's More (UX-12): the section shows the vignette and grain amounts.
+    var amountsShown = true
     @Environment(\.developRevision) private var revision
 
     var body: some View {
@@ -403,11 +426,11 @@ struct EffectsPanel: View {
                     .accessibilityIdentifier("develop.effects.style").accessibilityLabel("Vignette style")
             }
             .frame(height: Theme.Height.large)
-            ForEach(EffectsControls.vignette) { c in
+            ForEach(EffectsControls.vignette.filter { amountsShown || $0 != EffectsControls.amount }) { c in
                 ControlSlider(control: c).frame(height: Theme.Height.slider)
             }
             SubHeader("Grain")
-            ForEach(EffectsControls.grain) { c in
+            ForEach(EffectsControls.grain.filter { amountsShown || $0 != EffectsControls.grainAmount }) { c in
                 ControlSlider(control: c).frame(height: Theme.Height.slider)
             }
         }
@@ -479,7 +502,7 @@ struct CropPanel: View {
                     Button("Crop & Straighten") { tools.beginCrop() }
                         .accessibilityIdentifier("develop.crop.begin")
                         .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                        .help("Open the crop tool in the loupe (R)")
+                        .help("Open the crop tool in the loupe (R): drag handles to crop, inside to move, outside to rotate; Return applies, Esc cancels, O cycles overlays")
                 }
                 Spacer()
                 IconButton(symbol: "level", help: "Straighten: draw along a horizon or vertical in the loupe",
@@ -522,9 +545,7 @@ struct CropPanel: View {
                 .accessibilityIdentifier("develop.crop.constrain")
                 .font(Theme.Fonts.caption)
                 .controlSize(.small)
-            Hint(tools.cropActive
-                 ? "Drag handles to crop, inside to move, outside to rotate. Return applies, Esc cancels, O cycles overlays."
-                 : "R opens the crop tool in the loupe.")
+                .help("Keep the crop inside the photo while rotating")
         }
         .disabled(!ready)
     }
@@ -657,8 +678,13 @@ struct SnapshotsPanel: View {
     }
 }
 
-// MARK: - History
+// MARK: - Edits stack
 
+/// The Edits stack at the bottom of the Edit panel (SPEC §3): every step of the photo's history
+/// as a row with a toggle, newest first, tagged with who made it (by hand, agent, auto, preset);
+/// an agent run is one grouped step with its amount fader and sub-steps (`AgentGroupSection`);
+/// the Original row returns to the unedited photo. It reads the develop controller's history
+/// straight (`DevelopTools.historyItems` / `historyGroups`); there is no second store.
 struct HistoryPanel: View {
     let model: AppModel
     let tools: DevelopTools
@@ -727,21 +753,34 @@ private struct HistoryRow: View {
                     }
                     if let g = item.group { Text(g).font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary) }
                     Text(item.label)
-                        .font(Theme.Fonts.caption)
+                        .font(Theme.Fonts.label)
                         .strikethrough(!item.enabled)
                         .foregroundStyle(item.applied ? Theme.textPrimary : Theme.textTertiary)
                         .lineLimit(1)
                     Spacer()
-                    Text(Self.time(item.timestampMs)).font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
+                    Text(Self.who(item.author)).font(Theme.Fonts.label).foregroundStyle(Theme.textTertiary)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .help("\(item.label) · \(Self.time(item.timestampMs)). Click to return to this step.")
             .accessibilityIdentifier("develop.history.step.\(item.id).restore").accessibilityLabel("Restore \(item.label)")
         }
         .padding(.horizontal, Theme.Space.xs)
         .frame(height: Theme.Height.regular)
         .background(RoundedRectangle(cornerRadius: Theme.Radius.chip).fill(item.isHead ? Theme.accentSubtle : Theme.clear))
+    }
+
+    /// The row's who tag from the entry's author ("user", "agent:<name>", "import:<source>",
+    /// "preset:<style>", "sync:<image>").
+    static func who(_ author: String) -> String {
+        switch author.split(separator: ":").first.map(String.init) ?? author {
+        case "user": "by hand"
+        case "agent": "agent"
+        case "import", "sync": "auto"
+        case "preset": "preset"
+        default: author
+        }
     }
 
     private static func time(_ ms: Int64) -> String {

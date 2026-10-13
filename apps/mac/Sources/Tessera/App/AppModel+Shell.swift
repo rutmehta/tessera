@@ -125,11 +125,81 @@ extension AppModel {
         agent.start(itemIDs: [item.id], instruction: text)
         if agent.isRunning {
             statusMessage = "Agent: “\(text)” on \(item.name)"
+            if let ref = item.engineImage {
+                agentFieldRun = AgentFieldRun(itemID: item.id, imageID: ref.imageID, instruction: text)
+            }
         } else {
             // A missing key, a read-only library or a busy review action: the Auto Edit sheet
             // names the blocker and offers Settings ▸ AI.
             statusMessage = agent.error ?? "Agent: could not start"
             agent.present()
         }
+    }
+}
+
+// MARK: - Agent change cards (UX-12)
+
+/// A run the agent field started on one photo (SPEC §1 "agent field"): its answer is the plan as
+/// change cards in the Edit panel, not the review queue. The queue's entry for the photo (one
+/// named history group) is the plan; the cards are its steps.
+struct AgentFieldRun: Equatable {
+    let itemID: Int
+    let imageID: String
+    let instruction: String
+}
+
+extension AppModel {
+    /// The finished field run's review entry for the photo being edited, while it still waits for
+    /// Keep / Undo all. Nil while the run is going, for another photo, or once reviewed.
+    var agentFieldEntry: AgentReviewEntry? {
+        guard let run = agentFieldRun, !agent.isRunning, editTarget?.id == run.itemID,
+              let entry = agent.queue.entry(run.imageID), entry.status == .needsReview,
+              entry.isActionable else { return nil }
+        return entry
+    }
+
+    /// The field run's review target (the queue's owner and the photo), for Keep / Undo all.
+    var agentFieldTarget: AgentController.ReviewTarget? {
+        guard let entry = agentFieldEntry else { return nil }
+        return agent.queueTarget(entry)
+    }
+
+    /// Keep: the group stays in the Edits stack as one grouped step (it is already in the
+    /// history); the queue entry is accepted (the style profile learns from it) and the cards go.
+    func keepAgentChanges() {
+        guard let target = agentFieldTarget else { return }
+        agent.accept(target)
+        agentFieldRun = nil
+    }
+
+    /// Undo all: reverts the group (one step in the photo's history) and clears the cards.
+    func undoAgentChanges() {
+        guard let target = agentFieldTarget else { return }
+        agent.revert(target)
+        agentFieldRun = nil
+    }
+
+    /// The other frames of the edited photo's burst, which "Apply to burst" runs the same
+    /// instruction on (a multi-photo run: those land in the review queue).
+    var agentFieldBurstFrames: [Int] {
+        guard let item = editTarget, library.groups.indices.contains(item.groupID) else { return [] }
+        return library.groups[item.groupID].filter { $0 != item.id }
+    }
+
+    func applyAgentChangesToBurst() {
+        guard let run = agentFieldRun, agentFieldEntry != nil else { return }
+        let frames = agentFieldBurstFrames
+        guard !frames.isEmpty, !agent.isRunning else { return }
+        agent.start(itemIDs: frames, instruction: run.instruction)
+        statusMessage = agent.isRunning
+            ? "Applying “\(run.instruction)” to \(frames.count) more frame\(frames.count == 1 ? "" : "s") of this burst (review in Agent Review)"
+            : agent.error ?? "Agent: could not start"
+    }
+
+    /// "review" in the agent status row: shows the panel on the Develop tab, where the cards are.
+    func revealAgentChanges() {
+        guard viewMode != .document else { return }
+        photoInspectorTab = .develop
+        if !showInspector { toggleInspectorPanel() }
     }
 }

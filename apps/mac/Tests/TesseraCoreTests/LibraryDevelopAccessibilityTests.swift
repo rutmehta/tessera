@@ -192,8 +192,8 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         tools.savePreset(name: "AXPrivatePreset731", groups: [.basicTone])
         XCTAssertEqual(tools.presets.count, 1)
         tools.refreshHistory()
-        for title in ["Editing target", "Histogram", "Basic", "Tone Curve", "HSL / Color", "Color Grading", "Detail", "Transform", "Effects", "Lens Blur", "Crop & Straighten", "HDR", "Soft Proofing", "Presets", "Snapshots", "History", "Masks"] {
-            let key = "InspectorPanel." + title
+        // UX-12: every Edit section's More open, so the controls behind it are audited too.
+        for key in ["Light", "Color", "Detail", "Optics", "Effects"].map({ "EditPanel.\($0).more" }) + ["InspectorPanel.Masks"] {
             let previous = UserDefaults.standard.object(forKey: key)
             UserDefaults.standard.set(true, forKey: key)
             addTeardownBlock {
@@ -204,7 +204,14 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         let develop = ShellHarness.window(model, size: CGSize(width: 2200, height: 1800), dark: true).0
         try await inspect(develop, scenario: "develop.window")
         let panels: [(String, AnyView)] = [
-            ("basic", AnyView(BasicPanel(model: model))),
+            ("basic", AnyView(VStack(spacing: 0) {
+                LightSection(model: model, tools: tools)
+                ColorSection(model: model, tools: tools)
+                DetailSection(model: model, tools: tools)
+                OpticsSection(model: model, tools: tools)
+                EffectsSection(model: model, tools: tools)
+                EditsSection(model: model, tools: tools)
+            })),
             ("tone", AnyView(ToneCurvePanel(model: model, tools: tools))),
             ("colour", AnyView(HSLPanel(model: model, tools: tools))),
             ("grading", AnyView(ColorGradingPanel(model: model, tools: tools))),
@@ -614,10 +621,7 @@ enum EstablishedAccessibilityIdentifiers {
         "develop-save-recovery",
         "develop-source-badge",
         "develop.basic.",
-        "develop.basic.newSnapshot",
         "develop.basic.reset",
-        "develop.basic.restoreSnapshot.",
-        "develop.basic.snapshots",
         "develop.crop.angle",
         "develop.crop.aspect",
         "develop.crop.begin",

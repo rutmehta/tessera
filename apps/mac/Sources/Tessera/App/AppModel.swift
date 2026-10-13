@@ -455,6 +455,13 @@ final class AppModel {
     var deliverMode = false
     /// UX-11: bumped by ⌘K; the agent field of the current mode takes the keyboard.
     var agentFieldFocusRequest = 0
+    /// UX-12: the run the agent field started on the focused photo; its plan shows as change cards
+    /// in the Edit panel's Agent section until Keep or Undo all (see AppModel+Shell.swift).
+    var agentFieldRun: AgentFieldRun?
+    /// UX-12 / UX-13: the panel slider the loupe dial targets. The matching slider row draws
+    /// highlighted (`ValueSlider.dialHighlighted`); nil clears it. Set it when the dial opens on a
+    /// control and clear it when the dial closes.
+    var highlightedDevelopControl: DevelopPanelControl?
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }

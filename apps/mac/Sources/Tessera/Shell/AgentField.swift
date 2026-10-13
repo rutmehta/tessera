@@ -1,8 +1,8 @@
 import SwiftUI
 import TesseraCore
 
-/// Bottom centre of every mode (SPEC §1, WP UX-11): the tools strip (Edit only), the agent field
-/// and, so the field stays centred, an invisible copy of the strip on the other side.
+/// Bottom centre of every mode (SPEC §1, WP UX-11): in Edit the tools strip, the agent field and
+/// the agent status row (UX-12) in two equal side slots, so the field stays centred.
 struct AgentRow: View {
     let model: AppModel
 
@@ -10,13 +10,49 @@ struct AgentRow: View {
         let mode = model.shellMode
         HStack(alignment: .center, spacing: Theme.Space.m) {
             if mode == .edit {
-                ToolsStrip(model: model)
+                ToolsStrip(model: model).frame(width: Theme.Width.agentSide, alignment: .trailing)
                 AgentField(model: model, mode: mode)
-                ToolsStrip(model: model).hidden().accessibilityHidden(true)
+                AgentStatus(model: model).frame(width: Theme.Width.agentSide, alignment: .leading)
             } else {
                 AgentField(model: model, mode: mode)
             }
         }
+    }
+}
+
+/// Right of the agent field in Edit (SPEC §1): a mark and "n edits by agent · review" once a
+/// field run has finished on the photo (review shows the cards in the panel), what the agent is
+/// doing meanwhile, "No agent edits yet" otherwise.
+struct AgentStatus: View {
+    let model: AppModel
+
+    var body: some View {
+        let entry = model.agentFieldEntry
+        let working = model.agent.isRunning && model.agentFieldRun != nil
+        HStack(spacing: Theme.Space.s) {
+            Circle()
+                .fill(entry != nil ? Theme.accent : Theme.track)
+                .frame(width: Theme.Height.large, height: Theme.Height.large)
+                .accessibilityHidden(true)
+            if let entry {
+                let n = entry.steps.count
+                HStack(spacing: Theme.Space.xs) {
+                    Text("\(n) edit\(n == 1 ? "" : "s") by agent ·").lineLimit(1)
+                    Button("review") { model.revealAgentChanges() }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.accent)
+                        .help("Show the agent's changes in the panel")
+                        .accessibilityIdentifier("develop.agent.review")
+                }
+            } else {
+                Text(working ? "Agent is working…" : "No agent edits yet").lineLimit(1)
+            }
+        }
+        .font(Theme.Fonts.label)
+        .foregroundStyle(Theme.textTertiary)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Agent status")
+        .accessibilityIdentifier("develop.agent.status")
     }
 }
 
