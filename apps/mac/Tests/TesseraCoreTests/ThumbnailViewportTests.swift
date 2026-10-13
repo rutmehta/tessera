@@ -9,6 +9,8 @@ import XCTest
         let model = AppModel()
         model.loadStubItems(count: 40)
         model.viewMode = .grid
+        // UX-14: Cull's default is the burst view, which keeps the grid off the viewport budget.
+        model.cullLayout = .grid
         let grid = BrowserController(model: model, style: .grid)
         grid.scrollView.frame = NSRect(x: 0, y: 0, width: 900, height: 700)
         grid.libraryDidReload()

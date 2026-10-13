@@ -40,6 +40,8 @@ final class LoupeController: LibraryObserver {
             view?.render()
         }
         MaskTools.shared.onOverlayFrame = { [weak view] f in view?.present(maskOverlay: f) }
+        PhotoDial.shared.onLoupeChange = { [weak view] in view?.toolOverlay.toolsChanged() }
+        _ = TryLooks.shared   // observes the session for the Try cards' renders
         SoftProof.shared.onChange = { [weak view] in
             let proof = SoftProof.shared
             view?.setSoftProof(proof.lut, warning: proof.warningRGB)

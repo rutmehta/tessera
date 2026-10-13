@@ -37,3 +37,21 @@ extension Theme.Radius {
     /// The agent field.
     static let agentField: CGFloat = 12
 }
+
+// UX-13: the dial, the Try cards and the on-photo HUDs (SPEC §3).
+
+extension Theme.Width {
+    /// The dial HUD beside the cursor.
+    static let dial: CGFloat = 236
+    /// One Try card (its thumbnail is the full width).
+    static let tryCard: CGFloat = 132
+}
+
+extension Theme.Height {
+    /// The dial's knob and its inner disc.
+    static let dialKnob: CGFloat = 120
+    static let dialKnobInner: CGFloat = 96
+    /// A Try card: the thumbnail, then the caption line.
+    static let tryThumbnail: CGFloat = 64
+    static let tryCaption: CGFloat = 28
+}

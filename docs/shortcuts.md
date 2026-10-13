@@ -556,6 +556,10 @@ final class KeyRouter {
         return true
     }
     func handleKeyUp(_ event: NSEvent) -> Bool {
+        if event.keyCode == 42, model.showingBefore {
+            model.setShowingBefore(false)
+            return true
+        }
         guard event.keyCode == 49, model.documents.spaceHeld else { return false }
         model.documents.spaceHeld = false
         model.documents.current?.viewport?.cursorDidChange()
@@ -588,6 +592,11 @@ final class KeyRouter {
         if model.isReviewing { return handleReview(event) }
         if model.source == .people && !model.isPhotoEditing { return false }
         if model.isPhotoEditing {
+            if event.keyCode == 42, event.modifierFlags.intersection([.shift, .option, .control, .command]).isEmpty {
+                if !event.isARepeat { model.setShowingBefore(true) }
+                return true
+            }
+            if PhotoDial.shared.model === model, PhotoDial.shared.handleKey(event) { return true }
             if MaskTools.shared.model === model, MaskTools.shared.handleKey(event) { return true }
             if DevelopTools.shared.model === model, DevelopTools.shared.handleKey(event) { return true }
             return handlePhotoEdit(event)

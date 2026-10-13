@@ -474,6 +474,10 @@ final class AppModel {
     /// highlighted (`ValueSlider.dialHighlighted`); nil clears it. Set it when the dial opens on a
     /// control and clear it when the dial closes.
     var highlightedDevelopControl: DevelopPanelControl?
+    /// UX-13: the Before button or `\` is held; the loupe shows the original (AppModel+Shell).
+    var showingBefore = false
+    /// The history step to return to when the Before hold ends.
+    @ObservationIgnored var beforeHeadStep: UInt64?
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }
@@ -2841,6 +2845,25 @@ final class AppModel {
         d.commit(label: label)
         undoDomain = .develop
         developHistory = d.history
+    }
+
+    /// UX-13: the Before toolbar button or `\` held shows the photo's original state through the
+    /// history checkout the Edits stack uses (no step is recorded); releasing returns to the head
+    /// step. Nothing happens with nothing to compare (no applied step).
+    func setShowingBefore(_ on: Bool) {
+        guard let d = develop, developStatus == .ready, isPhotoEditing, on != showingBefore else { return }
+        if on {
+            d.flushPending()
+            guard let head = d.historyItems().first(where: { $0.isHead && $0.applied }) else { return }
+            beforeHeadStep = head.id
+            guard (try? d.checkoutHistory(nil)) != nil else { beforeHeadStep = nil; return }
+        } else if let head = beforeHeadStep {
+            beforeHeadStep = nil
+            _ = try? d.checkoutHistory(head)
+        }
+        showingBefore = on
+        developHistory = d.history
+        developRevision += 1
     }
 
     func resetDevelop() {

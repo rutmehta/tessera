@@ -99,6 +99,8 @@ public final class DevelopController {
     public let info: DevelopInfo
     public private(set) var history: HistoryState
     public private(set) var lastFrame: DevelopFrame?
+    /// Counts delivered frames (the look pass waits for a frame newer than its request).
+    private var frameSerial = 0
     public private(set) var histogram: Histogram?
     public private(set) var plan: SurfacePlan?
     /// Settings not drawn by this pipeline version (kept in the recipe), as JSON pointers
@@ -427,6 +429,19 @@ public final class DevelopController {
     /// The live settings document (engine `DevelopSettings` JSON), including unsent changes.
     public var settingsObject: [String: Any] { settings }
 
+    /// The live settings re-read from the session: mask groups, AI masks and history moves change
+    /// the recipe without a patch, so the cache can lack them. Flushes first; refreshes the cache
+    /// without the panels' reload callback.
+    public func freshSettings() -> [String: Any] {
+        guard admitsMutation() else { return settings }
+        _ = flushPending()
+        if let json = try? session.getSettingsJson(),
+           let obj = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] {
+            settings = obj
+        }
+        return settings
+    }
+
     /// Value at a member path, e.g. `["color", "hsl", "hue", "red"]`.
     public func value(at path: [String]) -> Any? {
         var node: Any? = settings
@@ -727,6 +742,7 @@ public final class DevelopController {
         guard !closed else { return }
         let frame = DevelopFrame(info)
         lastFrame = frame
+        frameSerial += 1
         histogram = try? session.getHistogram()
         onFrame?(frame)
     }
@@ -771,6 +787,148 @@ public final class DevelopController {
                 }
             }
         }
+    }
+}
+
+// MARK: - Look previews (UX-13 Try cards)
+
+extension DevelopController {
+    /// The RFC 7386 patch that undoes `patch` over `base`: the original subtree of every key the
+    /// patch touches, `NSNull` where the key did not exist (so the engine falls back to its default).
+    nonisolated public static func inverse(of patch: [String: Any], in base: [String: Any]) -> [String: Any] {
+        var out: [String: Any] = [:]
+        for (k, v) in patch {
+            if let obj = v as? [String: Any], let orig = base[k] as? [String: Any] {
+                out[k] = inverse(of: obj, in: orig)
+            } else {
+                out[k] = base[k] ?? NSNull()
+            }
+        }
+        return out
+    }
+
+    /// Renders every look (a settings patch over the live state) into an image at most `maxPixels`
+    /// on its long edge, in display orientation, and leaves the live state as it was. The loupe's
+    /// surface ring is detached for the pass (the engine renders one ring at a time) and re-planned
+    /// after it, which repaints the loupe. Nil where a render failed or timed out. The pass uses the
+    /// ring's format (RGBA8 or, on an EDR screen, RGBA16F linear, encoded to sRGB here).
+    public func renderLooks(_ looks: [[String: Any]], maxPixels: Int) async -> [CGImage?] {
+        let none = looks.map { _ in CGImage?.none }
+        guard admitsMutation(), !looks.isEmpty, maxPixels > 8 else { return none }
+        let base = freshSettings()
+        let k = Double(maxPixels) / Double(max(info.width, info.height, 1))
+        let wanted = session.planSurface(width: UInt32(max(Double(info.width) * k, 1).rounded(.up)),
+                                         height: UInt32(max(Double(info.height) * k, 1).rounded(.up)))
+        let float = presentation.floatSurfaces
+        guard let tiny = float
+            ? Self.makeSurface(width: Int(wanted.width), height: Int(wanted.height), bytesPerElement: 8, pixelFormat: Self.floatSurfacePixelFormat)
+            : Self.makeSurface(width: Int(wanted.width), height: Int(wanted.height)) else { return none }
+        let tinyID = IOSurfaceGetID(tiny)
+        let log = { (s: String) in
+            if ProcessInfo.processInfo.environment["TESSERA_LOOKS_LOG"] == "1" { FileHandle.standardError.write(Data(("looks: " + s + "\n").utf8)) }
+        }
+        do { try session.attachSurface(iosurfaceId: tinyID, width: wanted.width, height: wanted.height) } catch {
+            log("attach failed: \(error)")
+            return none
+        }
+        log("attached \(wanted.width)x\(wanted.height) L\(wanted.level) float=\(float)")
+        plan = nil   // the loupe ring is gone: `attachSurfaces` must re-plan afterwards
+        var out: [CGImage?] = []
+        for (i, look) in looks.enumerated() {
+            // One flush per look: undo the previous look and apply this one together.
+            let patch = i == 0 ? look : Self.merge(Self.inverse(of: looks[i - 1], in: base), look, keepNulls: true)
+            let before = frameSerial
+            apply(patch: patch, interactive: true)
+            _ = flushPending()
+            let frame = await waitForFrame(surface: tinyID, after: before)
+            log("look \(i): frame=\(frame.map { "s\($0.surfaceID) L\($0.level) \($0.width)x\($0.height) final=\($0.isFinal)" } ?? "none") last=\(lastFrame.map { "s\($0.surfaceID) L\($0.level) final=\($0.isFinal) overlay=\($0.isOverlay)" } ?? "none") serial=\(frameSerial)/\(before)")
+            out.append(frame.flatMap { Self.image(of: tiny, frame: $0, orientation: Int(info.orientation)) })
+        }
+        if let last = looks.last {
+            apply(patch: Self.inverse(of: last, in: base), interactive: true)
+            _ = flushPending()
+        }
+        surfaces = [:]
+        if let v = lastView { _ = try? attachSurfaces(viewWidth: v.width, viewHeight: v.height) }
+        return out
+    }
+
+    /// The first final frame rendered into `surface` after serial `after`, or nil after 3 s.
+    private func waitForFrame(surface: UInt32, after: Int) async -> DevelopFrame? {
+        for _ in 0..<180 {
+            if frameSerial > after, let f = lastFrame, f.surfaceID == surface, f.isFinal, !f.isOverlay { return f }
+            if closed { return nil }
+            try? await Task.sleep(for: .milliseconds(16))
+        }
+        return nil
+    }
+
+    /// The content of a frame surface (RGBA8 sRGB, or RGBA16F linear encoded to sRGB) as an sRGB
+    /// image in display orientation.
+    nonisolated static func image(of surface: IOSurfaceRef, frame: DevelopFrame, orientation: Int) -> CGImage? {
+        let (w, h) = (min(frame.width, IOSurfaceGetWidth(surface)), min(frame.height, IOSurfaceGetHeight(surface)))
+        let format = IOSurfaceGetPixelFormat(surface)
+        let isFloat = format == 0x5247_6841   // 'RGhA'
+        guard w > 0, h > 0, isFloat || format == 0x5247_4241 else { return nil }   // 'RGBA' 8-bit
+        IOSurfaceLock(surface, .readOnly, nil)
+        let stride = IOSurfaceGetBytesPerRow(surface)
+        let base = IOSurfaceGetBaseAddress(surface)
+        var bytes = Data(count: w * h * 4)
+        bytes.withUnsafeMutableBytes { dst in
+            let out = dst.baseAddress!.assumingMemoryBound(to: UInt8.self)
+            if isFloat {
+                let encode = { (v: Float16) -> UInt8 in
+                    let l = min(max(Float(v), 0), 1)
+                    let s = l <= 0.0031308 ? l * 12.92 : 1.055 * powf(l, 1 / 2.4) - 0.055
+                    return UInt8((s * 255).rounded())
+                }
+                for y in 0..<h {
+                    let row = (base + y * stride).assumingMemoryBound(to: Float16.self)
+                    for x in 0..<w {
+                        let p = row + x * 4, o = out + (y * w + x) * 4
+                        o[0] = encode(p[0]); o[1] = encode(p[1]); o[2] = encode(p[2]); o[3] = 255
+                    }
+                }
+            } else {
+                for y in 0..<h {
+                    memcpy(out + y * w * 4, base + y * stride, w * 4)
+                }
+            }
+        }
+        IOSurfaceUnlock(surface, .readOnly, nil)
+        guard let provider = CGDataProvider(data: bytes as CFData),
+              let image = CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: w * 4,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                                  provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+        else { return nil }
+        return oriented(image, orientation)
+    }
+
+    /// Applies an EXIF orientation (1…8) so the image reads the way the loupe shows it.
+    nonisolated static func oriented(_ image: CGImage, _ o: Int) -> CGImage {
+        guard (2...8).contains(o) else { return image }
+        let (w, h) = (image.width, image.height)
+        let swap = o >= 5
+        let (ow, oh) = swap ? (h, w) : (w, h)
+        guard let ctx = CGContext(data: nil, width: ow, height: oh, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return image }
+        // Core Graphics draws y-up: express each EXIF case as a transform of the drawn rectangle.
+        var t = CGAffineTransform.identity
+        switch o {
+        case 2: t = CGAffineTransform(scaleX: -1, y: 1).translatedBy(x: -CGFloat(w), y: 0)
+        case 3: t = CGAffineTransform(translationX: CGFloat(w), y: CGFloat(h)).rotated(by: .pi)
+        case 4: t = CGAffineTransform(scaleX: 1, y: -1).translatedBy(x: 0, y: -CGFloat(h))
+        case 5: t = CGAffineTransform(scaleX: -1, y: 1).rotated(by: .pi / 2)
+        case 6: t = CGAffineTransform(translationX: CGFloat(h), y: 0).rotated(by: .pi / 2)
+        case 7: t = CGAffineTransform(translationX: CGFloat(h), y: CGFloat(w)).scaledBy(x: -1, y: 1).rotated(by: -.pi / 2)
+        case 8: t = CGAffineTransform(translationX: 0, y: CGFloat(w)).rotated(by: -.pi / 2)
+        default: break
+        }
+        ctx.concatenate(t)
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return ctx.makeImage() ?? image
     }
 }
 
