@@ -67,8 +67,23 @@ struct AppCommands: Commands {
                 .keyboardShortcut("a", modifiers: .command)
         }
         CommandGroup(before: .sidebar) {
-            Button("Edit Photo    (D)") { model.enterPhotoEdit() }
-                .disabled(!model.canEnterPhotoEdit)
+            // UX-11: the three modes of the shell (the toolbar's segmented control) and the agent field.
+            Button("Cull") { model.selectShellMode(.cull) }
+                .shortcut(!docMode, "1", .command)
+                .disabled(docMode)
+            Button("Edit") { model.selectShellMode(.edit) }
+                .shortcut(!docMode, "2", .command)
+                .disabled(docMode || !(model.canEnterPhotoEdit || model.isPhotoEditing))
+            Button("Deliver") { model.selectShellMode(.deliver) }
+                .shortcut(!docMode, "3", .command)
+                .disabled(docMode)
+            Button("Review") { model.enterReview() }
+                .disabled(docMode)
+            Divider()
+            Button("Ask the Agent") { model.focusAgentField() }
+                .shortcut(!docMode, "k", .command)
+                .disabled(docMode)
+            Divider()
             Button(model.isReviewEditing ? "Back to Review" : "Back to Library") {
                 if model.isPhotoEditing { model.returnFromPhotoEdit() } else { model.returnToLibrary() }
             }
@@ -100,8 +115,11 @@ struct AppCommands: Commands {
                 .disabled(!docMode)
             }
             Divider()
-            Button(model.showInspector ? "Hide Inspector" : "Show Inspector") { model.showInspector.toggle() }
+            Button(model.showInspector ? "Hide Inspector" : "Show Inspector") { model.toggleInspectorPanel() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
+            // UX-11: the source sidebar is hidden by default (its content is the toolbar's folder popover).
+            Button(model.librarySidebarShown ? "Hide Library Sidebar" : "Show Library Sidebar") { model.toggleLibrarySidebar() }
+                .disabled(docMode || model.isPhotoEditing || model.isReviewing)
             Button(model.showFilmstrip ? "Hide Filmstrip" : "Show Filmstrip") { model.showFilmstrip.toggle() }
                 .keyboardShortcut("f", modifiers: [.command, .option])
             Picker("Appearance", selection: Binding(get: { appearance }, set: { new in

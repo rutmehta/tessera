@@ -2,9 +2,49 @@ import SwiftUI
 import TesseraCore
 import TesseraFFI
 
-/// Filter bar above the grid (docs/01 §1.9, adapted): grammar text plus facet menus whose counts
-/// are live. Each facet counts over every *other* active filter, so alternatives stay visible.
-/// Filters apply when changed, not while culling, so decided frames do not vanish mid-cull.
+/// The toolbar search field (UX-11): the rule text in a field that widens while it has the
+/// keyboard, with the facet menus hanging off its filter button as a popover (`FilterBar`). The
+/// breadcrumb and filter bars above the grid are gone; this is the only bar.
+struct LibrarySearchField: View {
+    @Bindable var library: LibraryModel
+    let model: AppModel
+    @State private var editing = false
+    @State private var showFilters = false
+
+    private var filtering: Bool { !library.filter.isEmpty || !model.people.facet.isEmpty }
+
+    var body: some View {
+        FieldContainer(symbol: "magnifyingglass", invalid: library.diagnostic != nil) {
+            RuleTextField(text: Binding(get: { library.filter.text },
+                                        set: { value in model.updateLibraryFilter { $0.text = value } }),
+                          diagnostic: library.diagnostic, placeholder: "Search", onSubmit: {}, plain: true,
+                          onFocusChange: { focused in withAnimation(Theme.Motion.appear) { editing = focused } })
+            Button { showFilters.toggle() } label: {
+                Image(systemName: filtering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                    .font(Theme.Fonts.icon)
+                    .foregroundStyle(filtering ? Theme.accent : Theme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("Filters: decision, grade, mark, camera, lens, keyword, person, date, album")
+            .accessibilityLabel("Filters")
+            .accessibilityIdentifier("library.toolbar.filters")
+            .popover(isPresented: $showFilters, arrowEdge: .bottom) {
+                FilterBar(library: library, model: model)
+                    .frame(width: Theme.Width.filterPopover)
+            }
+        }
+        .frame(width: editing ? Theme.Width.searchExpanded : Theme.Width.search)
+        .help("Words search names, captions (yours and generated), text in images and keywords. "
+              + "Fields: text: keyword: camera: lens: rating>= "
+              + "decision: mark: date: album: (none / any / name), combined with AND, OR, NOT and ( )")
+        .disabled(!library.isAvailable)
+    }
+}
+
+/// The filter popover (docs/01 §1.9, adapted): facet menus whose counts are live, the rule
+/// diagnostic, the match count, Clear and Save as Smart Album. Each facet counts over every *other*
+/// active filter, so alternatives stay visible. Filters apply when changed, not while culling, so
+/// decided frames do not vanish mid-cull.
 struct FilterBar: View {
     @Bindable var library: LibraryModel
     let model: AppModel
@@ -18,45 +58,25 @@ struct FilterBar: View {
     var body: some View {
         let facets = library.facets
         VStack(alignment: .leading, spacing: Theme.Space.s) {
-            ruleRow
             facetRow(facets)
+            HStack(spacing: Theme.Space.s) {
+                if let d = library.diagnostic {
+                    Text(d.message)
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.reject)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(d.message)
+                        .accessibilityIdentifier("filterDiagnostic")
+                }
+                Spacer(minLength: Theme.Space.xs)
+                actions(compact: false)
+            }
         }
         .font(Theme.Fonts.caption)
-        .padding(.horizontal, Theme.Space.gutter)
-        .padding(.vertical, Theme.Space.s)
+        .padding(Theme.Space.gutter)
         .background(Theme.panel)
-        .overlay(alignment: .bottom) { Hairline() }
         .disabled(!library.isAvailable)
-    }
-
-    private var ruleRow: some View {
-        HStack(spacing: Theme.Space.s) {
-            FieldContainer(symbol: "magnifyingglass", invalid: library.diagnostic != nil) {
-                RuleTextField(text: filterBinding(\.text), diagnostic: library.diagnostic,
-                              placeholder: "Search or rule, e.g. beach rating>=2 NOT decision:reject",
-                              onSubmit: {}, plain: true)
-            }
-            .frame(minWidth: 180, maxWidth: 400)
-            .help("Words search names, captions (yours and generated), text in images and keywords. "
-                  + "Fields: text: keyword: camera: lens: rating>= "
-                  + "decision: mark: date: album: (none / any / name), combined with AND, OR, NOT and ( )")
-            if let d = library.diagnostic {
-                Text(d.message)
-                    .font(Theme.Fonts.caption)
-                    .foregroundStyle(Theme.reject)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .help(d.message)
-                    .accessibilityIdentifier("filterDiagnostic")
-            }
-            Spacer(minLength: Theme.Space.xs)
-            // M2-56 (L3): the actions with titles when they fit, else as icons (titles in help and
-            // accessibility). Only this group switches, so the rule field keeps its focus.
-            ViewThatFits(in: .horizontal) {
-                actions(compact: false)
-                actions(compact: true)
-            }
-        }
     }
 
     private func actions(compact: Bool) -> some View {

@@ -1,7 +1,10 @@
 import TesseraCore
 import SwiftUI
 
-/// Window layout: sidebar | (grid or loupe) + status bar + filmstrip | inspector.
+/// Window layout: one toolbar (folder popover · Cull / Edit / Deliver · search · panel · Export) over
+/// (grid or loupe, with the agent field at the bottom) + status bar + filmstrip | inspector. The
+/// source sidebar is hidden by default (View ▸ Show Library Sidebar); Tab hides the inspector per
+/// mode (WP UX-11, redesign SPEC §1).
 struct ContentView: View {
     @Bindable var model: AppModel
     /// B5-10: document mode's detail minimum (see the frame below and DocumentInspectorLayoutTests).
@@ -14,6 +17,8 @@ struct ContentView: View {
     /// The sidebar visibility the person had when the window became too narrow for the sidebar
     /// (nil when the sidebar was not collapsed by the budget).
     @State private var sidebarAutoCollapsed: NavigationSplitViewVisibility?
+    /// The folder button's popover: the source sidebar's content (folders, albums, people, lists).
+    @State private var showFolders = false
 
     /// The window's root view: the shell at the declared minimum window size (WP M2-56).
     /// The GeometryReader reports the window's size (not the split view's), and places an
@@ -70,10 +75,7 @@ struct ContentView: View {
                         .accessibilityIdentifier("develop-save-recovery")
                     }
                 }
-                if model.viewMode != .document { WorkspaceHeader(model: model) }
-                if model.isEngineBacked, !model.isCachedPreviewLibrary, model.source != .people, model.isLibraryWorkspace {
-                    FilterBar(library: model.collections, model: model)
-                }
+                if model.isCachedPreviewLibrary, model.viewMode != .document { CachedPreviewNotice(model: model) }
                 if model.tether.showPanel {
                     TetherPanel(model: model, tether: model.tether)
                         .disabled(model.isCachedPreviewLibrary)
@@ -115,13 +117,21 @@ struct ContentView: View {
                             PeopleView(model: model)
                         } else if model.library.items.isEmpty {
                             EmptyStateView(model: model)
+                        } else if model.deliverMode {
+                            DeliverView(model: model)
                         }
+                        // UX-11: the agent field sits bottom centre of every mode (Review keeps its own
+                        // instruction field in the inspector); the toast moves up above it.
                         VStack {
                             Spacer()
                             if let toast = model.toast {
                                 ToastView(model: model, toast: toast)
                                     .padding(.bottom, Theme.Space.l)
                                     .transition(Theme.Motion.transition(from: .bottom))
+                            }
+                            if model.viewMode != .document, !model.isReviewing {
+                                AgentRow(model: model)
+                                    .padding(.bottom, Theme.Space.l)
                             }
                         }
                         .animation(Theme.Motion.appear, value: model.toast)
@@ -240,6 +250,8 @@ struct ContentView: View {
         .onChange(of: sidebarFits, initial: true) { _, fits in applySidebarBudget(fits: fits) }
         .onChange(of: model.agent.queue) { _, _ in model.reconcileReviewNavigation() }
         .onChange(of: model.agent.reviewGeneration) { _, _ in model.reconcileReviewNavigation() }
+        // UX-11: the panel state is remembered per mode.
+        .onChange(of: model.shellMode) { _, mode in model.restorePanelState(for: mode) }
     }
 
     /// M2-56 yield order, step 1: the sidebar collapses while the window is too narrow for it beside
@@ -307,11 +319,36 @@ struct ContentView: View {
     private var toolbar: some ToolbarContent {
         ToolbarItem(id: "open", placement: .navigation) {
             Button { model.presentOpenPanel() } label: {
-                Label("Open Folder…", systemImage: "folder")
+                Label("Open Folder…", systemImage: "folder.badge.plus")
             }
             .buttonStyle(ToolbarButtonStyle())
             .help("Open a folder of JPEG / RAW images (⌘O)")
             .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.open" : "\(axMode).toolbar.open")
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "folder", placement: .navigation) {
+            // The folder name opens the source sidebar's content (folders, albums, people, culling
+            // lists) as a popover; the sidebar column itself is hidden unless View ▸ Show Library
+            // Sidebar brings it back.
+            if model.viewMode != .document {
+                Button { showFolders.toggle() } label: {
+                    HStack(spacing: Theme.Space.xs) {
+                        Image(systemName: "folder").font(Theme.Fonts.iconSmall)
+                        Text(model.library.items.isEmpty ? "No folder" : model.library.title)
+                            .lineLimit(1).truncationMode(.middle)
+                        Image(systemName: "chevron.down").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
+                    }
+                    .frame(maxWidth: Theme.Width.folderButton)
+                }
+                .buttonStyle(ToolbarButtonStyle(on: showFolders))
+                .help(model.library.items.isEmpty ? "Folders, albums and people" : "\(model.library.title): folders, albums, people and culling lists")
+                .accessibilityLabel("Folder")
+                .accessibilityIdentifier("\(axMode).toolbar.folder")
+                .popover(isPresented: $showFolders, arrowEdge: .bottom) {
+                    SidebarView(model: model)
+                        .frame(width: Theme.Width.sidebarMax, height: Theme.Height.folderPopover)
+                }
+            }
         }
         .flatToolbarItem()
         ToolbarItem(id: "mode", placement: .principal) {
@@ -321,36 +358,12 @@ struct ContentView: View {
                     .help("Return to Library; open documents stay available")
                     .accessibilityIdentifier("document.toolbar.library")
             } else {
-                SegmentedPicker(selection: Binding(get: {
-                    model.isReviewing ? "review" : model.isPhotoEditing ? "edit" : "library"
-                }, set: { destination in
-                    switch destination {
-                    case "review": model.enterReview()
-                    case "edit": model.enterPhotoEdit()
-                    default: model.returnToLibrary()
-                    }
-                }), segments: [
-                    .init(value: "library", title: "Library", symbol: "square.grid.2x2"),
-                    .init(value: "edit", title: "Edit photo", symbol: "slider.horizontal.3"),
-                    .init(value: "review", title: "Review", symbol: "checklist"),
-                ], fill: false, accessibilityPrefix: "\(axMode).toolbar.workspace")
-                .accessibilityLabel("Workspace")
-                .help("Library, one-photo editing, or the agent review queue")
-            }
-        }
-        .flatToolbarItem()
-        ToolbarItem(id: "library-view", placement: .primaryAction) {
-            if model.isLibraryWorkspace {
-                SegmentedPicker(selection: Binding(get: {
-                    model.viewMode
-                }, set: { mode in
-                    model.requestLibraryViewMode(mode)
-                }), segments: [
-                    .init(value: ViewMode.grid, title: "Grid", symbol: "square.grid.2x2", help: "Grid (G)"),
-                    .init(value: ViewMode.loupe, title: "Loupe", symbol: "photo", help: "Loupe (E or Return)"),
-                    .init(value: ViewMode.compare, title: "Compare", symbol: "rectangle.split.2x1", help: "Compare (C)"),
-                ], fill: false, accessibilityPrefix: "library.toolbar.view")
-                .accessibilityLabel("Library view")
+                SegmentedPicker(selection: Binding(get: { model.shellMode }, set: { model.selectShellMode($0) }),
+                                segments: ShellMode.allCases.map { mode in
+                    .init(value: mode, title: mode.title, symbol: mode.symbol,
+                          help: "\(mode.title) (⌘\(ShellMode.allCases.firstIndex(of: mode)! + 1))")
+                }, height: Theme.Height.large, fill: false, accessibilityPrefix: "\(axMode).toolbar.workspace")
+                .accessibilityLabel("Mode")
             }
         }
         .flatToolbarItem()
@@ -360,10 +373,16 @@ struct ContentView: View {
             }
         }
         .flatToolbarItem()
+        ToolbarItem(id: "search", placement: .primaryAction) {
+            if model.isEngineBacked, !model.isCachedPreviewLibrary, model.source != .people, model.isLibraryWorkspace, !model.deliverMode {
+                LibrarySearchField(library: model.collections, model: model)
+            }
+        }
+        .flatToolbarItem()
         ToolbarItem(id: "size", placement: .primaryAction) {
             // Grid only. M2-56: removed (not transparent) in the other modes, so its 130 pt slot
             // goes back to the toolbar instead of pushing items into the overflow menu.
-            if model.viewMode == .grid {
+            if model.viewMode == .grid, !model.deliverMode {
                 HStack(spacing: Theme.Space.xs) {
                     Image(systemName: "square.grid.3x3").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
                     Slider(value: $model.thumbnailSize, in: 110...360)
@@ -373,57 +392,6 @@ struct ContentView: View {
                     Image(systemName: "square.grid.2x2").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
                 }
                 .help("Thumbnail size")
-            }
-        }
-        .flatToolbarItem()
-        libraryActionToolbar
-        ToolbarItem(id: "inspector", placement: .primaryAction) {
-            Toggle(isOn: $model.showInspector) {
-                Label("Inspector", systemImage: "sidebar.right")
-            }
-            .toggleStyle(ToolbarToggleStyle())
-            .help("Show or hide the inspector (⌥⌘I)")
-            .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.inspector" : "\(axMode).toolbar.inspector")
-        }
-        .flatToolbarItem()
-    }
-
-    @ToolbarContentBuilder
-    private var libraryActionToolbar: some ToolbarContent {
-        ToolbarItem(id: "assist", placement: .primaryAction) {
-            if model.isLibraryWorkspace {
-            HStack(spacing: Theme.Space.xxs) {
-                Toggle(isOn: Binding(get: { model.assist.enabled }, set: { model.assist.setEnabled($0) })) {
-                    Label("Assist", systemImage: "sparkles")
-                }
-                .toggleStyle(ToolbarToggleStyle())
-                .help("Assisted culling: keep predictions, a confidence order and suggested decisions (Y confirms, N dismisses)")
-                .accessibilityIdentifier("toolbar-assist")
-                if model.assist.enabled {
-                    Menu {
-                        Picker("Mode", selection: Binding(get: { model.agent.preferences.assistAutomated },
-                                                          set: { model.assist.setAutomated($0) })) {
-                            Text("Suggest decisions (automated)").tag(true)
-                            Text("Predictions only (assisted)").tag(false)
-                        }
-                        .pickerStyle(.inline)
-                        .accessibilityIdentifier("library.toolbar.assistMode").accessibilityLabel("Assist mode")
-                        Divider()
-                        Toggle("Sort by Keep Confidence", isOn: Binding(get: { model.assist.sortByConfidence },
-                                                                         set: { model.assist.sortByConfidence = $0 }))
-                            .accessibilityIdentifier("library.toolbar.sortConfidence")
-                        Button("Confirm \(model.assist.suggestionCount) Suggested    (Y)") { model.assist.confirmAll() }
-                            .accessibilityIdentifier("library.toolbar.confirmSuggestions")
-                            .disabled(model.assist.suggestionCount == 0)
-                    } label: {
-                        Image(systemName: "chevron.down").font(Theme.Fonts.iconSmall)
-                    }
-                    .menuStyle(IconMenuStyle())
-                    .help("Assist mode and sort")
-                    .accessibilityLabel("Assist mode and sort")
-                    .accessibilityIdentifier("toolbar-assist-menu")
-                }
-            }
             }
         }
         .flatToolbarItem()
@@ -439,41 +407,27 @@ struct ContentView: View {
             }
         }
         .flatToolbarItem()
-        ToolbarItem(id: "autoEdit", placement: .primaryAction) {
-            if model.isLibraryWorkspace {
-            Button { model.agent.present() } label: {
-                Label(model.agent.isRunning ? "Editing…" : "Auto Edit", systemImage: "wand.and.stars")
-            }
-            .buttonStyle(ToolbarButtonStyle())
-            .disabled(!model.isEngineBacked || model.agent.isRunning)
-            .help("Auto Edit: the agent makes a non-generative base edit (⇧⌘A)")
-            .accessibilityIdentifier("toolbar-auto-edit")
-            }
-        }
-        .flatToolbarItem()
-        ToolbarItem(id: "review", placement: .primaryAction) {
-            if model.viewMode != .document {
-                Button { model.enterReview() } label: {
-                    Label("Review \(model.agent.queue.pendingCount)", systemImage: "checklist")
-                }
-                .buttonStyle(ToolbarButtonStyle())
-                .help("Agent review queue, least confident first")
-                .accessibilityIdentifier("toolbar-agent-review")
-            }
-        }
-        .flatToolbarItem()
-        ToolbarItem(id: "autoAdvance", placement: .primaryAction) {
-            if model.isLibraryWorkspace {
-            Toggle(isOn: $model.autoAdvance) {
-                Label("Auto-advance", systemImage: "arrow.right.to.line")
+        ToolbarItem(id: "inspector", placement: .primaryAction) {
+            Toggle(isOn: Binding(get: { model.showInspector }, set: { _ in model.toggleInspectorPanel() })) {
+                Label("Panel", systemImage: "sidebar.right")
             }
             .toggleStyle(ToolbarToggleStyle())
-            .help("Move to the next image after X / U / P / 1–3 (A)")
-            .accessibilityIdentifier("library.toolbar.autoAdvance")
+            .help(model.viewMode == .document ? "Show or hide the inspector (⌥⌘I)" : "Show or hide the panel (Tab)")
+            .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.inspector" : "\(axMode).toolbar.inspector")
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "export", placement: .primaryAction) {
+            if model.viewMode != .document {
+                Button { model.presentExport() } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(ToolbarButtonStyle())
+                .disabled(!model.isEngineBacked || model.exporter.isRunning)
+                .help("Export the selection or the view (⇧⌘E)")
+                .accessibilityIdentifier("\(axMode).toolbar.export")
             }
         }
         .flatToolbarItem()
-
     }
 }
 

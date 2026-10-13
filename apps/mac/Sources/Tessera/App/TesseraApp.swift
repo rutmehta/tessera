@@ -109,6 +109,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Layered documents run on the engine (WP B5-03); `--stub-library` keeps the stub backend.
         AppModel.shared.documents.policy = args.contains("--stub-library") ? .stub : .engine
+        // UX-11: the source sidebar stays hidden and the panel state per mode is remembered.
+        AppModel.shared.applyShellDefaults()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

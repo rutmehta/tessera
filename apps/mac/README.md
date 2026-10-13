@@ -254,6 +254,20 @@ JPEGs with EXIF capture times: `swift Support/make-sample-folder.swift /tmp/tess
 Each burst is a distinct seeded scene, so near-duplicate hashing keeps bursts apart (40 images → 16
 groups, 12 with 2+ frames); grain varies so the default best-frame score differs within a burst.
 
+## Shell (redesign SPEC §1, WP UX-11)
+
+One toolbar: the folder name (a popover with folders, albums, people and the culling lists; View ▸
+Show Library Sidebar brings the column back), **Cull · Edit · Deliver** in the centre, the search
+field (filters hang off its button), the panel toggle and Export. The agent field sits bottom
+centre of every mode; in Edit the Masks / Crop / Heal strip sits beside it.
+
+| Key | Action |
+|---|---|
+| ⌘1 · ⌘2 · ⌘3 | Cull · Edit · Deliver (View menu; plain 1 2 3 stay the grade keys) |
+| Tab | Show or hide the panel; remembered per mode. A focused text field or control keeps Tab for the key-view loop |
+| ⌘K | Focus the agent field. Return submits: in Edit it starts an agent run on the focused photo with the text as its instruction; Cull and Deliver report `Agent: <text>` in the status bar for now |
+| Esc (Deliver) | Back to Cull |
+
 ## Culling (docs/06 §3–4)
 
 | Key | Action |

@@ -284,6 +284,7 @@ final class AppModel {
     }
 
     func requestLibraryViewMode(_ mode: ViewMode) {
+        deliverMode = false
         if mode != viewMode || isPhotoEditing || isReviewing {
             supersedePendingLayeredCopyForNavigation()
         }
@@ -449,6 +450,11 @@ final class AppModel {
     var autoAdvance = true
     var showInspector = true
     var showFilmstrip = true
+    /// UX-11: Deliver covers the Library canvas until UX-15 makes it a workspace of its own
+    /// (see AppModel+Shell.swift). Cleared by every Library / Edit / Review navigation.
+    var deliverMode = false
+    /// UX-11: bumped by ⌘K; the agent field of the current mode takes the keyboard.
+    var agentFieldFocusRequest = 0
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }
@@ -763,6 +769,7 @@ final class AppModel {
         libraryReturnState = nil
         layeredCopyRequest = nil
         pendingLayeredCopyRequestID = nil
+        deliverMode = false
         if viewMode == .review {
             workspaceTransition = true
             viewMode = .grid
@@ -1423,6 +1430,7 @@ final class AppModel {
     }
 
     func enterPhotoEdit() {
+        deliverMode = false
         if isReviewing { editReviewedPhoto(); return }
         guard canEnterPhotoEdit, !isPhotoEditing else { return }
         rememberLibraryPlace()
@@ -1522,6 +1530,7 @@ final class AppModel {
     }
 
     private func commitEnterReview() {
+        deliverMode = false
         if isPhotoEditing { commitReturnToLibrary(grid: false) }
         guard !isReviewing else { reconcileReviewNavigation(); return }
         rememberLibraryPlace()

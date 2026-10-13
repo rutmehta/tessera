@@ -15,6 +15,9 @@ struct RuleTextField: NSViewRepresentable {
     var plain = false
     /// Monospaced grammar text (the smart-album rule).
     var monospaced = false
+    /// UX-11: called with true when the field takes the keyboard and false when editing ends (the
+    /// toolbar search field widens while it has focus).
+    var onFocusChange: ((Bool) -> Void)? = nil
 
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: RuleTextField
@@ -40,13 +43,29 @@ struct RuleTextField: NSViewRepresentable {
         func controlTextDidEndEditing(_ note: Notification) {
             guard let field = note.object as? NSTextField else { return }
             RuleTextField.highlight(field, text: field.stringValue, diagnostic: parent.diagnostic)
+            parent.onFocusChange?(false)
+        }
+    }
+
+    /// Reports when it becomes first responder (the field editor, not the field, resigns; the end
+    /// of editing is reported by the delegate above).
+    final class FocusReportingTextField: NSTextField {
+        var onFocus: (() -> Void)?
+        override func becomeFirstResponder() -> Bool {
+            let accepted = super.becomeFirstResponder()
+            if accepted { onFocus?() }
+            return accepted
         }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField(string: text)
+        let field = FocusReportingTextField(string: text)
+        field.onFocus = { [weak field] in
+            guard let field, let coordinator = field.delegate as? Coordinator else { return }
+            coordinator.parent.onFocusChange?(true)
+        }
         field.delegate = context.coordinator
         field.placeholderString = placeholder
         field.font = monospaced ? Theme.NSFonts.labelMono : Theme.NSFonts.label

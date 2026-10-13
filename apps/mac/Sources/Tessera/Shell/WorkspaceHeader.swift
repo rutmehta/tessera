@@ -1,57 +1,24 @@
 import SwiftUI
 import TesseraCore
 
-/// Persistent, inexpensive description of the target; no rendering or FFI work in the view.
-struct WorkspaceHeader: View {
+/// The breadcrumb header is gone (UX-11: the toolbar is the only bar; the status bar names the
+/// position and the window title the folder). What remains is the one notice that changes what
+/// the person can do: a cached Smart Preview library is read-only until it is reopened.
+struct CachedPreviewNotice: View {
     let model: AppModel
-    private var source: String { model.source == .all ? model.library.title : model.source.title }
-
-    private var target: String {
-        if model.isReviewing { return "Review" + (model.selectedReviewEntry.map { " › \($0.name)" } ?? "") }
-        if model.isReviewEditing { return "Review › " + (model.editTarget?.name ?? "Photo unavailable") }
-        return model.source == .people ? "People" : source + (model.focusedItem.map { " › \($0.name)" } ?? "")
-    }
 
     var body: some View {
         HStack(spacing: Theme.Space.m) {
-            if model.isPhotoEditing || model.isReviewing {
-                Button { model.isPhotoEditing ? model.returnFromPhotoEdit() : model.returnToLibrary() } label: {
-                    Label(model.isReviewEditing ? "Back to Review" : "Back to Library", systemImage: "arrow.left")
-                }
-                .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
-                .help(model.isReviewEditing ? "Return to the same review photo and draft" : "Return to \(source), preserving your selection and position")
-                .accessibilityIdentifier("workspace-back-to-library")
-            }
-            VStack(alignment: .leading, spacing: Theme.Space.xxs) {
-                Text(target)
-                    .font(Theme.Fonts.labelMedium).foregroundStyle(Theme.textPrimary)
-                    .lineLimit(1).truncationMode(.middle)
-                    .help(target)
-                    .accessibilityIdentifier("workspace-photo-target")
-                Text(model.workspaceScope)
-                    .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1).help(model.workspaceScope)
-                    .accessibilityIdentifier("workspace-command-scope")
-                if model.isCachedPreviewLibrary {
-                    Text("Cached Smart Preview Library · Catalog read-only · Subfolders unavailable")
-                        .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                        .accessibilityIdentifier("cached-preview-library-mode")
-                        .help("Cached declarations only; assets validate when checked or opened. Use Smart Preview explicitly to edit. Reopen to refresh membership or return to originals.")
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if model.isCachedPreviewLibrary {
-                Button("Reopen Library") { model.reopenCachedPreviewLibrary() }
-                    .disabled(model.isLoading)
-                    .accessibilityIdentifier("reopen-cached-preview-library")
-            }
-            if !model.isPhotoEditing {
-                Button("Edit photo") { model.enterPhotoEdit() }
-                    .buttonStyle(.theme(.bordered, height: Theme.Height.regular))
-                    .disabled(!model.canEnterPhotoEdit)
-                    .help(model.canEnterPhotoEdit ? "Develop the focused photo (D)" : "Choose a photo to edit")
-                    .accessibilityIdentifier("workspace-edit-photo")
-            }
+            Text("Cached Smart Preview Library · Catalog read-only · Subfolders unavailable")
+                .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                .lineLimit(1).truncationMode(.tail)
+                .accessibilityIdentifier("cached-preview-library-mode")
+                .help("Cached declarations only; assets validate when checked or opened. Use Smart Preview explicitly to edit. Reopen to refresh membership or return to originals.")
+            Spacer(minLength: Theme.Space.m)
+            Button("Reopen Library") { model.reopenCachedPreviewLibrary() }
+                .buttonStyle(.theme(.bordered, height: Theme.Height.regular))
+                .disabled(model.isLoading)
+                .accessibilityIdentifier("reopen-cached-preview-library")
         }
         .padding(.horizontal, Theme.Space.gutter)
         .padding(.vertical, Theme.Space.s)
