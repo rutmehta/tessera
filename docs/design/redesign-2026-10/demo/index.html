@@ -137,6 +137,33 @@ input{font:inherit}
 .quick{display:flex;gap:8px}
 .quick button{padding:7px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--ink2);font-size:12px}
 .quick button:hover{color:var(--ink);border-color:var(--line2)}
+/* appearance popover */
+.appear{position:absolute;right:16px;top:58px;width:300px;background:rgba(10,10,10,.96);border:1px solid var(--line2);border-radius:12px;padding:14px;box-sizing:border-box;display:none;flex-direction:column;z-index:20;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.appear.on{display:flex}
+.swatches{display:flex;gap:8px;margin-top:8px;align-items:center}
+.swatches button{width:28px;height:28px;border-radius:14px;outline:2px solid transparent;outline-offset:2px}
+.swatches button[aria-pressed=true]{outline-color:var(--ink)}
+.well{width:28px;height:28px;border-radius:14px;background:var(--raised);display:flex;align-items:center;justify-content:center;color:var(--ink2);position:relative;overflow:hidden;cursor:pointer}
+.well input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.grounds{display:flex;gap:6px;margin-top:8px}
+.grounds button{flex:1;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;background:var(--raised);outline:1px solid transparent}
+.grounds button[aria-pressed=true]{outline-color:var(--ink)}
+.grounds i{width:14px;height:14px;border-radius:7px;display:block;box-shadow:0 0 0 1px var(--line2)}
+/* cull: grid view */
+.vtoggle{display:flex;align-items:center;gap:2px;background:var(--panel);border-radius:7px;padding:2px}
+.vtoggle button{padding:4px 10px;border-radius:5px;font-size:12px;color:var(--ink3)}
+.vtoggle button[aria-pressed=true]{background:var(--raised);color:var(--ink);font-weight:600}
+.vtoggle .kbd{margin:0 4px 0 2px}
+.cullgrid{display:none;flex-direction:column;gap:14px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;padding-right:6px;scrollbar-width:thin}
+#s-cull.gridmode .cullgrid{display:flex}
+#s-cull.gridmode .bigwrap,#s-cull.gridmode .strip,#s-cull.gridmode .bactions{display:none}
+.bgroup{display:flex;flex-direction:column;gap:6px}
+.bglab{display:flex;align-items:baseline;gap:10px;font-size:12px;color:var(--ink3)}
+.bglab b{color:var(--ink2);font-weight:600}
+.bglab button{color:var(--accent);font-size:12px}
+.bgrow{display:flex;gap:8px;flex-wrap:wrap}
+.bgrow .cell.pick .pickbadge{display:block}
+.bgsingles{display:flex;gap:8px;flex-wrap:wrap}
 /* cull: burst review */
 .cullwrap{position:absolute;inset:0;display:flex;padding-bottom:150px;box-sizing:border-box}
 .triage{width:260px;flex:none;border-right:1px solid var(--line);padding:18px 18px 10px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px}
@@ -208,8 +235,28 @@ input{font:inherit}
     <div style="display:flex;align-items:center;gap:6px">
       <button class="iconbtn" id="beforebtn" aria-label="Hold to see before" data-on-pointerdown="before(true)" data-on-pointerup="before(false)" data-on-pointerleave="before(false)"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M8 3v10"/></svg></button>
       <button class="iconbtn" id="panelbtn" aria-label="Hide panel (Tab)" aria-pressed="true" data-on-click="togglePanel()"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M10 3v10"/></svg></button>
+      <button class="iconbtn" id="appearbtn" aria-label="Appearance" aria-pressed="false" data-on-click="toggleAppearance()"><span style="width:14px;height:14px;border-radius:7px;background:var(--accent);display:block;box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--track)"></span></button>
       <button class="primary" style="margin-left:6px" data-on-click="setMode('deliver')">Export</button>
     </div>
+  </div>
+  <div id="appear" class="appear">
+    <div class="sechead"><b style="font-size:13px">Accent</b><span>yours</span></div>
+    <div class="swatches" id="swatches">
+      <button data-on-click="setAccent('#F0A52A',this)" aria-pressed="true" style="background:#F0A52A" aria-label="Amber"></button>
+      <button data-on-click="setAccent('#FF7A66',this)" aria-pressed="false" style="background:#FF7A66" aria-label="Coral"></button>
+      <button data-on-click="setAccent('#4F7BFF',this)" aria-pressed="false" style="background:#4F7BFF" aria-label="Cobalt"></button>
+      <button data-on-click="setAccent('#2FB3A6',this)" aria-pressed="false" style="background:#2FB3A6" aria-label="Teal"></button>
+      <button data-on-click="setAccent('#E8709A',this)" aria-pressed="false" style="background:#E8709A" aria-label="Rose"></button>
+      <button data-on-click="setAccent('#A6D24A',this)" aria-pressed="false" style="background:#A6D24A" aria-label="Lime"></button>
+      <label class="well" aria-label="Any colour"><input type="color" id="accentwell" value="#F0A52A" data-on-input="setAccent(this.value,null)"><span>+</span></label>
+    </div>
+    <div class="sechead" style="margin-top:12px"><b style="font-size:13px">Ground</b><span></span></div>
+    <div class="grounds">
+      <button data-on-click="setGround('black',this)" aria-pressed="true"><i style="background:#0A0A0A"></i>Black</button>
+      <button data-on-click="setGround('graphite',this)" aria-pressed="false"><i style="background:#1A1917"></i>Graphite</button>
+      <button data-on-click="setGround('navy',this)" aria-pressed="false"><i style="background:#12151C"></i>Navy</button>
+    </div>
+    <div class="muted" style="margin-top:10px">Keep and reject colours stay fixed so decisions always read the same.</div>
   </div>
 
   <!-- EDIT -->
@@ -324,8 +371,10 @@ input{font:inherit}
       <div class="burstview">
         <div class="bhead">
           <div><b id="bursttitle">Burst 13 · 6 frames</b><span class="muted" id="bursttime"> · 18:06:48 · 1/640 f/4</span></div>
-          <div class="muted" id="pickwhy"></div>
+          <div style="display:flex;align-items:center;gap:14px"><div class="muted" id="pickwhy"></div>
+          <div class="vtoggle"><button id="vb" aria-pressed="true" data-on-click="cullView('bursts')">Burst</button><button id="vg" aria-pressed="false" data-on-click="cullView('grid')">Grid</button><span class="kbd">G</span></div></div>
         </div>
+        <div class="cullgrid" id="cullgrid"></div>
         <div class="bigwrap">
           <div class="big" id="big">
             <div class="bigbadge" id="bigbadge">Agent's pick</div>
@@ -424,11 +473,20 @@ input{font:inherit}
 
   // ---- handlers (no inline attributes: the viewer's CSP blocks them)
   function parseArgs(s,el,ev){var out=[],cur='',q=null,i;s=s.trim();if(!s)return out;for(i=0;i<s.length;i++){var ch=s[i];if(q){if(ch===q){q=null;}else cur+=ch;}else if(ch==="'"||ch==='"'){q=ch;cur+='\u0000';}else if(ch===','){out.push(cur);cur='';}else cur+=ch;}out.push(cur);
-    return out.map(function(a){a=a.trim();if(a.charAt(0)==='\u0000')return a.slice(1);if(a==='this')return el;if(a==='event')return ev;if(a==='this.value')return el.value;if(a==='true')return true;if(a==='false')return false;if(/^-?\d+$/.test(a))return +a;return a;});}
+    return out.map(function(a){a=a.trim();if(a.charAt(0)==='\u0000')return a.slice(1);if(a==='this')return el;if(a==='event')return ev;if(a==='this.value')return el.value;if(a==='null')return null;if(a==='true')return true;if(a==='false')return false;if(/^-?\d+$/.test(a))return +a;return a;});}
   function run(code,el,ev){code=code.replace(/^return\s+/,'').replace(/;\s*$/,'');var m=code.match(/^(\w+)\((.*)\)$/);if(!m)return;var fn=window[m[1]];if(typeof fn==='function')return fn.apply(el,parseArgs(m[2],el,ev));}
   function delegate(type,attr){document.addEventListener(type,function(e){var el=e.target&&e.target.closest&&e.target.closest('[data-on-'+attr+']');if(!el)return;if(type==='submit')e.preventDefault();run(el.getAttribute('data-on-'+attr),el,e);},type==='submit');}
   delegate('click','click');delegate('input','input');delegate('submit','submit');delegate('pointerdown','pointerdown');delegate('pointerup','pointerup');
   document.querySelectorAll('[data-on-pointerleave]').forEach(function(el){el.addEventListener('pointerleave',function(e){run(el.getAttribute('data-on-pointerleave'),el,e)});});
+
+  // ---- appearance (custom colours)
+  function lum(h){var n=parseInt(h.slice(1),16),r=n>>16&255,g=n>>8&255,b=n&255;function c(v){v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)}return .2126*c(r)+.7152*c(g)+.0722*c(b);}
+  window.toggleAppearance=function(){var on=document.getElementById('appear').classList.toggle('on');document.getElementById('appearbtn').setAttribute('aria-pressed',on?'true':'false');};
+  window.setAccent=function(hex,btn){var root=document.documentElement;root.style.setProperty('--accent',hex);root.style.setProperty('--on-accent',lum(hex)>.4?'#1a1200':'#ffffff');
+    document.querySelectorAll('#swatches button').forEach(function(b){b.setAttribute('aria-pressed',b===btn?'true':'false')});document.getElementById('accentwell').value=hex.length===7?hex:'#F0A52A';
+    document.querySelectorAll('svg[stroke="#f0a52a"],svg[data-accent]').forEach(function(s){s.setAttribute('stroke',hex);s.setAttribute('data-accent','1')});if(window.drawKnob)drawKnob();};
+  window.setGround=function(g,btn){var root=document.documentElement;var m={black:['#0a0a0a','#161616','#1c1c1c','#2a2a2a'],graphite:['#1a1917','#232220','#2b2a27','#3a3835'],navy:['#12151c','#1a1e27','#222733','#2f3542']}[g];root.style.setProperty('--bg',m[0]);root.style.setProperty('--panel',m[1]);root.style.setProperty('--raised',m[2]);root.style.setProperty('--track',m[3]);document.querySelectorAll('.grounds button').forEach(function(b){b.setAttribute('aria-pressed',b===btn?'true':'false')});};
+  document.addEventListener('click',function(e){var a=document.getElementById('appear');if(a.classList.contains('on')&&!a.contains(e.target)&&!document.getElementById('appearbtn').contains(e.target)){a.classList.remove('on');document.getElementById('appearbtn').setAttribute('aria-pressed','false');}});
 
   // ---- modes
   var mode='edit';
@@ -498,7 +556,7 @@ input{font:inherit}
   function showDial(x,y){dial.classList.add('on');var main=document.getElementById('editmain');var mw=main.clientWidth,mh=main.clientHeight;var dx=Math.min(x+40,mw-250),dy=Math.min(Math.max(y-120,10),mh-330);dial.style.left=dx+'px';dial.style.top=dy+'px';document.getElementById('dialval').textContent=fmt(dialKey,vals[dialKey]);document.getElementById('target').textContent=currentMask;}
   function hideDial(){dial.classList.remove('on');showRing(false);document.getElementById('target').textContent='Whole photo';}
   window.dialPick=function(k,btn){dialKey=k;document.querySelectorAll('#dialchips button').forEach(function(b){b.setAttribute('aria-pressed',b===btn?'true':'false')});document.getElementById('dialname').textContent=btn.textContent;document.getElementById('dialval').textContent=fmt(k,vals[k]);drawKnob();};
-  function drawKnob(){var v=vals[dialKey];var pct=50+v/2;document.getElementById('knob').style.background='conic-gradient(#f0a52a 0 '+pct+'%, rgba(255,255,255,.12) '+pct+'% 100%)';}
+  window.drawKnob=function(){var v=vals[dialKey];var pct=50+v/2;var ac=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#f0a52a';document.getElementById('knob').style.background='conic-gradient('+ac+' 0 '+pct+'%, rgba(255,255,255,.12) '+pct+'% 100%)';};
   var knob=document.getElementById('knob'),kd=null;
   knob.addEventListener('pointerdown',function(e){kd={y:e.clientY,v:vals[dialKey]};knob.setPointerCapture(e.pointerId);e.preventDefault();});
   knob.addEventListener('pointermove',function(e){if(!kd)return;var s=Math.min(innerWidth/1440,innerHeight/900);var nv=Math.max(-100,Math.min(100,Math.round(kd.v+(kd.y-e.clientY)/s)));setVal(dialKey,nv,true);drawKnob();});
@@ -553,8 +611,13 @@ input{font:inherit}
   var bi=0;function burstOf(i){for(var b=0;b<bursts.length;b++)if(bursts[b].indexOf(i)>=0)return b;return 0;}
   function pickOf(b){var f=bursts[b];for(var k=0;k<f.length;k++)if(sug.indexOf(f[k])>=0)return f[k];return f[0];}
   function score(i){return sug.indexOf(i)>=0?(0.82+(i%5)*0.03):blurry.indexOf(i)>=0?0.21+(i%4)*0.04:0.48+(i%7)*0.04;}
+  var cullMode='bursts';
+  window.cullView=function(v){cullMode=v;document.getElementById('s-cull').classList.toggle('gridmode',v==='grid');document.getElementById('vb').setAttribute('aria-pressed',v==='bursts'?'true':'false');document.getElementById('vg').setAttribute('aria-pressed',v==='grid'?'true':'false');setFocus(focus);};
+  function renderGrid(){var g=document.getElementById('cullgrid');g.innerHTML='';var singles=[];bursts.forEach(function(f,b){if(f.length<2){singles.push(b);return;}var p=pickOf(b);var d=document.createElement('div');d.className='bgroup';var lab=document.createElement('div');lab.className='bglab';lab.innerHTML='<b></b><span></span><button data-on-click="openBurst('+b+')">review</button>';lab.querySelector('b').textContent='Burst '+(b+1);lab.querySelector('span').textContent=f.length+' frames · pick '+names[p];d.appendChild(lab);var row=document.createElement('div');row.className='bgrow';f.forEach(function(j){cells[j].el.classList.toggle('pick',j===p);cells[j].el.classList.toggle('focus',j===focus);cells[j].el.querySelector('.nm span:last-child').textContent=score(j).toFixed(2);row.appendChild(cells[j].el)});d.appendChild(row);g.appendChild(d);});
+    if(singles.length){var d2=document.createElement('div');d2.className='bgroup';d2.innerHTML='<div class="bglab"><b>Single frames</b><span></span></div>';d2.querySelector('span').textContent=singles.length+' photos · no burst to compare';var row2=document.createElement('div');row2.className='bgrow';singles.forEach(function(b){var j=bursts[b][0];cells[j].el.classList.remove('pick');cells[j].el.classList.toggle('focus',j===focus);row2.appendChild(cells[j].el)});d2.appendChild(row2);g.appendChild(d2);}}
+  window.openBurst=function(b){cullView('bursts');setFocus(bursts[b][0]);};
   window.setFocus=function(i){focus=i;bi=burstOf(i);var f=bursts[bi];var pick=pickOf(bi);
-    var strip=document.getElementById('strip');strip.innerHTML='';f.forEach(function(j){var c=cells[j];c.el.classList.toggle('focus',j===i);c.el.classList.toggle('pick',j===pick);c.el.querySelector('.nm span:last-child').textContent=score(j).toFixed(2);strip.appendChild(c.el);});
+    if(cullMode==='grid'){renderGrid();}else{var strip=document.getElementById('strip');strip.innerHTML='';f.forEach(function(j){var c=cells[j];c.el.classList.toggle('focus',j===i);c.el.classList.toggle('pick',j===pick);c.el.querySelector('.nm span:last-child').textContent=score(j).toFixed(2);strip.appendChild(c.el);});}
     var big=document.getElementById('big');var fac=760/172;big.style.backgroundImage='url(sprite.jpg)';big.style.backgroundSize=(2024*fac)+'px auto';big.style.backgroundPosition='-'+(cells[i].x*fac)+'px -'+(cells[i].y*fac)+'px';
     big.classList.toggle('ispick',i===pick);document.getElementById('bigbadge').textContent=i===pick?"Agent's pick":'';big.classList.remove('keep','reject');if(cells[i].d!=='undecided')big.classList.add(cells[i].d);
     document.getElementById('bigname').textContent=names[i]+(cells[i].d==='keep'?' · kept':cells[i].d==='reject'?' · rejected':'');
@@ -592,7 +655,7 @@ input{font:inherit}
     if(e.key==='1')setMode('cull');if(e.key==='2')setMode('edit');if(e.key==='3')setMode('deliver');
     if(e.key==='\\'){before(true);}
     if(mode==='edit'){if(e.key==='m'||e.key==='M')setTool('masks');if(e.key==='c'||e.key==='C')setTool('crop');if(e.key==='h'||e.key==='H')setTool('heal');if(e.key==='Escape'){setTool(tool);hideDial();}}
-    if(mode==='cull'){if(e.key==='x'||e.key==='X')decide('reject');if(e.key==='p'||e.key==='P')decide('keep');if(e.key==='u'||e.key==='U'){mark(focus,'undecided');counts();setFocus(focus);}if(e.altKey&&e.key==='ArrowRight'){nextBurst();return;}if(e.altKey&&e.key==='ArrowLeft'){prevBurst();return;}var f=bursts[bi],at=f.indexOf(focus);if(e.key==='ArrowRight'&&at<f.length-1)setFocus(f[at+1]);if(e.key==='ArrowLeft'&&at>0)setFocus(f[at-1]);if(e.key==='k'||e.key==='K')keepBest();}
+    if(mode==='cull'){if(e.key==='x'||e.key==='X')decide('reject');if(e.key==='p'||e.key==='P')decide('keep');if(e.key==='u'||e.key==='U'){mark(focus,'undecided');counts();setFocus(focus);}if(e.altKey&&e.key==='ArrowRight'){nextBurst();return;}if(e.altKey&&e.key==='ArrowLeft'){prevBurst();return;}var f=bursts[bi],at=f.indexOf(focus);if(e.key==='ArrowRight'&&at<f.length-1)setFocus(f[at+1]);if(e.key==='ArrowLeft'&&at>0)setFocus(f[at-1]);if(e.key==='k'||e.key==='K')keepBest();if(e.key==='g'||e.key==='G')cullView(cullMode==='grid'?'bursts':'grid');}
     if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();var inp=document.querySelector('.screen.on .agent input');if(inp)inp.focus();}
   });
   addEventListener('keyup',function(e){if(e.key==='\\')before(false);});
