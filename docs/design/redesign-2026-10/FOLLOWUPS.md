@@ -28,4 +28,12 @@ much they would annoy Rut.
    few RAWs in the scratch directory, never the owner's real folder, and never by frontmost.
 10. **Stray sidecar** `DSC02488.ARW.xmp` in the World Cup folder (WB 6300 K, a heal spot, AI masks)
     was written by those runs; the owner decides whether to delete it.
-11. UX-15 (Deliver) is the last package in SPEC §8.
+11. **Deliver (UX-15) leftovers.** Instagram is "fit inside 1080 × 1350", not a 4:5 crop: export has
+    no crop, so a landscape photo lands at 1080 × 720 (the cell says so). The size estimate is
+    bytes-per-megapixel by format and quality, labelled "about"; the engine could report the
+    real figure after a dry run. Engine items carry no pixel size (`PhotoItem.pixelWidth` is 0),
+    so Deliver reads the file header through ImageIO per photo (cached); the scan should store
+    it with the other metadata (see item 4). Evidence was rendered in-process
+    (`DeliverEvidenceTests`, `TESSERA_DELIVER_EVIDENCE` + `TESSERA_DELIVER_SHOOT`) because the
+    automation shell had no screen-recording permission; a SwiftUI `ScrollView` draws a white
+    ground in those renders, so the grid scrolls only when the cells do not fit.

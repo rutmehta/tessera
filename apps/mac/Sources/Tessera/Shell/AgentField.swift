@@ -21,6 +21,12 @@ struct AgentRow: View {
                     ToolsStrip(model: model).frame(width: Theme.Width.agentSide, alignment: .trailing)
                     AgentField(model: model, mode: mode)
                     AgentStatus(model: model).frame(width: Theme.Width.agentSide, alignment: .leading)
+                } else if mode == .deliver {
+                    // UX-15: the one Export button, right of the field; an empty left slot keeps
+                    // the field centred.
+                    Color.clear.frame(width: Theme.Width.agentSide, height: Theme.Space.hairline)
+                    AgentField(model: model, mode: mode)
+                    DeliverExportButton(model: model).frame(width: Theme.Width.agentSide, alignment: .leading)
                 } else {
                     AgentField(model: model, mode: mode)
                 }
@@ -201,21 +207,5 @@ struct ToolsStrip: View {
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.hairline, lineWidth: Theme.Space.hairline))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Tools")
-    }
-}
-
-/// Deliver until UX-15: one sentence, one button (SPEC §7) over the Library canvas.
-struct DeliverView: View {
-    let model: AppModel
-    var body: some View {
-        EmptyStateContent(symbol: "square.and.arrow.up", title: "Deliver",
-                          message: "Export the keeps, a selection or the whole shoot; the Deliver workspace arrives with UX-15.") {
-            Button("Export…") { model.presentExport() }
-                .buttonStyle(.theme(.primary, height: Theme.Height.large))
-                .disabled(!model.isEngineBacked || model.exporter.isRunning)
-                .accessibilityIdentifier("library.deliver.export")
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.canvas)
     }
 }

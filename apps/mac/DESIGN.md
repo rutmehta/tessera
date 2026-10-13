@@ -175,7 +175,8 @@ menus. Below: content (canvas) with the agent field bottom centre (`Shell/AgentF
 beside it) · progress strips · status bar · filmstrip. The source sidebar is hidden by default
 (View ▸ Show Library Sidebar, persisted); the inspector is the one panel, hidden and shown by Tab
 with the state remembered per mode (`Shell.panel.<mode>` in user defaults). With the panel hidden
-in Edit the photo fills the window. Deliver covers the canvas with the export entry until UX-15.
+in Edit the photo fills the window. In Deliver the panel is the What · How · Where column on the
+left (§15); the right inspector stays for the loupe, Compare, Edit, Review and documents.
 
 **Cull** (SPEC §4, WP UX-14; `Cull/TriageColumn.swift`, `Cull/BurstReviewView.swift`): the panel
 is the 260 pt triage column on the *left* (`Theme.Width.triageColumn`; Tab hides it; the right
@@ -758,3 +759,49 @@ recipe. Tokens: `Theme.Width.tryCard`, `Theme.Height.tryThumbnail` / `tryCaption
 **Before / after.** A toolbar button left of Panel ("Before"), held, and the `\` key show the
 original through the history checkout the Edits stack uses (no step is recorded); releasing
 returns to the head step. Nothing happens with no applied step.
+
+## 15. Deliver (redesign SPEC §5, WP UX-15)
+
+`Shell/DeliverView.swift`, `App/AppModel+Deliver.swift`, `TesseraCore/Export/DeliverPlan.swift`.
+Deliver is the third mode of the control (⌘3); Esc, ⌘1 and ⌘2 leave it. The canvas is the
+320 pt column on the left (`Theme.Width.deliverColumn`; Tab hides it) and the preview on the
+right; nothing else is on screen.
+
+**What · How · Where.** Three sections with 15/600 titles. What and How are lists of 36 pt rows
+(`Theme.Height.deliverRow`, radius 8): the title left in body ink, the detail right in tabular
+tertiary ink (the row's photo count; the How row's size and colour space), the chosen row on
+`raised` with a `hairlineStrong` outline, hover on `hover`. What is Keeps (the cull decisions) ·
+Selection · Whole shoot, counting engine-backed photos only. How is Web JPEG (the shipped
+"Web 2048 sRGB" preset) · Instagram (built in: JPEG 90 fitted inside 1080 × 1350; export does
+not crop, so a landscape photo lands at 1080 wide) · Full size ("16-bit TIFF ProPhoto") · Print
+(the print flow on the same photos). A shipped preset is read by name from the engine's store
+and the same values are built in when it has been deleted. "More…" under How opens the full
+Export sheet on the chosen photos, started from the row's settings. Where is the export folder
+(its last two components; "change" opens the folder panel) and the first file's name from the
+naming template: both are `exporter.settings`, the same values the sheet edits and persists, so
+the two never disagree. The choices persist as `Deliver.what` / `Deliver.how` in user defaults.
+
+**Preview.** The header is "n photos · Web JPEG · 2048 px · sRGB" with "about 3.1 MB" on the
+right: the sum of `ExportSettings.estimatedBytes` (the output size times the format's typical
+bytes per megapixel: JPEG by quality, TIFF by bit depth uncompressed, capped by the JPEG size
+limit), always labelled "about". The grid is 172 × 116 cells (`Theme.Width.deliverCell` ×
+`Theme.Height.deliverCell`, radius 4, aspect fit) with the name and the output pixel size
+("2048 × 1365", from `ExportSettings.outputSize`; engine items carry no size, so the file
+header is read once through ImageIO and cached) under each. The grid scrolls only when the
+cells do not all fit; a small set has no scroller. An empty What is one sentence in
+tertiary ink. Under the grid a 4 pt progress bar (track, accent fill: the run's fraction, full
+once done) and one status line: "Exporting · 3 of 8 · name", then **Done · n files · Reveal**
+(Reveal selects the files in Finder), the exporter's problem in `reject`, or what the agent
+field can do. The export strip under the canvas (with Cancel) still appears during a run.
+
+**Export.** One primary button right of the agent field, 48 pt like the field and radius 12,
+"Export n" ("Print n" on the Print row, "Exporting…" while a run goes); an empty slot on the
+left keeps the field centred. It runs `ExportController` non-modally on the chosen photos as
+one frozen target with the row's settings over the person's Where; the engine's export report
+feeds the status line through `AppModel.deliverDidFinish`.
+
+**Agent field.** "Export the keeps as web JPEGs" is the placeholder. `DeliverAgentPhrase` reads
+a How (insta → Instagram; tiff / full / original → Full size; print → Print; web / jpeg → Web
+JPEG) and a What (keeps / picks → Keeps; selected / selection / this → Selection; all / whole /
+everything / shoot → Whole shoot); either alone keeps the other row, both set run the export,
+nothing understood reports `Agent: <text>` like the other modes.

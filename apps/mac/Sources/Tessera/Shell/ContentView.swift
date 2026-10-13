@@ -235,10 +235,13 @@ struct ContentView: View {
                                     set: { if !$0 { model.collections.editor = nil } })) {
             SmartAlbumSheet(library: model.collections)
         }
-        // UX-14: in Cull the panel is the triage column on the left; the inspector stays for the
-        // loupe, Compare, Edit, Review and documents.
-        .inspector(isPresented: Binding(get: { model.showInspector && !model.isCullWorkspace },
-                                        set: { shown in if !model.isCullWorkspace, shown != model.showInspector { model.toggleInspectorPanel() } })) {
+        // UX-14 / UX-15: in Cull the panel is the triage column on the left, in Deliver the
+        // What · How · Where column; the inspector stays for the loupe, Compare, Edit, Review and
+        // documents.
+        .inspector(isPresented: Binding(get: { model.showInspector && !model.isCullWorkspace && !model.deliverMode },
+                                        set: { shown in
+                                            if !model.isCullWorkspace, !model.deliverMode, shown != model.showInspector { model.toggleInspectorPanel() }
+                                        })) {
             Group {
                 if model.viewMode == .document {
                     DocumentInspector(workspace: model.documents)

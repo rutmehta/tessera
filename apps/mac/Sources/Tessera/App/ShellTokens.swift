@@ -55,3 +55,19 @@ extension Theme.Height {
     static let tryThumbnail: CGFloat = 64
     static let tryCaption: CGFloat = 28
 }
+
+// UX-15: Deliver (SPEC §5).
+
+extension Theme.Width {
+    /// The What · How · Where column of Deliver (Tab hides it).
+    static let deliverColumn: CGFloat = 320
+    /// One cell of the preview grid (the files to be written).
+    static let deliverCell: CGFloat = 172
+}
+
+extension Theme.Height {
+    /// One row of the What / How lists.
+    static let deliverRow: CGFloat = 36
+    /// The thumbnail of a preview cell; the caption line sits under it.
+    static let deliverCell: CGFloat = 116
+}
