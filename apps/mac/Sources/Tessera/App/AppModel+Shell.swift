@@ -112,10 +112,12 @@ extension AppModel {
 
     /// Return in the agent field. In Edit the text is the instruction of an agent run on the focused
     /// photo (the planner's free-text redo path, one named group in its history, reviewed in the
-    /// queue as every run is). Cull and Deliver report the text until UX-14 / UX-15 act on it.
+    /// queue as every run is). In Cull simple phrases (blurry, the pick, eyes, a person's name) are
+    /// the quick actions (UX-14); other text, and Deliver's until UX-15, is reported.
     func submitAgentInstruction(_ raw: String) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
+        if shellMode == .cull, isLibraryWorkspace, cullAgent(text) { return }
         guard shellMode == .edit else { statusMessage = "Agent: \(text)"; return }
         guard let item = editTarget, item.engineImage != nil, isEngineBacked else {
             statusMessage = "The agent edits photos opened from a folder on the engine"

@@ -10,10 +10,12 @@ public struct AssistPrediction: Sendable, Equatable {
     public var likelyReject: Bool
     /// Up to five signed log-odds terms, largest first ("sharpness −1.8").
     public var explanation: [(feature: String, contribution: Double)]
+    /// The engine's technical score (quality weighted by face sharpness), 0…1; 0 when unmeasured.
+    public var technicalScore: Double = 0
 
     public static func == (a: AssistPrediction, b: AssistPrediction) -> Bool {
         a.itemID == b.itemID && a.pKeep == b.pKeep && a.suggested == b.suggested && a.likelyReject == b.likelyReject
-            && a.explanation.map(\.feature) == b.explanation.map(\.feature)
+            && a.explanation.map(\.feature) == b.explanation.map(\.feature) && a.technicalScore == b.technicalScore
     }
 
     /// "Sharpness pulls toward reject" style one-liner for the inspector.
@@ -86,8 +88,17 @@ extension CullController {
             case .undecided, nil: nil
             }
             return AssistPrediction(itemID: item, pKeep: p.pKeep, suggested: suggested, likelyReject: p.likelyReject,
-                                  explanation: p.explanation.map { ($0.feature, $0.contribution) })
+                                  explanation: p.explanation.map { ($0.feature, $0.contribution) },
+                                  technicalScore: p.technicalScore)
         }
+    }
+
+    /// Every measured frame's signals (burst view HUD, triage), by item id. One pass over the
+    /// session's defect sweep with thresholds no real value crosses the wrong way.
+    public func frameSignals() throws -> [Int: FrameSignals] {
+        let lib = try engine()
+        return Dictionary(try lib.rawFrameSignals().compactMap { imageID, s in lib.itemOfImage[imageID].map { ($0, s) } },
+                          uniquingKeysWith: { a, _ in a })
     }
 
     /// Confirms pre-filled decisions as one undo step (and teaches the learner).
@@ -134,6 +145,37 @@ extension CullController {
 }
 
 extension EngineLibrary {
+    /// Signals of every measured image, by image id. Reads the session only, so it is safe off the
+    /// main actor (the analysis pass refreshes the triage from its own task).
+    public func rawFrameSignals() throws -> [String: FrameSignals] {
+        // Every real value is in 0…1: "below 2" and "above −1" match each measured signal exactly once.
+        let thresholds = [
+            DefectThreshold(signal: "sharpness", value: 2, direction: .below),
+            DefectThreshold(signal: "motion_blur", value: -1, direction: .above),
+            DefectThreshold(signal: "noise", value: -1, direction: .above),
+            DefectThreshold(signal: "eyes_open", value: 2, direction: .below),
+            DefectThreshold(signal: "face_sharpness", value: 2, direction: .below),
+            DefectThreshold(signal: "quality", value: 2, direction: .below),
+        ]
+        var out: [String: FrameSignals] = [:]
+        for candidate in try session.defectSweep(thresholds: thresholds) {
+            var s = FrameSignals()
+            for r in candidate.reasons {
+                switch r.signal {
+                case "sharpness": s.sharpness = s.sharpness ?? r.value
+                case "motion_blur": s.motionBlur = s.motionBlur ?? r.value
+                case "noise": s.noise = s.noise ?? r.value
+                case "eyes_open": s.eyesOpen = s.eyesOpen ?? r.value
+                case "face_sharpness": s.faceSharpness = s.faceSharpness ?? r.value
+                case "quality": s.quality = s.quality ?? r.value
+                default: break
+                }
+            }
+            out[candidate.imageId] = s
+        }
+        return out
+    }
+
     /// Real culling signals for `itemIDs` (blocking; call off the main actor). `progress` gets
     /// (done, total, name) before each image; returning false stops early. Failures are
     /// collected per file rather than stopping the pass.

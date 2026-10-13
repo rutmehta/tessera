@@ -12,6 +12,9 @@ import TesseraCore
 ///   Loupe: arrows step one frame (← ↑ previous, → ↓ next), as in Lightroom
 ///   Grid:  arrows move spatially (⇧ extends)
 ///   Both:  ⌥ ← → previous/next group, ⌥ ↑ ↓ previous/next frame within the group
+///   Cull (UX-14): G burst view ↔ grouped grid · burst view: ← → within the burst, ⌥← ⌥→ between
+///   bursts (landing on the pick), P / X decide the frame and move to the burst's next undecided
+///   frame, then the next burst · grouped grid: ↑ ↓ a burst row at a time
 ///   K keep the group's suggested best and reject the rest · C compare · ⌫ remove from album
 ///   Assist (toolbar): Y confirm every suggested decision in view · N dismiss the suggestion here
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
@@ -183,7 +186,8 @@ final class KeyRouter {
                 model.statusMessage = "Soft proofing \(SoftProof.shared.enabled ? "on" : "off")"
             }
         case "d": model.enterPhotoEdit()
-        case "g": model.requestViewMode(.grid)
+        // UX-14: in Cull, G toggles the burst view and the grouped grid; from the loupe it is the grid.
+        case "g": if model.isCullWorkspace { model.toggleCullLayout() } else { model.requestViewMode(.grid) }
         case "e": model.requestViewMode(.loupe)
         default: return false
         }

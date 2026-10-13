@@ -8,15 +8,63 @@ struct AgentRow: View {
 
     var body: some View {
         let mode = model.shellMode
-        HStack(alignment: .center, spacing: Theme.Space.m) {
-            if mode == .edit {
-                ToolsStrip(model: model)
-                AgentField(model: model, mode: mode)
-                ToolsStrip(model: model).hidden().accessibilityHidden(true)
-            } else {
-                AgentField(model: model, mode: mode)
+        VStack(spacing: Theme.Space.s + Theme.Space.xxs) {
+            // UX-14: the quick actions of Cull (SPEC §4), each one undoable step with a toast.
+            if mode == .cull, model.isCullWorkspace { CullQuickActions(model: model) }
+            HStack(alignment: .center, spacing: Theme.Space.m) {
+                if mode == .edit {
+                    ToolsStrip(model: model)
+                    AgentField(model: model, mode: mode)
+                    ToolsStrip(model: model).hidden().accessibilityHidden(true)
+                } else {
+                    AgentField(model: model, mode: mode)
+                }
             }
         }
+    }
+}
+
+/// Keep the pick in every burst · Reject the blurry ones · Find closed eyes · Show me <person>.
+struct CullQuickActions: View {
+    let model: AppModel
+
+    var body: some View {
+        HStack(spacing: Theme.Space.s) {
+            chip("Keep the pick in every burst", help: "Keep the agent's pick in every burst and reject the other undecided frames: one undo step") {
+                model.keepPickInEveryBurst()
+            }
+            .accessibilityIdentifier("library.cull.quick.keepPicks")
+            chip("Reject the blurry ones", help: "Reject every undecided frame with missed focus or motion blur: one undo step") {
+                model.rejectBlurry()
+            }
+            .accessibilityIdentifier("library.cull.quick.rejectBlurry")
+            chip("Find closed eyes", help: "Show the frames where the eyes proxy reads closed") {
+                model.findClosedEyes()
+            }
+            .accessibilityIdentifier("library.cull.quick.closedEyes")
+            if let person = model.firstNamedPerson {
+                chip("Show me \(person.name)", help: "Show the frames with \(person.name)") {
+                    model.showPerson(named: person.name)
+                }
+                .accessibilityIdentifier("library.cull.quick.person")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Quick actions")
+        .accessibilityIdentifier("library.cull.quick")
+    }
+
+    private func chip(_ title: String, help: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(Theme.Fonts.label).foregroundStyle(Theme.textSecondary)
+                .padding(.horizontal, Theme.Space.m)
+                .frame(height: Theme.Height.large)
+                .background(Capsule().fill(Theme.panel))
+                .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: Theme.Space.hairline))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 }
 

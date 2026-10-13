@@ -285,8 +285,9 @@ final class BadgeOverlayView: NSView {
             x += drawChip(text, fill: OnImage.scrim, text: color, outline: color,
                           at: NSPoint(x: x, y: r.minY + pad), maxWidth: r.width / 2).width + gap
         }
+        // The burst's pick (UX-14): the accent, like the burst view's badge. A suggestion only.
         if suggestedBest, !small {
-            drawChip("Suggested", fill: OnImage.scrim, text: OnImage.keep, outline: OnImage.keep,
+            drawChip("Pick", fill: Theme.Palette.accent, text: Theme.Palette.textOnAccent,
                      at: NSPoint(x: x, y: r.minY + pad), maxWidth: r.maxX - x - pad - Theme.Height.chip - gap)
         }
         // Mark (top-right): a square chip in the mark colour with its key.

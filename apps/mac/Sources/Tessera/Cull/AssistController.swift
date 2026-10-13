@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import TesseraCore
 import enum TesseraFFI.AssistMode
+import struct TesseraFFI.KeepPrediction
 
 /// Assisted culling (docs/06 §3, WP M3-11): real signals computed in the background, the
 /// library's learner (assisted: predictions and a confidence order; automated: pre-filled
@@ -32,6 +33,17 @@ final class AssistController {
     /// Faces of the focused photo (loupe face strip).
     private(set) var faces: [FaceChip] = []
     @ObservationIgnored private var facesItem: Int?
+    /// UX-14: the agent's triage of the shoot (SPEC §4), refreshed as the analysis pass fills in
+    /// signals and again when it finishes. Observed by the Cull column; the signals and scores
+    /// behind it are read per frame by the burst view.
+    private(set) var triage = CullTriage()
+    /// Replaced wholesale a few times a minute while the pass runs, so views read them directly.
+    private(set) var signals: [Int: FrameSignals] = [:]
+    /// The engine's technical score and keep likelihood per frame (`review`, Assist on or off).
+    private(set) var scores: [Int: (technical: Double, pKeep: Double)] = [:]
+    @ObservationIgnored private var triageRefreshing = false
+    @ObservationIgnored private var triageStale = false
+    @ObservationIgnored private var lastTriageRefresh: CFAbsoluteTime = 0
 
     var isRunning: Bool { progress != nil }
 
@@ -57,6 +69,11 @@ final class AssistController {
             personFilter = (relink(filter.person), filter.eyesClosed, Set(filter.items.compactMap(remap)))
         }
         facesItem = facesItem.flatMap(remap)
+        signals = Dictionary(signals.compactMap { id, s in remap(id).map { ($0, s) } }, uniquingKeysWith: { a, _ in a })
+        scores = Dictionary(scores.compactMap { id, s in remap(id).map { ($0, s) } }, uniquingKeysWith: { a, _ in a })
+        triage = triage.remapped(remap)
+        // New frames (a tether, an import) get measured and bucketed by the next refresh.
+        refreshTriage()
     }
 
     // MARK: Library lifecycle
@@ -73,7 +90,17 @@ final class AssistController {
         faces = []
         facesItem = nil
         labels = 0
-        guard let app, let lib = app.engineLibrary, !lib.isReadOnly else { return }
+        signals = [:]
+        scores = [:]
+        triage = CullTriage()
+        triageStale = false
+        guard let app, let lib = app.engineLibrary, !lib.isReadOnly else {
+            // The stub library has groups and picks but no signals: the column still counts bursts.
+            if let app { triage = CullTriage.compute(groups: app.cull.groups, best: app.cull.bestOfGroup, signals: [:]) }
+            return
+        }
+        // Frames measured on an earlier open show up before the pass starts.
+        refreshTriage()
         if seedFaces {
             do { try lib.seedSyntheticFaces() } catch { app.statusMessage = "Synthetic faces: \(error.localizedDescription)" }
         }
@@ -100,6 +127,8 @@ final class AssistController {
                     MainActor.assumeIsolated { () -> Bool in
                         guard let owner = box.value, generation == owner.analysisGeneration, !owner.cancelAnalysis else { return false }
                         owner.progress = (done, total, name, title)
+                        // The triage column fills in while the pass runs (SPEC §4), a few times a minute.
+                        owner.refreshTriage(throttle: 3)
                         return true
                     }
                 }
@@ -127,7 +156,50 @@ final class AssistController {
             app.peopleAfterFaceAnalysis()
         }
         refreshFaces(force: true)
+        // The picks follow the new signals; cells of groups whose pick moved redraw.
+        let moved = app.cull.refreshBests()
+        if !moved.isEmpty { app.assistItemsChanged(moved.flatMap { Array(app.cull.groups[$0]) }) }
+        refreshTriage()
         if enabled { refresh() }
+    }
+
+    // MARK: Triage (UX-14)
+
+    /// Recomputes the triage from the session's signals and scores, off the main actor. With
+    /// `throttle`, at most once per that many seconds (the running pass); a refresh asked for
+    /// while one is in flight runs once more afterwards.
+    func refreshTriage(throttle: TimeInterval = 0) {
+        guard let app, let lib = app.engineLibrary, !lib.isReadOnly else { return }
+        let now = CFAbsoluteTimeGetCurrent()
+        guard throttle == 0 || now - lastTriageRefresh >= throttle else { return }
+        guard !triageRefreshing else { triageStale = true; return }
+        triageRefreshing = true
+        triageStale = false
+        lastTriageRefresh = now
+        let box = WeakAssist(self)
+        Task.detached(priority: .utility) {
+            let raw = try? lib.rawFrameSignals()
+            let review = try? lib.session.review()
+            await MainActor.run { box.value?.triageDidRefresh(lib, raw: raw, review: review) }
+        }
+    }
+
+    private func triageDidRefresh(_ lib: EngineLibrary, raw: [String: FrameSignals]?, review: [KeepPrediction]?) {
+        triageRefreshing = false
+        guard let app, app.engineLibrary === lib else { return }
+        if let raw {
+            signals = Dictionary(raw.compactMap { imageID, s in lib.itemOfImage[imageID].map { ($0, s) } }, uniquingKeysWith: { a, _ in a })
+        }
+        if let review {
+            scores = Dictionary(review.compactMap { p in lib.itemOfImage[p.imageId].map { ($0, (p.technicalScore, p.pKeep)) } },
+                                uniquingKeysWith: { a, _ in a })
+        }
+        let fresh = CullTriage.compute(groups: app.cull.groups, best: app.cull.bestOfGroup, signals: signals)
+        if fresh != triage {
+            triage = fresh
+            app.triageDidChange()
+        }
+        if triageStale { refreshTriage() }
     }
 
     // MARK: Assist mode

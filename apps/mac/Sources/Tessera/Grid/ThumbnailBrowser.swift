@@ -74,7 +74,43 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
     private var restoringAnchor = false
 
     private var loadingVisible: Bool {
-        !model.isReviewing && !model.isReviewEditing && model.source != .people && (style == .filmstrip || model.viewMode == .grid)
+        !model.isReviewing && !model.isReviewEditing && model.source != .people
+            && (style == .filmstrip || (model.viewMode == .grid && !model.isBurstViewShown))
+    }
+
+    /// UX-14: the grid groups by burst while Cull shows its grid layout (rows per burst, singles last).
+    private func applyGrouping() {
+        guard style == .grid else { return }
+        let grouped = model.isGroupedGridShown
+        if layout.grouped != grouped {
+            layout.grouped = grouped
+            collectionView.layoutSubtreeIfNeeded()
+            syncDocumentSize()
+        }
+    }
+
+    func cullLayoutDidChange() {
+        applyGrouping()
+        visibilityDidChange()
+    }
+
+    func collectionView(_ collectionView: NSCollectionView, viewForSupplementaryElementOfKind kind: NSCollectionView.SupplementaryElementKind,
+                        at indexPath: IndexPath) -> NSView {
+        let view = collectionView.makeSupplementaryView(ofKind: kind, withIdentifier: BurstRowHeaderView.identifier, for: indexPath)
+        guard let header = view as? BurstRowHeaderView, layout.blocks.indices.contains(indexPath.item) else { return view }
+        let block = layout.blocks[indexPath.item]
+        if block.singles {
+            header.configure(title: "Single frames", detail: "\(block.count.formatted()) photo\(block.count == 1 ? "" : "s") · no burst to compare", review: nil)
+        } else {
+            let item = model.item(at: block.start)
+            let g = item.groupID
+            let pick = model.cull.bestOfGroup.indices.contains(g) ? model.item(id: model.cull.bestOfGroup[g]) : item
+            let ordinal = model.cull.groups[..<g].filter { $0.count > 1 }.count + 1
+            header.configure(title: "Burst \(ordinal)", detail: "\(block.count) frames · pick \(pick.name)") { [weak model] in
+                model?.openBurst(id: pick.id)
+            }
+        }
+        return header
     }
 
     func visibilityDidChange() {
@@ -149,6 +185,16 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         collectionView.allowsEmptySelection = true
         collectionView.backgroundColors = [.clear]
         collectionView.register(ThumbnailCell.self, forItemWithIdentifier: ThumbnailCell.identifier)
+        if style == .grid {
+            collectionView.register(BurstRowHeaderView.self, forSupplementaryViewOfKind: UniformGridLayout.headerKind,
+                                    withIdentifier: BurstRowHeaderView.identifier)
+            layout.headerHeight = Theme.Height.large
+            layout.groupOf = { [weak model] p in
+                guard let model, p < model.visibleCount else { return nil }
+                let item = model.item(at: p)
+                return model.groupSize(of: item) > 1 ? item.groupID : nil
+            }
+        }
         collectionView.onDoubleClick = { [weak model] p in
             model?.selectAndShowInLoupe(position: p)
         }
@@ -210,6 +256,7 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
     func libraryDidReload() {
         returnAnchor = nil
         returnedAnchor = nil
+        applyGrouping()
         collectionView.reloadData()
         collectionView.layoutSubtreeIfNeeded()
         syncDocumentSize()
@@ -467,4 +514,68 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         model.statusMessage = msg
         NSLog("%@", msg)
     }
+}
+
+/// The row header of the grouped grid (UX-14): "Burst n · k frames · pick NAME · review", or
+/// "Single frames · n photos · no burst to compare".
+@MainActor
+final class BurstRowHeaderView: NSView, NSCollectionViewElement {
+    static let identifier = NSUserInterfaceItemIdentifier("BurstRowHeader")
+    private let title = NSTextField(labelWithString: "")
+    private let detail = NSTextField(labelWithString: "")
+    private let review = NSButton(title: "review", target: nil, action: nil)
+    private var onReview: (() -> Void)?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        title.font = Theme.NSFonts.labelMedium
+        title.textColor = Theme.Palette.textSecondary
+        detail.font = Theme.NSFonts.labelNumeric
+        detail.textColor = Theme.Palette.textTertiary
+        detail.lineBreakMode = .byTruncatingMiddle
+        review.isBordered = false
+        review.font = Theme.NSFonts.label
+        review.contentTintColor = Theme.Palette.accent
+        review.target = self
+        review.action = #selector(reviewPressed)
+        review.setAccessibilityIdentifier("library.cull.grid.review")
+        addSubview(title)
+        addSubview(detail)
+        addSubview(review)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override var isFlipped: Bool { true }
+
+    func configure(title t: String, detail d: String, review r: (() -> Void)?) {
+        title.stringValue = t
+        detail.stringValue = d
+        onReview = r
+        review.isHidden = r == nil
+        review.attributedTitle = NSAttributedString(string: "review", attributes: [.font: Theme.NSFonts.label, .foregroundColor: Theme.Palette.accent])
+        setAccessibilityLabel("\(t), \(d)")
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        let gap = Theme.Space.s
+        var x: CGFloat = 0
+        let tw = ceil(title.intrinsicContentSize.width)
+        let th = ceil(title.intrinsicContentSize.height)
+        let y = (bounds.height - th) / 2
+        title.frame = NSRect(x: x, y: y, width: tw, height: th)
+        x += tw + gap
+        let rw = review.isHidden ? 0 : ceil(review.intrinsicContentSize.width)
+        // The label's own intrinsic width honours its truncation mode; measure the string.
+        let dw = max(0, min(ceil(detail.attributedStringValue.size().width) + Theme.Space.xs, bounds.width - x - rw - gap))
+        detail.frame = NSRect(x: x, y: y, width: dw, height: th)
+        x += dw + gap
+        review.frame = NSRect(x: x, y: (bounds.height - review.intrinsicContentSize.height) / 2, width: rw, height: review.intrinsicContentSize.height)
+    }
+
+    @objc private func reviewPressed() { onReview?() }
 }

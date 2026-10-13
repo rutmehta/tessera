@@ -139,7 +139,7 @@ Keeping the guards here avoids documenting context-dependent keys as global shor
 | Library/Compare override | Z | model.toggleCompareZoom() |
 | Library/Loupe | S | context-dependent action (see routing reference) |
 | Library/Cull | D | model.enterPhotoEdit() |
-| Library/Cull | G | model.requestViewMode(.grid) |
+| Library/Cull | G | if model.isCullWorkspace { model.toggleCullLayout() } else { model.requestViewMode(.grid) } |
 | Library/Cull | E | model.requestViewMode(.loupe) |
 | Library/Review | Escape | model.backFromReview(); return true |
 | Library/Review | Left | model.moveReviewSelection(-1); return true |
@@ -300,9 +300,9 @@ Keeping the guards here avoids documenting context-dependent keys as global shor
 | Library/Cull | ⇧D | model.enterPhotoEdit() |
 | Library/Cull | ⌥D | model.enterPhotoEdit() |
 | Library/Cull | ⌥⇧D | model.enterPhotoEdit() |
-| Library/Cull | ⇧G | model.requestViewMode(.grid) |
-| Library/Cull | ⌥G | model.requestViewMode(.grid) |
-| Library/Cull | ⌥⇧G | model.requestViewMode(.grid) |
+| Library/Cull | ⇧G | if model.isCullWorkspace { model.toggleCullLayout() } else { model.requestViewMode(.grid) } |
+| Library/Cull | ⌥G | if model.isCullWorkspace { model.toggleCullLayout() } else { model.requestViewMode(.grid) } |
+| Library/Cull | ⌥⇧G | if model.isCullWorkspace { model.toggleCullLayout() } else { model.requestViewMode(.grid) } |
 | Library/Cull | ⇧E | model.requestViewMode(.loupe) |
 | Library/Cull | ⌥E | model.requestViewMode(.loupe) |
 | Library/Cull | ⌥⇧E | model.requestViewMode(.loupe) |
@@ -637,7 +637,7 @@ final class KeyRouter {
                 model.statusMessage = "Soft proofing \(SoftProof.shared.enabled ? "on" : "off")"
             }
         case "d": model.enterPhotoEdit()
-        case "g": model.requestViewMode(.grid)
+        case "g": if model.isCullWorkspace { model.toggleCullLayout() } else { model.requestViewMode(.grid) }
         case "e": model.requestViewMode(.loupe)
         default: return false
         }

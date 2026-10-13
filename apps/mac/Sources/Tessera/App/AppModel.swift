@@ -77,6 +77,8 @@ struct Toast: Identifiable, Equatable {
     func itemsDidChange(_ positions: IndexSet)
     func selectionDidChange(scrollToFocus: Bool)
     func thumbnailSizeDidChange()
+    /// UX-14: Cull switched between the burst view and the grouped grid.
+    func cullLayoutDidChange()
     func workspaceWillEnterPhotoEdit()
     func workspaceWillEnterReview()
     func workspaceWillLeavePhotoEdit()
@@ -105,6 +107,7 @@ struct VisibleChange {
 extension LibraryObserver {
     func libraryDidUpdate(_ change: VisibleChange) {}
     func thumbnailSizeDidChange() {}
+    func cullLayoutDidChange() {}
     func workspaceWillEnterPhotoEdit() {}
     func workspaceWillEnterReview() {}
     func workspaceWillLeavePhotoEdit() {}
@@ -455,6 +458,15 @@ final class AppModel {
     var deliverMode = false
     /// UX-11: bumped by ⌘K; the agent field of the current mode takes the keyboard.
     var agentFieldFocusRequest = 0
+    /// UX-14: Cull shows one burst at a time or the grid grouped by burst (G); remembered.
+    var cullLayout: CullLayout = CullLayout(rawValue: UserDefaults.standard.string(forKey: AppModel.cullLayoutKey) ?? "") ?? .burst {
+        didSet { if cullLayout != oldValue { cullLayoutDidChange() } }
+    }
+    /// UX-14: the triage row (or quick action) the Cull view is filtered by.
+    var cullFilter: CullFilter?
+    /// UX-14: bumped by every cull change (decisions, undo, redo), so SwiftUI views that read
+    /// `cull` directly (the burst view, the triage column) re-render.
+    private(set) var decisionRevision = 0
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }
@@ -499,7 +511,7 @@ final class AppModel {
     /// Visible item ids in display order (group by group), after the sidebar filter.
     @ObservationIgnored private(set) var visible: [Int] = []
     /// id -> position in `visible`, or -1.
-    @ObservationIgnored private var positionOfID: [Int] = []
+    @ObservationIgnored private(set) var positionOfID: [Int] = []
     @ObservationIgnored private(set) var selection = IndexSet()
     @ObservationIgnored private(set) var focus: Int?
     @ObservationIgnored private var anchor: Int?
@@ -584,7 +596,7 @@ final class AppModel {
         observers.append(WeakObserver(value: o))
     }
 
-    private var liveObservers: [any LibraryObserver] { observers.compactMap(\.value) }
+    var liveObservers: [any LibraryObserver] { observers.compactMap(\.value) }
 
     // MARK: Library loading
 
@@ -711,6 +723,7 @@ final class AppModel {
         isLoading = false
         let lib = StubLibrary.synthetic(count: count)
         install(lib)
+        assist.libraryDidLoad(seedFaces: false)
         statusMessage = "Generated \(count.formatted()) stub items in \(lib.groups.count.formatted()) groups, \(Self.ms(lib.scanDuration))"
     }
 
@@ -773,6 +786,7 @@ final class AppModel {
         layeredCopyRequest = nil
         pendingLayeredCopyRequestID = nil
         deliverMode = false
+        cullFilter = nil
         if viewMode == .review {
             workspaceTransition = true
             viewMode = .grid
@@ -868,8 +882,11 @@ final class AppModel {
         let person = assist.personFilter
         // Filter bar ▸ Person (frames with any of the chosen people) intersects every other filter.
         let facetItems = people.facetItems
+        // UX-14: a triage row (or quick action) narrows the view further.
+        let triaged = cullFilter.map { $0.items(in: assist.triage) }
         let shown: (Int) -> Bool = { id in
             passes(id) && person?.items.contains(id) != false && facetItems?.contains(id) != false
+                && triaged?.contains(id) != false
         }
         if let keeping {
             visible = base.filter { keeping.contains($0) || (admitting.contains($0) && shown($0)) }
@@ -1752,7 +1769,7 @@ final class AppModel {
         notifySelection(scroll: false)
     }
 
-    private func notifySelection(scroll: Bool) {
+    func notifySelection(scroll: Bool) {
         // Identity, not just the count: a same-size selection can have different mixed fields.
         collections.focusDidChange()
         smartPreviewSelectionRevision += 1
@@ -1777,6 +1794,20 @@ final class AppModel {
             return
         }
         guard let f = focus else { if !visible.isEmpty { select(position: 0) }; return }
+        // UX-14: the burst view lands on the next burst's pick; ← → stay inside the burst. The
+        // grouped grid's ↑ ↓ move a burst row at a time.
+        if isBurstViewShown, !extend {
+            switch (move, groupwise) {
+            case (.right, true), (.down, false): moveBurst(1); return
+            case (.left, true), (.up, false): moveBurst(-1); return
+            case (.right, false): stepInBurst(1); return
+            case (.left, false): stepInBurst(-1); return
+            default: break
+            }
+        } else if isGroupedGridShown, !groupwise, !extend, move == .up || move == .down {
+            moveBurst(move == .down ? 1 : -1)
+            return
+        }
         if groupwise {
             let groupMove: GroupMove = switch move {
             case .right: .nextGroup
@@ -1851,7 +1882,9 @@ final class AppModel {
         let positions = selection.contains(f) ? selection : IndexSet(integer: f)
         let ids = positions.map { visible[$0] }
         guard run({ try self.cull.apply(action, to: ids) }) else { return }
-        if autoAdvance, action.advances, positions.count == 1, f + 1 < visible.count {
+        if isBurstViewShown, action.advances, positions.count == 1 {
+            advanceInBurst(from: f)
+        } else if autoAdvance, action.advances, positions.count == 1, f + 1 < visible.count {
             select(position: f + 1)
         }
     }
@@ -1903,7 +1936,8 @@ final class AppModel {
             let (best, change) = try cull.keepBestRejectRest(group: item.groupID)
             didChange(change)
             showToast("Kept \(library.items[best].name), rejected \(groupSize(of: item) - 1) in G\(item.groupID + 1)", undoable: true)
-            if autoAdvance, let next = localGroupMove(.nextGroup, from: f) { select(position: next) }
+            if isBurstViewShown { if !autoAdvance || !moveBurst(1) { select(id: best) } }
+            else if autoAdvance, let next = localGroupMove(.nextGroup, from: f) { select(position: next) }
             else { select(id: best) }
         } catch {
             statusMessage = "Keep best failed: \(error.localizedDescription)"
@@ -1982,6 +2016,7 @@ final class AppModel {
 
     private func didChange(_ change: CullChange) {
         undoDomain = .cull
+        decisionRevision += 1
         tether.decisionsDidChange()
         assist.itemsDecided(change.ids)
         collections.cullDidChange(albums: change.albumsChanged)

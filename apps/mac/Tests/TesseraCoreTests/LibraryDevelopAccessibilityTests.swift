@@ -91,12 +91,18 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
             }
         }
         walk(root, path: scenario)
-        if scenario == "library.populated" {
+        // UX-14: Cull opens on the burst view; the Library grid is reachable in its grid layout.
+        if scenario == "library.populatedGrid" {
             XCTAssertTrue(names.keys.contains { $0.hasPrefix("library.thumbnail.grid.") }, "Thumbnail cells must be reachable")
+        }
+        if scenario == "library.populated" {
+            XCTAssertTrue(names.keys.contains { $0.hasPrefix("library.cull.burst.cell.") }, "Burst strip cells must be reachable")
         }
         let required: [String]
         switch scenario {
-        case "library.populated": required = ["ruleTextField", "library.toolbar.open", "library.sidebar.row.src:all"]
+        case "library.populated": required = ["ruleTextField", "library.toolbar.open", "library.sidebar.row.src:all",
+                                              "library.cull.triage.bursts", "library.cull.burst.keepPick", "library.cull.quick.keepPicks"]
+        case "library.populatedGrid": required = ["library.cull.layout.1"]
         case "develop.modelRetry": required = ["detail-ai-denoise-model-retry", "lensblur-model-retry"]
         case "develop.basic": required = ["develop.basic.exposure"]
         case "develop.selectedMask": required = ["develop.masks.amount", "develop.masks.reset"]
@@ -158,7 +164,12 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         try ShellHarness.writeJPEG(folder.appendingPathComponent("photo.jpg"), shade: 100)
         model.install(try EngineLibrary.scan(folder: folder, appSupport: scratch.appendingPathComponent("support")))
         let populated = ShellHarness.window(model, size: CGSize(width: 2200, height: 900), dark: true).0
+        model.cullLayout = .burst
         try await inspect(populated, scenario: "library.populated")
+        model.cullLayout = .grid
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: AppModel.cullLayoutKey) }
+        let populatedGrid = ShellHarness.window(model, size: CGSize(width: 2200, height: 900), dark: true).0
+        try await inspect(populatedGrid, scenario: "library.populatedGrid")
         // A fresh model avoids retained SwiftUI loupe observers starting a competing open.
         let editingModel = AppModel()
         editingModel.install(try EngineLibrary.scan(folder: folder, appSupport: scratch.appendingPathComponent("develop-support")))
