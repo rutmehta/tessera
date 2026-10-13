@@ -222,6 +222,23 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
 
     // MARK: In-place updates
 
+    /// Re-reads each group's suggested best from the session (its scorer reads the signals the
+    /// analysis pass just stored). Only the picks move; membership and order are the catalog's,
+    /// so a layout whose groups changed is left for `apply(_:)`. Returns the groups whose pick
+    /// changed.
+    public func refreshBests() throws -> [Int] {
+        let fresh = try session.groups()
+        guard fresh.count == layout.count, zip(fresh, layout).allSatisfy({ $0.images == $1.images }) else { return [] }
+        var changed: [Int] = []
+        for (g, group) in fresh.enumerated() {
+            guard let item = itemOfImage[group.best], bestOfGroup.indices.contains(g), bestOfGroup[g] != item else { continue }
+            bestOfGroup[g] = item
+            changed.append(g)
+        }
+        layout = fresh
+        return changed
+    }
+
     /// Rebuilds items, groups and ids from `layout` and `rows`, reusing each image's reference.
     private func arrange() {
         let formatter = Self.formatter

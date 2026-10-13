@@ -38,6 +38,14 @@ pub struct CullGroup {
     pub best: String,
 }
 
+/// The dHash of an image's embedded preview, as the grouper compares it.
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct ImagePreviewHash {
+    pub image_id: String,
+    /// None until the deferred hash is computed, or when the preview is unreadable.
+    pub hash: Option<u64>,
+}
+
 /// A queue member whose catalog row changed, with what changed.
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct UpdatedImage {
@@ -526,6 +534,20 @@ impl CullSession {
         let mut s = self.lock()?;
         let ids = s.core.images().to_vec();
         s.session_images(&ids)
+    }
+    /// Every queue image's preview dHash (near-duplicates in a group are within
+    /// 6 bits of each other; hosts use it to tell a near-duplicate from a frame
+    /// that merely shares the burst's capture window).
+    pub fn preview_hashes(&self) -> Result<Vec<ImagePreviewHash>> {
+        let s = self.lock()?;
+        Ok(s.core
+            .images()
+            .iter()
+            .map(|id| ImagePreviewHash {
+                image_id: id.to_string(),
+                hash: s.core.preview_hash(*id),
+            })
+            .collect())
     }
     /// Scores may have changed since the last call: every best is picked afresh.
     pub fn groups(&self) -> Result<Vec<CullGroup>> {

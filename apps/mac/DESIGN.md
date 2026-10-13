@@ -176,6 +176,20 @@ beside it) · progress strips · status bar · filmstrip. The source sidebar is 
 with the state remembered per mode (`Shell.panel.<mode>` in user defaults). With the panel hidden
 in Edit the photo fills the window. Deliver covers the canvas with the export entry until UX-15.
 
+**Cull** (SPEC §4, WP UX-14; `Cull/TriageColumn.swift`, `Cull/BurstReviewView.swift`): the panel
+is the 260 pt triage column on the *left* (`Theme.Width.triageColumn`; Tab hides it; the right
+inspector is for the loupe, Compare, Edit and Review). The centre is one burst: the focused
+frame large (outlined by the accent when it is the pick, keep / reject once decided), an accent
+"Agent's pick" pill top-left, the name top-right in a HUD pill, the signals bottom-left as HUD
+pills (`hud` fill, `hairlineStrong` outline, capsule): a 48 pt sharpness bar, eyes, face, and
+the score in the accent. The strip below is 172 × 116 cells (`Theme.Width.burstCell` ×
+`Theme.Height.burstCell`, radius 4): a 2 pt accent focus ring, a filled accent **Pick** chip, an
+18 pt keep / reject disc with P / X, name and score on a scrim. Actions are 36 pt
+(`Theme.Height.burstAction`) with the key cap inside the button: the primary one is the K action.
+The quick-action chips above the agent field are capsules (`panel` fill, `hairline` outline, 28 pt).
+The grouped grid keeps the Library grid's cells; each burst's row block has a 28 pt header in
+`labelMedium` secondary ink, tabular detail in tertiary ink and an accent "review" link.
+
 ### 3.5 Layout contracts (WP M2-56)
 
 Tokens make controls look alike; these rules make them fit. `Shell/ShellLayout.swift` holds the

@@ -265,8 +265,48 @@ centre of every mode; in Edit the Masks / Crop / Heal strip sits beside it.
 |---|---|
 | ⌘1 · ⌘2 · ⌘3 | Cull · Edit · Deliver (View menu; plain 1 2 3 stay the grade keys) |
 | Tab | Show or hide the panel; remembered per mode. A focused text field or control keeps Tab for the key-view loop |
-| ⌘K | Focus the agent field. Return submits: in Edit it starts an agent run on the focused photo with the text as its instruction; Cull and Deliver report `Agent: <text>` in the status bar for now |
+| ⌘K | Focus the agent field. Return submits: in Edit it starts an agent run on the focused photo with the text as its instruction; in Cull simple phrases are the quick actions (below); Deliver reports `Agent: <text>` in the status bar for now |
 | Esc (Deliver) | Back to Cull |
+
+## Cull, burst-first (redesign SPEC §4, WP UX-14)
+
+Cull opens on one burst at a time. The left column (260 pt; Tab hides it, like every mode's
+panel) is the agent's **triage** of the shoot, computed from the analysis pass as it runs
+(`AssistController.triage`, `TesseraCore/Assist/CullTriage.swift`): *Likely keepers* (the pick of
+every burst without a defect, singles with a quality score ≥ 0.6), *Bursts to decide* (groups of
+2+ frames), *Suggested rejects* (blurry: sharpness in the shoot's bottom 15 % and under 0.08, or
+motion blur ≥ 0.45 on a frame in the softer 30 % and under 0.25 (`CullTriage.BlurThresholds`;
+a uniformly sharp shoot flags nothing) · eyes closed: the eyes proxy < 0.30 · near-duplicates: a
+burst's other frames whose preview dHash is within 6 bits of the pick's, the grouper's own rule,
+read back through `CullSession.previewHashes`), *Nothing to flag*. Each row is a
+filter on the view (the same row again clears it); the counts do not move when you decide. Below
+it: your keeps / rejects / undecided, and progress through the bursts. The centre shows the focused
+frame large with its signals as HUD pills (sharpness bar, eyes, face sharpness, the engine's
+technical score), the burst as a strip of 172 × 116 cells with the pick badged and decisions
+marked, and the actions row. The header names the burst (frames, time, shutter and aperture of
+the pick) and why the pick wins ("sharpest of 6, eyes open"; "by file size until measured"
+before the pass reaches it). After the pass the engine's picks are re-read from the new signals
+(`CullController.refreshBests`).
+
+**Grid** (G, or the Burst / Grid control in the header): the same Library grid, grouped by burst
+(`UniformGridLayout.grouped`): one row block per burst under a header ("Burst 3 · 6 frames ·
+pick DSC02488 · review"), every single frame in one block at the bottom. Rows per burst are
+arithmetic blocks, so 20k photos still lay out in O(visible); *review* opens the burst view.
+
+Quick-action chips above the agent field, each one undoable step with a toast: **Keep the pick
+in every burst** (its other undecided frames rejected), **Reject the blurry ones**, **Find closed
+eyes** (a filter), **Show me <person>** (the first named person in People). The agent field maps
+simple phrases to the same actions (`CullAgentPhrase`: blur / soft / focus, best / pick, eye /
+blink, a named person); anything else reports `Agent: <text>`.
+
+| Key (burst view) | Action |
+|---|---|
+| ← → | Previous / next frame within the burst |
+| ⌥← · ⌥→ | Previous / next burst, landing on its pick (⌥↑ ⌥↓ step within the group as before) |
+| K | Keep the pick, reject the rest of the burst (one undo step), then the next burst |
+| P · X | Keep / reject the focused frame, then the burst's next undecided frame; when every frame is decided, the next burst (auto-advance on) |
+| G | Burst view ↔ grouped grid (from the loupe: the grid) |
+| E · C · ⌥⌘2 · ⌥⌘3 | Loupe and Compare, as before; ↑ ↓ in the grouped grid move a burst row at a time |
 
 ## Culling (docs/06 §3–4)
 
@@ -285,7 +325,7 @@ centre of every mode; in Edit the Masks / Crop / Heal strip sits beside it.
 | ⌘⌫ | Delete from Disk…: confirmed; file and sidecars go to the Trash, removed from all albums (not undoable) |
 | ⌘Z / ⇧⌘Z | The session's single global undo / redo (decisions, batches, basket and album edits) |
 
-The suggested best frame of each 2+ group carries an outlined SUGGESTED pill (a suggestion only; no
+The suggested best frame of each 2+ group carries an accent **Pick** chip (a suggestion only; no
 AI signal changes a decision without a key press). The basket target is always shown in the status
 bar (`Basket → <album> n`), in the sidebar (`B` tag) and on member cells as a blue pill with the
 album's name. Cull ▸ Basket Target switches or creates it; the choice is remembered. Derived status
@@ -376,7 +416,7 @@ Sources/Tessera/
   Grid/                       NSCollectionView grid + filmstrip, O(visible) layout, recycled cells
   Loupe/                      CAMetalLayer view (EDR, colour space per frame), renderer, IOSurface frames
   Compare/                    2-up compare, CGImage layers with one shared zoom/pan viewport
-  Cull/                       defect sweep sheet
+  Cull/                       assist controller + triage, burst view, triage column, defect sweep sheet
   Import/                     Lightroom import sheet, controller, non-modal progress strip
   Inspector/                  SwiftUI panels, HistogramView (AppKit) + ValueSlider (custom NSControl)
   Sidebar/                    SwiftUI sidebar (library, folders, albums, smart albums)

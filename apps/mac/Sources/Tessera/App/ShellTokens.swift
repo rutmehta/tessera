@@ -13,6 +13,13 @@ extension Theme.Width {
     static let filterPopover: CGFloat = 520
     /// The folder name in the toolbar truncates beyond this.
     static let folderButton: CGFloat = 240
+    /// UX-14: the Cull triage column, and one cell of the burst strip (SPEC §4).
+    static let triageColumn: CGFloat = 260
+    static let burstCell: CGFloat = 172
+    /// The big photo of the burst view is at most this wide.
+    static let burstPhotoMax: CGFloat = 1100
+    /// The sharpness bar inside a HUD pill.
+    static let signalBar: CGFloat = 48
 }
 
 extension Theme.Height {
@@ -21,6 +28,9 @@ extension Theme.Height {
     static let toolStrip: CGFloat = 36
     /// The folder popover (the source sidebar's content).
     static let folderPopover: CGFloat = 480
+    /// UX-14: one cell of the burst strip, and the burst view's action buttons.
+    static let burstCell: CGFloat = 116
+    static let burstAction: CGFloat = 36
 }
 
 extension Theme.Radius {

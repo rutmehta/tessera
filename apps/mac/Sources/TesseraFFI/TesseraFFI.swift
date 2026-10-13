@@ -1244,6 +1244,13 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     func previewErrors() throws  -> [String]
     
     /**
+     * Every queue image's preview dHash (near-duplicates in a group are within
+     * 6 bits of each other; hosts use it to tell a near-duplicate from a frame
+     * that merely shares the burst's capture window).
+     */
+    func previewHashes() throws  -> [ImagePreviewHash]
+    
+    /**
      * True while deferred near-duplicate hashing or regrouping remains; each
      * `sync_changes` advances it.
      */
@@ -1921,6 +1928,20 @@ open func previewErrors()throws  -> [String]  {
     return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
     uniffi_tessera_ffi_fn_method_cullsession_preview_errors(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Every queue image's preview dHash (near-duplicates in a group are within
+     * 6 bits of each other; hosts use it to tell a near-duplicate from a frame
+     * that merely shares the burst's capture window).
+     */
+open func previewHashes()throws  -> [ImagePreviewHash]  {
+    return try  FfiConverterSequenceTypeImagePreviewHash.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_cullsession_preview_hashes(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
@@ -18458,6 +18479,69 @@ public func FfiConverterTypeImageMetadata_lift(_ buf: RustBuffer) throws -> Imag
 #endif
 public func FfiConverterTypeImageMetadata_lower(_ value: ImageMetadata) -> RustBuffer {
     return FfiConverterTypeImageMetadata.lower(value)
+}
+
+
+/**
+ * The dHash of an image's embedded preview, as the grouper compares it.
+ */
+public struct ImagePreviewHash: Equatable, Hashable {
+    public var imageId: String
+    /**
+     * None until the deferred hash is computed, or when the preview is unreadable.
+     */
+    public var hash: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(imageId: String, 
+        /**
+         * None until the deferred hash is computed, or when the preview is unreadable.
+         */hash: UInt64?) {
+        self.imageId = imageId
+        self.hash = hash
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ImagePreviewHash: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImagePreviewHash: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImagePreviewHash {
+        return
+            try ImagePreviewHash(
+                imageId: FfiConverterString.read(from: &buf), 
+                hash: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ImagePreviewHash, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.imageId, into: &buf)
+        FfiConverterOptionUInt64.write(value.hash, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImagePreviewHash_lift(_ buf: RustBuffer) throws -> ImagePreviewHash {
+    return try FfiConverterTypeImagePreviewHash.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImagePreviewHash_lower(_ value: ImagePreviewHash) -> RustBuffer {
+    return FfiConverterTypeImagePreviewHash.lower(value)
 }
 
 
@@ -35756,6 +35840,31 @@ fileprivate struct FfiConverterSequenceTypeImageMetadata: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeImagePreviewHash: FfiConverterRustBuffer {
+    typealias SwiftType = [ImagePreviewHash]
+
+    public static func write(_ value: [ImagePreviewHash], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeImagePreviewHash.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ImagePreviewHash] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ImagePreviewHash]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeImagePreviewHash.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeImageState: FfiConverterRustBuffer {
     typealias SwiftType = [ImageState]
 
@@ -38846,6 +38955,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_preview_errors() != 62362) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_cullsession_preview_hashes() != 17757) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_previews_pending() != 33955) {

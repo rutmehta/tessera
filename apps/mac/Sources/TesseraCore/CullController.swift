@@ -182,6 +182,15 @@ public final class CullController {
         return bestOfGroup[g] == id
     }
 
+    /// After an analysis pass: the engine's picks follow the new signals (UX-14). Returns the
+    /// groups whose pick changed; the stub's picks are fixed.
+    @discardableResult
+    public func refreshBests() -> [Int] {
+        guard case .engine(let lib) = backend, !lib.isReadOnly, let changed = try? lib.refreshBests(), !changed.isEmpty else { return [] }
+        bestOfGroup = lib.bestOfGroup
+        return changed
+    }
+
     /// Cell hot path: the item's stable group identity avoids an O(groups) scan.
     /// Validate membership too, so an item retained across a layout remap is harmless.
     public func isSuggestedBest(_ item: PhotoItem) -> Bool {

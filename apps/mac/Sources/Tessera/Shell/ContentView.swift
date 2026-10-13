@@ -83,10 +83,15 @@ struct ContentView: View {
                 GeometryReader { area in
                     ZStack {
                         // Both stay alive so grid scroll position and loupe texture survive mode switches.
+                        // UX-14: in Cull the grid shows through the burst workspace's centre (grouped by
+                        // burst) and hides under the burst view.
                         ThumbnailBrowser(model: model, style: .grid)
                             .onAppear { PerformanceTrace.shared.record("grid_appeared") }
-                            .opacity(model.viewMode == .grid ? 1 : 0)
-                            .allowsHitTesting(model.viewMode == .grid)
+                            .padding(.leading, model.isCullWorkspace && model.showInspector ? Theme.Width.triageColumn : 0)
+                            .padding(.top, model.isCullWorkspace ? CullWorkspace.gridTopInset : 0)
+                            .padding(.bottom, model.isCullWorkspace ? CullWorkspace.gridBottomInset : 0)
+                            .opacity(model.viewMode == .grid && !model.isBurstViewShown ? 1 : 0)
+                            .allowsHitTesting(model.viewMode == .grid && !model.isBurstViewShown)
                         LoupeView(model: model)
                             .opacity(model.viewMode == .loupe ? 1 : 0)
                             .allowsHitTesting(model.viewMode == .loupe)
@@ -119,6 +124,8 @@ struct ContentView: View {
                             EmptyStateView(model: model)
                         } else if model.deliverMode {
                             DeliverView(model: model)
+                        } else if model.isCullWorkspace {
+                            CullWorkspace(model: model)
                         }
                         // UX-11: the agent field sits bottom centre of every mode (Review keeps its own
                         // instruction field in the inspector); the toast moves up above it.
@@ -224,7 +231,10 @@ struct ContentView: View {
                                     set: { if !$0 { model.collections.editor = nil } })) {
             SmartAlbumSheet(library: model.collections)
         }
-        .inspector(isPresented: $model.showInspector) {
+        // UX-14: in Cull the panel is the triage column on the left; the inspector stays for the
+        // loupe, Compare, Edit, Review and documents.
+        .inspector(isPresented: Binding(get: { model.showInspector && !model.isCullWorkspace },
+                                        set: { shown in if !model.isCullWorkspace, shown != model.showInspector { model.toggleInspectorPanel() } })) {
             Group {
                 if model.viewMode == .document {
                     DocumentInspector(workspace: model.documents)
