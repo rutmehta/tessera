@@ -2,6 +2,9 @@ import CoreGraphics
 import CoreText
 import Foundation
 import ImageIO
+import OSLog
+
+private let thumbnailLog = Logger(subsystem: "dev.tessera.app", category: "thumbnails")
 
 /// Two preview tiers served by the Rust preview cache, including its scheduled RAW fallback.
 public enum PreviewTier: Hashable, Sendable {
@@ -527,12 +530,19 @@ public final class ThumbnailLoader: @unchecked Sendable {
             do {
                 let response = try ref.thumbnail(maxPx: UInt32(tier.maxPixelSize))
                 guard let bytes = response.bytes, let src = CGImageSourceCreateWithData(bytes as CFData, nil) else {
-                    return RenderResult(pending: response.pending)
+                    // Nothing to show and nothing coming: the embedded preview beats a blank cell
+                    // (a rendered thumbnail the engine declined, e.g. a recipe it cannot thumbnail yet).
+                    if !response.pending { return RenderResult(image: renderLocal(item, tier: tier)) }
+                    return RenderResult(pending: true)
                 }
                 return RenderResult(image: CGImageSourceCreateImageAtIndex(src, 0,
                     [kCGImageSourceShouldCacheImmediately: true] as CFDictionary), pending: response.pending)
             } catch {
-                return RenderResult(proxyRequestFailed: ref.previewSource == .smartPreview)
+                if ref.previewSource == .smartPreview { return RenderResult(proxyRequestFailed: true) }
+                // The engine could not render this recipe's thumbnail (see the log); show the
+                // embedded preview rather than a blank cell. Develop still renders the edit.
+                thumbnailLog.error("thumbnail render failed for \(item.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                return RenderResult(image: renderLocal(item, tier: tier))
             }
         }
         return RenderResult(image: renderLocal(item, tier: tier))
