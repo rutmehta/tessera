@@ -6,57 +6,73 @@ import TesseraCore
 /// font and animation a view uses comes from here; `Tests/TesseraCoreTests/ThemeLintTests.swift`
 /// fails the build on raw literals elsewhere in `Sources/Tessera`.
 ///
-/// Identity: a quiet, precise pro tool. Near-black canvas, warm-neutral graphite panels, 1 px
-/// hairlines, one amber accent used only for selection, focus and the primary action, and
-/// desaturated semantic colours for cull decisions. Dark first, with a full Light appearance.
+/// Identity: a quiet, precise pro tool. True-black canvas, one warm-white ink family, 1 px
+/// hairlines, one accent used only for selection, focus and the primary action, and desaturated
+/// semantic colours for cull decisions. Dark is the only appearance during the redesign
+/// (docs/design/redesign-2026-10/SPEC.md §2); the Light values stay in place for later.
+///
+/// The ground (canvas / panel / raised / well / HUD) and the accent are the user's choice in
+/// Settings ▸ Appearance (`AppearanceSettings`, SPEC §6). Those tokens are computed properties
+/// that read the settings object, so a SwiftUI body that names `Theme.accent` observes the
+/// setting and AppKit drawing picks up the new colour on its next draw.
 enum Theme {
 
     // MARK: - Colour (AppKit)
 
     /// Dynamic colours: each resolves per appearance (Dark Aqua first, Aqua second).
     enum Palette {
+        /// The user's ground and accent, resolved once per change (`AppearanceSettings.tokens`).
+        private static var chosen: AppearanceSettings.Tokens { AppearanceSettings.shared.tokens }
+
         // Surfaces, back to front.
-        /// Grid, compare and loupe surround.
-        static let canvas = dynamic(dark: 0x131312, light: 0xE3E2DF)
-        /// Inspector, filter bar, status bar, sheets.
-        static let panel = dynamic(dark: 0x1C1B1A, light: 0xF5F4F2)
+        /// Window ground: grid, compare and loupe surround, behind the photo.
+        static var canvas: NSColor { chosen.canvas }
+        /// Inspector, toolbar, filter bar, status bar, sheets, cards.
+        static var panel: NSColor { chosen.panel }
         /// Fields, bordered buttons, segmented tracks, cards inside panels.
-        static let raised = dynamic(dark: 0x272624, light: 0xFFFFFF)
+        static var raised: NSColor { chosen.raised }
+        /// Slider tracks and inactive toggles.
+        static let track = dynamic(dark: 0x2A2A2A, light: 0xCFCDC9)
         /// Hover fill for borderless and raised controls.
         static let hover = dynamic(dark: 0xFFFFFF, light: 0x000000, darkAlpha: 0.06, lightAlpha: 0.05)
         /// Pressed fill.
         static let pressed = dynamic(dark: 0xFFFFFF, light: 0x000000, darkAlpha: 0.11, lightAlpha: 0.09)
         /// 1 px separators and control outlines.
-        static let hairline = dynamic(dark: 0xFFFFFF, light: 0x000000, darkAlpha: 0.09, lightAlpha: 0.11)
-        /// Stronger outline: slider tracks, focus-less field borders.
-        static let hairlineStrong = dynamic(dark: 0xFFFFFF, light: 0x000000, darkAlpha: 0.16, lightAlpha: 0.18)
+        static let hairline = dynamic(dark: 0xFFFFFF, light: 0x000000, darkAlpha: 0.08, lightAlpha: 0.11)
+        /// Stronger outline: field and HUD outlines, focus-less field borders.
+        static let hairlineStrong = dynamic(dark: 0xFFFFFF, light: 0x000000, darkAlpha: 0.14, lightAlpha: 0.18)
         /// Alternate burst groups in the grid get this faint fill so group boundaries read.
         static let groupAlt = dynamic(dark: 0xFFFFFF, light: 0x000000, darkAlpha: 0.035, lightAlpha: 0.04)
         /// Plots (histogram, curve, detail preview) sit in a well darker than the panel.
-        static let well = dynamic(dark: 0x0E0E0D, light: 0xE9E8E5)
+        static var well: NSColor { chosen.well }
 
-        // Text.
-        static let textPrimary = dynamic(dark: 0xECEAE6, light: 0x1D1C1A)
-        static let textSecondary = dynamic(dark: 0xA7A39C, light: 0x5E5A54)
-        static let textTertiary = dynamic(dark: 0x7C7872, light: 0x858079)
-        /// Text and glyphs on an accent or semantic fill.
-        static let textOnAccent = dynamic(dark: 0x17130B, light: 0xFFFFFF)
+        // Text: one warm-white family.
+        static let textPrimary = dynamic(dark: 0xF2EFE9, light: 0x1D1C1A)
+        /// Values, secondary labels.
+        static let textSecondary = dynamic(dark: 0xB5B1AA, light: 0x5E5A54)
+        /// Hints, counts.
+        static let textTertiary = dynamic(dark: 0x8D8A84, light: 0x858079)
+        /// Disabled text, key caps.
+        static let textQuaternary = dynamic(dark: 0x5A5852, light: 0xA19D96)
+        /// Text and glyphs on an accent fill: computed from the accent's luminance (≥ 4.5:1).
+        static var textOnAccent: NSColor { chosen.textOnAccent }
 
-        // Accent: warm amber. Distinct from every decision colour and from the macOS default blue.
-        static let accent = dynamic(dark: 0xE2A04A, light: 0xA8620C)
+        // Accent: amber by default, the user's colour otherwise. Distinct from every decision
+        // colour and from the macOS default blue.
+        static var accent: NSColor { chosen.accent }
         /// Selection fill (grid cells, list rows, history head).
-        static let accentSubtle = dynamic(dark: 0xE2A04A, light: 0xA8620C, darkAlpha: 0.18, lightAlpha: 0.14)
+        static var accentSubtle: NSColor { chosen.accentSubtle }
 
-        // Semantic: desaturated, same lightness family, never used for chrome.
-        static let keep = dynamic(dark: 0x80B38C, light: 0x2F7A46)
-        static let reject = dynamic(dark: 0xD8786C, light: 0xB23B2F)
+        // Semantic: desaturated, same lightness family, never used for chrome, never user-set.
+        static let keep = dynamic(dark: 0x6F9A60, light: 0x2F7A46)
+        static let reject = dynamic(dark: 0xC0584A, light: 0xB23B2F)
         static let basket = dynamic(dark: 0x88A8CE, light: 0x3B6699)
         static let warning = dynamic(dark: 0xD8B55C, light: 0x8A690B)
         /// Undecided: a neutral, so an undecided frame carries no colour.
         static let undecided = textSecondary
 
-        // HUD (loupe overlays, toast): a heavy material over any photo.
-        static let hud = dynamic(dark: 0x1A1918, light: 0xFBFAF8, darkAlpha: 0.88, lightAlpha: 0.92)
+        // HUD (dial, mask chips, loupe overlays, toast): the ground at 86 % over any photo.
+        static var hud: NSColor { chosen.hud }
 
         // Channel colours for plots (histogram, curves): the same in both appearances.
         static let channelRed = NSColor(srgbRed: 0.91, green: 0.36, blue: 0.32, alpha: 1)
@@ -102,29 +118,55 @@ enum Theme {
             NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
                     blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
         }
+
+        /// 0xRRGGBB of any colour (converted to sRGB; the colour well hands back other spaces).
+        static func hex(of color: NSColor) -> UInt32? {
+            guard let c = color.usingColorSpace(.sRGB) else { return nil }
+            func byte(_ v: CGFloat) -> UInt32 { UInt32((min(max(v, 0), 1) * 255).rounded()) }
+            return byte(c.redComponent) << 16 | byte(c.greenComponent) << 8 | byte(c.blueComponent)
+        }
+
+        /// WCAG 2 relative luminance of an sRGB hex (0 black … 1 white).
+        static func luminance(_ hex: UInt32) -> Double {
+            func channel(_ byte: UInt32) -> Double {
+                let v = Double(byte & 0xFF) / 255
+                return v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * channel(hex >> 16) + 0.7152 * channel(hex >> 8) + 0.0722 * channel(hex)
+        }
+
+        /// WCAG 2 contrast ratio between two sRGB hexes (1 … 21).
+        static func contrast(_ a: UInt32, _ b: UInt32) -> Double {
+            let (la, lb) = (luminance(a), luminance(b))
+            return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+        }
     }
 
     // MARK: - Colour (SwiftUI)
 
-    static let canvas = Color(nsColor: Palette.canvas)
-    static let panel = Color(nsColor: Palette.panel)
-    static let raised = Color(nsColor: Palette.raised)
+    // Ground- and accent-dependent tokens are computed so a body that names them observes
+    // Settings ▸ Appearance; the rest are constants.
+    static var canvas: Color { Color(nsColor: Palette.canvas) }
+    static var panel: Color { Color(nsColor: Palette.panel) }
+    static var raised: Color { Color(nsColor: Palette.raised) }
+    static let track = Color(nsColor: Palette.track)
     static let hover = Color(nsColor: Palette.hover)
     static let pressed = Color(nsColor: Palette.pressed)
     static let hairline = Color(nsColor: Palette.hairline)
     static let hairlineStrong = Color(nsColor: Palette.hairlineStrong)
-    static let well = Color(nsColor: Palette.well)
+    static var well: Color { Color(nsColor: Palette.well) }
     static let textPrimary = Color(nsColor: Palette.textPrimary)
     static let textSecondary = Color(nsColor: Palette.textSecondary)
     static let textTertiary = Color(nsColor: Palette.textTertiary)
-    static let textOnAccent = Color(nsColor: Palette.textOnAccent)
-    static let accent = Color(nsColor: Palette.accent)
-    static let accentSubtle = Color(nsColor: Palette.accentSubtle)
+    static let textQuaternary = Color(nsColor: Palette.textQuaternary)
+    static var textOnAccent: Color { Color(nsColor: Palette.textOnAccent) }
+    static var accent: Color { Color(nsColor: Palette.accent) }
+    static var accentSubtle: Color { Color(nsColor: Palette.accentSubtle) }
     static let keep = Color(nsColor: Palette.keep)
     static let reject = Color(nsColor: Palette.reject)
     static let basket = Color(nsColor: Palette.basket)
     static let warning = Color(nsColor: Palette.warning)
-    static let hud = Color(nsColor: Palette.hud)
+    static var hud: Color { Color(nsColor: Palette.hud) }
     /// Drop shadow for raised pieces (segmented thumb, HUD bars, the print preview page).
     static let shadow = Color(nsColor: Palette.OnImage.shadow)
     static let clear = Color.clear
@@ -152,6 +194,12 @@ enum Theme {
         static let control: CGFloat = 6
         /// Cards, HUD bars, toasts, sheets.
         static let card: CGFloat = 8
+        /// The agent field.
+        static let field: CGFloat = 12
+        /// HUD: the dial, mask chips, toasts.
+        static let hud: CGFloat = 14
+        /// Pill chips.
+        static let pill: CGFloat = 999
     }
 
     enum Height {
@@ -252,7 +300,7 @@ enum Theme {
     /// Loupe surround in linear light: the canvas colour, per the window's appearance. Read by
     /// the Metal presenter on each draw (a token only; the presentation code is unchanged).
     @MainActor static var loupeBackgroundLinear: Float {
-        (NSApp?.effectiveAppearance.isDark ?? true) ? 0.0065 : 0.76
+        (NSApp?.effectiveAppearance.isDark ?? true) ? Float(Palette.luminance(AppearanceSettings.shared.ground.canvas)) : 0.76
     }
 }
 
@@ -269,15 +317,17 @@ extension NSColor {
     }
 }
 
-/// App appearance: follows the system unless the user picks one in View ▸ Appearance.
+/// App appearance: Dark unless the user picks another in View ▸ Appearance. Dark is the only
+/// appearance during the redesign (SPEC §2); the Light values are kept for the parity pass.
 enum AppearancePreference: String, CaseIterable, Identifiable {
     case system, dark, light
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
     static let defaultsKey = "Appearance"
+    static let `default` = AppearancePreference.dark
 
     @MainActor static var current: AppearancePreference {
-        get { AppearancePreference(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .system }
+        get { AppearancePreference(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .default }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: defaultsKey); newValue.apply() }
     }
 
@@ -287,6 +337,151 @@ enum AppearancePreference: String, CaseIterable, Identifiable {
         case .dark: NSAppearance(named: .darkAqua)
         case .light: NSAppearance(named: .aqua)
         }
+    }
+}
+
+/// Settings ▸ Appearance (SPEC §6): the accent and the ground. Persisted in user defaults and
+/// applied live. Views never name a colour: `Theme.Palette` reads `tokens`, which is rebuilt on
+/// every change, so a SwiftUI body that uses one of those tokens observes the choice; AppKit
+/// views resolve the colour when they draw and are redrawn by the setters.
+@Observable
+final class AppearanceSettings {
+    /// One instance for the process. Written on the main actor (the Settings window); read
+    /// wherever a view draws.
+    nonisolated(unsafe) static let shared = AppearanceSettings()
+    static let accentKey = "AccentColor"
+    static let groundKey = "Ground"
+
+    /// Accent swatches; any other colour comes from the colour well.
+    enum AccentPreset: String, CaseIterable, Identifiable {
+        case amber, coral, cobalt, teal, rose, lime
+        var id: String { rawValue }
+        var title: String { rawValue.capitalized }
+        var hex: UInt32 {
+            switch self {
+            case .amber: 0xF0A52A
+            case .coral: 0xFF7A66
+            case .cobalt: 0x4F7BFF
+            case .teal: 0x2FB3A6
+            case .rose: 0xE8709A
+            case .lime: 0xA6D24A
+            }
+        }
+    }
+
+    /// The surfaces behind everything, back to front. Graphite is the pre-redesign set.
+    enum Ground: String, CaseIterable, Identifiable {
+        case black, graphite, navy
+        var id: String { rawValue }
+        var title: String { rawValue.capitalized }
+        /// Window ground, behind the photo.
+        var canvas: UInt32 {
+            switch self {
+            case .black: 0x0A0A0A
+            case .graphite: 0x131312
+            case .navy: 0x12151C
+            }
+        }
+        /// Panel, toolbar fills, cards.
+        var panel: UInt32 {
+            switch self {
+            case .black: 0x161616
+            case .graphite: 0x1C1B1A
+            case .navy: 0x1A1E27
+            }
+        }
+        /// Buttons, fields, hover.
+        var raised: UInt32 {
+            switch self {
+            case .black: 0x1C1C1C
+            case .graphite: 0x272624
+            case .navy: 0x232833
+            }
+        }
+        /// Plot wells, darker than the panel.
+        var well: UInt32 {
+            switch self {
+            case .black: 0x0F0F0F
+            case .graphite: 0x0E0E0D
+            case .navy: 0x0D1016
+            }
+        }
+    }
+
+    /// The dynamic colours behind the ground- and accent-dependent `Theme.Palette` tokens. The
+    /// Light values are the pre-redesign ones, untouched until light parity is restored.
+    struct Tokens {
+        let canvas: NSColor, panel: NSColor, raised: NSColor, well: NSColor, hud: NSColor
+        let accent: NSColor, accentSubtle: NSColor, textOnAccent: NSColor
+
+        init(accent: UInt32, ground: Ground) {
+            canvas = Theme.Palette.dynamic(dark: ground.canvas, light: 0xE3E2DF)
+            panel = Theme.Palette.dynamic(dark: ground.panel, light: 0xF5F4F2)
+            raised = Theme.Palette.dynamic(dark: ground.raised, light: 0xFFFFFF)
+            well = Theme.Palette.dynamic(dark: ground.well, light: 0xE9E8E5)
+            hud = Theme.Palette.dynamic(dark: ground.canvas, light: 0xFBFAF8, darkAlpha: 0.86, lightAlpha: 0.92)
+            self.accent = Theme.Palette.dynamic(dark: accent, light: 0xA8620C)
+            accentSubtle = Theme.Palette.dynamic(dark: accent, light: 0xA8620C, darkAlpha: 0.18, lightAlpha: 0.14)
+            textOnAccent = Theme.Palette.dynamic(dark: AppearanceSettings.onAccent(for: accent), light: 0xFFFFFF)
+        }
+    }
+
+    /// 0xRRGGBB. Amber by default.
+    private(set) var accent: UInt32
+    private(set) var ground: Ground
+    private(set) var tokens: Tokens
+    @ObservationIgnored private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        let accent = defaults.string(forKey: Self.accentKey).flatMap { UInt32($0, radix: 16) } ?? AccentPreset.amber.hex
+        let ground = defaults.string(forKey: Self.groundKey).flatMap(Ground.init(rawValue:)) ?? .black
+        self.defaults = defaults
+        self.accent = accent
+        self.ground = ground
+        tokens = Tokens(accent: accent, ground: ground)
+    }
+
+    /// The swatch matching the current accent, if any.
+    var accentPreset: AccentPreset? { AccentPreset.allCases.first { $0.hex == accent } }
+
+    @MainActor func setAccent(_ hex: UInt32) {
+        accent = hex & 0xFFFFFF
+        defaults.set(String(format: "%06X", accent), forKey: Self.accentKey)
+        apply()
+    }
+
+    @MainActor func setGround(_ ground: Ground) {
+        self.ground = ground
+        defaults.set(ground.rawValue, forKey: Self.groundKey)
+        apply()
+    }
+
+    /// Ink on the accent: the warm ink or the warm white, whichever contrasts more. Every swatch
+    /// clears 4.5:1 with the warm ink; a dark colour from the well gets the white, and a mid-tone
+    /// that neither warm ink reaches falls back to pure black or white, which always does.
+    static func onAccent(for accent: UInt32) -> UInt32 {
+        let warm = [inkOnAccent, whiteOnAccent].max { Theme.Palette.contrast(accent, $0) < Theme.Palette.contrast(accent, $1) }!
+        if Theme.Palette.contrast(accent, warm) >= minimumContrast { return warm }
+        return Theme.Palette.contrast(accent, 0x000000) >= Theme.Palette.contrast(accent, 0xFFFFFF) ? 0x000000 : 0xFFFFFF
+    }
+    static let inkOnAccent: UInt32 = 0x1A1200
+    static let whiteOnAccent: UInt32 = 0xF2EFE9
+    /// WCAG AA for text.
+    static let minimumContrast = 4.5
+
+    /// Rebuilds the tokens (SwiftUI bodies that read them re-render) and gives every AppKit view
+    /// the appearance-change pass it already implements, so layer colours re-resolve.
+    @MainActor private func apply() {
+        tokens = Tokens(accent: accent, ground: ground)
+        for window in NSApp?.windows ?? [] {
+            if let content = window.contentView { Self.redraw(content) }
+        }
+    }
+
+    @MainActor private static func redraw(_ view: NSView) {
+        view.viewDidChangeEffectiveAppearance()
+        view.needsDisplay = true
+        view.subviews.forEach(redraw)
     }
 }
 

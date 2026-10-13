@@ -67,7 +67,7 @@ struct EditToolsMenuItems: View {
         let advanced = DocumentTransforms.shared.canBegin(doc)   // B5-12
         Button("Fill…") { tools.sheet = .fill }
             .disabled(!pixel)
-        Button("Clear    (⌫)") { _ = tools.clearSelection() }
+        Button("Clear") { _ = tools.clearSelection() }
             .disabled(!pixel || doc?.marquee == nil)
         Divider()
         Button("Free Transform") { tools.beginFreeTransform() }

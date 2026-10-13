@@ -28,6 +28,9 @@ commands may not claim the reserved combinations listed below.
 | Library | ⌘2 | AppCommands / Edit |
 | Library | ⌘3 | AppCommands / Deliver |
 | Library | ⌘K | AppCommands / Ask the Agent |
+| Library | ⌥⌘1 | AppCommands / Grid |
+| Library | ⌥⌘2 | AppCommands / Loupe |
+| Library | ⌥⌘3 | AppCommands / Compare |
 | Document | ⌘= | AppCommands / Zoom In |
 | Document | ⌘- | AppCommands / Zoom Out |
 | Document | ⌘0 | AppCommands / Fit on Screen |
@@ -36,6 +39,10 @@ commands may not claim the reserved combinations listed below.
 | Document / Library | ⌥⌘F | AppCommands / Hide Filmstrip / Show Filmstrip |
 | Document / Library | ⇧⌘D | AppCommands / Defect Sweep… |
 | Document / Library | ⌥⌘A | AppCommands / Assist |
+| Document / Library | ⌥⌘Right | AppCommands / Next Group |
+| Document / Library | ⌥⌘Left | AppCommands / Previous Group |
+| Document / Library | ⌥⌘Down | AppCommands / Next Frame in Group |
+| Document / Library | ⌥⌘Up | AppCommands / Previous Frame in Group |
 | Document / Library | ⌘Delete | AppCommands / Delete from Disk… |
 | Library | ⌘E | AppCommands / Open in Layers… |
 | Document / Library | ⌥⌘N | AppCommands / New Album… |
@@ -46,7 +53,7 @@ commands may not claim the reserved combinations listed below.
 | Library | ⇧⌘A | AppCommands / Auto Edit… |
 | Document / Library | ⇧⌘R | AppCommands / Reset All Settings |
 | Library | ⇧⌘S | AppCommands / New Snapshot… |
-| Document / Library | ⌥⌘T | AppCommands / Show Render Timing |
+| Document / Library | ⌥⌘T | AppCommands / Show Engine Readouts |
 | Library | ⇧⌘N | AppCommands / Load 20,000 Stub Items |
 | Library | ⇧⌘B | AppCommands / Run Grid Scroll Benchmark |
 | Document / Library | ⌘W | AppCommands / Close Document / Close |

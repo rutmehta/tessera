@@ -588,7 +588,7 @@ struct StatusBar: View {
             if !compact, model.showRenderReadout, let readout = model.renderReadout {
                 Text(readout)
                     .foregroundStyle(Theme.textTertiary)
-                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Render Timing)")
+                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Engine Readouts)")
                     .accessibilityIdentifier("renderReadout")
                     .fixedSize()
                 separator

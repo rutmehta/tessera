@@ -689,10 +689,13 @@ final class AppModel {
                         self.finishFolderRequest(requestID, loaded: true)
                         return
                     }
+                    // The RAW / group counts and the scan time are engine readouts: behind
+                    // Debug ▸ Show Engine Readouts (SPEC §7).
                     let raws = lib.items.lazy.filter { $0.kind == .raw }.count
                     let multi = lib.groups.lazy.filter { $0.count > 1 }.count
-                    self.statusMessage = message ?? "Opened \(lib.title): \(lib.items.count.formatted()) images (\(raws.formatted()) RAW), "
-                        + "\(lib.groups.count.formatted()) groups (\(multi.formatted()) with 2+), \(Self.ms(lib.scanDuration))"
+                    let summary = "Opened \(lib.title): \(lib.items.count.formatted()) images"
+                    let readouts = " (\(raws.formatted()) RAW), \(lib.groups.count.formatted()) groups (\(multi.formatted()) with 2+), \(Self.ms(lib.scanDuration))"
+                    self.statusMessage = message ?? summary + (self.showRenderReadout ? readouts : "")
                         + (seedFaces ? ", synthetic faces seeded" : "")
                     self.finishFolderRequest(requestID, loaded: true)
                 case .failure(let error):

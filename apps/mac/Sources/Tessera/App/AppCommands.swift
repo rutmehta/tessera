@@ -1,11 +1,13 @@
 import TesseraCore
 import SwiftUI
 
-/// Menu bar. Single-key culling shortcuts are handled by `KeyRouter` (they are listed in the menu
-/// titles rather than bound as key equivalents, so they never fire while typing in a field).
+/// Menu bar. Single-key culling shortcuts are handled by `KeyRouter`, not bound as key
+/// equivalents, so they never fire while typing in a field; docs/shortcuts.md lists them. Titles
+/// never carry a shortcut in parentheses (SPEC §7): a chord goes in the key-equivalent column or
+/// nowhere.
 struct AppCommands: Commands {
     let model: AppModel
-    @AppStorage(AppearancePreference.defaultsKey) private var appearance = AppearancePreference.system.rawValue
+    @AppStorage(AppearancePreference.defaultsKey) private var appearance = AppearancePreference.default.rawValue
 
     private var docMode: Bool { model.viewMode == .document }
     private var docs: DocumentWorkspace { model.documents }
@@ -89,11 +91,13 @@ struct AppCommands: Commands {
             }
                 .disabled(!model.isPhotoEditing && !model.isReviewing)
             Divider()
-            Button("Grid    (G)") {
-                model.requestLibraryViewMode(.grid)
-            }
-            Button("Loupe    (E / Return)") { model.requestLibraryViewMode(.loupe) }
-            Button("Compare    (C)") { model.requestLibraryCompare() }
+            // ⌘1 / ⌘2 / ⌘3 are the shell modes above; ⌥⌘1 / 2 / 3 pick the Cull view (G / E / C still route).
+            Button("Grid") { model.requestLibraryViewMode(.grid) }
+                .shortcut(!docMode, "1", [.command, .option])
+            Button("Loupe") { model.requestLibraryViewMode(.loupe) }
+                .shortcut(!docMode, "2", [.command, .option])
+            Button("Compare") { model.requestLibraryCompare() }
+                .shortcut(!docMode, "3", [.command, .option])
             Button("Layered Documents") { model.requestViewMode(.document) }
             Divider()
             Group {
@@ -109,9 +113,9 @@ struct AppCommands: Commands {
             Button("100 %") { doc?.viewport?.zoomActual() }
                 .shortcut(docMode, "1", .command)
                 .disabled(doc == nil)
-            Button(docs.panelsHidden ? "Show Panels    (Tab)" : "Hide Panels    (Tab)") { docs.togglePanels() }
+            Button(docs.panelsHidden ? "Show Panels" : "Hide Panels") { docs.togglePanels() }
                 .disabled(!docMode)
-            Button("Cycle Screen Mode    (F)") { docs.cycleScreenMode() }
+            Button("Cycle Screen Mode") { docs.cycleScreenMode() }
                 .disabled(!docMode)
             }
             Divider()
@@ -132,18 +136,18 @@ struct AppCommands: Commands {
         }
         CommandMenu("Cull") {
             Group {
-            Button("Reject    (X)") { model.perform(.reject) }
-            Button("Undecided    (U)") { model.perform(.undecided) }
-            Button("Keep    (P)") { model.perform(.keep) }
+            Button("Reject") { model.perform(.reject) }
+            Button("Undecided") { model.perform(.undecided) }
+            Button("Keep") { model.perform(.keep) }
             Divider()
-            Button("Grade 1 · Keep    (1)") { model.perform(.grade(1)) }
-            Button("Grade 2 · Good    (2)") { model.perform(.grade(2)) }
-            Button("Grade 3 · Best    (3)") { model.perform(.grade(3)) }
+            Button("Grade 1 · Keep") { model.perform(.grade(1)) }
+            Button("Grade 2 · Good") { model.perform(.grade(2)) }
+            Button("Grade 3 · Best") { model.perform(.grade(3)) }
             Divider()
             ForEach([UInt8(6), 7, 8, 9], id: \.self) { m in
-                Button("Mark \(m): \(MarkStyle.name(m))    (\(m))") { model.perform(.mark(m)) }
+                Button("Mark \(m): \(MarkStyle.name(m))") { model.perform(.mark(m)) }
             }
-            Button("Add to / Remove from \(model.basketTarget)    (B)") { model.perform(.toggleBasket) }
+            Button("Add to / Remove from \(model.basketTarget)") { model.perform(.toggleBasket) }
             Menu("Basket Target: \(model.basketTarget)") {
                 ForEach(model.albums) { album in
                     Toggle(album.name, isOn: Binding(get: { album.name == model.basketTarget },
@@ -153,7 +157,7 @@ struct AppCommands: Commands {
                 Button("New Album…") { model.promptNewBasketTarget() }
             }
             Divider()
-            Button("Keep Best, Reject Rest of Group    (K)") { model.keepBestRejectRest() }
+            Button("Keep Best, Reject Rest of Group") { model.keepBestRejectRest() }
             Button("Defect Sweep…") { model.showDefectSweep = true }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
             Divider()
@@ -166,9 +170,9 @@ struct AppCommands: Commands {
             }
             Toggle("Sort by Keep Confidence", isOn: Binding(get: { model.assist.sortByConfidence },
                                                              set: { model.assist.sortByConfidence = $0 }))
-            Button("Confirm All Visible Suggestions (\(model.assist.suggestionCount))    (Y)") { model.assist.confirmAll() }
+            Button("Confirm All Visible Suggestions (\(model.assist.suggestionCount))") { model.assist.confirmAll() }
                 .disabled(!model.assist.enabled)
-            Button("Dismiss Suggestion    (N)") { model.assist.dismiss(model.targetIDs) }
+            Button("Dismiss Suggestion") { model.assist.dismiss(model.targetIDs) }
                 .disabled(!model.assist.enabled)
             Button("Analyze Shoot Again") { model.assist.analyze(faces: false, force: true, title: "Measuring sharpness and exposure for culling") }
                 .disabled(!model.isEngineBacked || model.assist.isRunning)
@@ -177,14 +181,19 @@ struct AppCommands: Commands {
             Button("Clear Person Filter") { model.assist.clearPersonFilter() }
                 .disabled(model.assist.personFilter == nil)
             Divider()
-            Button("Next Group    (⌥→)") { model.navigate(.right, groupwise: true, extend: false) }
-            Button("Previous Group    (⌥←)") { model.navigate(.left, groupwise: true, extend: false) }
-            Button("Next Frame in Group    (⌥↓)") { model.navigate(.down, groupwise: true, extend: false) }
-            Button("Previous Frame in Group    (⌥↑)") { model.navigate(.up, groupwise: true, extend: false) }
+            // The plain and ⌥ arrows route through KeyRouter (loupe / grid); ⌥⌘ is the menu chord.
+            Button("Next Group") { model.navigate(.right, groupwise: true, extend: false) }
+                .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+            Button("Previous Group") { model.navigate(.left, groupwise: true, extend: false) }
+                .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+            Button("Next Frame in Group") { model.navigate(.down, groupwise: true, extend: false) }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+            Button("Previous Frame in Group") { model.navigate(.up, groupwise: true, extend: false) }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
             Divider()
-            Toggle("Auto-Advance    (A)", isOn: Binding(get: { model.autoAdvance }, set: { model.autoAdvance = $0 }))
+            Toggle("Auto-Advance", isOn: Binding(get: { model.autoAdvance }, set: { model.autoAdvance = $0 }))
             Divider()
-            Button("Remove from Album    (⌫ in an album)") { model.deletePressed() }
+            Button("Remove from Album") { model.deletePressed() }
             Button("Delete from Disk…") { model.confirmDeleteFromDisk() }
                 .keyboardShortcut(.delete, modifiers: .command)
             }
@@ -244,14 +253,16 @@ struct AppCommands: Commands {
             }
             .disabled((model.developHistory?.snapshots ?? []).isEmpty)
             Divider()
-            Toggle("Soft Proofing    (S)", isOn: Binding(get: { SoftProof.shared.enabled },
+            Toggle("Soft Proofing", isOn: Binding(get: { SoftProof.shared.enabled },
                                                           set: { _ in SoftProof.shared.toggle() }))
-            Toggle("Gamut Warning    (⇧S)", isOn: Binding(get: { SoftProof.shared.gamutWarning },
+            Toggle("Gamut Warning", isOn: Binding(get: { SoftProof.shared.gamutWarning },
                                                             set: { SoftProof.shared.gamutWarning = $0 }))
         }
         CommandMenu("Debug") {
-            Toggle("Show Render Timing", isOn: Binding(get: { model.showRenderReadout },
-                                                       set: { model.showRenderReadout = $0 }))
+            // Engine readouts in the status bar (render timing, the open summary's counts and
+            // scan time) are off unless this is on (SPEC §7).
+            Toggle("Show Engine Readouts", isOn: Binding(get: { model.showRenderReadout },
+                                                         set: { model.showRenderReadout = $0 }))
                 .keyboardShortcut("t", modifiers: [.command, .option])
             Divider()
             if StubLibraryDiagnostics.isEnabled {
@@ -293,7 +304,7 @@ struct AppCommands: Commands {
         CommandMenu("Select") {
             // WP B5-04: selection commands and tools (Tools/ToolsMenus.swift).
             SelectMenuItems(doc: doc, docMode: docMode)
-            Button("Move    (V)") { DocumentTools.shared.select(.move) }
+            Button("Move") { DocumentTools.shared.select(.move) }
                 .disabled(doc == nil)
         }
         // WP B5-04: Edit ▸ Fill…, Clear, Free Transform (⌘T), Transform ▸ (document mode).
