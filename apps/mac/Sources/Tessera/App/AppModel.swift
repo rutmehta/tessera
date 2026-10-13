@@ -467,6 +467,13 @@ final class AppModel {
     /// UX-14: bumped by every cull change (decisions, undo, redo), so SwiftUI views that read
     /// `cull` directly (the burst view, the triage column) re-render.
     private(set) var decisionRevision = 0
+    /// UX-12: the run the agent field started on the focused photo; its plan shows as change cards
+    /// in the Edit panel's Agent section until Keep or Undo all (see AppModel+Shell.swift).
+    var agentFieldRun: AgentFieldRun?
+    /// UX-12 / UX-13: the panel slider the loupe dial targets. The matching slider row draws
+    /// highlighted (`ValueSlider.dialHighlighted`); nil clears it. Set it when the dial opens on a
+    /// control and clear it when the dial closes.
+    var highlightedDevelopControl: DevelopPanelControl?
     var thumbnailSize: Double = 176 {
         didSet { if thumbnailSize != oldValue { liveObservers.forEach { $0.thumbnailSizeDidChange() } } }
     }

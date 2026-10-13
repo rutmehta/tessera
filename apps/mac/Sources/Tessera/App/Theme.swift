@@ -213,15 +213,23 @@ enum Theme {
         static let chip: CGFloat = 16
         /// Inspector section header.
         static let sectionHeader: CGFloat = 32
-        /// One slider row: label + readout line, then the track.
-        static let slider: CGFloat = 32
+        /// One slider row (SPEC §2): the label + readout line, then a 26 pt track row.
+        static let slider: CGFloat = sliderText + sliderTrack
+        static let sliderText: CGFloat = 16
+        static let sliderTrack: CGFloat = 26
+        /// The Edit panel's histogram strip (SPEC §3).
+        static let histogramStrip: CGFloat = 40
+        /// A change card's switch (the agent's cards, Edit panel).
+        static let cardSwitch: CGFloat = 18
         /// Sidebar and list rows.
         static let row: CGFloat = 24
         static let statusBar: CGFloat = 24
         static let filmstrip: CGFloat = 72
         static let progressBar: CGFloat = 32
         /// Slider thumb diameter.
-        static let thumb: CGFloat = 12
+        static let thumb: CGFloat = 16
+        /// Slider track thickness.
+        static let track: CGFloat = 4
     }
 
     enum Width {
@@ -232,11 +240,16 @@ enum Theme {
         static let labelWide: CGFloat = 96
         static let toolbarSegment: CGFloat = 264
         static let thumbnailSlider: CGFloat = 96
+        /// Either side of the agent field in Edit: the tools strip and the agent status row.
+        static let agentSide: CGFloat = 170
+        /// A change card's switch (the agent's cards, Edit panel).
+        static let cardSwitch: CGFloat = 30
     }
 
     // MARK: - Type
 
-    /// SF Pro at six sizes (11/12/13/15/17/22), three weights (regular/medium/semibold).
+    /// SF Pro at six sizes (11/12/13/15/17/22), three weights (regular/medium/semibold). The Edit
+    /// panel (SPEC §2) uses 15/600 section titles, 13 slider labels and 13 tabular values.
     /// Numeric readouts always use monospaced digits. SF's size-specific tracking is left as is;
     /// the only manual tracking is on the 22 pt display size.
     enum Fonts {
@@ -252,6 +265,8 @@ enum Theme {
         static let captionMono = Font.system(size: 11, design: .monospaced)
         static let body = Font.system(size: 13)
         static let bodyMedium = Font.system(size: 13, weight: .medium)
+        static let bodySemibold = Font.system(size: 13, weight: .semibold)
+        static let bodyNumeric = Font.system(size: 13).monospacedDigit()
         static let title = Font.system(size: 15, weight: .semibold)
         static let headline = Font.system(size: 17, weight: .semibold)
         static let display = Font.system(size: 22, weight: .semibold)
@@ -274,6 +289,8 @@ enum Theme {
         static var labelNumeric: NSFont { NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular) }
         static var labelMono: NSFont { NSFont.monospacedSystemFont(ofSize: 12, weight: .regular) }
         static var body: NSFont { NSFont.systemFont(ofSize: 13) }
+        static var bodyNumeric: NSFont { NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular) }
+        static var bodyNumericMedium: NSFont { NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium) }
     }
 
     // MARK: - Motion

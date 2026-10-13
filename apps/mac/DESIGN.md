@@ -156,7 +156,8 @@ No capsules on buttons. Circles only for slider thumbs, colour wells, accent swa
 | `Height.regular` | 24 | Search field, decision chips, sidebar rows, list rows, status bar |
 | `Height.large` | 28 | Toolbar items, sheet footer buttons, HUD tools, sidebar headers |
 | `Height.sectionHeader` | 32 | Inspector section headers, the loupe information strip |
-| `Height.slider` | 32 | One slider row |
+| `Height.slider` | 42 | One slider row: `sliderText` 16 (label + value) over `sliderTrack` 26 (4 pt track, 16 pt thumb) |
+| `Height.histogramStrip` | 40 | The Edit panel's histogram strip |
 | `Height.filmstrip` | 72 | Filmstrip |
 
 Widths: sidebar 200–300 (ideal 220), inspector 288–380 (ideal 296), label column 72.
@@ -226,8 +227,8 @@ No uppercase labels: sentence or title case everywhere.
 | --- | --- | --- | --- |
 | 11 | `Fonts.caption*` / `NSFonts.caption*` | R / M / S, numeric, mono | Inspector labels and values, chips, captions, status bar, hints |
 | 12 | `Fonts.label*` / `NSFonts.label*` | R / M / S, numeric, mono | Buttons, sidebar rows, section headers, filter field |
-| 13 | `Fonts.body*` | R / M | Rare body text |
-| 15 | `Fonts.title` | S | Sheet titles |
+| 13 | `Fonts.body*` / `NSFonts.body*` | R / M / S, numeric | Edit panel slider labels and values, change cards, the agent field |
+| 15 | `Fonts.title` | S | Sheet titles, Edit panel section titles |
 | 17 | `Fonts.headline` | S | Empty-state titles |
 | 22 | `Fonts.display` | S, −0.3 tracking | Reserved (large numerals, onboarding) |
 
@@ -251,12 +252,14 @@ Segments may be icon-only when width is tight (Color Grading ranges), with the n
 **Menus** (`ThemeMenuStyle`, `IconMenuStyle`): bordered pull-down with a tertiary chevron; active
 filters use the accent-subtle fill and a 50 % accent outline.
 
-**Slider** (`ValueSlider`, AppKit `NSControl` on the < 16 ms path): 32 pt row; label 11 pt
-secondary left, value 11 pt tabular right (tertiary at default, primary + medium when changed);
-2 pt track in `hairlineStrong`, fill from the default to the value in `textSecondary` (accent
-while dragging); a 1 px tick marks the default of bipolar controls; 12 pt disc thumb with a
-hairline and soft shadow, 2 px accent ring while dragging. Drag is relative, ⌥ is 10× finer,
-double-click resets, a click on the track away from the thumb jumps there.
+**Slider** (`ValueSlider`, AppKit `NSControl` on the < 16 ms path): 42 pt row = a 16 pt text
+line (label 13 pt primary left, value 13 pt tabular right: secondary at the default, accent +
+medium once changed) over a 26 pt track row; 4 pt track in `track`, fill from the default to the
+value in `textSecondary` (accent while dragging); a 1 px tick marks the default of bipolar
+controls; 16 pt disc thumb with a hairline and soft shadow, 2 px accent ring while dragging.
+`dialHighlighted` (the loupe dial targets this control) paints the row `accentSubtle` with an
+accent hairline. Drag is relative, ⌥ is 10× finer, double-click resets, a click on the track
+away from the thumb jumps there.
 
 **Chips** (`Chip` in SwiftUI; `BadgeOverlayView.drawChip` on thumbnails): one family — 16 pt
 (on images) or 20 pt (panels), radius 4, 11 pt medium, sentence case, 6 pt side padding.
@@ -586,7 +589,7 @@ photo** / D enters editing; the header names the focused photo and explicitly sa
 count independently. Synthetic fixtures say **Preview only · STUB**.
 
 Photo Edit keeps the native loupe and uses fixed Develop/Masks inspector tabs with
-existing controls. Global parameters target **Whole photo**; mask parameters name
+existing controls (the Develop tab's groups: §13). Global parameters target **Whole photo**; mask parameters name
 the selected mask. The source sidebar and filter controls yield to the canvas.
 Back to Library restores the prior arrangement, stable photo selection/focus and
 browser anchor; G explicitly chooses Grid on return. A source/filter/folder change
@@ -641,3 +644,59 @@ Review consumes cull letters and owns its arrows after text, numeric, sheet and
 Document guards. Escape cancels a draft before leaving Review. Undo/Redo in Review
 do not consume Library history; the inspector directs the user to Edit photo for
 recipe history. Accept's learned feedback is not advertised as undoable.
+
+## 13. Edit panel (redesign SPEC §3, WP UX-12)
+
+`Inspector/PhotoEditInspectorView.swift`. The Develop tab of the one panel in Edit, top to
+bottom (the Masks tab is unchanged; M and the loupe mask tools switch to it):
+
+* **Histogram strip** (`HistogramView`, 40 pt): the luminance histogram as one quiet fill in a
+  plot well; the shadow / highlight clipping marks (`warning`) are its only colour. No title.
+* **Sections** (`EditSection`): a 15/600 title with an optional readout at the right in 12 pt
+  tertiary tabular (Light: the target, "Whole photo" · Color: the colour temperature · Detail:
+  "Sharpen 40"), the everyday controls, then a borderless **More / Less** disclosure
+  (`develop.panel.<Section>.more`, remembered per section in `EditPanel.<Section>.more`) with the
+  rest of the group. Sections are not collapsible. Agent and Edits use a 13/600 title.
+  * **Light**: Exposure, Shadows, Highlights, Contrast · More: Whites, Blacks, Tone Curve, HDR.
+  * **Color**: Temperature, Tint, Vibrance · More: Saturation, HSL, Grading.
+  * **Detail**: Sharpen · More: Texture, Clarity, Dehaze, the sharpening radius / detail / masking
+    with the 1:1 preview, AI Denoise and noise reduction.
+  * **Optics**: Crop & Straighten · More: Upright / Transform, Lens Blur. Lens corrections from
+    the maker notes are automatic (an auto step in Edits).
+  * **Effects**: Vignette and Grain amounts · More: the rest of both, Presets, Soft Proofing,
+    Snapshots.
+  * **Agent** (`AgentChangesSection`, only after a run from the agent field finished on this
+    photo): "n changes · preview" and one **change card** per step of the plan (radius 8,
+    hairline; raised on hover): the control in 13 pt medium, its value in the accent, "Whole
+    photo" / "On Sky" in 12 pt tertiary, a mini switch (`develop.agent.toggle.<entry>`, the same
+    step toggle as the Edits stack: a recorded step), dimmed at 45 % while off. The pointer over a
+    card shows the photo without that change (the group's 0 % values for the controls the step
+    names, through the interactive patch path; nothing is recorded). Below: **Keep** (primary,
+    fills the row; accepts the queue entry, the group stays as one grouped step in Edits),
+    **Undo all** (reverts the group, one step) and **Apply to burst (n)** (the same instruction on
+    the other n frames of the burst; those go to Agent Review). Multi-photo runs keep using the
+    review queue.
+  * **Edits** (`EditsSection` + `HistoryPanel`): "n steps" and a borderless Reset; then every
+    step newest first as a 24 pt row with a mini checkbox toggle, the label in 12 pt and who
+    made it in tertiary (by hand · agent · auto · preset; the time is in the tooltip); an agent
+    run is one grouped step (`AgentGroupSection`: `AI` chip, name, amount readout, the Amount
+    fader, its sub-steps with their toggles and rationales, Redo with instruction); the Original
+    row at the bottom returns to the unedited photo. One store: the develop controller's history.
+
+Every control of the former Basic / Tone Curve / HSL / Grading / Detail / Transform / Effects /
+Lens Blur / Crop / HDR / Soft Proofing / Presets / Snapshots / History panels is still reachable
+and keeps its accessibility identifier; only the BasicPanel's duplicate Snapshots menu
+(`develop.basic.snapshots`, `.newSnapshot`, `.restoreSnapshot.n`) was retired in favour of
+Effects ▸ More ▸ Snapshots. Panels carry no explanatory text: one tooltip per control.
+
+**Agent status row** (`AgentStatus`, `Shell/AgentField.swift`): right of the agent field in Edit,
+in a 170 pt slot mirroring the tools strip's: a 28 pt dot (accent once there are agent edits,
+`track` otherwise) and "n edits by agent · review" (review shows the panel on Develop), "Agent is
+working…" while the run goes, "No agent edits yet" otherwise.
+
+**Dial highlight API** (for the loupe dial, UX-13): `AppModel.highlightedDevelopControl:
+DevelopPanelControl?` (`.basic(BasicKey)` for Exposure / Shadows / Highlights / Temperature …,
+`.control(DevelopControl)` for any other section slider). The panel passes it down as the
+`highlightedDevelopControl` environment value; `ControlSlider` and `AdjustmentSlider` compare
+themselves and set `ValueSlider.dialHighlighted`. Set it when the dial opens on a control, nil
+when it closes. Controls behind a More are not revealed automatically.

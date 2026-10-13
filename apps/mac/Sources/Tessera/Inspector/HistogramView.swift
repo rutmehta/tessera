@@ -3,15 +3,16 @@ import SwiftUI
 import TesseraCore
 import TesseraFFI
 
-/// RGB + luminance histogram of the displayed engine frame (256 bins each, from
-/// `DevelopSession.get_histogram`). AppKit-drawn and fed straight from the render callback, so
-/// slider drags never touch SwiftUI state.
+/// The Edit panel's histogram strip (redesign SPEC §3): the luminance histogram of the displayed
+/// engine frame (256 bins from `DevelopSession.get_histogram`) as one quiet fill, 40 pt tall, with
+/// the shadow / highlight clipping marks as the only colour. AppKit-drawn and fed straight from
+/// the render callback, so slider drags never touch SwiftUI state.
 final class HistogramView: NSView {
     var histogram: Histogram? { didSet { needsDisplay = true } }
     var placeholder = "No develop session" { didSet { needsDisplay = true } }
 
     override var isFlipped: Bool { false }
-    static let height: CGFloat = 88
+    static let height: CGFloat = Theme.Height.histogramStrip
     override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: Self.height) }
 
     override func viewDidChangeEffectiveAppearance() {
@@ -41,43 +42,30 @@ final class HistogramView: NSView {
         }
         // Square-root scale keeps shadows visible next to a tall spike; ignore the clipped end bins
         // when normalising so a blown sky does not flatten the rest.
-        let channels: [([UInt32], NSColor)] = [
-            (h.red, Theme.Palette.channelRed.withAlphaComponent(0.55)),
-            (h.green, Theme.Palette.channelGreen.withAlphaComponent(0.55)),
-            (h.blue, Theme.Palette.channelBlue.withAlphaComponent(0.55)),
-        ]
-        let peak = ([h.red, h.green, h.blue, h.luminance].flatMap { $0[1..<255] }.max()).map { sqrt(Double($0)) } ?? 1
-        let plot = r.insetBy(dx: 3, dy: 3)
-        func path(_ bins: [UInt32]) -> NSBezierPath {
-            let p = NSBezierPath()
-            p.move(to: NSPoint(x: plot.minX, y: plot.minY))
-            for (i, v) in bins.enumerated() {
-                let x = plot.minX + plot.width * CGFloat(i) / 255
-                let y = plot.minY + plot.height * CGFloat(min(sqrt(Double(v)) / max(peak, 1), 1))
-                p.line(to: NSPoint(x: x, y: y))
-            }
-            p.line(to: NSPoint(x: plot.maxX, y: plot.minY))
-            p.close()
-            return p
+        let peak = h.luminance[1..<255].max().map { sqrt(Double($0)) } ?? 1
+        let plot = r.insetBy(dx: Theme.Space.xs, dy: Theme.Space.xs)
+        let p = NSBezierPath()
+        p.move(to: NSPoint(x: plot.minX, y: plot.minY))
+        for (i, v) in h.luminance.enumerated() {
+            let x = plot.minX + plot.width * CGFloat(i) / 255
+            let y = plot.minY + plot.height * CGFloat(min(sqrt(Double(v)) / max(peak, 1), 1))
+            p.line(to: NSPoint(x: x, y: y))
         }
-        NSGraphicsContext.current?.compositingOperation = .plusLighter
-        for (bins, color) in channels {
-            color.setFill()
-            path(bins).fill()
-        }
-        NSGraphicsContext.current?.compositingOperation = .sourceOver
-        Theme.Palette.plotLine.withAlphaComponent(0.8).setStroke()
-        let luma = path(h.luminance)
-        luma.lineWidth = 1
-        luma.stroke()
-        // Clipping indicators: shadows (left) and highlights (right) when more than 0.5% of pixels clip.
+        p.line(to: NSPoint(x: plot.maxX, y: plot.minY))
+        p.close()
+        Theme.Palette.plotText.withAlphaComponent(0.55).setFill()
+        p.fill()
+        // Clipping marks: shadows (left) and highlights (right) when more than 0.5 % of pixels clip
+        // in any channel; the strip's only colour.
         let total = Double(h.luminance.reduce(0) { $0 + UInt64($1) })
         let clip = { (i: Int) -> Bool in
             total > 0 && Double([h.red[i], h.green[i], h.blue[i]].max()!) / total > 0.005
         }
-        for (i, x) in [(0, plot.minX), (255, plot.maxX - 6)] where clip(i) {
-            Theme.Palette.plotLine.setFill()
-            NSBezierPath(rect: NSRect(x: x, y: plot.maxY - 6, width: 6, height: 6)).fill()
+        let mark = Theme.Space.s - Theme.Space.xxs
+        for (i, x) in [(0, plot.minX), (255, plot.maxX - mark)] where clip(i) {
+            Theme.Palette.warning.setFill()
+            NSBezierPath(roundedRect: NSRect(x: x, y: plot.maxY - mark, width: mark, height: mark),
+                         xRadius: Theme.Space.xxs, yRadius: Theme.Space.xxs).fill()
         }
     }
 }

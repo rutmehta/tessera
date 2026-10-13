@@ -8,12 +8,16 @@ import QuartzCore
 /// Drag anywhere on the track (relative, not jump-to-click), ⌥ for fine control, double-click to reset.
 /// Value text is drawn by the control itself so it can update every frame without layout.
 ///
-/// Anatomy (DESIGN.md §4.3): 32 pt row; label (11 pt, secondary) and value (11 pt tabular, right
-/// aligned) on the first line; a 2 pt track with the fill running from the default to the value;
-/// a 12 pt round thumb with an accent ring while dragging.
+/// Anatomy (DESIGN.md §5, redesign SPEC §2): a 16 pt text line with the label (13 pt, primary)
+/// and the value (13 pt tabular, secondary; accent once it has left the default) over a 26 pt track
+/// row: a 4 pt track with the fill running from the default to the value and a 16 pt round thumb
+/// with an accent ring while dragging.
 @MainActor
 final class ValueSlider: NSControl, KeyOwningControl {
     var title = "" { didSet { needsDisplay = true } }
+    /// The loupe dial targets this control (`AppModel.highlightedDevelopControl`): an accent-subtle
+    /// fill with an accent hairline so the panel and the dial agree (SPEC §3).
+    var dialHighlighted = false { didSet { if dialHighlighted != oldValue { needsDisplay = true } } }
     var minValue: Double = -100
     var maxValue: Double = 100
     var defaultValue: Double = 0
@@ -107,7 +111,7 @@ final class ValueSlider: NSControl, KeyOwningControl {
     /// Space always kept between the title and the value readout.
     static let labelValueGap = Theme.Space.s
     /// Height of the title / value line.
-    static let textLineHeight = Theme.Height.slider - Theme.Height.small + Theme.Space.xs
+    static let textLineHeight = Theme.Height.sliderText
 
     /// The formatted readout (a value within half a step of zero reads as zero).
     var valueText: String { String(format: valueFormat, abs(value) < step / 2 ? 0 : value) }
@@ -127,11 +131,12 @@ final class ValueSlider: NSControl, KeyOwningControl {
     static func ringPath(thumb: NSRect, lineWidth: CGFloat) -> NSRect {
         thumb.insetBy(dx: lineWidth / 2, dy: lineWidth / 2)
     }
-    /// Track: full width minus half a thumb each side, centred on the thumb row.
+    /// Track: full width minus half a thumb each side, centred on the track row under the text line.
     private var trackRect: NSRect {
         let inset = Self.thumb / 2
-        let midY = bounds.height - Self.thumb / 2 - Theme.Space.xxs
-        return NSRect(x: inset, y: midY - 1, width: max(bounds.width - 2 * inset, 1), height: Theme.Space.xxs)
+        let midY = Self.textLineHeight + (bounds.height - Self.textLineHeight) / 2
+        return NSRect(x: inset, y: midY - Theme.Height.track / 2, width: max(bounds.width - 2 * inset, 1),
+                      height: Theme.Height.track)
     }
 
     private func fraction(_ v: Double) -> CGFloat { CGFloat((v - minValue) / (maxValue - minValue)) }
@@ -142,6 +147,15 @@ final class ValueSlider: NSControl, KeyOwningControl {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        if dialHighlighted {
+            let row = NSBezierPath(roundedRect: bounds.insetBy(dx: Theme.Space.hairline / 2, dy: Theme.Space.hairline / 2),
+                                   xRadius: Theme.Radius.control, yRadius: Theme.Radius.control)
+            Theme.Palette.accentSubtle.setFill()
+            row.fill()
+            row.lineWidth = Theme.Space.hairline
+            Theme.Palette.accent.withAlphaComponent(0.6).setStroke()
+            row.stroke()
+        }
         if window?.firstResponder === self {
             let focus = NSBezierPath(roundedRect: bounds.insetBy(dx: Theme.Space.hairline, dy: Theme.Space.hairline),
                                      xRadius: Theme.Radius.control, yRadius: Theme.Radius.control)
@@ -149,12 +163,14 @@ final class ValueSlider: NSControl, KeyOwningControl {
             Theme.Palette.accent.setStroke()
             focus.stroke()
         }
+        // The value turns accent once the control has left its default (SPEC §3: "the active /
+        // non-zero slider's value in the accent").
         let changed = isDragging || value != defaultValue
-        let titleAttrs: [NSAttributedString.Key: Any] = [.font: Theme.NSFonts.caption,
-                                                         .foregroundColor: Theme.Palette.textSecondary]
+        let titleAttrs: [NSAttributedString.Key: Any] = [.font: Theme.NSFonts.body,
+                                                         .foregroundColor: Theme.Palette.textPrimary]
         let valueAttrs: [NSAttributedString.Key: Any] = [
-            .font: changed ? Theme.NSFonts.captionNumericMedium : Theme.NSFonts.captionNumeric,
-            .foregroundColor: changed ? Theme.Palette.textPrimary : Theme.Palette.textTertiary]
+            .font: changed ? Theme.NSFonts.bodyNumericMedium : Theme.NSFonts.bodyNumeric,
+            .foregroundColor: changed ? Theme.Palette.accent : Theme.Palette.textSecondary]
         // M2-56 (audit D03): the value is always drawn whole; the title gets the rest of the line
         // minus a gap and truncates, so "Highlights" and "−100" never run together at 80 pt.
         let text = valueText as NSString
@@ -174,7 +190,7 @@ final class ValueSlider: NSControl, KeyOwningControl {
         if let colors = trackColors, colors.count >= 2, let gradient = NSGradient(colors: colors) {
             gradient.draw(in: NSBezierPath(roundedRect: track.insetBy(dx: 0, dy: -0.5), xRadius: radius + 0.5, yRadius: radius + 0.5), angle: 0)
         } else {
-            Theme.Palette.hairlineStrong.setFill()
+            Theme.Palette.track.setFill()
             NSBezierPath(roundedRect: track, xRadius: radius, yRadius: radius).fill()
             // Fill from the default (centre for bipolar controls) to the value.
             (isDragging ? Theme.Palette.accent : Theme.Palette.textSecondary).setFill()
@@ -186,7 +202,7 @@ final class ValueSlider: NSControl, KeyOwningControl {
             NSRect(x: round(x0) - 0.5, y: track.minY - Theme.Space.xxs, width: 1, height: track.height + Theme.Space.xs).fill()
         }
 
-        // Thumb: 12 pt disc with a hairline; accent ring while dragging.
+        // Thumb: 16 pt disc with a hairline; accent ring while dragging.
         let d = Self.thumb
         let thumb = NSRect(x: x1 - d / 2, y: track.midY - d / 2, width: d, height: d)
         NSGraphicsContext.saveGraphicsState()
@@ -220,7 +236,7 @@ final class ValueSlider: NSControl, KeyOwningControl {
         // Clicking on the track (not near the thumb) jumps there, then drags relatively.
         let p = convert(event.locationInWindow, from: nil)
         let thumbX = trackRect.minX + trackRect.width * fraction(value)
-        if p.y > bounds.height - Theme.Height.small, abs(p.x - thumbX) > Self.thumb / 2 {
+        if p.y > Self.textLineHeight, abs(p.x - thumbX) > Self.thumb / 2 {
             let v = minValue + Double((p.x - trackRect.minX) / trackRect.width) * (maxValue - minValue)
             dragStartValue = quantize(v)
             setValue(dragStartValue, final: false)
