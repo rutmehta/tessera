@@ -5,6 +5,8 @@ import TesseraCore
 /// which pane has focus. Keys pass through when a text field is editing, a panel/sheet is up,
 /// or ⌘/⌃ is held (menu shortcuts).
 ///
+///   Shell (UX-11): Tab shows / hides the panel in Cull, Edit and Deliver (not while a text field or
+///   a native control has the keyboard) · Esc leaves Deliver · ⌘1 ⌘2 ⌘3 and ⌘K are View menu items
 ///   X reject · U undecided · P keep (auto-advance)       1 / 2 / 3 grade (implies Keep)
 ///   6 7 8 9 toggle mark · B basket · A auto-advance      G grid · E / Return loupe · Esc grid
 ///   Loupe: arrows step one frame (← ↑ previous, → ↓ next), as in Lightroom
@@ -109,6 +111,22 @@ final class KeyRouter {
         if model.viewMode == .document, handleToolLetterOverKeyOwner(event) { return true }
         if shouldIgnore(event) { return false }
         if model.viewMode == .document { return handleDocument(event) }
+        // UX-11: Tab shows or hides the panel in Cull, Edit and Deliver (document mode's Tab is above).
+        // B5-21 applies here too: a text field (shouldIgnore) or a native control that accepted the
+        // keyboard keeps Tab for the key-view loop; ⇧Tab is always the loop.
+        if event.keyCode == 48 {
+            guard event.modifierFlags.intersection([.shift, .option, .control, .command]).isEmpty,
+                  !Self.controlHasKeyboard(in: event.window) else { return false }
+            model.toggleInspectorPanel()
+            return true
+        }
+        // UX-11: Deliver covers the Library canvas; Esc returns to Cull and no culling key acts on
+        // photos the person cannot see (⌘ shortcuts and the menus still work).
+        if model.deliverMode {
+            guard event.keyCode == 53 else { return false }
+            model.deliverMode = false
+            return true
+        }
         if model.isReviewing { return handleReview(event) }
         // The People view owns its keys (name fields, Esc); culling keys would act on a hidden photo.
         if model.source == .people && !model.isPhotoEditing { return false }
@@ -245,6 +263,14 @@ final class KeyRouter {
             ancestor = v.superview
         }
         return true
+    }
+
+    /// UX-11: outside document mode, Tab toggles the panel unless a native control (a button, slider or
+    /// pop-up of the inspector or toolbar) or a SwiftUI focus proxy under Full Keyboard Access has the
+    /// keyboard; the canvas views (grid, loupe, hosting views) are not controls.
+    static func controlHasKeyboard(in window: NSWindow?) -> Bool {
+        guard let window, let view = window.firstResponder as? NSView, view.window === window, !isStrayResponder(view) else { return false }
+        return view is NSControl || String(describing: type(of: view)).contains("KeyViewProxy")
     }
 
     /// A first responder nobody can see in document mode: hidden, under an alpha-0 ancestor, or the

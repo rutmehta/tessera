@@ -24,6 +24,10 @@ commands may not claim the reserved combinations listed below.
 | Document / Library | ⌘Z | AppCommands / Undo (dynamic title) |
 | Document / Library | ⇧⌘Z | AppCommands / Redo (dynamic title) |
 | Document / Library | ⌘A | AppCommands / Select All / Select All Images |
+| Library | ⌘1 | AppCommands / Cull |
+| Library | ⌘2 | AppCommands / Edit |
+| Library | ⌘3 | AppCommands / Deliver |
+| Library | ⌘K | AppCommands / Ask the Agent |
 | Document | ⌘= | AppCommands / Zoom In |
 | Document | ⌘- | AppCommands / Zoom Out |
 | Document | ⌘0 | AppCommands / Fit on Screen |
@@ -563,6 +567,17 @@ final class KeyRouter {
         if model.viewMode == .document, handleToolLetterOverKeyOwner(event) { return true }
         if shouldIgnore(event) { return false }
         if model.viewMode == .document { return handleDocument(event) }
+        if event.keyCode == 48 {
+            guard event.modifierFlags.intersection([.shift, .option, .control, .command]).isEmpty,
+                  !Self.controlHasKeyboard(in: event.window) else { return false }
+            model.toggleInspectorPanel()
+            return true
+        }
+        if model.deliverMode {
+            guard event.keyCode == 53 else { return false }
+            model.deliverMode = false
+            return true
+        }
         if model.isReviewing { return handleReview(event) }
         if model.source == .people && !model.isPhotoEditing { return false }
         if model.isPhotoEditing {
@@ -681,6 +696,10 @@ final class KeyRouter {
             ancestor = v.superview
         }
         return true
+    }
+    static func controlHasKeyboard(in window: NSWindow?) -> Bool {
+        guard let window, let view = window.firstResponder as? NSView, view.window === window, !isStrayResponder(view) else { return false }
+        return view is NSControl || String(describing: type(of: view)).contains("KeyViewProxy")
     }
     static func isStrayResponder(_ view: NSView) -> Bool {
         if view.isHiddenOrHasHiddenAncestor { return true }
