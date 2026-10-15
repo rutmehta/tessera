@@ -387,7 +387,10 @@ impl Engine {
         }
         index.set_id_scheme("volume")?;
         if !pairs.is_empty() {
-            eprintln!("catalog: migrated {} image ids to volume-relative ids", pairs.len());
+            eprintln!(
+                "catalog: migrated {} image ids to volume-relative ids",
+                pairs.len()
+            );
         }
         Ok(())
     }
@@ -536,7 +539,8 @@ impl Engine {
                 for _ in 0..depth {
                     mount.pop();
                 }
-                mount.file_name()
+                mount
+                    .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_default()
             });
@@ -843,7 +847,10 @@ mod tests {
         // The document moved into `.tessera/` on open (CS-1) and was re-keyed there.
         assert!(!photos.join("library.json").exists());
         let library = library::Library::read(library::Library::path_in(&photos)).unwrap();
-        assert_eq!(library.albums["Picks"].images, vec![parse_id(&new).unwrap()]);
+        assert_eq!(
+            library.albums["Picks"].images,
+            vec![parse_id(&new).unwrap()]
+        );
         // The sidecar still carries the legacy id and reads as this image.
         let recipe = engine.get_recipe(new.clone()).unwrap();
         assert!(recipe.contains(&new));

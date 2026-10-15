@@ -51,11 +51,7 @@ pub(crate) fn load(index: &Index, id: ImageId) -> EngineResult<RecipeDocument> {
         if Sidecar::is_lightroom_owned(&info.path) {
             document.recipe.image_id = Some(id);
         }
-        if !ImageId::sidecar_matches(
-            document.recipe.image_id,
-            id,
-            &info.path.to_string_lossy(),
-        ) {
+        if !ImageId::sidecar_matches(document.recipe.image_id, id, &info.path.to_string_lossy()) {
             return Err(EngineError::invalid(
                 "image_id",
                 "sidecar belongs to another image",

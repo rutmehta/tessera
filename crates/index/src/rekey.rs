@@ -40,7 +40,10 @@ pub struct LegacyImage {
 /// The id a file derives from where it is: volume-relative on an external
 /// volume, path-derived on the boot volume (CONTRACTS.md invariant 20).
 pub fn image_id_for(volumes: &dyn VolumeResolver, canonical: &Path) -> EngineResult<ImageId> {
-    Ok(image_id_on(volumes.volume_of(canonical)?.as_ref(), canonical))
+    Ok(image_id_on(
+        volumes.volume_of(canonical)?.as_ref(),
+        canonical,
+    ))
 }
 
 pub(crate) fn image_id_on(volume: Option<&Volume>, canonical: &Path) -> ImageId {
@@ -139,7 +142,9 @@ impl Index {
         let mut stmt = self
             .0
             .conn
-            .prepare("SELECT i.id,f.path FROM image i JOIN file f ON f.id=i.file_id ORDER BY f.path")
+            .prepare(
+                "SELECT i.id,f.path FROM image i JOIN file f ON f.id=i.file_id ORDER BY f.path",
+            )
             .map_err(sql)?;
         let rows = stmt
             .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
@@ -204,7 +209,11 @@ mod tests {
         let mut index = Index::open(&db).unwrap();
         index.set_volume_resolver(Box::new(FixedVolumes(vec![])));
         index
-            .scan(mount.join("shoot"), &NoopSidecarReader, &NoopMetadataProvider)
+            .scan(
+                mount.join("shoot"),
+                &NoopSidecarReader,
+                &NoopMetadataProvider,
+            )
             .unwrap();
         let a = mount.join("shoot/a.jpg");
         let ids = [index.image_at(&a).unwrap().unwrap()];
@@ -253,7 +262,10 @@ mod tests {
         let legacy = index.legacy_images().unwrap();
         assert_eq!(legacy.len(), 2);
         assert_eq!(legacy[0].old, ids[0]);
-        assert_eq!(legacy[0].new, ImageId::for_volume_path("DRV-1", "shoot/a.jpg"));
+        assert_eq!(
+            legacy[0].new,
+            ImageId::for_volume_path("DRV-1", "shoot/a.jpg")
+        );
         let pairs: Vec<_> = legacy.iter().map(|l| (l.old, l.new)).collect();
         index.rekey_images(&pairs).unwrap();
         index.set_id_scheme("volume").unwrap();
@@ -266,18 +278,35 @@ mod tests {
         assert!(index.image_info(ids[0]).is_err());
         let feed = index.changes_since(head).unwrap();
         assert!(!feed.reset);
-        assert!(feed.changes.iter().any(|c| c.id == ids[0] && c.kind == crate::ChangeKind::Removed));
-        assert!(feed.changes.iter().any(|c| c.id == new && c.kind == crate::ChangeKind::Added));
+        assert!(
+            feed.changes
+                .iter()
+                .any(|c| c.id == ids[0] && c.kind == crate::ChangeKind::Removed)
+        );
+        assert!(
+            feed.changes
+                .iter()
+                .any(|c| c.id == new && c.kind == crate::ChangeKind::Added)
+        );
         assert!(index.legacy_images().unwrap().is_empty());
         assert_eq!(
-            index.search(&Query { text: Some("a".into()), ..Default::default() }).unwrap(),
+            index
+                .search(&Query {
+                    text: Some("a".into()),
+                    ..Default::default()
+                })
+                .unwrap(),
             vec![new],
             "FTS follows the new id"
         );
         // A rescan at the same mount point changes nothing.
         assert_eq!(
             index
-                .scan(mount.join("shoot"), &NoopSidecarReader, &NoopMetadataProvider)
+                .scan(
+                    mount.join("shoot"),
+                    &NoopSidecarReader,
+                    &NoopMetadataProvider
+                )
                 .unwrap(),
             0
         );
@@ -289,13 +318,21 @@ mod tests {
         std::fs::write(&c, b"c").unwrap();
         index.set_volume_resolver(Box::new(FixedVolumes(vec![])));
         index
-            .scan(mount.join("shoot"), &NoopSidecarReader, &NoopMetadataProvider)
+            .scan(
+                mount.join("shoot"),
+                &NoopSidecarReader,
+                &NoopMetadataProvider,
+            )
             .unwrap();
         let legacy_c = ImageId::for_path(&c.to_string_lossy());
         assert!(index.image_info(legacy_c).is_ok());
         index.set_volume_resolver(drive("DRV-1", &mount));
         index
-            .scan(mount.join("shoot"), &NoopSidecarReader, &NoopMetadataProvider)
+            .scan(
+                mount.join("shoot"),
+                &NoopSidecarReader,
+                &NoopMetadataProvider,
+            )
             .unwrap();
         let volume_c = ImageId::for_volume_path("DRV-1", "shoot/c.jpg");
         assert_eq!(index.take_rekeyed(), vec![(legacy_c, volume_c)]);

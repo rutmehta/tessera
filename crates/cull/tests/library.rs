@@ -20,7 +20,12 @@ fn status_transitions_and_basket_share_global_history() {
     // Opening moved the legacy document into `.tessera/` (CS-1), fields intact.
     assert!(!library_path.exists());
     let library_path = Library::path_in(dir.path());
-    assert!(session.library_path().unwrap().ends_with(".tessera/library.json"));
+    assert!(
+        session
+            .library_path()
+            .unwrap()
+            .ends_with(".tessera/library.json")
+    );
     let id = session.current().unwrap();
     assert_eq!(session.derived_status(id).unwrap().status, Status::Unedited);
     assert!(session.toggle_basket().is_err());

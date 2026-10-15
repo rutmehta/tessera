@@ -11,21 +11,20 @@ mod semantic;
 mod understanding;
 mod volume;
 pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
-pub use rekey::{LegacyImage, image_id_for};
-pub use roots::RootRecord;
-pub use volume::{
-    FixedVolumes, RootLocation, SystemVolumes, Volume, VolumeResolver, join_relative,
-    relative_path,
-};
 pub use changes::{ChangeBatch, ChangeFields, ChangeKind, ImageChange};
 pub use drive::{
     AnalysisRecord, FaceAssignmentRecord, FaceDetectionRecord, ImportCounts, PeopleDocument,
     PersonRecord, ScoreRecord, TESSERA_DIR, TesseraDir, atomic_write, now_ms, write_if_changed,
 };
 pub use predicate::{Comparison, Predicate};
+pub use rekey::{LegacyImage, image_id_for};
+pub use roots::RootRecord;
 pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
 pub use understanding::{KeywordSuggestion, OcrRegion, Understanding};
+pub use volume::{
+    FixedVolumes, RootLocation, SystemVolumes, Volume, VolumeResolver, join_relative, relative_path,
+};
 
 use engine_api::{
     id::ImageId,
@@ -220,7 +219,9 @@ impl Core {
         if missing(11)? {
             for table in ["person", "face_person"] {
                 let has_stamp: i64 = conn.query_row(
-                    &format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name='modified'"),
+                    &format!(
+                        "SELECT count(*) FROM pragma_table_info('{table}') WHERE name='modified'"
+                    ),
                     [],
                     |r| r.get(0),
                 )?;

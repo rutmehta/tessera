@@ -56,7 +56,12 @@ impl Core {
              WHERE root.volume_uuid IS NOT excluded.volume_uuid
              OR root.relative_path IS NOT excluded.relative_path
              OR root.mount_hint IS NOT excluded.mount_hint",
-            params![path, location.volume_uuid, location.relative_path, mount_hint],
+            params![
+                path,
+                location.volume_uuid,
+                location.relative_path,
+                mount_hint
+            ],
         )?;
         Ok(self
             .conn
@@ -247,10 +252,7 @@ mod tests {
         let roots = index.roots().unwrap();
         let canonical = dir.path().canonicalize().unwrap();
         assert_eq!(roots[0].location.volume_uuid, None);
-        assert_eq!(
-            roots[0].location.relative_path,
-            canonical.to_string_lossy()
-        );
+        assert_eq!(roots[0].location.relative_path, canonical.to_string_lossy());
         assert_eq!(index.locate_root(&roots[0]).unwrap(), Some(canonical));
     }
 }

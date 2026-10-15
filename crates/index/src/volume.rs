@@ -260,7 +260,10 @@ mod tests {
     #[test]
     fn locations_follow_the_volume_and_keep_boot_paths() {
         let drive = volume("AAAA-1", "/Volumes/Rut photo");
-        let fixed = FixedVolumes(vec![drive.clone(), volume("BBBB-2", "/Volumes/Rut photo/nested")]);
+        let fixed = FixedVolumes(vec![
+            drive.clone(),
+            volume("BBBB-2", "/Volumes/Rut photo/nested"),
+        ]);
         let location =
             RootLocation::resolve(&fixed, Path::new("/Volumes/Rut photo/2026/wedding")).unwrap();
         assert_eq!(location.volume_uuid.as_deref(), Some("AAAA-1"));
@@ -276,7 +279,10 @@ mod tests {
             Some(PathBuf::from("/Volumes/Rut photo-1/2026/wedding"))
         );
         assert_eq!(location.locate(&[]), None);
-        assert_eq!(nested.locate(&[volume("BBBB-2", "/mnt/x")]), Some(PathBuf::from("/mnt/x")));
+        assert_eq!(
+            nested.locate(&[volume("BBBB-2", "/mnt/x")]),
+            Some(PathBuf::from("/mnt/x"))
+        );
         let boot = RootLocation::resolve(&fixed, Path::new("/Users/rut/Pictures")).unwrap();
         assert_eq!(boot.volume_uuid, None);
         assert_eq!(boot.locate(&[]), Some(PathBuf::from("/Users/rut/Pictures")));

@@ -5,8 +5,8 @@
 //! understanding. Records carry `modified` (Unix ms) and `machine`; the newer
 //! record wins, never a lock. Writes are atomic (temp file + rename).
 use crate::{
-    Core, FaceKey, FaceRecord, Index, IndexError, Result, Understanding, Volume, rekey::image_id_on,
-    relative_path,
+    Core, FaceKey, FaceRecord, Index, IndexError, Result, Understanding, Volume,
+    rekey::image_id_on, relative_path,
 };
 use engine_api::{
     error::{EngineError, EngineResult},
@@ -346,7 +346,11 @@ impl Index {
 
     /// The root (longest path prefix) an image's file lives under.
     pub fn root_of(&self, id: ImageId) -> EngineResult<Option<PathBuf>> {
-        let Some(path) = self.0.image_path(&id.to_string()).map_err(EngineError::from)? else {
+        let Some(path) = self
+            .0
+            .image_path(&id.to_string())
+            .map_err(EngineError::from)?
+        else {
             return Ok(None);
         };
         let path = Path::new(&path);
@@ -531,7 +535,8 @@ impl Index {
                 let Ok(record) = serde_json::from_slice::<AnalysisRecord>(&bytes) else {
                     continue;
                 };
-                counts.analysis += usize::from(self.import_analysis(root, root_id, volume, &record)?);
+                counts.analysis +=
+                    usize::from(self.import_analysis(root, root_id, volume, &record)?);
             }
             if let Some(people) = people {
                 let (persons, assignments) = self.import_people(&people)?;
@@ -567,11 +572,7 @@ impl Index {
         let tx = self.0.conn.unchecked_transaction().map_err(sql)?;
         // The scan refreshes a placeholder row (size and mtime 0) on its way.
         let path_s = path.to_string_lossy().into_owned();
-        let folder_s = path
-            .parent()
-            .unwrap_or(root)
-            .to_string_lossy()
-            .into_owned();
+        let folder_s = path.parent().unwrap_or(root).to_string_lossy().into_owned();
         tx.execute(
             "INSERT OR IGNORE INTO folder(root_id,path) VALUES(?,?)",
             params![root_id, folder_s],
@@ -586,7 +587,9 @@ impl Index {
             .query_row("SELECT id FROM file WHERE path=?", [&path_s], |r| r.get(0))
             .map_err(sql)?;
         let existing: Option<String> = tx
-            .query_row("SELECT id FROM image WHERE file_id=?", [file_id], |r| r.get(0))
+            .query_row("SELECT id FROM image WHERE file_id=?", [file_id], |r| {
+                r.get(0)
+            })
             .optional()
             .map_err(sql)?;
         match existing {
@@ -599,8 +602,11 @@ impl Index {
                     params![key, file_id],
                 )
                 .map_err(sql)?;
-                tx.execute("INSERT OR IGNORE INTO selection(image_id) VALUES(?)", [&key])
-                    .map_err(sql)?;
+                tx.execute(
+                    "INSERT OR IGNORE INTO selection(image_id) VALUES(?)",
+                    [&key],
+                )
+                .map_err(sql)?;
                 crate::understanding::refresh_fts(&tx, &key).map_err(sql)?;
             }
         }
@@ -772,7 +778,9 @@ mod tests {
                 },
             )
             .unwrap();
-        first.replace_faces(a, &[face(0, 0.4), face(1, 0.9)]).unwrap();
+        first
+            .replace_faces(a, &[face(0, 0.4), face(1, 0.9)])
+            .unwrap();
         first.create_person("ada", Some("Ada"), None).unwrap();
         first
             .assign_face(
@@ -825,9 +833,17 @@ mod tests {
         let tessera = TesseraDir::of_root(&root);
         for id in [a, b] {
             let record = first.export_analysis(&root, id).unwrap();
-            atomic_write(&tessera.analysis(id), &serde_json::to_vec_pretty(&record).unwrap()).unwrap();
+            atomic_write(
+                &tessera.analysis(id),
+                &serde_json::to_vec_pretty(&record).unwrap(),
+            )
+            .unwrap();
         }
-        atomic_write(&tessera.people(), &serde_json::to_vec_pretty(&people).unwrap()).unwrap();
+        atomic_write(
+            &tessera.people(),
+            &serde_json::to_vec_pretty(&people).unwrap(),
+        )
+        .unwrap();
         let stamps: Vec<_> = [a, b]
             .into_iter()
             .map(|id| (id, first.export_analysis(&root, id).unwrap().modified))
@@ -836,15 +852,32 @@ mod tests {
         first.mark_people_clean().unwrap();
         assert!(first.drive_dirty_images().unwrap().is_empty());
         assert!(!first.people_dirty().unwrap());
-        assert!(!write_if_changed(&tessera.people(), &serde_json::to_vec_pretty(&people).unwrap()).unwrap());
+        assert!(
+            !write_if_changed(
+                &tessera.people(),
+                &serde_json::to_vec_pretty(&people).unwrap()
+            )
+            .unwrap()
+        );
 
         // A fresh index on another machine: everything is there before the scan.
         let mut second = Index::open(dir.path().join("two.sqlite")).unwrap();
         second.set_volume_resolver(Box::new(FixedVolumes(vec![])));
         second.set_machine("mac-two").unwrap();
         let counts = second.import_drive_state(&root, None).unwrap();
-        assert_eq!(counts, ImportCounts { analysis: 2, persons: 1, assignments: 1 });
-        assert_eq!(second.scores(a).unwrap().len(), 1 + 2 * 2 + 2, "quality, per-face, aggregates");
+        assert_eq!(
+            counts,
+            ImportCounts {
+                analysis: 2,
+                persons: 1,
+                assignments: 1
+            }
+        );
+        assert_eq!(
+            second.scores(a).unwrap().len(),
+            1 + 2 * 2 + 2,
+            "quality, per-face, aggregates"
+        );
         assert_eq!(second.faces(a).unwrap().len(), 2);
         let assignment = &second.face_assignments(a).unwrap()[0];
         assert_eq!(assignment.person_id, "ada");
@@ -852,7 +885,12 @@ mod tests {
         assert!(assignment.confirmed);
         assert_eq!(second.understanding(b).unwrap().unwrap().caption, "a beach");
         assert_eq!(
-            second.search(&Query { text: Some("beach".into()), ..Default::default() }).unwrap(),
+            second
+                .search(&Query {
+                    text: Some("beach".into()),
+                    ..Default::default()
+                })
+                .unwrap(),
             vec![b]
         );
         // Imported records are not dirty (they came from the drive) and keep their stamps.
@@ -869,18 +907,28 @@ mod tests {
         assert_eq!(second.image_info(a).unwrap().size, 1);
         assert_eq!(second.search(&Query::default()).unwrap().len(), 2);
         // Re-importing the same drive is a no-op; a newer record wins.
-        assert_eq!(second.import_drive_state(&root, None).unwrap(), ImportCounts::default());
+        assert_eq!(
+            second.import_drive_state(&root, None).unwrap(),
+            ImportCounts::default()
+        );
         let mut newer = people.clone();
         newer.persons.get_mut("ada").unwrap().name = Some("Ada Lovelace".into());
         newer.persons.get_mut("ada").unwrap().modified += 1;
         atomic_write(&tessera.people(), &serde_json::to_vec(&newer).unwrap()).unwrap();
         assert_eq!(second.import_drive_state(&root, None).unwrap().persons, 1);
-        assert_eq!(second.people().unwrap()[0].name.as_deref(), Some("Ada Lovelace"));
+        assert_eq!(
+            second.people().unwrap()[0].name.as_deref(),
+            Some("Ada Lovelace")
+        );
         // A record for a file on another volume (its id does not match) is skipped.
         let mut foreign = second.export_analysis(&root, a).unwrap();
         foreign.image_id = ImageId::for_volume_path("OTHER", "a.jpg");
         foreign.modified += 1;
-        atomic_write(&tessera.analysis(foreign.image_id), &serde_json::to_vec(&foreign).unwrap()).unwrap();
+        atomic_write(
+            &tessera.analysis(foreign.image_id),
+            &serde_json::to_vec(&foreign).unwrap(),
+        )
+        .unwrap();
         assert_eq!(second.import_drive_state(&root, None).unwrap().analysis, 0);
         assert_eq!(second.search(&Query::default()).unwrap().len(), 2);
         // Backfill marks only images that have analysis rows.

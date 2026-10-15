@@ -393,8 +393,14 @@ mod tests {
             drive,
             ImageId::for_volume_path("ABCD-1234", "2026/wedding/a.jpg")
         );
-        assert_ne!(drive, ImageId::for_volume_path("ABCD-1234", "2026/wedding/b.jpg"));
-        assert_ne!(drive, ImageId::for_volume_path("ABCD-9999", "2026/wedding/a.jpg"));
+        assert_ne!(
+            drive,
+            ImageId::for_volume_path("ABCD-1234", "2026/wedding/b.jpg")
+        );
+        assert_ne!(
+            drive,
+            ImageId::for_volume_path("ABCD-9999", "2026/wedding/a.jpg")
+        );
         // The mount point is not part of the id; the separator is.
         assert_eq!(
             drive,
@@ -402,11 +408,31 @@ mod tests {
             "uuid + '/' + relative path, hashed like a path"
         );
         let legacy = ImageId::for_path("/Volumes/Rut photo/2026/wedding/a.jpg");
-        assert!(ImageId::sidecar_matches(None, drive, "/Volumes/Rut photo/2026/wedding/a.jpg"));
-        assert!(ImageId::sidecar_matches(Some(drive), drive, "/Volumes/Rut photo/2026/wedding/a.jpg"));
-        assert!(ImageId::sidecar_matches(Some(legacy), drive, "/Volumes/Rut photo/2026/wedding/a.jpg"));
-        assert!(!ImageId::sidecar_matches(Some(legacy), drive, "/Volumes/Rut photo-1/2026/wedding/a.jpg"));
-        assert!(!ImageId::sidecar_matches(Some(boot), drive, "/Volumes/Rut photo/2026/wedding/a.jpg"));
+        assert!(ImageId::sidecar_matches(
+            None,
+            drive,
+            "/Volumes/Rut photo/2026/wedding/a.jpg"
+        ));
+        assert!(ImageId::sidecar_matches(
+            Some(drive),
+            drive,
+            "/Volumes/Rut photo/2026/wedding/a.jpg"
+        ));
+        assert!(ImageId::sidecar_matches(
+            Some(legacy),
+            drive,
+            "/Volumes/Rut photo/2026/wedding/a.jpg"
+        ));
+        assert!(!ImageId::sidecar_matches(
+            Some(legacy),
+            drive,
+            "/Volumes/Rut photo-1/2026/wedding/a.jpg"
+        ));
+        assert!(!ImageId::sidecar_matches(
+            Some(boot),
+            drive,
+            "/Volumes/Rut photo/2026/wedding/a.jpg"
+        ));
     }
 
     #[test]

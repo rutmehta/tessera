@@ -42,7 +42,11 @@ pub(crate) fn machine_id(support: &Path) -> Result<String> {
         Err(e) => return Err(failure(e)),
     }
     let mut hasher = blake3::Hasher::new();
-    hasher.update(std::env::var_os("HOSTNAME").unwrap_or_default().as_encoded_bytes());
+    hasher.update(
+        std::env::var_os("HOSTNAME")
+            .unwrap_or_default()
+            .as_encoded_bytes(),
+    );
     hasher.update(&std::process::id().to_le_bytes());
     hasher.update(&index::now_ms().to_le_bytes());
     hasher.update(&(&path as *const PathBuf as usize).to_le_bytes());
@@ -115,9 +119,13 @@ impl Engine {
             };
             let mut pending = Vec::new();
             for id in c.index.drive_dirty_images()? {
-                let Ok(info) = c.index.image_info(id) else { continue };
+                let Ok(info) = c.index.image_info(id) else {
+                    continue;
+                };
                 // A root that is not attached keeps its records dirty for later.
-                let Some(root) = root_of(&info.path) else { continue };
+                let Some(root) = root_of(&info.path) else {
+                    continue;
+                };
                 let record = c.index.export_analysis(&root, id)?;
                 pending.push(Pending {
                     path: TesseraDir::of_root(&root).analysis(id),
@@ -200,7 +208,10 @@ mod tests {
         let dir = dir.path().canonicalize().unwrap();
         let photos = photos(&dir);
         let first = Engine::open(dir.join("one").to_string_lossy().into()).unwrap();
-        assert_eq!(machine_id(&dir.join("one")).unwrap(), machine_id(&dir.join("one")).unwrap());
+        assert_eq!(
+            machine_id(&dir.join("one")).unwrap(),
+            machine_id(&dir.join("one")).unwrap()
+        );
         let folder = first
             .index_folder(photos.to_string_lossy().into())
             .unwrap()
@@ -275,8 +286,15 @@ mod tests {
         }
         let person = named[0].0.clone();
         session.shutdown().unwrap();
-        assert!(first.flush_drive_state().unwrap() >= 3, "analysis records and people.json");
-        assert_eq!(first.flush_drive_state().unwrap(), 0, "unchanged records are not rewritten");
+        assert!(
+            first.flush_drive_state().unwrap() >= 3,
+            "analysis records and people.json"
+        );
+        assert_eq!(
+            first.flush_drive_state().unwrap(),
+            0,
+            "unchanged records are not rewritten"
+        );
         let tessera = TesseraDir::of_root(&photos);
         assert!(tessera.people().exists());
         assert!(tessera.analysis(crate::parse_id(&ids[0]).unwrap()).exists());
@@ -295,7 +313,12 @@ mod tests {
         let row = rows.iter().find(|r| r.id == ids[0]).unwrap();
         assert_eq!(row.selection.decision, Decision::Keep);
         assert_eq!(row.selection.grade, Some(3));
-        let scores = second.lock().unwrap().index.scores(crate::parse_id(&ids[0]).unwrap()).unwrap();
+        let scores = second
+            .lock()
+            .unwrap()
+            .index
+            .scores(crate::parse_id(&ids[0]).unwrap())
+            .unwrap();
         assert!(scores.iter().any(|s| s.signal == "quality"), "{scores:?}");
         let session = second.open_cull_session(folder).unwrap();
         let mut people: Vec<(String, String, u32)> = session
@@ -306,7 +329,10 @@ mod tests {
             .collect();
         people.sort();
         assert_eq!(
-            people.iter().map(|(id, name, _)| (id.clone(), name.clone())).collect::<Vec<_>>(),
+            people
+                .iter()
+                .map(|(id, name, _)| (id.clone(), name.clone()))
+                .collect::<Vec<_>>(),
             named
         );
         assert_eq!(people.iter().map(|(_, _, faces)| faces).sum::<u32>(), 2);
@@ -315,7 +341,11 @@ mod tests {
         // Nothing imported is dirty on the second machine; its own edits are.
         assert_eq!(second.flush_drive_state().unwrap(), 0);
         session
-            .name_person(person.clone(), Some("Ada Lovelace".into()), PeopleNameOptions::default())
+            .name_person(
+                person.clone(),
+                Some("Ada Lovelace".into()),
+                PeopleNameOptions::default(),
+            )
             .unwrap();
         assert_eq!(second.flush_drive_state().unwrap(), 1);
         session.shutdown().unwrap();
