@@ -63,7 +63,7 @@ if [[ -z "$notes_file" ]]; then
     if [[ -n "$previous" ]]; then git log --no-merges --format='- %s' "$previous..HEAD"; else git log --no-merges --format='- %s' -20; fi
   } > "$notes_file"
 fi
-assets=("$dmg" dist/appcast.xml)
-for delta in dist/*.delta; do [[ -f "$delta" ]] && assets+=("$delta"); done
-gh release create "$tag" "${assets[@]}" --title "Tessera $version" --notes-file "$notes_file"
+gh release create "$tag" "$dmg" dist/appcast.xml --title "Tessera $version" --notes-file "$notes_file"
+# Deltas go up one by one: gh's parallel upload has tripped "name already exists" on them.
+for delta in dist/*.delta; do [[ -f "$delta" ]] && gh release upload "$tag" "$delta" --clobber; done
 echo "published https://github.com/rutmehta/tessera/releases/tag/$tag"
