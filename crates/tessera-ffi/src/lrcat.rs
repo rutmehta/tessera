@@ -1317,7 +1317,7 @@ impl LrcatImport {
             .iter()
             .filter(|r| r.outcome == Outcome::Missing)
             .count();
-        let library_path = library_folder.join("library.json");
+        let library_path = Library::resolve_in(&library_folder);
         Ok(LrcatPlanPreview {
             online_originals: resolved
                 .iter()
@@ -1436,7 +1436,7 @@ impl LrcatImport {
             ));
         }
         Sidecar::ensure_destination(&library_folder, "library folder")?;
-        let library_path = library_folder.join("library.json");
+        let library_path = Library::resolve_in(&library_folder);
         let bundle = bundle_dir(&library_folder, &self.catalog);
         let plan_file = bundle.join("import-plan.json");
         // Check nested destinations too: an existing bundle or child may be a

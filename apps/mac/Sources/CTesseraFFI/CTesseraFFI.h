@@ -669,6 +669,11 @@ uint64_t uniffi_tessera_ffi_fn_method_engine_open_document_from_image(uint64_t p
 uint64_t uniffi_tessera_ffi_fn_method_engine_photomerge_document(uint64_t ptr, RustBuffer sources, RustBuffer align, RustBuffer blend, uint64_t cancel, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_FLUSH_DRIVE_STATE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_FLUSH_DRIVE_STATE
+uint32_t uniffi_tessera_ffi_fn_method_engine_flush_drive_state(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_ENHANCE
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_ENHANCE
 uint64_t uniffi_tessera_ffi_fn_method_engine_enhance(uint64_t ptr, RustBuffer image_ids, RustBuffer options, uint64_t listener, RustCallStatus *_Nonnull out_status
@@ -3829,6 +3834,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_open_document_from_image(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_PHOTOMERGE_DOCUMENT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_PHOTOMERGE_DOCUMENT
 uint16_t uniffi_tessera_ffi_checksum_method_engine_photomerge_document(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_FLUSH_DRIVE_STATE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_FLUSH_DRIVE_STATE
+uint16_t uniffi_tessera_ffi_checksum_method_engine_flush_drive_state(void
     
 );
 #endif

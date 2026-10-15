@@ -121,6 +121,7 @@ impl Engine {
     /// Emits `LibraryChanged` when the catalog moved past the last notified
     /// sequence. Never call it while holding the catalog lock.
     pub(crate) fn notify_changes(&self) {
+        self.poke_drive();
         let sequence = {
             let conn = self.heads.lock().unwrap_or_else(|e| e.into_inner());
             head(&conn)
@@ -132,6 +133,8 @@ impl Engine {
 
     fn notify_sequence(&self, sequence: u64) {
         if self.notified.fetch_max(sequence, Ordering::AcqRel) < sequence {
+            // Writes by other connections (sessions, ML jobs) reach the drive too.
+            self.poke_drive();
             self.emit(EngineEvent::LibraryChanged { sequence });
         }
     }

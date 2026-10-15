@@ -24,6 +24,7 @@ const KEYED: &[&str] = &[
     "accepted_keyword",
     "understanding",
     "fts",
+    "drive_stamp",
     "photo_stack_member",
 ];
 

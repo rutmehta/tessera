@@ -8647,6 +8647,13 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func photomergeDocument(sources: [String], align: StackAlignOptions, blend: StackBlendOptions, cancel: CancelFlag) throws  -> DocumentSession
     
     /**
+     * Writes pending drive-resident state now (people, analysis). Hosts call
+     * it when a folder closes or the app quits; the writer otherwise runs a
+     * second after the last change. Returns the number of files written.
+     */
+    func flushDriveState() throws  -> UInt32
+    
+    /**
      * Each selected photo produces its own float LinearRaw DNG, stacked with
      * that source. SR doubles each dimension. Zero NR is a bit-exact bypass.
      */
@@ -9347,6 +9354,20 @@ open func photomergeDocument(sources: [String], align: StackAlignOptions, blend:
         FfiConverterTypeStackAlignOptions_lower(align),
         FfiConverterTypeStackBlendOptions_lower(blend),
         FfiConverterTypeCancelFlag_lower(cancel),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Writes pending drive-resident state now (people, analysis). Hosts call
+     * it when a folder closes or the app quits; the writer otherwise runs a
+     * second after the last change. Returns the number of files written.
+     */
+open func flushDriveState()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_flush_drive_state(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -37868,6 +37889,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_photomerge_document() != 30948) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_flush_drive_state() != 52889) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_enhance() != 12673) {

@@ -7,6 +7,7 @@ mod changes;
 mod collections;
 mod develop;
 mod document;
+mod drive;
 mod enhance;
 mod export;
 #[allow(
@@ -254,6 +255,8 @@ pub struct Engine {
     heads: Mutex<Connection>,
     /// The change watcher thread was started (see `changes`).
     watching: AtomicBool,
+    /// Debounced `.tessera/` writer (CS-1, see `drive`).
+    drive: drive::DriveWriter,
     /// This engine, for background work that must not keep it alive.
     this: std::sync::Weak<Engine>,
     /// Test-only observation of writer creation, used to prove read-only Engine APIs
@@ -358,7 +361,7 @@ impl Engine {
     /// Re-keys album membership in a folder's library document after image
     /// ids changed (CS-1 migration); a folder without a document is skipped.
     fn rekey_library(folder: &Path, pairs: &[(ImageId, ImageId)]) -> Result<()> {
-        let path = folder.join("library.json");
+        let path = library::Library::resolve_in(folder);
         if pairs.is_empty() || !path.exists() {
             return Ok(());
         }
@@ -400,6 +403,7 @@ impl Engine {
         if let Some(volumes) = volumes {
             index.set_volume_resolver(volumes);
         }
+        index.set_machine(&drive::machine_id(Path::new(&app_support_dir))?)?;
         Self::migrate_image_ids(&index)?;
         let reader = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         // Restore source-to-store routing before any reopened catalog reads.
@@ -425,7 +429,7 @@ impl Engine {
             previews::PreviewStore::new(Path::new(&app_support_dir).join("previews"), 512 << 20)
                 .map_err(failure)?
                 .with_retouch_renderer(Arc::new(brush::render_retouch));
-        Ok(Arc::new_cyclic(|this| Self {
+        let engine = Arc::new_cyclic(|this| Self {
             db,
             catalog: Mutex::new(Catalog { index, reader }),
             previews,
@@ -443,10 +447,13 @@ impl Engine {
             notified,
             heads,
             watching: AtomicBool::new(false),
+            drive: Default::default(),
             this: this.clone(),
             #[cfg(test)]
             develop_writer_constructions: std::sync::atomic::AtomicUsize::new(0),
-        }))
+        });
+        engine.start_drive_writer();
+        Ok(engine)
     }
 }
 
@@ -475,13 +482,33 @@ impl Engine {
         });
         let (updated, rekeyed) = {
             let mut c = self.lock()?;
+            // What the drive carries (people, scores, albums) is there before
+            // the scan; the scan fills the gaps (CS-1).
+            let volume = c.index.volumes().volume_of(&path)?;
+            let imported = c.index.import_drive_state(&path, volume.as_ref())?;
+            if imported != index::ImportCounts::default() {
+                eprintln!(
+                    "drive state: {} analysis records, {} people, {} assignments from {}",
+                    imported.analysis,
+                    imported.persons,
+                    imported.assignments,
+                    path.display()
+                );
+            }
             let updated = c
                 .index
                 .scan(&path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
+            // A root the drive has not seen yet gets its existing analysis and
+            // people written out (a catalog older than CS-1).
+            let tessera = index::TesseraDir::of_root(&path);
+            if !tessera.analysis_dir().exists() {
+                c.index.mark_root_dirty(&path)?;
+            }
             (updated, c.index.take_rekeyed())
         };
         // Legacy ids found on a drive were re-keyed in place: follow in the albums.
         Self::rekey_library(&path, &rekeyed)?;
+        library::Library::resolve_in(&path);
         self.emit(EngineEvent::ScanProgress {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,
@@ -813,7 +840,9 @@ mod tests {
         assert_eq!(rows[0].id, new);
         assert_eq!(rows[0].selection.grade, Some(1));
         assert_eq!(engine.lock().unwrap().index.id_scheme().unwrap(), "volume");
-        let library = library::Library::read(photos.join("library.json")).unwrap();
+        // The document moved into `.tessera/` on open (CS-1) and was re-keyed there.
+        assert!(!photos.join("library.json").exists());
+        let library = library::Library::read(library::Library::path_in(&photos)).unwrap();
         assert_eq!(library.albums["Picks"].images, vec![parse_id(&new).unwrap()]);
         // The sidecar still carries the legacy id and reads as this image.
         let recipe = engine.get_recipe(new.clone()).unwrap();

@@ -822,7 +822,9 @@ final class AppModel {
     private func retireCull(_ lib: EngineLibrary) {
         lib.onCatalogChange(nil)
         let session = lib.session
-        cullShutdowns.enqueue { try session.shutdown() }
+        let engine = lib.engine
+        // The drive carries what this session changed (CS-1): write it before letting go.
+        cullShutdowns.enqueue { try session.shutdown(); _ = try engine.flushDriveState() }
     }
 
     /// App termination waits here, at most `timeout`, without blocking the main actor's

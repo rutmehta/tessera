@@ -153,10 +153,38 @@ impl Learner {
         let Some(bytes) = crate::persistence::optional_bytes(&path)? else {
             return Ok(Self::default());
         };
-        let stored: Stored = serde_json::from_slice(&bytes)?;
+        Self::decode(&bytes, Some(library))
+    }
+    /// `<folder>/.tessera/learning.json` (CS-1): the learner travels with the
+    /// shoot. Without a drive file the app-support file keyed by `library` is
+    /// read once; the next `save_drive` moves the state to the drive.
+    pub fn open_drive(folder: &Path, app_support: &Path, library: &str) -> EngineResult<Self> {
+        match crate::persistence::optional_bytes(&Self::drive_path(folder))? {
+            Some(bytes) => Self::decode(&bytes, None),
+            None => Self::open(app_support, library),
+        }
+    }
+    pub fn drive_path(folder: &Path) -> PathBuf {
+        folder.join(index::TESSERA_DIR).join("learning.json")
+    }
+    /// Atomically save weights AND the frozen PCA basis to the drive.
+    pub fn save_drive(&self, folder: &Path, library: &str) -> EngineResult<()> {
+        crate::persistence::atomic_write(
+            &Self::drive_path(folder),
+            &serde_json::to_vec(&Stored {
+                version: 1,
+                library: library.into(),
+                learner: self.clone(),
+            })?,
+        )
+    }
+    /// `expect_library`: the app-support file must name this library; a drive
+    /// file belongs to whatever folder it sits in.
+    fn decode(bytes: &[u8], expect_library: Option<&str>) -> EngineResult<Self> {
+        let stored: Stored = serde_json::from_slice(bytes)?;
         let model = stored.learner;
         if stored.version != 1
-            || stored.library != library
+            || expect_library.is_some_and(|library| stored.library != library)
             || model.weights.len() != DIMENSIONS
             || model
                 .weights

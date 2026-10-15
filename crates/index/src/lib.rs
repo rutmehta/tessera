@@ -1,6 +1,7 @@
 //! SQLite photo catalog and search index.
 mod api;
 mod changes;
+mod drive;
 mod people;
 mod predicate;
 pub use people::{FaceAssignment, FaceKey, Person};
@@ -17,6 +18,10 @@ pub use volume::{
     relative_path,
 };
 pub use changes::{ChangeBatch, ChangeFields, ChangeKind, ImageChange};
+pub use drive::{
+    AnalysisRecord, FaceAssignmentRecord, FaceDetectionRecord, ImportCounts, PeopleDocument,
+    PersonRecord, ScoreRecord, TESSERA_DIR, TesseraDir, atomic_write, now_ms, write_if_changed,
+};
 pub use predicate::{Comparison, Predicate};
 pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
@@ -138,11 +143,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 10 {
+        if version > 11 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 10,
+                supported: 11,
             }
             .into());
         }
@@ -211,6 +216,22 @@ impl Core {
                 )?;
             }
             conn.execute_batch(include_str!("../migrations/010_volumes.sql"))?;
+        }
+        if missing(11)? {
+            for table in ["person", "face_person"] {
+                let has_stamp: i64 = conn.query_row(
+                    &format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name='modified'"),
+                    [],
+                    |r| r.get(0),
+                )?;
+                if has_stamp == 0 {
+                    conn.execute_batch(&format!(
+                        "ALTER TABLE {table} ADD COLUMN modified INTEGER NOT NULL DEFAULT 0;
+                         ALTER TABLE {table} ADD COLUMN machine TEXT NOT NULL DEFAULT '';"
+                    ))?;
+                }
+            }
+            conn.execute_batch(include_str!("../migrations/011_drive_state.sql"))?;
         }
         Ok(Self {
             conn,
@@ -1021,7 +1042,7 @@ mod tests {
                 .query_row("SELECT max(version) FROM migration", [], |r| r
                     .get::<_, u32>(0))
                 .unwrap(),
-            10
+            11
         );
     }
     #[test]
@@ -1064,7 +1085,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 10);
+        assert_eq!(tables, 11);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])

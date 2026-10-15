@@ -82,7 +82,44 @@ pub struct Keyword {
     pub synonyms: Vec<String>,
     pub children: Vec<Keyword>,
 }
+/// Drive-resident state lives in this hidden folder at the root of an opened
+/// folder (CS-1, docs/05 §2.3).
+pub const TESSERA_DIR: &str = ".tessera";
+
 impl Library {
+    /// `<folder>/.tessera/library.json`: where the document lives since CS-1.
+    pub fn path_in(folder: impl AsRef<Path>) -> PathBuf {
+        folder.as_ref().join(TESSERA_DIR).join("library.json")
+    }
+    /// `<folder>/library.json`: where the document lived before CS-1.
+    pub fn legacy_path_in(folder: impl AsRef<Path>) -> PathBuf {
+        folder.as_ref().join("library.json")
+    }
+    /// The document path for `folder`, moving a legacy `library.json` into
+    /// `.tessera/` once: the copy is read back before the old file goes. When
+    /// the move cannot happen (read-only volume) the legacy file is used.
+    pub fn resolve_in(folder: impl AsRef<Path>) -> PathBuf {
+        let folder = folder.as_ref();
+        let current = Self::path_in(folder);
+        let legacy = Self::legacy_path_in(folder);
+        if current.exists() || !legacy.exists() {
+            return current;
+        }
+        match Self::migrate(&legacy, &current) {
+            Ok(()) => current,
+            Err(_) => legacy,
+        }
+    }
+    fn migrate(legacy: &Path, current: &Path) -> EngineResult<()> {
+        let document = Self::read(legacy)?;
+        document.write(current)?;
+        if Self::read(current)? != document {
+            return Err(EngineError::invalid("library", "migrated copy differs"));
+        }
+        std::fs::remove_file(legacy).map_err(|e| EngineError::io_at(legacy, &e))?;
+        Ok(())
+    }
+
     /// Rebuild the sorted, unique display-name list from the authoritative index.
     /// Unnamed/blank clusters are omitted; duplicate names do not merge identities.
     pub fn sync_people_names(&mut self, index: &index::Index) -> EngineResult<()> {
@@ -121,6 +158,11 @@ impl Library {
             .parent()
             .filter(|p| !p.as_os_str().is_empty())
             .unwrap_or(Path::new("."));
+        // Our own `.tessera/` is created on demand; any other missing parent
+        // is the caller's mistake and fails as before.
+        if parent.file_name().is_some_and(|n| n == TESSERA_DIR) {
+            std::fs::create_dir_all(parent).map_err(|e| EngineError::io_at(parent, &e))?;
+        }
         let mut temp = tempfile::NamedTempFile::new_in(parent)?;
         temp.write_all(&serde_json::to_vec_pretty(self)?)?;
         temp.as_file().sync_all()?;

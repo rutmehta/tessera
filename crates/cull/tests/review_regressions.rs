@@ -21,6 +21,8 @@ fn basket_history_preserves_existing_album_and_unrelated_external_fields() {
     )
     .unwrap();
     let mut session = CullSession::open(&index, dir.path()).unwrap();
+    // Opening moved the document into `.tessera/` (CS-1); edits happen there.
+    let path = Library::path_in(dir.path());
     session.set_basket_target("Target").unwrap();
     session.toggle_basket().unwrap();
     let mut library = Library::read(&path).unwrap();
@@ -45,7 +47,7 @@ fn basket_history_preserves_existing_album_and_unrelated_external_fields() {
 #[test]
 fn basket_history_rejects_external_album_edits_without_writes() {
     let (dir, index) = fixture();
-    let path = dir.path().join("library.json");
+    let path = Library::path_in(dir.path());
     let mut session = CullSession::open(&index, dir.path()).unwrap();
     session.set_basket_target("Target").unwrap();
     session.toggle_basket().unwrap();

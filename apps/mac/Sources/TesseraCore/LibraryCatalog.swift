@@ -268,11 +268,24 @@ public final class LibraryCatalog: @unchecked Sendable {
 
     public convenience init(library: EngineLibrary) throws { try self.init(input: Input(library)) }
 
+    /// `<folder>/.tessera/library.json` (CS-1).
+    public static func libraryDocument(in folder: URL) -> URL {
+        folder.appendingPathComponent(".tessera", isDirectory: true).appendingPathComponent("library.json")
+    }
+    /// The opened folder a library document belongs to (its `.tessera/` parent, or for a
+    /// legacy document that could not move, the folder itself).
+    public static func folder(ofLibraryDocument document: URL) -> URL {
+        let parent = document.deletingLastPathComponent()
+        return parent.lastPathComponent == ".tessera" ? parent.deletingLastPathComponent() : parent
+    }
+
     public init(input: Input) throws {
+        // library.json lives in `.tessera/` at the root of the opened folder (CS-1); the
+        // session moved a legacy copy there when it opened.
         let path = try input.library.session.libraryPath()
-            ?? URL(fileURLWithPath: input.library.folder?.path ?? "/").appendingPathComponent("library.json").path
+            ?? Self.libraryDocument(in: URL(fileURLWithPath: input.library.folder?.path ?? "/")).path
         store = try input.library.engine.openLibrary(path: path)
-        folder = URL(fileURLWithPath: path).deletingLastPathComponent().path
+        folder = Self.folder(ofLibraryDocument: URL(fileURLWithPath: path)).path
         itemOfImage = input.itemOfImage
         imageIDs = input.imageIDs
     }

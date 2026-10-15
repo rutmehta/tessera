@@ -266,7 +266,7 @@ impl<I: Deref<Target = Index>> CullSession<I> {
             rebuild: None,
             pair_checks: 0,
             library: if declared.is_none() {
-                folder.as_ref().map(|p| p.join("library.json"))
+                folder.as_ref().map(Library::resolve_in)
             } else {
                 None
             },
@@ -500,7 +500,7 @@ fn admit(
 ) -> EngineResult<Vec<ImageId>> {
     // Folder matching uses Path components rather than SQLite glob metacharacters.
     let imported = folder
-        .and_then(|p| Library::read(p.join("library.json")).ok())
+        .and_then(|p| Library::read(Library::resolve_in(p)).ok())
         .and_then(|library| library.unknown.get("lightroom_proxy_members").cloned());
     let mut images = Vec::new();
     for id in ids {

@@ -424,11 +424,20 @@ impl Engine {
         let canonical = Path::new(folder).canonicalize()?;
         Ok(crate::assist::library_key(Some(&canonical)))
     }
-    fn profile(&self, library: &str) -> Result<(Profile, bool)> {
+    /// The folder's profile: `.tessera/style-profile.json` on the drive, else
+    /// the app-support file (read once; saves go to the drive), else a default.
+    fn profile(&self, folder: &str, library: &str) -> Result<(Profile, bool)> {
+        let folder = Path::new(folder).canonicalize()?;
+        if let Some(profile) = Profile::open_in(&folder)? {
+            return Ok((profile, true));
+        }
         Ok(match Profile::open(self.support_dir()?, library)? {
             Some(p) => (p, true),
             None => (Profile::new(library, Questionnaire::default())?, false),
         })
+    }
+    fn save_profile(profile: &Profile, folder: &str) -> Result<()> {
+        Ok(profile.save_in(&Path::new(folder).canonicalize()?)?)
     }
     fn profile_status(library: &str, profile: &Profile, stored: bool) -> StyleProfileStatus {
         StyleProfileStatus {
@@ -488,7 +497,7 @@ impl Engine {
     /// The library's style profile (a default, untrained one when none is saved).
     pub fn style_profile_status(&self, library_folder: String) -> Result<StyleProfileStatus> {
         let library = Self::library_id(&library_folder)?;
-        let (profile, stored) = self.profile(&library)?;
+        let (profile, stored) = self.profile(&library_folder, &library)?;
         Ok(Self::profile_status(&library, &profile, stored))
     }
 
@@ -499,9 +508,9 @@ impl Engine {
         answers: StyleQuestionnaire,
     ) -> Result<StyleProfileStatus> {
         let library = Self::library_id(&library_folder)?;
-        let (mut profile, _) = self.profile(&library)?;
+        let (mut profile, _) = self.profile(&library_folder, &library)?;
         profile.set_questionnaire(answers.into())?;
-        profile.save(self.support_dir()?)?;
+        Self::save_profile(&profile, &library_folder)?;
         Ok(Self::profile_status(&library, &profile, true))
     }
 
@@ -515,7 +524,7 @@ impl Engine {
     ) -> Result<StyleProfileStatus> {
         let library = Self::library_id(&library_folder)?;
         let folder = Path::new(&library_folder).canonicalize()?;
-        let (mut profile, _) = self.profile(&library)?;
+        let (mut profile, _) = self.profile(&library_folder, &library)?;
         let candidates = {
             let c = self.lock()?;
             let mut rows = Vec::new();
@@ -570,7 +579,7 @@ impl Engine {
             }
         }
         profile.collect(rows)?;
-        profile.save(self.support_dir()?)?;
+        Self::save_profile(&profile, &library_folder)?;
         report(total, String::new());
         Ok(Self::profile_status(&library, &profile, true))
     }
@@ -600,7 +609,7 @@ impl Engine {
             .map(str::trim)
             .filter(|s| !s.is_empty());
         let library = Self::library_id(&request.library_folder)?;
-        let (profile, _) = self.profile(&library)?;
+        let (profile, _) = self.profile(&request.library_folder, &library)?;
         let config = Config {
             max_iterations: g.max_iterations as usize,
             time_budget: Duration::from_secs(u64::from(g.time_budget_seconds)),
@@ -854,7 +863,7 @@ impl Engine {
             Ok(())
         })?;
         let library = Self::library_id(&library_folder)?;
-        let (mut profile, _) = self.profile(&library)?;
+        let (mut profile, _) = self.profile(&library_folder, &library)?;
         let feedback = self
             .agent(
                 Profile::new(&library, Questionnaire::default())?,
@@ -864,7 +873,7 @@ impl Engine {
             .and_then(|packet| {
                 Ok(profile.record_feedback(id, &packet.features, &recipe.settings)?)
             })
-            .and_then(|()| Ok(profile.save(self.support_dir()?)?));
+            .and_then(|()| Self::save_profile(&profile, &library_folder));
         Ok(AgentAcceptResult {
             feedback_recorded: feedback.is_ok(),
             samples: profile.sample_count() as u32,
