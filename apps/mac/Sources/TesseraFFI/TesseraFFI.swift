@@ -8486,6 +8486,13 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func listImages(query: ImageQuery) throws  -> [ImageSummary]
     
     /**
+     * Every indexed root. A root whose volume is mounted elsewhere than last
+     * time is relocated in the catalog and reported at its current path; a
+     * root whose volume is absent is reported not attached, with its counts.
+     */
+    func roots() throws  -> [RootInfo]
+    
+    /**
      * Setting a listener also starts watching the catalog for writes made
      * elsewhere (reported as `LibraryChanged`).
      */
@@ -8638,6 +8645,13 @@ public protocol EngineProtocol: AnyObject, Sendable {
      * `photomerge_into_layers`.
      */
     func photomergeDocument(sources: [String], align: StackAlignOptions, blend: StackBlendOptions, cancel: CancelFlag) throws  -> DocumentSession
+    
+    /**
+     * Writes pending drive-resident state now (people, analysis). Hosts call
+     * it when a folder closes or the app quits; the writer otherwise runs a
+     * second after the last change. Returns the number of files written.
+     */
+    func flushDriveState() throws  -> UInt32
     
     /**
      * Each selected photo produces its own float LinearRaw DNG, stacked with
@@ -8951,6 +8965,20 @@ open func listImages(query: ImageQuery)throws  -> [ImageSummary]  {
     uniffi_tessera_ffi_fn_method_engine_list_images(
             self.uniffiCloneHandle(),
         FfiConverterTypeImageQuery_lower(query),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Every indexed root. A root whose volume is mounted elsewhere than last
+     * time is relocated in the catalog and reported at its current path; a
+     * root whose volume is absent is reported not attached, with its counts.
+     */
+open func roots()throws  -> [RootInfo]  {
+    return try  FfiConverterSequenceTypeRootInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_roots(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -9326,6 +9354,20 @@ open func photomergeDocument(sources: [String], align: StackAlignOptions, blend:
         FfiConverterTypeStackAlignOptions_lower(align),
         FfiConverterTypeStackBlendOptions_lower(blend),
         FfiConverterTypeCancelFlag_lower(cancel),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Writes pending drive-resident state now (people, analysis). Hosts call
+     * it when a folder closes or the app quits; the writer otherwise runs a
+     * second after the last change. Returns the number of files written.
+     */
+open func flushDriveState()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_flush_drive_state(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -25056,6 +25098,103 @@ public func FfiConverterTypeRetouchResult_lower(_ value: RetouchResult) -> RustB
 }
 
 
+/**
+ * An indexed root (CS-1). Roots on external volumes are remembered by volume
+ * UUID and relative path; `path` is where the root is now, or where it was
+ * last seen while its volume is not attached.
+ */
+public struct RootInfo: Equatable, Hashable {
+    public var path: String
+    /**
+     * The folder's own name.
+     */
+    public var name: String
+    /**
+     * None for boot-volume roots (plain paths).
+     */
+    public var volumeUuid: String?
+    public var relativePath: String
+    /**
+     * The drive's name as mounted (its last mount point's name).
+     */
+    public var volumeName: String?
+    public var attached: Bool
+    public var images: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(path: String, 
+        /**
+         * The folder's own name.
+         */name: String, 
+        /**
+         * None for boot-volume roots (plain paths).
+         */volumeUuid: String?, relativePath: String, 
+        /**
+         * The drive's name as mounted (its last mount point's name).
+         */volumeName: String?, attached: Bool, images: UInt64) {
+        self.path = path
+        self.name = name
+        self.volumeUuid = volumeUuid
+        self.relativePath = relativePath
+        self.volumeName = volumeName
+        self.attached = attached
+        self.images = images
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RootInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRootInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RootInfo {
+        return
+            try RootInfo(
+                path: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                volumeUuid: FfiConverterOptionString.read(from: &buf), 
+                relativePath: FfiConverterString.read(from: &buf), 
+                volumeName: FfiConverterOptionString.read(from: &buf), 
+                attached: FfiConverterBool.read(from: &buf), 
+                images: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RootInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterOptionString.write(value.volumeUuid, into: &buf)
+        FfiConverterString.write(value.relativePath, into: &buf)
+        FfiConverterOptionString.write(value.volumeName, into: &buf)
+        FfiConverterBool.write(value.attached, into: &buf)
+        FfiConverterUInt64.write(value.images, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRootInfo_lift(_ buf: RustBuffer) throws -> RootInfo {
+    return try FfiConverterTypeRootInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRootInfo_lower(_ value: RootInfo) -> RustBuffer {
+    return FfiConverterTypeRootInfo.lower(value)
+}
+
+
 public struct RuleCheck: Equatable, Hashable {
     /**
      * Text for the rule: normalized when it came from items, else the input.
@@ -36815,6 +36954,31 @@ fileprivate struct FfiConverterSequenceTypeRetouchModel: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeRootInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [RootInfo]
+
+    public static func write(_ value: [RootInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRootInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RootInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RootInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRootInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRuleItem: FfiConverterRustBuffer {
     typealias SwiftType = [RuleItem]
 
@@ -37646,6 +37810,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_list_images() != 16781) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_roots() != 28908) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engine_set_event_listener() != 57764) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -37722,6 +37889,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_photomerge_document() != 30948) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_flush_drive_state() != 52889) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_enhance() != 12673) {

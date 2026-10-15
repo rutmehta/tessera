@@ -534,6 +534,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_engine_index_folder(uint64_t ptr, RustBu
 RustBuffer uniffi_tessera_ffi_fn_method_engine_list_images(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_ROOTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_ROOTS
+RustBuffer uniffi_tessera_ffi_fn_method_engine_roots(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_SET_EVENT_LISTENER
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_SET_EVENT_LISTENER
 void uniffi_tessera_ffi_fn_method_engine_set_event_listener(uint64_t ptr, RustBuffer listener, RustCallStatus *_Nonnull out_status
@@ -662,6 +667,11 @@ uint64_t uniffi_tessera_ffi_fn_method_engine_open_document_from_image(uint64_t p
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_PHOTOMERGE_DOCUMENT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_PHOTOMERGE_DOCUMENT
 uint64_t uniffi_tessera_ffi_fn_method_engine_photomerge_document(uint64_t ptr, RustBuffer sources, RustBuffer align, RustBuffer blend, uint64_t cancel, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_FLUSH_DRIVE_STATE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_FLUSH_DRIVE_STATE
+uint32_t uniffi_tessera_ffi_fn_method_engine_flush_drive_state(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_ENHANCE
@@ -3665,6 +3675,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_list_images(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_ROOTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_ROOTS
+uint16_t uniffi_tessera_ffi_checksum_method_engine_roots(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SET_EVENT_LISTENER
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_SET_EVENT_LISTENER
 uint16_t uniffi_tessera_ffi_checksum_method_engine_set_event_listener(void
@@ -3818,6 +3834,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_open_document_from_image(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_PHOTOMERGE_DOCUMENT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_PHOTOMERGE_DOCUMENT
 uint16_t uniffi_tessera_ffi_checksum_method_engine_photomerge_document(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_FLUSH_DRIVE_STATE
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_FLUSH_DRIVE_STATE
+uint16_t uniffi_tessera_ffi_checksum_method_engine_flush_drive_state(void
     
 );
 #endif

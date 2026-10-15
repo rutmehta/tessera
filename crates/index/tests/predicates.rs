@@ -10,7 +10,7 @@ fn catalog() -> (tempfile::TempDir, Index) {
     let index = Index::open(&path).unwrap();
     let db = Connection::open(path).unwrap();
     db.execute_batch(
-        "INSERT INTO root VALUES(1,'/photos');
+        "INSERT INTO root(id,path) VALUES(1,'/photos');
         INSERT INTO folder VALUES(1,1,'/photos');
         INSERT INTO keyword VALUES(1,'People',NULL),(2,'Anna',1);
         INSERT INTO keyword_closure VALUES(1,1,0),(1,2,1),(2,2,0);",

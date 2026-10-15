@@ -24,6 +24,9 @@ struct SidebarSnapshot: Equatable {
     var hasItems: Bool
     var subfolders: [URL]
     var recents: [URL]
+    /// CS-1: roots whose drive is not attached (they open when it mounts).
+    var detachedRoots: [LibraryRoot]
+    var pendingRoot: LibraryRoot?
     var nodes: [CollectionNode]
     /// Current member counts by album handle (from the cull session, live with the basket).
     var albumCounts: [String: Int]
@@ -46,6 +49,8 @@ struct SidebarSnapshot: Equatable {
         hasItems = !model.library.items.isEmpty
         subfolders = model.library.subfolders
         recents = Array(model.recentFolders.filter { $0 != model.library.folder }.prefix(5))
+        detachedRoots = model.libraryRoots.filter { !$0.attached }
+        pendingRoot = model.pendingMountOpen
         nodes = model.collections.nodes
         albumCounts = Dictionary(model.albums.map { ($0.name, $0.members.count) }, uniquingKeysWith: { a, _ in a })
         basketTarget = model.basketTarget
@@ -69,6 +74,8 @@ final class SidebarRow: NSObject {
         case source(LibrarySource)
         case currentFolder(URL?)
         case folder(URL)
+        /// A root whose drive is not attached (CS-1).
+        case detachedRoot(LibraryRoot)
         case node(CollectionNode)
         /// Basket target album that library.json does not contain yet (created on the first B).
         case pendingBasket(String)
@@ -81,7 +88,7 @@ final class SidebarRow: NSObject {
     private let opaqueAccessibilityID: String
     var accessibilityKey: String {
         switch kind {
-        case .folder, .pendingBasket: opaqueAccessibilityID
+        case .folder, .detachedRoot, .pendingBasket: opaqueAccessibilityID
         default: key
         }
     }
@@ -100,7 +107,7 @@ final class SidebarRow: NSObject {
     @MainActor init(_ kind: Kind, key: String, title: String) {
         self.kind = kind; self.key = key; self.title = title
         switch kind {
-        case .folder, .pendingBasket:
+        case .folder, .detachedRoot, .pendingBasket:
             let identifier = Self.opaqueAccessibilityIDs[key] ?? UUID().uuidString
             Self.opaqueAccessibilityIDs[key] = identifier
             opaqueAccessibilityID = identifier
@@ -254,10 +261,21 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
             r.tooltip = sub.path
             folders.children.append(r)
         }
-        for url in s.recents {
+        let detachedPaths = Set(s.detachedRoots.map(\.path))
+        for url in s.recents where !detachedPaths.contains(url.path) {
             let r = SidebarRow(.folder(url), key: "recent:\(url.path)", title: url.lastPathComponent)
             r.detail = url.deletingLastPathComponent().lastPathComponent
             r.tooltip = url.path
+            folders.children.append(r)
+        }
+        // Roots on drives that are not attached keep their place and counts (CS-1); choosing
+        // one opens it the moment the drive mounts, wherever macOS mounts it.
+        for root in s.detachedRoots {
+            let r = SidebarRow(.detachedRoot(root), key: "root:\(root.id)", title: root.listTitle)
+            r.count = root.images
+            r.detail = root.volumeName
+            r.badge = s.pendingRoot?.id == root.id ? "…" : nil
+            r.tooltip = root.attachMessage
             folders.children.append(r)
         }
 
@@ -379,6 +397,7 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         switch row.kind {
         case .source(let s): model.setSource(s)
         case .folder(let url): model.openFolder(url)
+        case .detachedRoot(let root): model.openRoot(root)
         case .node(let n): model.setSource(model.collections.source(for: n))
         case .pendingBasket(let name): model.setSource(.album(name))
         case .header, .currentFolder: break
@@ -761,6 +780,7 @@ final class SidebarCell: NSTableCellView {
         let group = row.node?.kind == .group
         let secondary: Bool = switch row.kind {
         case .folder, .currentFolder: row.key.hasPrefix("recent:") || row.indent > 0
+        case .detachedRoot: true
         default: false
         }
         title.font = group || row.key == "folder:current" ? Theme.NSFonts.labelMedium : Theme.NSFonts.label

@@ -128,7 +128,14 @@ impl SidecarStore {
 }
 impl RecipeStore for SidecarStore {
     fn load(&mut self, image: ImageId) -> EngineResult<Recipe> {
-        let recipe = document(self.path(image)?)?.recipe;
+        let path = self.path(image)?;
+        let mut recipe = document(path)?.recipe;
+        // A sidecar stamped with the legacy path id is this image (CS-1).
+        if recipe.image_id.is_some()
+            && ImageId::sidecar_matches(recipe.image_id, image, &path.to_string_lossy())
+        {
+            recipe.image_id = Some(image);
+        }
         if recipe.image_id.is_some_and(|id| id != image) {
             return Err(EngineError::invalid(
                 "image",

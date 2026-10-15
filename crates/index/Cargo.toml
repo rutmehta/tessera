@@ -17,6 +17,10 @@ engine-api = { path = "../engine-api" }
 walkdir.workspace = true
 kamadak-exif.workspace = true
 blake3.workspace = true
+tempfile.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 test-fixtures = { path = "../test-fixtures" }

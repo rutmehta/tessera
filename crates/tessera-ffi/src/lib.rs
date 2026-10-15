@@ -7,6 +7,7 @@ mod changes;
 mod collections;
 mod develop;
 mod document;
+mod drive;
 mod enhance;
 mod export;
 #[allow(
@@ -175,6 +176,22 @@ pub struct FolderHandle {
     pub path: String,
     pub updated: u64,
 }
+/// An indexed root (CS-1). Roots on external volumes are remembered by volume
+/// UUID and relative path; `path` is where the root is now, or where it was
+/// last seen while its volume is not attached.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct RootInfo {
+    pub path: String,
+    /// The folder's own name.
+    pub name: String,
+    /// None for boot-volume roots (plain paths).
+    pub volume_uuid: Option<String>,
+    pub relative_path: String,
+    /// The drive's name as mounted (its last mount point's name).
+    pub volume_name: Option<String>,
+    pub attached: bool,
+    pub images: u64,
+}
 
 struct Catalog {
     index: index::Index,
@@ -238,6 +255,8 @@ pub struct Engine {
     heads: Mutex<Connection>,
     /// The change watcher thread was started (see `changes`).
     watching: AtomicBool,
+    /// Debounced `.tessera/` writer (CS-1, see `drive`).
+    drive: drive::DriveWriter,
     /// This engine, for background work that must not keep it alive.
     this: std::sync::Weak<Engine>,
     /// Test-only observation of writer creation, used to prove read-only Engine APIs
@@ -338,13 +357,57 @@ fn parse_id(id: &str) -> Result<ImageId> {
     u128::from_str_radix(id, 16).map(ImageId).map_err(failure)
 }
 
-#[uniffi::export]
 impl Engine {
-    #[uniffi::constructor]
-    pub fn open(app_support_dir: String) -> Result<Arc<Self>> {
+    /// Re-keys album membership in a folder's library document after image
+    /// ids changed (CS-1 migration); a folder without a document is skipped.
+    fn rekey_library(folder: &Path, pairs: &[(ImageId, ImageId)]) -> Result<()> {
+        let path = library::Library::resolve_in(folder);
+        if pairs.is_empty() || !path.exists() {
+            return Ok(());
+        }
+        let mut library = library::Library::read(&path)?;
+        if library.rekey_images(&pairs.iter().copied().collect()) {
+            library.write(&path)?;
+        }
+        Ok(())
+    }
+
+    /// One-time id migration (docs/05 §2.3): a catalog with path-derived ids
+    /// re-keys every file on an attached external volume in place, then the
+    /// roots' album documents. Files on absent volumes re-key on their next scan.
+    fn migrate_image_ids(index: &index::Index) -> Result<()> {
+        if index.id_scheme()? != "path" {
+            return Ok(());
+        }
+        let legacy = index.legacy_images()?;
+        let pairs: Vec<_> = legacy.iter().map(|l| (l.old, l.new)).collect();
+        index.rekey_images(&pairs)?;
+        for root in index.roots()? {
+            Self::rekey_library(&root.path, &pairs)?;
+        }
+        index.set_id_scheme("volume")?;
+        if !pairs.is_empty() {
+            eprintln!(
+                "catalog: migrated {} image ids to volume-relative ids",
+                pairs.len()
+            );
+        }
+        Ok(())
+    }
+
+    /// `open` with the volume resolver the index should use (tests).
+    pub(crate) fn open_with_volumes(
+        app_support_dir: String,
+        volumes: Option<Box<dyn index::VolumeResolver>>,
+    ) -> Result<Arc<Self>> {
         std::fs::create_dir_all(&app_support_dir)?;
         let db = Path::new(&app_support_dir).join("index.sqlite");
-        let index = index::Index::open(&db)?;
+        let mut index = index::Index::open(&db)?;
+        if let Some(volumes) = volumes {
+            index.set_volume_resolver(volumes);
+        }
+        index.set_machine(&drive::machine_id(Path::new(&app_support_dir))?)?;
+        Self::migrate_image_ids(&index)?;
         let reader = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         // Restore source-to-store routing before any reopened catalog reads.
         {
@@ -369,7 +432,7 @@ impl Engine {
             previews::PreviewStore::new(Path::new(&app_support_dir).join("previews"), 512 << 20)
                 .map_err(failure)?
                 .with_retouch_renderer(Arc::new(brush::render_retouch));
-        Ok(Arc::new_cyclic(|this| Self {
+        let engine = Arc::new_cyclic(|this| Self {
             db,
             catalog: Mutex::new(Catalog { index, reader }),
             previews,
@@ -387,10 +450,21 @@ impl Engine {
             notified,
             heads,
             watching: AtomicBool::new(false),
+            drive: Default::default(),
             this: this.clone(),
             #[cfg(test)]
             develop_writer_constructions: std::sync::atomic::AtomicUsize::new(0),
-        }))
+        });
+        engine.start_drive_writer();
+        Ok(engine)
+    }
+}
+
+#[uniffi::export]
+impl Engine {
+    #[uniffi::constructor]
+    pub fn open(app_support_dir: String) -> Result<Arc<Self>> {
+        Self::open_with_volumes(app_support_dir, None)
     }
     /// Setting a listener also starts watching the catalog for writes made
     /// elsewhere (reported as `LibraryChanged`).
@@ -409,10 +483,35 @@ impl Engine {
             updated: 0,
             finished: false,
         });
-        let updated =
-            self.lock()?
+        let (updated, rekeyed) = {
+            let mut c = self.lock()?;
+            // What the drive carries (people, scores, albums) is there before
+            // the scan; the scan fills the gaps (CS-1).
+            let volume = c.index.volumes().volume_of(&path)?;
+            let imported = c.index.import_drive_state(&path, volume.as_ref())?;
+            if imported != index::ImportCounts::default() {
+                eprintln!(
+                    "drive state: {} analysis records, {} people, {} assignments from {}",
+                    imported.analysis,
+                    imported.persons,
+                    imported.assignments,
+                    path.display()
+                );
+            }
+            let updated = c
                 .index
                 .scan(&path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
+            // A root the drive has not seen yet gets its existing analysis and
+            // people written out (a catalog older than CS-1).
+            let tessera = index::TesseraDir::of_root(&path);
+            if !tessera.analysis_dir().exists() {
+                c.index.mark_root_dirty(&path)?;
+            }
+            (updated, c.index.take_rekeyed())
+        };
+        // Legacy ids found on a drive were re-keyed in place: follow in the albums.
+        Self::rekey_library(&path, &rekeyed)?;
+        library::Library::resolve_in(&path);
         self.emit(EngineEvent::ScanProgress {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,
@@ -423,6 +522,42 @@ impl Engine {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,
         })
+    }
+    /// Every indexed root. A root whose volume is mounted elsewhere than last
+    /// time is relocated in the catalog and reported at its current path; a
+    /// root whose volume is absent is reported not attached, with its counts.
+    pub fn roots(&self) -> Result<Vec<RootInfo>> {
+        let c = self.lock()?;
+        let mut out = Vec::new();
+        for root in c.index.roots()? {
+            let located = c.index.locate_root(&root)?;
+            let path = located.clone().unwrap_or_else(|| root.path.clone());
+            let volume_name = root.location.volume_uuid.as_ref().map(|_| {
+                // `/Volumes/<name>/<relative>`: the component before the relative path.
+                let depth = Path::new(&root.location.relative_path).components().count();
+                let mut mount = path.clone();
+                for _ in 0..depth {
+                    mount.pop();
+                }
+                mount
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            });
+            out.push(RootInfo {
+                name: path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| path.to_string_lossy().into_owned()),
+                path: path.to_string_lossy().into_owned(),
+                volume_uuid: root.location.volume_uuid,
+                relative_path: root.location.relative_path,
+                volume_name,
+                attached: located.is_some_and(|p| p.is_dir()),
+                images: root.images,
+            });
+        }
+        Ok(out)
     }
     pub fn list_images(&self, query: ImageQuery) -> Result<Vec<ImageSummary>> {
         let c = self.lock()?;
@@ -649,6 +784,77 @@ mod tests {
         std::fs::rename(replacement, path).unwrap();
         assert!(engine.clone().embedded_preview(id, 384).is_err());
         assert_eq!(engine.previews.source_work_count(), 1);
+    }
+
+    /// CS-1: a catalog with path-derived ids re-keys a drive's files on the
+    /// next open; decisions, albums and legacy-stamped sidecars survive.
+    #[test]
+    fn legacy_ids_migrate_to_volume_ids_on_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let mount = dir.path().canonicalize().unwrap().join("Drive");
+        let photos = mount.join("shoot");
+        std::fs::create_dir_all(&photos).unwrap();
+        image::RgbImage::new(32, 16)
+            .save(photos.join("one.jpg"))
+            .unwrap();
+        let support = dir.path().join("support").to_string_lossy().into_owned();
+        let boot = || Some(Box::new(index::FixedVolumes(vec![])) as Box<dyn index::VolumeResolver>);
+        let drive = || {
+            Some(Box::new(index::FixedVolumes(vec![index::Volume {
+                uuid: "DRV-1".into(),
+                mount_point: mount.clone(),
+            }])) as Box<dyn index::VolumeResolver>)
+        };
+        let engine = Engine::open_with_volumes(support.clone(), boot()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let old = engine.list_images(ImageQuery::default()).unwrap()[0]
+            .id
+            .clone();
+        assert_eq!(
+            old,
+            ImageId::for_path(&photos.join("one.jpg").to_string_lossy()).to_string()
+        );
+        engine
+            .set_selection(
+                old.clone(),
+                Selection {
+                    decision: Decision::Keep,
+                    grade: Some(1),
+                    mark: None,
+                },
+            )
+            .unwrap();
+        let store = engine
+            .clone()
+            .open_library(photos.join("library.json").to_string_lossy().into())
+            .unwrap();
+        let album = store.create_album("Picks".into(), None).unwrap();
+        store.add_to_album(album, vec![old.clone()]).unwrap();
+        // What a pre-1.8 catalog records.
+        engine.lock().unwrap().index.set_id_scheme("path").unwrap();
+        drop(store);
+        drop(engine);
+
+        let engine = Engine::open_with_volumes(support, drive()).unwrap();
+        let new = ImageId::for_volume_path("DRV-1", "shoot/one.jpg").to_string();
+        let rows = engine.list_images(ImageQuery::default()).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, new);
+        assert_eq!(rows[0].selection.grade, Some(1));
+        assert_eq!(engine.lock().unwrap().index.id_scheme().unwrap(), "volume");
+        // The document moved into `.tessera/` on open (CS-1) and was re-keyed there.
+        assert!(!photos.join("library.json").exists());
+        let library = library::Library::read(library::Library::path_in(&photos)).unwrap();
+        assert_eq!(
+            library.albums["Picks"].images,
+            vec![parse_id(&new).unwrap()]
+        );
+        // The sidecar still carries the legacy id and reads as this image.
+        let recipe = engine.get_recipe(new.clone()).unwrap();
+        assert!(recipe.contains(&new));
+        assert!(engine.get_recipe(old).is_err());
     }
 
     #[test]

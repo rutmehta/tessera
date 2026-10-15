@@ -37,12 +37,15 @@ pub(crate) fn document(path: &Path, id: ImageId) -> EngineResult<RecipeDocument>
         if Sidecar::is_lightroom_owned(path) {
             document.recipe.image_id = Some(id);
         }
-        if document.recipe.image_id != Some(id) {
+        // A sidecar stamped before the volume-relative scheme (CS-1) is the
+        // same image; the next write re-stamps it.
+        if !ImageId::sidecar_matches(document.recipe.image_id, id, &path.to_string_lossy()) {
             return Err(engine_api::EngineError::invalid(
                 "image_id",
                 "sidecar belongs to another image",
             ));
         }
+        document.recipe.image_id = Some(id);
         return Ok(document);
     }
     let mut recipe = Recipe::default();

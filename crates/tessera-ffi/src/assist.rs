@@ -147,6 +147,8 @@ pub struct KeepPrediction {
 pub(crate) struct AssistState {
     support: PathBuf,
     library: String,
+    /// The opened folder: its learner lives in `.tessera/learning.json` (CS-1).
+    folder: Option<PathBuf>,
     mode: AssistMode,
     learner: Option<Learner>,
     plan: Option<ReviewPlan>,
@@ -158,10 +160,11 @@ pub(crate) struct AssistState {
 }
 
 impl AssistState {
-    pub(crate) fn new(support: PathBuf, library: String) -> Self {
+    pub(crate) fn new(support: PathBuf, library: String, folder: Option<PathBuf>) -> Self {
         Self {
             support,
             library,
+            folder,
             mode: AssistMode::Off,
             learner: None,
             plan: None,
@@ -179,13 +182,19 @@ impl AssistState {
     }
     fn learner(&mut self) -> Result<&mut Learner> {
         if self.learner.is_none() {
-            self.learner = Some(Learner::open(&self.support, &self.library)?);
+            self.learner = Some(match &self.folder {
+                Some(folder) => Learner::open_drive(folder, &self.support, &self.library)?,
+                None => Learner::open(&self.support, &self.library)?,
+            });
         }
         Ok(self.learner.as_mut().expect("learner loaded"))
     }
     fn save_learner(&self) -> Result<()> {
         if let Some(learner) = &self.learner {
-            learner.save(&self.support, &self.library)?;
+            match &self.folder {
+                Some(folder) => learner.save_drive(folder, &self.library)?,
+                None => learner.save(&self.support, &self.library)?,
+            }
         }
         Ok(())
     }

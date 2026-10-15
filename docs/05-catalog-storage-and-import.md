@@ -36,6 +36,28 @@ photos/2026/09/wedding-smith/
 - **Concurrency**: sidecar writes are atomic (write temp + rename) with a per-file last-writer-wins + vector clock in the JSON; the index is per-machine so shared volumes never contend on a database lock. Optional LAN/cloud sync replays sidecar changes (see [06-culling-and-selection.md](06-culling-and-selection.md) for sync of decisions).
 - **Why not DuckDB/Postgres/etc.**: SQLite is embedded, zero-ops, and fast enough for an index; the ergonomic problem with `.lrcat` was that it was the only copy of the data, not that it was SQLite.
 
+### 2.3 The catalog follows the drive (CS-1)
+
+A drive attached to another Mac must open with everything the photographer did on it ([design/cloud-sync/SPEC.md](design/cloud-sync/SPEC.md)). Two rules make the per-machine index a pure cache of what the drive carries:
+
+- **Roots are remembered by volume.** The `root` table stores the volume UUID and the path relative to the mount point (`crates/index` migration 010); the mount point is only a hint. Opening a root whose drive mounted elsewhere (`/Volumes/Rut photo-1`) rewrites its stored paths in place; a root whose drive is absent lists as "not attached" with its last counts and opens when the drive mounts. Boot-volume roots keep plain paths.
+- **Image ids are volume-relative.** `ImageId::for_volume_path(volume_uuid, relative_path)` on an external volume, `ImageId::for_path(canonical_path)` on the boot volume (engine-api 1.8, invariant 20). Albums, people and analysis therefore reference the same ids on every Mac the drive visits.
+
+**Migration of an existing index (one-time, on first open with engine-api < 1.8 ids).** The index records its id scheme in `catalog_meta.id_scheme` (`path` for a catalog that already held images when migration 010 ran, `volume` otherwise). On the first open the host re-keys every indexed file on an attached external volume from its path id to its volume id, in place and in one transaction, across every table keyed by image id (metadata, selection, keywords, recipe hash, scores, faces, people assignments, understanding, exports, stacks, FTS). Decisions, people and scores are therefore kept, nothing is recomputed, and the change feed resets so open sessions reload. Album membership in each root's `library.json` is re-keyed with the same mapping. Files on a volume that is not attached at migration time keep their path ids and are re-keyed by the next scan that finds them (a legacy id on a drive file is recognised as such); their sidecars carry the truth, so nothing is lost if that scan happens on another Mac instead. Sidecars stamped with a legacy id remain readable (`ImageId::sidecar_matches`) and are re-stamped on their next write. Previews, Smart Preview journals and agent runs are keyed by the old id and simply regenerate.
+
+**Drive-resident state in `.tessera/`.** At the root of every opened folder, written atomically (temp + rename), one record per file with `modified` (ms) and `machine` for last-writer-wins, never a lock:
+
+```
+.tessera/
+  library.json            albums, groups, smart albums, keyword tree (moved from the folder root; the old file is read once and migrated)
+  people.json             persons (id, name, medoid) and face assignments by image id
+  analysis/<image-id>.json  scores, face detections, captions / OCR / understanding, written as computed (debounced)
+  learning.json           culling learner for this shoot
+  style-profile.json      style profile learned from this shoot
+```
+
+Opening a folder loads `.tessera/` into the index before the scan, so albums, people and scores appear immediately; the scan fills the gaps. The writer coalesces changes for a second and never rewrites a record that did not change, so a culling session does not thrash the drive. `learning.json` and `style-profile.json` replace the app-support files keyed by a hash of the folder path; those are read once when the drive file does not exist yet.
+
 ### 2.1 Folder-first browsing ("no import")
 Opening any folder indexes it lazily: embedded JPEG previews render instantly (Photo Mechanic-style), full previews and AI scores fill in the background. "Add to library" just pins the folder as a root so it is indexed persistently and searchable.
 

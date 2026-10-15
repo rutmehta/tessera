@@ -80,7 +80,8 @@ fn batch_basket_and_album_removal_are_undoable_and_never_touch_files() {
     // Adding members that are already present records no history.
     session.set_basket(&ids[..1], true).unwrap();
     assert_eq!(session.undo_images(), ids);
-    let path = dir.path().canonicalize().unwrap().join("library.json");
+    // The session's default document lives in `.tessera/` (CS-1).
+    let path = Library::path_in(dir.path().canonicalize().unwrap());
     assert_eq!(
         Library::read(&path).unwrap().albums["Portfolio"].images,
         ids

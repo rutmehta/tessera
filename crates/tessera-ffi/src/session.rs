@@ -254,6 +254,7 @@ impl Engine {
         let assist = crate::assist::AssistState::new(
             self.support_dir()?.to_path_buf(),
             crate::assist::library_key(folder.as_deref()),
+            folder.clone(),
         );
         let index = index::Index::open(&self.db)?;
         let reader = Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -341,6 +342,7 @@ impl Engine {
                 assist: crate::assist::AssistState::new(
                     support,
                     crate::assist::library_key(Some(&folder)),
+                    None,
                 ),
                 bests: HashMap::new(),
             }),
@@ -963,6 +965,7 @@ mod offline_library_tests {
                 assist: crate::assist::AssistState::new(
                     support,
                     crate::assist::library_key(Some(&photos)),
+                    Some(photos.clone()),
                 ),
                 bests: HashMap::new(),
             }),

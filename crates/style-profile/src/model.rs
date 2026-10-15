@@ -196,6 +196,36 @@ impl Profile {
         *self = next;
         Ok(())
     }
+    /// `<folder>/.tessera/style-profile.json` (CS-1): the shoot's profile
+    /// travels with the drive.
+    pub fn drive_path(folder: &Path) -> PathBuf {
+        folder.join(index::TESSERA_DIR).join("style-profile.json")
+    }
+    pub fn save_in(&self, folder: &Path) -> EngineResult<()> {
+        self.validate()?;
+        index::atomic_write(
+            &Self::drive_path(folder),
+            &serde_json::to_vec(&Stored {
+                version: 1,
+                profile: self.clone(),
+            })?,
+        )
+    }
+    /// The drive's profile, whatever library key it was trained under.
+    pub fn open_in(folder: &Path) -> EngineResult<Option<Self>> {
+        let path = Self::drive_path(folder);
+        let bytes = match std::fs::read(&path) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(EngineError::io_at(&path, &e)),
+        };
+        let stored: Stored = serde_json::from_slice(&bytes)?;
+        if stored.version != 1 {
+            return Err(EngineError::invalid("profile", "incompatible version"));
+        }
+        stored.profile.validate()?;
+        Ok(Some(stored.profile))
+    }
     pub fn storage_path(root: &Path, library: &str) -> EngineResult<PathBuf> {
         Self::new(library, Questionnaire::default())?;
         let key: String = library.bytes().map(|b| format!("{b:02x}")).collect();

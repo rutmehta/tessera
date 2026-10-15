@@ -1,17 +1,30 @@
 //! SQLite photo catalog and search index.
 mod api;
 mod changes;
+mod drive;
 mod people;
 mod predicate;
 pub use people::{FaceAssignment, FaceKey, Person};
+mod rekey;
+mod roots;
 mod semantic;
 mod understanding;
+mod volume;
 pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
 pub use changes::{ChangeBatch, ChangeFields, ChangeKind, ImageChange};
+pub use drive::{
+    AnalysisRecord, FaceAssignmentRecord, FaceDetectionRecord, ImportCounts, PeopleDocument,
+    PersonRecord, ScoreRecord, TESSERA_DIR, TesseraDir, atomic_write, now_ms, write_if_changed,
+};
 pub use predicate::{Comparison, Predicate};
+pub use rekey::{LegacyImage, image_id_for};
+pub use roots::RootRecord;
 pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
 pub use understanding::{KeywordSuggestion, OcrRegion, Understanding};
+pub use volume::{
+    FixedVolumes, RootLocation, SystemVolumes, Volume, VolumeResolver, join_relative, relative_path,
+};
 
 use engine_api::{
     id::ImageId,
@@ -41,6 +54,10 @@ type Result<T> = std::result::Result<T, IndexError>;
 struct Core {
     conn: Connection,
     image_info_reads: std::cell::Cell<u64>,
+    /// Which volume a root lives on (CS-1); the system's by default.
+    volumes: Box<dyn VolumeResolver>,
+    /// Legacy ids the scanner re-keyed in place, until the host takes them.
+    rekeyed: Vec<(ImageId, ImageId)>,
 }
 
 impl Core {
@@ -125,11 +142,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 9 {
+        if version > 11 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 9,
+                supported: 11,
             }
             .into());
         }
@@ -184,9 +201,44 @@ impl Core {
                 "../migrations/009_people_medoid_invalidation.sql"
             ))?;
         }
+        if missing(10)? {
+            let has_volume_columns: i64 = conn.query_row(
+                "SELECT count(*) FROM pragma_table_info('root') WHERE name='volume_uuid'",
+                [],
+                |r| r.get(0),
+            )?;
+            if has_volume_columns == 0 {
+                conn.execute_batch(
+                    "ALTER TABLE root ADD COLUMN volume_uuid TEXT;
+                     ALTER TABLE root ADD COLUMN relative_path TEXT;
+                     ALTER TABLE root ADD COLUMN mount_hint TEXT;",
+                )?;
+            }
+            conn.execute_batch(include_str!("../migrations/010_volumes.sql"))?;
+        }
+        if missing(11)? {
+            for table in ["person", "face_person"] {
+                let has_stamp: i64 = conn.query_row(
+                    &format!(
+                        "SELECT count(*) FROM pragma_table_info('{table}') WHERE name='modified'"
+                    ),
+                    [],
+                    |r| r.get(0),
+                )?;
+                if has_stamp == 0 {
+                    conn.execute_batch(&format!(
+                        "ALTER TABLE {table} ADD COLUMN modified INTEGER NOT NULL DEFAULT 0;
+                         ALTER TABLE {table} ADD COLUMN machine TEXT NOT NULL DEFAULT '';"
+                    ))?;
+                }
+            }
+            conn.execute_batch(include_str!("../migrations/011_drive_state.sql"))?;
+        }
         Ok(Self {
             conn,
             image_info_reads: std::cell::Cell::new(0),
+            volumes: Box::new(SystemVolumes),
+            rekeyed: Vec::new(),
         })
     }
 
@@ -238,16 +290,15 @@ impl Core {
                 engine_api::error::EngineError::invalid("root", "expected a directory").into(),
             );
         }
-        let root_s = root.to_string_lossy().into_owned();
-        self.conn
-            .execute("INSERT OR IGNORE INTO root(path) VALUES(?)", [&root_s])?;
-        let root_id: i64 =
-            self.conn
-                .query_row("SELECT id FROM root WHERE path=?", [&root_s], |r| r.get(0))?;
+        let root_id = self.register_root(root)?;
+        // Every file under the root shares its volume (nested mounts aside).
+        let volume = self.volumes.volume_of(root)?;
         let mut changed = 0;
         for entry in WalkDir::new(only_file.unwrap_or(root))
             .follow_links(false)
             .into_iter()
+            // Drive-resident state (CS-1) is never an original.
+            .filter_entry(|e| e.depth() == 0 || e.file_name() != ".tessera")
         {
             let entry = entry?;
             // A catalog may explicitly reference a generic .raw original.
@@ -270,15 +321,28 @@ impl Core {
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map_or(0, |d| d.as_nanos() as i64);
             let stamp = sidecar_stamp(path, sidecars.additional_stamp_paths(path))?;
-            let old: Option<(i64, i64, String)> = self
+            let old: Option<(i64, i64, String, Option<String>)> = self
                 .conn
                 .query_row(
-                    "SELECT size,mtime,sidecar_stamp FROM file WHERE path=?",
+                    "SELECT f.size,f.mtime,f.sidecar_stamp,i.id FROM file f LEFT JOIN image i ON i.file_id=f.id WHERE f.path=?",
                     [&path_s],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
                 )
                 .optional()?;
-            if old == Some((size, mtime, stamp.clone())) {
+            // An indexed original keeps its id (a relocated drive derives the
+            // same one anyway); a legacy path id on a volume is re-keyed in
+            // place, even when the file itself is unchanged.
+            let derived = rekey::image_id_on(volume.as_ref(), path);
+            let mut existing = old.as_ref().and_then(|o| o.3.clone());
+            if let Some(stored) = existing.as_deref().map(parse_id).transpose()?
+                && stored != derived
+                && stored == ImageId::for_path(&path_s)
+            {
+                self.rekey_images(&[(stored, derived)])?;
+                self.rekeyed.push((stored, derived));
+                existing = Some(derived.to_string());
+            }
+            if old.is_some_and(|(s, m, st, _)| (s, m, st) == (size, mtime, stamp.clone())) {
                 continue;
             }
             let folder_s = path.parent().unwrap_or(root).to_string_lossy().into_owned();
@@ -296,7 +360,7 @@ impl Core {
                 .unwrap_or_default()
                 .to_string_lossy()
                 .into_owned();
-            let id = stable_id(&path_s);
+            let id = existing.unwrap_or_else(|| derived.to_string());
             let mut data = basic_metadata(path)?;
             let supplied = metadata.read(path)?;
             data.values.extend(supplied.values);
@@ -849,12 +913,10 @@ fn grade(v: u8) -> Grade {
         _ => Grade::Three,
     }
 }
+/// Path-derived id text (the boot-volume derivation; see `rekey::image_id_on`).
+#[cfg(test)]
 fn stable_id(path: &str) -> String {
-    let h = blake3::hash(path.as_bytes());
-    h.as_bytes()[..16]
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+    ImageId::for_path(path).to_string()
 }
 fn parse_id(s: &str) -> Result<ImageId> {
     u128::from_str_radix(s, 16)
@@ -981,7 +1043,7 @@ mod tests {
                 .query_row("SELECT max(version) FROM migration", [], |r| r
                     .get::<_, u32>(0))
                 .unwrap(),
-            9
+            11
         );
     }
     #[test]
@@ -1024,7 +1086,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 9);
+        assert_eq!(tables, 11);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])

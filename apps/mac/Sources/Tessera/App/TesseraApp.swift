@@ -145,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if let last = model.lastFolder {
             model.openFolder(last)
         }
+        if !args.contains("--nonactivating") { model.refreshLibraryRoots() }
         if let catalog = value(after: "--import-lrcat") {
             // Test aid: open File ▸ Import Lightroom Catalog… with this catalog already chosen.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

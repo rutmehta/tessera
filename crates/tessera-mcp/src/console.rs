@@ -81,7 +81,7 @@ impl Console {
     pub(crate) fn document(&self, id: ImageId) -> EngineResult<(PathBuf, RecipeDocument)> {
         let path = self.index.image_info(id)?.path;
         let mut doc = catalog::document(&path)?;
-        catalog::identify(&mut doc, id)?;
+        catalog::identify(&mut doc, id, &path)?;
         Ok((path, doc))
     }
     pub fn render_preview(&self, id: ImageId, max_px: u32) -> EngineResult<image::RgbImage> {
