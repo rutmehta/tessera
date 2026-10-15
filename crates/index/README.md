@@ -51,6 +51,39 @@ Run `cargo test -p index --test people`; opt-in synthetic 100k-image indexed
 search budget (<50 ms for all 100,000 matching images) is exercised with
 `cargo test -p index --release --test people -- --ignored --nocapture`.
 
+## Volumes and drive-resident state (schema v10–v11, CS-1)
+
+Roots are remembered by volume: `root.volume_uuid` + `root.relative_path`
+(relative to the mount point) with `mount_hint` as the last mount point.
+`VolumeResolver` (the macOS `SystemVolumes`, or `FixedVolumes` for tests, set
+with `Index::set_volume_resolver`) identifies a path's external volume (one
+mounted under `/Volumes`); boot-volume roots keep plain paths. `Index::roots()`
+lists `RootRecord`s with image counts; `locate_root` finds a root where its
+volume is mounted now and rewrites its stored paths in place; scanning a root
+by a new mount point does the same.
+
+Image ids follow engine-api invariant 20: `ImageId::for_volume_path(uuid,
+relative)` on an external volume, `ImageId::for_path(canonical)` on the boot
+volume. An indexed file keeps its id; a legacy path id found on a volume is
+re-keyed in place by the scan (`take_rekeyed` reports the pairs so hosts
+re-key their album documents). `legacy_images` / `rekey_images` do the same
+eagerly for a whole catalog (`catalog_meta.id_scheme`). Re-keys update every
+image-keyed table and log a removed/added pair in the change feed.
+
+`<root>/.tessera/` carries what the index knows beyond the sidecars
+(`drive.rs`): `analysis/<image-id>.json` (`AnalysisRecord`: scores, face
+detections, understanding; the file's root-relative path) and `people.json`
+(`PeopleDocument`: persons and face assignments by image id). Records carry
+`modified` (ms) and `machine` (`set_machine`); the newer record wins.
+Migration 011 stamps local writes through triggers (`drive_stamp` per image,
+`person`/`face_person` columns, a `people_rev` counter) unless
+`catalog_meta.importing` is set, which `import_drive_state` does while it
+loads a root's records before the scan (placeholder file rows the scan then
+refreshes). Hosts write with `export_analysis` / `export_people` plus
+`write_if_changed`, then `mark_drive_clean` / `mark_people_flushed`;
+`mark_root_dirty` backfills a root the drive has not seen. The scanner skips
+`.tessera/`.
+
 ## Scanning
 
 `Scanner::new(&sidecars, &metadata).scan(&mut index, root)` (or `Index::scan`)
