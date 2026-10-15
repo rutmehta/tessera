@@ -9,7 +9,7 @@ test -f "$FW/Sparkle"
 test -L "$FW/Versions/Current"
 test -d "$FW/Versions/B/XPCServices/Installer.xpc"
 test -d "$FW/Versions/B/XPCServices/Downloader.xpc"
-python3 - "$APP" <<'PY'
+/usr/bin/python3 - "$APP" <<'PY'
 import plistlib, subprocess, sys
 from pathlib import Path
 app = Path(sys.argv[1])
@@ -50,7 +50,7 @@ PY
 # A unique nonexistent account isolates this test from the developer's real key.
 TEST="$(mktemp -d "$PWD/build/appcast-negative.XXXXXX")"
 trap 'rm -rf "$TEST"' EXIT
-python3 - "$TEST" <<'PY'
+/usr/bin/python3 - "$TEST" <<'PY'
 from pathlib import Path
 import sys, zipfile
 with zipfile.ZipFile(Path(sys.argv[1]) / 'dummy.zip', 'w') as z:
@@ -59,7 +59,7 @@ PY
 if SPARKLE_PRIVATE_KEY= SPARKLE_KEY_ACCOUNT="tessera-test-missing-$(uuidgen)"    bash Support/release/make-appcast.sh "$TEST" > "$TEST/output.log" 2>&1; then
   echo 'FAIL: unsigned dummy unexpectedly accepted' >&2; exit 1
 fi
-python3 - "$TEST/output.log" <<'PY'
+/usr/bin/python3 - "$TEST/output.log" <<'PY'
 from pathlib import Path
 import sys
 message = Path(sys.argv[1]).read_text()

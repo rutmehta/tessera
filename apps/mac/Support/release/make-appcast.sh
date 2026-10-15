@@ -21,7 +21,7 @@ else
 fi
 [[ -s "$DIST/appcast.xml" ]] || { echo "error: Sparkle did not produce appcast.xml" >&2; exit 1; }
 # Fail closed even if upstream merely warns about unsigned/unusable archives.
-python3 - "$DIST/appcast.xml" <<'PY'
+/usr/bin/python3 - "$DIST/appcast.xml" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
 items = ET.parse(sys.argv[1]).findall('.//enclosure')
