@@ -144,6 +144,7 @@ final class AgentController {
 
     func savePreferences() {
         do { try store.save(preferences) } catch { app?.statusMessage = "AI settings not saved: \(error.localizedDescription)" }
+        app?.sync.preferencesDidChange()
     }
 
     /// Rehydrates only the manifest captured for this exact canonical library path.
@@ -269,8 +270,10 @@ final class AgentController {
 
     func saveQuestionnaire(_ q: StyleQuestionnaire) {
         guard let lib = app?.engineLibrary, !lib.isReadOnly, let folder = lib.folder else { return }
-        do { profile = try lib.engine.setStyleQuestionnaire(libraryFolder: folder.path, answers: q) }
-        catch { app?.statusMessage = "Style profile: \(error.localizedDescription)" }
+        do {
+            profile = try lib.engine.setStyleQuestionnaire(libraryFolder: folder.path, answers: q)
+            app?.sync.styleProfileDidChange()
+        } catch { app?.statusMessage = "Style profile: \(error.localizedDescription)" }
     }
 
     /// Settings ▸ AI ▸ Learn from My Edits (non-modal, progress in Settings).
@@ -287,6 +290,7 @@ final class AgentController {
                 case .success(let status):
                     self.profile = status
                     self.app?.statusMessage = "Style profile learned from \(status.samples) edited photo\(status.samples == 1 ? "" : "s")"
+                    self.app?.sync.styleProfileDidChange()
                 case .failure(let e):
                     self.app?.statusMessage = "Style profile: \(e.localizedDescription)"
                 }
@@ -632,6 +636,7 @@ final class AgentController {
                     app.statusMessage = "Accepted \(entry.name)" + (r.feedbackRecorded
                         ? " · style profile now has \(r.samples) sample\(r.samples == 1 ? "" : "s")"
                         : " · not learned: \(r.note ?? "")")
+                    if r.feedbackRecorded { app.sync.styleProfileDidChange() }
                     completion(true)
                 } else { completion(false) }
             case .failure(let e):

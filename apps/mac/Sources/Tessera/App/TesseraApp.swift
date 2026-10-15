@@ -125,6 +125,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         keyRouter = KeyRouter(model: model)
         keyRouter?.install()
         if !nonactivating { NSApp.activate() }
+        // CS-2: resolve the iCloud container (off main) and apply the account's records.
+        model.sync.start()
 
         let args = ProcessInfo.processInfo.arguments
         if args.contains("--develop-selftest"), args.contains("--bundle-selftest") {

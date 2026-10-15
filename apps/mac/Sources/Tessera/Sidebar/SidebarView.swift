@@ -24,6 +24,8 @@ struct SidebarSnapshot: Equatable {
     var hasItems: Bool
     var subfolders: [URL]
     var recents: [URL]
+    /// Drives the account knows that are not mounted here (CS-2; CS-1 opens them on mount).
+    var detachedDrives: [DriveRecord]
     var nodes: [CollectionNode]
     /// Current member counts by album handle (from the cull session, live with the basket).
     var albumCounts: [String: Int]
@@ -46,6 +48,7 @@ struct SidebarSnapshot: Equatable {
         hasItems = !model.library.items.isEmpty
         subfolders = model.library.subfolders
         recents = Array(model.recentFolders.filter { $0 != model.library.folder }.prefix(5))
+        detachedDrives = model.sync.detachedDrives
         nodes = model.collections.nodes
         albumCounts = Dictionary(model.albums.map { ($0.name, $0.members.count) }, uniquingKeysWith: { a, _ in a })
         basketTarget = model.basketTarget
@@ -69,6 +72,8 @@ final class SidebarRow: NSObject {
         case source(LibrarySource)
         case currentFolder(URL?)
         case folder(URL)
+        /// A drive from the account that is not attached (CS-2): shown, not yet openable.
+        case drive(DriveRecord)
         case node(CollectionNode)
         /// Basket target album that library.json does not contain yet (created on the first B).
         case pendingBasket(String)
@@ -260,6 +265,15 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
             r.tooltip = url.path
             folders.children.append(r)
         }
+        for drive in s.detachedDrives {
+            // "<name> · not attached" with its photo count; last seen on which Mac in the tooltip.
+            let r = SidebarRow(.drive(drive), key: "drive:\(drive.volumeUUID)", title: drive.name)
+            r.detail = "· not attached"
+            r.count = drive.photos > 0 ? drive.photos : nil
+            let seen = drive.lastSeen.formatted(date: .abbreviated, time: .shortened)
+            r.tooltip = "Last seen on \(drive.lastSeenMachineName ?? "another Mac") \(seen). Attach the drive to open it."
+            folders.children.append(r)
+        }
 
         let albums = SidebarRow(.header(.albums), key: "hdr:albums", title: "Albums")
         func build(_ node: CollectionNode) -> SidebarRow {
@@ -379,6 +393,7 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         switch row.kind {
         case .source(let s): model.setSource(s)
         case .folder(let url): model.openFolder(url)
+        case .drive(let drive): model.statusMessage = "Attach “\(drive.name)” to open it"
         case .node(let n): model.setSource(model.collections.source(for: n))
         case .pendingBasket(let name): model.setSource(.album(name))
         case .header, .currentFolder: break
@@ -761,6 +776,7 @@ final class SidebarCell: NSTableCellView {
         let group = row.node?.kind == .group
         let secondary: Bool = switch row.kind {
         case .folder, .currentFolder: row.key.hasPrefix("recent:") || row.indent > 0
+        case .drive: true
         default: false
         }
         title.font = group || row.key == "folder:current" ? Theme.NSFonts.labelMedium : Theme.NSFonts.label

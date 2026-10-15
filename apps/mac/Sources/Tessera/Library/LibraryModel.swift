@@ -525,7 +525,10 @@ final class LibraryModel {
         Task { [weak self] in
             let fresh = await Task.detached { try? catalog.keywords() }.value
             guard let self, self.catalog === catalog, self.keywordsGeneration.accepts(generation), let fresh else { return }
-            if fresh != self.keywords { self.keywords = fresh }
+            if fresh != self.keywords {
+                self.keywords = fresh
+                self.app?.sync.keywordsDidChange(fresh)
+            }
         }
     }
 

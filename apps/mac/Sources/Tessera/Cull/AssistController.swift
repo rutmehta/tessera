@@ -14,8 +14,9 @@ final class AssistController {
 
     /// Toolbar ▸ Assist.
     private(set) var enabled = false
-    /// Learner labels for this library (shown in the inspector).
-    private(set) var labels: UInt64 = 0
+    /// Learner labels for this library (shown in the inspector). A change means the learner was
+    /// taught: its shoot merges into the account record (CS-2).
+    private(set) var labels: UInt64 = 0 { didSet { if labels != oldValue { app?.sync.learningDidChange() } } }
     /// Sort the grid by keep confidence (likely keepers first, likely rejects last).
     var sortByConfidence = true { didSet { if sortByConfidence != oldValue { app?.refreshVisible() } } }
     /// Predictions by item id, and the review order (item ids).

@@ -461,16 +461,21 @@ final class AppearanceSettings {
     /// The swatch matching the current accent, if any.
     var accentPreset: AccentPreset? { AccentPreset.allCases.first { $0.hex == accent } }
 
+    /// After either setter (CS-2: the choice syncs with the account).
+    @ObservationIgnored @MainActor var onChange: (() -> Void)?
+
     @MainActor func setAccent(_ hex: UInt32) {
         accent = hex & 0xFFFFFF
         defaults.set(String(format: "%06X", accent), forKey: Self.accentKey)
         apply()
+        onChange?()
     }
 
     @MainActor func setGround(_ ground: Ground) {
         self.ground = ground
         defaults.set(ground.rawValue, forKey: Self.groundKey)
         apply()
+        onChange?()
     }
 
     /// Ink on the accent: the warm ink or the warm white, whichever contrasts more. Every swatch

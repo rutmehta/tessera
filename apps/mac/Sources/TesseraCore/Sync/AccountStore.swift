@@ -10,8 +10,8 @@ import Security
 public final class AccountStore: @unchecked Sendable {
     public static let containerIdentifier = "iCloud.dev.tessera.app"
     public static let folderName = "Tessera"
-    static let machineKey = "Sync.MachineID"
-    static let enabledKey = "Sync.Enabled"
+    public static let machineKey = "Sync.MachineID"
+    public static let enabledKey = "Sync.Enabled"
 
     /// Why there is no container, with the one-line fix Settings ▸ Sync shows.
     public enum UnavailableReason: Equatable, Sendable {
