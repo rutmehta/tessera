@@ -27,6 +27,37 @@ For a separate Keychain account use `generate_keys --account NAME`, and set
 exports, or imports a Sparkle private key. CI pipes the secret through stdin to
 `generate_appcast --ed-key-file -`, without temporary private-key files.
 
+## iCloud container (human-operated, once)
+
+The catalog follows the account (docs/design/cloud-sync/SPEC.md §3, CS-2) through the iCloud
+Drive container `iCloud.dev.tessera.app`. `Tessera.entitlements` (Developer ID signing only)
+carries `com.apple.developer.icloud-container-identifiers`, `icloud-services = CloudDocuments`
+and `ubiquity-container-identifiers`; macOS honours them only when the app embeds a Developer ID
+provisioning profile that grants them. Ad-hoc builds keep `Tessera-adhoc.entitlements` (no
+iCloud) and run with sync disabled; Settings ▸ Sync says "This build has no iCloud entitlement."
+
+In the [Apple Developer portal](https://developer.apple.com/account/resources), with the team
+that owns the Developer ID certificate:
+
+1. **Identifiers ▸ iCloud Containers ▸ +**: register `iCloud.dev.tessera.app`.
+2. **Identifiers ▸ App IDs**: open (or register, explicit bundle id) `dev.tessera.app`, enable
+   **iCloud** with *CloudKit* and *iCloud Documents*, Configure, tick `iCloud.dev.tessera.app`,
+   Save. (Editing capabilities invalidates existing profiles for this app id.)
+3. **Profiles ▸ +**: *Developer ID* ▸ *Developer ID Application*, app id `dev.tessera.app`, the
+   Developer ID Application certificate used for `CODESIGN_IDENTITY`, name it, Generate, download.
+4. Save the download as `apps/mac/Support/release/Tessera.provisionprofile`. It is gitignored:
+   keep it with the signing material, not in the repository. `make-app.sh release` with a
+   Developer ID identity copies it to `Contents/embedded.provisionprofile`; without the file it
+   warns, signs without the three iCloud keys (macOS will not launch an app whose restricted
+   entitlements no profile grants) and the build runs with sync disabled.
+5. Verify: `codesign -d --entitlements - build/Tessera.app` lists the three iCloud keys, and
+   `security cms -D -i build/Tessera.app/Contents/embedded.provisionprofile` shows the same
+   container under `Entitlements`. Launch, open Settings ▸ Sync: "Synced as this Mac's iCloud
+   account" with the switch enabled (on a Mac signed in to iCloud with iCloud Drive on).
+
+Notarization is unchanged. The profile expires yearly with the certificate; regenerate it in
+step 3 and rebuild.
+
 ## Local release
 
 From `apps/mac` (preserve an existing external `CARGO_TARGET_DIR`):

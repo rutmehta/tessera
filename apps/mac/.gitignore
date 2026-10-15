@@ -4,3 +4,5 @@ build-*.log
 build/
 .swiftpm/
 *.xcodeproj/xcuserdata/
+# CS-2: the Developer ID provisioning profile stays with the signing material.
+Support/release/Tessera.provisionprofile

@@ -182,6 +182,9 @@ final class AppModel {
     let faceThumbnails = FaceThumbnails()
     /// Auto Edit, Settings ▸ AI and the agent's review queue (WP M3-11).
     let agent: AgentController
+    /// Account-resident state in the iCloud container: preferences, keywords, style profile and
+    /// learner, people names, drives (CS-2). Started after launch; inert until then.
+    let sync: AccountSync
     var showAutoEdit = false
     // M2-50 begin: Photo ▸ Photo Merge / Enhance (Photo/AppModel+Photo.swift)
     let photoJobs = PhotoJobController()
@@ -587,12 +590,14 @@ final class AppModel {
 
     init(
         agent: AgentController = AgentController(),
+        sync: AccountSync = AccountSync(),
         developControllerOpener: @escaping DevelopControllerOpener = { ref, itemID in
             try await DevelopController.open(ref, itemID: itemID)
         },
         thumbnailLoader: ThumbnailLoader? = nil
     ) {
         self.agent = agent
+        self.sync = sync
         self.developControllerOpener = developControllerOpener
         self.loader = thumbnailLoader ?? ThumbnailLoader()
         recentFolders = (UserDefaults.standard.stringArray(forKey: Self.recentFoldersKey) ?? [])
@@ -603,7 +608,10 @@ final class AppModel {
         agent.app = self
         tether.app = self
         documents.app = self
+        sync.app = self
         people.onPeopleChange = { [weak self] in self?.peopleDidChange() }
+        people.onMerge = { [weak self] target, sources in self?.sync.peopleDidMerge(target: target, sources: sources) }
+        AppearanceSettings.shared.onChange = { [weak self] in self?.sync.preferencesDidChange() }
         lightroomImport.presentSheet = { [weak self] in
             // Re-assert the binding on the next turn so a dismissal still in flight cannot swallow it.
             self?.showLightroomImport = false
@@ -816,6 +824,7 @@ final class AppModel {
         recentFolders = Array(recents.prefix(8))
         defaults.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
         refreshLibraryRoots()
+        sync.driveDidChange(folder: folder, photos: library.items.count)
     }
 
     /// Retire a library immediately at the host boundary; join its native worker off-main.
@@ -922,6 +931,7 @@ final class AppModel {
             syncLibrary()
         }
         agent.libraryInstalled(lib)
+        sync.libraryInstalled()
     }
 
     /// `keeping`: an in-place update. Those items stay whatever the filters say now (filters
@@ -1033,6 +1043,7 @@ final class AppModel {
         assist.refreshFaces(force: true)
         reportPeople()
         if people.facetItems != nil { refreshVisible() }
+        sync.peopleDidChange()
     }
 
     private func reportPeople() {

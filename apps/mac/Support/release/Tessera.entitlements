@@ -1,3 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict/></plist>
+<plist version="1.0"><dict>
+    <!-- CS-2: the account-resident catalog lives in this iCloud Drive container. Developer ID
+         signing only: the ad-hoc entitlements stay without it, and such a build reports "no
+         iCloud entitlement" in Settings ▸ Sync. Needs the matching provisioning profile embedded
+         (Support/release/Tessera.provisionprofile; see README.md). -->
+    <key>com.apple.developer.icloud-container-identifiers</key>
+    <array><string>iCloud.dev.tessera.app</string></array>
+    <key>com.apple.developer.icloud-services</key>
+    <array><string>CloudDocuments</string></array>
+    <key>com.apple.developer.ubiquity-container-identifiers</key>
+    <array><string>iCloud.dev.tessera.app</string></array>
+</dict></plist>

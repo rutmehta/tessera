@@ -54,6 +54,23 @@ if [[ "$IDENTITY" == - ]]; then
   ENTITLEMENTS=Support/release/Tessera-adhoc.entitlements
 else
   SIGN+=(--timestamp)
+  # CS-2: the iCloud entitlements in Tessera.entitlements are only honoured with a Developer ID
+  # provisioning profile that carries them (README.md "iCloud container"). Embedded when present;
+  # without it they are stripped (macOS refuses to launch an app whose restricted entitlements
+  # no profile grants), so the app still runs, with sync disabled and the reason in Settings ▸ Sync.
+  PROFILE=Support/release/Tessera.provisionprofile
+  if [[ -f "$PROFILE" ]]; then
+    cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
+  else
+    echo "warning: $PROFILE not found; building without the iCloud entitlements (sync unavailable)." >&2
+    STRIPPED="$SCRATCH/Tessera-no-icloud.entitlements"
+    cp "$ENTITLEMENTS" "$STRIPPED"
+    for key in com.apple.developer.icloud-container-identifiers com.apple.developer.icloud-services \
+               com.apple.developer.ubiquity-container-identifiers; do
+      /usr/libexec/PlistBuddy -c "Delete :$key" "$STRIPPED" >/dev/null 2>&1 || true
+    done
+    ENTITLEMENTS="$STRIPPED"
+  fi
 fi
 FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
 for helper in "$FRAMEWORK/Versions/B/XPCServices/Downloader.xpc" \

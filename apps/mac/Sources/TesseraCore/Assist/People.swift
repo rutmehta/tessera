@@ -147,6 +147,8 @@ public final class PeopleModel {
     @ObservationIgnored private let defaults: UserDefaults
     /// Called after identities changed (names, merges, moves): the face strip and filters follow.
     @ObservationIgnored public var onPeopleChange: (() -> Void)?
+    /// Called after `sources` were merged into `target` (CS-2: the account record unions them).
+    @ObservationIgnored public var onMerge: ((_ target: String, _ sources: [String]) -> Void)?
 
     /// Named first, then by frame count, then faces, then id.
     public private(set) var tiles: [PersonTile] = []
@@ -377,10 +379,12 @@ public final class PeopleModel {
     /// A suggestion from the name menu: the unnamed cluster is the named person (merge, name wins).
     @discardableResult
     public func accept(_ suggestion: PeopleNameCandidate) -> Bool {
-        edit("Merge") { engine in
+        let ok = edit("Merge") { engine in
             try step("Merge people") { try engine.mergePeople(target: suggestion.namedID, source: suggestion.unnamedID) }
             return "Merged into \(suggestion.name)"
         }
+        if ok { onMerge?(suggestion.namedID, [suggestion.unnamedID]) }
+        return ok
     }
 
     /// The person that survives a merge: a named one first, then the most frames.
@@ -401,7 +405,10 @@ public final class PeopleModel {
             for source in sources { try step("Merge people") { try engine.mergePeople(target: target.id, source: source.id) } }
             return "Merged \(sources.count + 1) people into \(target.displayName)"
         }
-        if ok { selection = [target.id] }
+        if ok {
+            selection = [target.id]
+            onMerge?(target.id, sources.map(\.id))
+        }
         return ok
     }
 
