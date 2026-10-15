@@ -179,7 +179,7 @@ final class AppModel {
     let agent: AgentController
     /// Account-resident state in the iCloud container: preferences, keywords, style profile and
     /// learner, people names, drives (CS-2). Started after launch; inert until then.
-    let sync = AccountSync()
+    let sync: AccountSync
     var showAutoEdit = false
     // M2-50 begin: Photo ▸ Photo Merge / Enhance (Photo/AppModel+Photo.swift)
     let photoJobs = PhotoJobController()
@@ -585,12 +585,14 @@ final class AppModel {
 
     init(
         agent: AgentController = AgentController(),
+        sync: AccountSync = AccountSync(),
         developControllerOpener: @escaping DevelopControllerOpener = { ref, itemID in
             try await DevelopController.open(ref, itemID: itemID)
         },
         thumbnailLoader: ThumbnailLoader? = nil
     ) {
         self.agent = agent
+        self.sync = sync
         self.developControllerOpener = developControllerOpener
         self.loader = thumbnailLoader ?? ThumbnailLoader()
         recentFolders = (UserDefaults.standard.stringArray(forKey: Self.recentFoldersKey) ?? [])
