@@ -30,6 +30,7 @@ struct TesseraApp: App {
         }
         // Settings ▸ AI (WP M3-11): providers, Keychain-stored keys, guardrails, style profile.
         // Settings ▸ Appearance (UX-10): accent and ground.
+        // Settings ▸ Sync (CS-2): the iCloud account the catalog follows.
         Settings {
             TabView {
                 AISettingsView(agent: model.agent, model: model)
@@ -38,6 +39,8 @@ struct TesseraApp: App {
                     .tabItem { Label("Library", systemImage: "books.vertical") }
                 AppearanceSettingsView()
                     .tabItem { Label("Appearance", systemImage: "paintpalette") }
+                SyncSettingsView(sync: model.sync)
+                    .tabItem { Label("Sync", systemImage: "icloud") }
             }
         }
     }
