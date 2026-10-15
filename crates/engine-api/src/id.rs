@@ -87,11 +87,52 @@ impl<'de> Deserialize<'de> for Digest {
 
 /// Stable identity of an image (a master file or a virtual copy).
 ///
-/// 128 bits, generated once when the image is first indexed and stored in its
-/// sidecar so it survives moves, renames and index rebuilds. Serialized as 32
-/// lowercase hex characters.
+/// 128 bits, derived from where the file is (CONTRACTS.md invariant 20) and
+/// stored in its sidecar. On an external volume the id is a function of the
+/// volume UUID and the volume-relative path, so every Mac the drive visits
+/// derives the same id; on the boot volume it is a function of the canonical
+/// path. Serialized as 32 lowercase hex characters.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct ImageId(pub u128);
+
+impl ImageId {
+    fn from_hash(bytes: &[u8]) -> Self {
+        let hash = blake3::hash(bytes);
+        Self(u128::from_be_bytes(
+            hash.as_bytes()[..16].try_into().expect("16 bytes"),
+        ))
+    }
+
+    /// Identity of a file on the boot volume: the first 16 bytes of
+    /// `blake3(canonical_path)`. This is also the derivation every image had
+    /// before engine-api 1.8 (the "legacy" id of a file now on a volume).
+    pub fn for_path(canonical_path: &str) -> Self {
+        Self::from_hash(canonical_path.as_bytes())
+    }
+
+    /// Identity of a file on an external volume: the first 16 bytes of
+    /// `blake3(volume_uuid + "/" + relative_path)`. `volume_uuid` is the
+    /// volume's UUID as `diskutil` prints it (uppercase); `relative_path` is
+    /// relative to the mount point, forward slashes, no leading slash.
+    pub fn for_volume_path(volume_uuid: &str, relative_path: &str) -> Self {
+        let mut bytes = Vec::with_capacity(volume_uuid.len() + 1 + relative_path.len());
+        bytes.extend_from_slice(volume_uuid.as_bytes());
+        bytes.push(b'/');
+        bytes.extend_from_slice(relative_path.as_bytes());
+        Self::from_hash(&bytes)
+    }
+
+    /// Whether a sidecar stamped `stored` belongs to the image `current` at
+    /// `canonical_path`: an unstamped sidecar, the current id, or the legacy
+    /// path id of the same file (a sidecar written before 1.8 on a drive that
+    /// has since been given volume-relative ids). Writers re-stamp `current`.
+    pub fn sidecar_matches(stored: Option<Self>, current: Self, canonical_path: &str) -> bool {
+        match stored {
+            None => true,
+            Some(stored) => stored == current || stored == Self::for_path(canonical_path),
+        }
+    }
+}
 
 impl fmt::Display for ImageId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -336,6 +377,36 @@ mod tests {
         assert_eq!(json, "\"0123456789abcdef0011223344556677\"");
         assert_eq!(serde_json::from_str::<ImageId>(&json).unwrap(), id);
         assert!("xyz".parse::<ImageId>().is_err());
+    }
+
+    #[test]
+    fn image_ids_derive_from_volume_or_path() {
+        let boot = ImageId::for_path("/Users/rut/Pictures/a.jpg");
+        assert_eq!(boot, ImageId::for_path("/Users/rut/Pictures/a.jpg"));
+        assert_eq!(
+            boot.to_string(),
+            "b9db32e129e5c779780c70e45da6031a",
+            "the pre-1.8 path derivation is unchanged"
+        );
+        let drive = ImageId::for_volume_path("ABCD-1234", "2026/wedding/a.jpg");
+        assert_eq!(
+            drive,
+            ImageId::for_volume_path("ABCD-1234", "2026/wedding/a.jpg")
+        );
+        assert_ne!(drive, ImageId::for_volume_path("ABCD-1234", "2026/wedding/b.jpg"));
+        assert_ne!(drive, ImageId::for_volume_path("ABCD-9999", "2026/wedding/a.jpg"));
+        // The mount point is not part of the id; the separator is.
+        assert_eq!(
+            drive,
+            ImageId::for_path("ABCD-1234/2026/wedding/a.jpg"),
+            "uuid + '/' + relative path, hashed like a path"
+        );
+        let legacy = ImageId::for_path("/Volumes/Rut photo/2026/wedding/a.jpg");
+        assert!(ImageId::sidecar_matches(None, drive, "/Volumes/Rut photo/2026/wedding/a.jpg"));
+        assert!(ImageId::sidecar_matches(Some(drive), drive, "/Volumes/Rut photo/2026/wedding/a.jpg"));
+        assert!(ImageId::sidecar_matches(Some(legacy), drive, "/Volumes/Rut photo/2026/wedding/a.jpg"));
+        assert!(!ImageId::sidecar_matches(Some(legacy), drive, "/Volumes/Rut photo-1/2026/wedding/a.jpg"));
+        assert!(!ImageId::sidecar_matches(Some(boot), drive, "/Volumes/Rut photo/2026/wedding/a.jpg"));
     }
 
     #[test]

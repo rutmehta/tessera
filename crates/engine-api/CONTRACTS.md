@@ -1,4 +1,4 @@
-# engine-api contracts (v1.7.0)
+# engine-api contracts (v1.8.0)
 
 `engine-api` is the shared contract crate. It holds types, traits and the small amount of logic that makes them trustworthy (canonical hashing, history replay, colour-matrix algebra). Since 1.5 it reuses the serializable source models from the standalone `typography` and `vector` crates rather than maintaining divergent wire copies. Those crates do not depend on engine-api; compositor remains downstream. Any change to a public type or a serialized form bumps `CONTRACT_VERSION` in `src/lib.rs`, gets an Opus review, and is noted at the bottom of this file.
 
@@ -37,7 +37,7 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
 **`error`**: `EngineError` is the only error type allowed across a crate boundary. It is `Clone` and serializable as `{"code": "<snake_case>", …}`, so it can be cached with a failed job and returned verbatim to MCP clients. `EngineResult<T>` is the alias.
 
 **`id`**: These are opaque newtypes for identifiers:
-- `ImageId`: 128 bits, 32 hex characters, stored in the sidecar
+- `ImageId`: 128 bits, 32 hex characters, stored in the sidecar. Derived, not allocated (1.8): `ImageId::for_volume_path(volume_uuid, relative_path)` for a file on an external volume and `ImageId::for_path(canonical_path)` on the boot volume (see invariant 20)
 - `DocumentId` (`doc#N`): a session handle for an open layered document, also the cache namespace of a `NodeMemoKey`. Never written to a file; a forked lineage (clone, duplicate) gets a new one.
 - `LayerId` (`layer#N`): a layer within one document, never reused. `LayerId::ROOT` (0) is the document itself, and real layers start at 1. Nested smart-object documents have their own id space.
 - `SelectionId` (`selection#N`): a saved selection within one document
@@ -111,6 +111,11 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
 
 19. **Pinned RAW descriptor (v1):** `PinnedRawDescriptor` is a pure immutable declaration over an asset digest/positive length, recipe owner and exact schema-3 RAW recipe JSON, closed LibRaw CFA v1 route, lowercase extension hint, and optional opaque locator. It verifies explicit Raw/Native revision 2 headers, owner, current settings shape and default geometry. Current settings alone determine the verified `RecipeHash`; history remains opaque metadata and is never replayed or validated. The exact recipe bytes are retained and participate in the domain-separated requested-input identity with asset digest, declared length, recipe owner, route and canonical suffix; locator does not. This identity is neither physical-byte verification nor a pixel-cache key. Parsing performs no I/O, decoding, rendering, session or writer work, and does not admit pixels for publication.
 
+20. **Image identity follows the drive (1.8, CS-1):** an image's id is a function of where it is, so every Mac a drive visits derives the same id without a shared allocator:
+    - On an external volume (mounted under `/Volumes`): `ImageId::for_volume_path(volume_uuid, relative_path)` = the first 16 bytes of `blake3(volume_uuid + "/" + relative_path)`, where `volume_uuid` is the volume's UUID as `diskutil` prints it (uppercase RFC 4122 text) and `relative_path` is the file's path relative to the mount point with forward slashes and no leading slash. The mount point never feeds the id, so `/Volumes/Rut photo-1` is the same catalog as `/Volumes/Rut photo`.
+    - On the boot volume (and wherever a platform cannot identify volumes): `ImageId::for_path(canonical_path)` = the first 16 bytes of `blake3(canonical_path)`, the derivation every image had before 1.8. A folder copied to another Mac's boot volume is therefore a new set of ids; only drives are portable.
+    - A sidecar's `image_id` is accepted when it equals the current id or the legacy path id of the same file (`ImageId::sidecar_matches`); writers re-stamp the current id on the next write. Indexes built before 1.8 migrate once (docs/05 §2.3): ids are re-keyed in place where the file's volume is attached, so decisions, people and scores are kept; files on volumes that are absent at migration re-key on their next scan.
+
 ## Spec ambiguities resolved here
 
 - **"Recipe" names the whole document.** Spec 05 calls the `.edits` JSON (settings, history and snapshots) "the recipe". So `Recipe` is the document, `DevelopSettings` is the ordered stage parameters, and `recipe_hash()` covers source route, `process_version` and `settings`.
@@ -140,6 +145,10 @@ Layered documents (spec 02) have a second call enum with the same conventions, `
 - **Units follow the user-facing controls.** Exposure is in EV, sliders run −100..100, geometry is normalised 0..1, and hues are in degrees. The one exception is the Adobe defringe hue range, which uses 0–100 units in XMP and is converted by the importer.
 
 ## Change log
+
+- 1.8.0 (CS-1), additive; no recipe schema, golden hash or native process revision change:
+  - `ImageId::for_path`, `ImageId::for_volume_path` and `ImageId::sidecar_matches` state the derivation of image ids (invariant 20). Files on external volumes are now identified by volume UUID plus volume-relative path, so a drive opens with the same ids on every Mac; boot-volume ids are unchanged. Per-machine indexes with path-derived ids re-key once; sidecars stamped with a legacy id stay readable.
+  - `CONTRACT_VERSION` is bumped to 1.8.0.
 
 - 1.7.0, additive; no recipe schema or native process revision change:
   - Added the pure pinned RAW descriptor boundary. It preserves exact recipe JSON bytes, treats history as opaque, and provides a declared-input identity that does not verify asset bytes or render eligibility.
