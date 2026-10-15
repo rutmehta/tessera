@@ -49,8 +49,8 @@ pub(crate) fn document(path: &Path) -> EngineResult<RecipeDocument> {
     }
     Ok(RecipeDocument::default())
 }
-pub(crate) fn identify(doc: &mut RecipeDocument, id: ImageId) -> EngineResult<()> {
-    if doc.recipe.image_id.is_some_and(|stored| stored != id) {
+pub(crate) fn identify(doc: &mut RecipeDocument, id: ImageId, path: &Path) -> EngineResult<()> {
+    if !ImageId::sidecar_matches(doc.recipe.image_id, id, &path.to_string_lossy()) {
         return Err(EngineError::Conflict {
             message: "sidecar belongs to another image".into(),
         });

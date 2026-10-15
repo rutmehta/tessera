@@ -448,13 +448,11 @@ fn mapped_selection(
     s.normalized()
 }
 
-/// App identity for an original: the index keys images by canonical path.
+/// App identity for an original: the index keys images by canonical path on
+/// the boot volume and by volume UUID plus relative path on a drive (CS-1).
 pub(crate) fn app_image_id(path: &Path) -> Option<ImageId> {
     let canonical = path.canonicalize().ok()?;
-    let h = blake3::hash(canonical.to_string_lossy().as_bytes());
-    Some(ImageId(u128::from_be_bytes(
-        h.as_bytes()[..16].try_into().expect("16 bytes"),
-    )))
+    index::image_id_for(&index::SystemVolumes, &canonical).ok()
 }
 
 const IMAGE_EXTENSIONS: &[&str] = &[

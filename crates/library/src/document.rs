@@ -129,6 +129,20 @@ impl Library {
         std::fs::File::open(parent)?.sync_all()?;
         Ok(())
     }
+    /// Replaces image ids in every album (`old -> new`, CS-1 id migration).
+    /// Returns whether anything changed.
+    pub fn rekey_images(&mut self, map: &std::collections::HashMap<ImageId, ImageId>) -> bool {
+        let mut changed = false;
+        for album in self.albums.values_mut() {
+            for image in &mut album.images {
+                if let Some(new) = map.get(image) {
+                    *image = *new;
+                    changed = true;
+                }
+            }
+        }
+        changed
+    }
     /// Membership hook for derived status. Returns basket handles, not duplicated state.
     pub fn in_album(&self, image: ImageId) -> Vec<String> {
         self.albums

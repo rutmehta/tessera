@@ -354,13 +354,53 @@ fn parse_id(id: &str) -> Result<ImageId> {
     u128::from_str_radix(id, 16).map(ImageId).map_err(failure)
 }
 
-#[uniffi::export]
 impl Engine {
-    #[uniffi::constructor]
-    pub fn open(app_support_dir: String) -> Result<Arc<Self>> {
+    /// Re-keys album membership in a folder's library document after image
+    /// ids changed (CS-1 migration); a folder without a document is skipped.
+    fn rekey_library(folder: &Path, pairs: &[(ImageId, ImageId)]) -> Result<()> {
+        let path = folder.join("library.json");
+        if pairs.is_empty() || !path.exists() {
+            return Ok(());
+        }
+        let mut library = library::Library::read(&path)?;
+        if library.rekey_images(&pairs.iter().copied().collect()) {
+            library.write(&path)?;
+        }
+        Ok(())
+    }
+
+    /// One-time id migration (docs/05 §2.3): a catalog with path-derived ids
+    /// re-keys every file on an attached external volume in place, then the
+    /// roots' album documents. Files on absent volumes re-key on their next scan.
+    fn migrate_image_ids(index: &index::Index) -> Result<()> {
+        if index.id_scheme()? != "path" {
+            return Ok(());
+        }
+        let legacy = index.legacy_images()?;
+        let pairs: Vec<_> = legacy.iter().map(|l| (l.old, l.new)).collect();
+        index.rekey_images(&pairs)?;
+        for root in index.roots()? {
+            Self::rekey_library(&root.path, &pairs)?;
+        }
+        index.set_id_scheme("volume")?;
+        if !pairs.is_empty() {
+            eprintln!("catalog: migrated {} image ids to volume-relative ids", pairs.len());
+        }
+        Ok(())
+    }
+
+    /// `open` with the volume resolver the index should use (tests).
+    pub(crate) fn open_with_volumes(
+        app_support_dir: String,
+        volumes: Option<Box<dyn index::VolumeResolver>>,
+    ) -> Result<Arc<Self>> {
         std::fs::create_dir_all(&app_support_dir)?;
         let db = Path::new(&app_support_dir).join("index.sqlite");
-        let index = index::Index::open(&db)?;
+        let mut index = index::Index::open(&db)?;
+        if let Some(volumes) = volumes {
+            index.set_volume_resolver(volumes);
+        }
+        Self::migrate_image_ids(&index)?;
         let reader = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         // Restore source-to-store routing before any reopened catalog reads.
         {
@@ -408,6 +448,14 @@ impl Engine {
             develop_writer_constructions: std::sync::atomic::AtomicUsize::new(0),
         }))
     }
+}
+
+#[uniffi::export]
+impl Engine {
+    #[uniffi::constructor]
+    pub fn open(app_support_dir: String) -> Result<Arc<Self>> {
+        Self::open_with_volumes(app_support_dir, None)
+    }
     /// Setting a listener also starts watching the catalog for writes made
     /// elsewhere (reported as `LibraryChanged`).
     pub fn set_event_listener(&self, listener: Option<Arc<dyn EngineEventListener>>) {
@@ -425,10 +473,15 @@ impl Engine {
             updated: 0,
             finished: false,
         });
-        let updated =
-            self.lock()?
+        let (updated, rekeyed) = {
+            let mut c = self.lock()?;
+            let updated = c
                 .index
                 .scan(&path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
+            (updated, c.index.take_rekeyed())
+        };
+        // Legacy ids found on a drive were re-keyed in place: follow in the albums.
+        Self::rekey_library(&path, &rekeyed)?;
         self.emit(EngineEvent::ScanProgress {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,
@@ -700,6 +753,72 @@ mod tests {
         std::fs::rename(replacement, path).unwrap();
         assert!(engine.clone().embedded_preview(id, 384).is_err());
         assert_eq!(engine.previews.source_work_count(), 1);
+    }
+
+    /// CS-1: a catalog with path-derived ids re-keys a drive's files on the
+    /// next open; decisions, albums and legacy-stamped sidecars survive.
+    #[test]
+    fn legacy_ids_migrate_to_volume_ids_on_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let mount = dir.path().canonicalize().unwrap().join("Drive");
+        let photos = mount.join("shoot");
+        std::fs::create_dir_all(&photos).unwrap();
+        image::RgbImage::new(32, 16)
+            .save(photos.join("one.jpg"))
+            .unwrap();
+        let support = dir.path().join("support").to_string_lossy().into_owned();
+        let boot = || Some(Box::new(index::FixedVolumes(vec![])) as Box<dyn index::VolumeResolver>);
+        let drive = || {
+            Some(Box::new(index::FixedVolumes(vec![index::Volume {
+                uuid: "DRV-1".into(),
+                mount_point: mount.clone(),
+            }])) as Box<dyn index::VolumeResolver>)
+        };
+        let engine = Engine::open_with_volumes(support.clone(), boot()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let old = engine.list_images(ImageQuery::default()).unwrap()[0]
+            .id
+            .clone();
+        assert_eq!(
+            old,
+            ImageId::for_path(&photos.join("one.jpg").to_string_lossy()).to_string()
+        );
+        engine
+            .set_selection(
+                old.clone(),
+                Selection {
+                    decision: Decision::Keep,
+                    grade: Some(1),
+                    mark: None,
+                },
+            )
+            .unwrap();
+        let store = engine
+            .clone()
+            .open_library(photos.join("library.json").to_string_lossy().into())
+            .unwrap();
+        let album = store.create_album("Picks".into(), None).unwrap();
+        store.add_to_album(album, vec![old.clone()]).unwrap();
+        // What a pre-1.8 catalog records.
+        engine.lock().unwrap().index.set_id_scheme("path").unwrap();
+        drop(store);
+        drop(engine);
+
+        let engine = Engine::open_with_volumes(support, drive()).unwrap();
+        let new = ImageId::for_volume_path("DRV-1", "shoot/one.jpg").to_string();
+        let rows = engine.list_images(ImageQuery::default()).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, new);
+        assert_eq!(rows[0].selection.grade, Some(1));
+        assert_eq!(engine.lock().unwrap().index.id_scheme().unwrap(), "volume");
+        let library = library::Library::read(photos.join("library.json")).unwrap();
+        assert_eq!(library.albums["Picks"].images, vec![parse_id(&new).unwrap()]);
+        // The sidecar still carries the legacy id and reads as this image.
+        let recipe = engine.get_recipe(new.clone()).unwrap();
+        assert!(recipe.contains(&new));
+        assert!(engine.get_recipe(old).is_err());
     }
 
     #[test]

@@ -4,11 +4,13 @@ mod changes;
 mod people;
 mod predicate;
 pub use people::{FaceAssignment, FaceKey, Person};
+mod rekey;
 mod roots;
 mod semantic;
 mod understanding;
 mod volume;
 pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
+pub use rekey::{LegacyImage, image_id_for};
 pub use roots::RootRecord;
 pub use volume::{
     FixedVolumes, RootLocation, SystemVolumes, Volume, VolumeResolver, join_relative,
@@ -50,6 +52,8 @@ struct Core {
     image_info_reads: std::cell::Cell<u64>,
     /// Which volume a root lives on (CS-1); the system's by default.
     volumes: Box<dyn VolumeResolver>,
+    /// Legacy ids the scanner re-keyed in place, until the host takes them.
+    rekeyed: Vec<(ImageId, ImageId)>,
 }
 
 impl Core {
@@ -212,6 +216,7 @@ impl Core {
             conn,
             image_info_reads: std::cell::Cell::new(0),
             volumes: Box::new(SystemVolumes),
+            rekeyed: Vec::new(),
         })
     }
 
@@ -264,6 +269,8 @@ impl Core {
             );
         }
         let root_id = self.register_root(root)?;
+        // Every file under the root shares its volume (nested mounts aside).
+        let volume = self.volumes.volume_of(root)?;
         let mut changed = 0;
         for entry in WalkDir::new(only_file.unwrap_or(root))
             .follow_links(false)
@@ -292,15 +299,28 @@ impl Core {
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map_or(0, |d| d.as_nanos() as i64);
             let stamp = sidecar_stamp(path, sidecars.additional_stamp_paths(path))?;
-            let old: Option<(i64, i64, String)> = self
+            let old: Option<(i64, i64, String, Option<String>)> = self
                 .conn
                 .query_row(
-                    "SELECT size,mtime,sidecar_stamp FROM file WHERE path=?",
+                    "SELECT f.size,f.mtime,f.sidecar_stamp,i.id FROM file f LEFT JOIN image i ON i.file_id=f.id WHERE f.path=?",
                     [&path_s],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
                 )
                 .optional()?;
-            if old == Some((size, mtime, stamp.clone())) {
+            // An indexed original keeps its id (a relocated drive derives the
+            // same one anyway); a legacy path id on a volume is re-keyed in
+            // place, even when the file itself is unchanged.
+            let derived = rekey::image_id_on(volume.as_ref(), path);
+            let mut existing = old.as_ref().and_then(|o| o.3.clone());
+            if let Some(stored) = existing.as_deref().map(parse_id).transpose()?
+                && stored != derived
+                && stored == ImageId::for_path(&path_s)
+            {
+                self.rekey_images(&[(stored, derived)])?;
+                self.rekeyed.push((stored, derived));
+                existing = Some(derived.to_string());
+            }
+            if old.is_some_and(|(s, m, st, _)| (s, m, st) == (size, mtime, stamp.clone())) {
                 continue;
             }
             let folder_s = path.parent().unwrap_or(root).to_string_lossy().into_owned();
@@ -318,17 +338,7 @@ impl Core {
                 .unwrap_or_default()
                 .to_string_lossy()
                 .into_owned();
-            // An indexed original keeps its id (relocated drives, legacy
-            // path-derived ids awaiting migration); new files derive one.
-            let id: String = self
-                .conn
-                .query_row(
-                    "SELECT i.id FROM image i JOIN file f ON f.id=i.file_id WHERE f.path=?",
-                    [&path_s],
-                    |r| r.get(0),
-                )
-                .optional()?
-                .unwrap_or_else(|| stable_id(&path_s));
+            let id = existing.unwrap_or_else(|| derived.to_string());
             let mut data = basic_metadata(path)?;
             let supplied = metadata.read(path)?;
             data.values.extend(supplied.values);
@@ -881,12 +891,10 @@ fn grade(v: u8) -> Grade {
         _ => Grade::Three,
     }
 }
+/// Path-derived id text (the boot-volume derivation; see `rekey::image_id_on`).
+#[cfg(test)]
 fn stable_id(path: &str) -> String {
-    let h = blake3::hash(path.as_bytes());
-    h.as_bytes()[..16]
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+    ImageId::for_path(path).to_string()
 }
 fn parse_id(s: &str) -> Result<ImageId> {
     u128::from_str_radix(s, 16)
