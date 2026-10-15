@@ -534,6 +534,11 @@ RustBuffer uniffi_tessera_ffi_fn_method_engine_index_folder(uint64_t ptr, RustBu
 RustBuffer uniffi_tessera_ffi_fn_method_engine_list_images(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_ROOTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_ROOTS
+RustBuffer uniffi_tessera_ffi_fn_method_engine_roots(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_SET_EVENT_LISTENER
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_SET_EVENT_LISTENER
 void uniffi_tessera_ffi_fn_method_engine_set_event_listener(uint64_t ptr, RustBuffer listener, RustCallStatus *_Nonnull out_status
@@ -3662,6 +3667,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_index_folder(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_LIST_IMAGES
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_LIST_IMAGES
 uint16_t uniffi_tessera_ffi_checksum_method_engine_list_images(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_ROOTS
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_ROOTS
+uint16_t uniffi_tessera_ffi_checksum_method_engine_roots(void
     
 );
 #endif

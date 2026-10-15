@@ -2201,6 +2201,7 @@ dependencies = [
  "blake3",
  "engine-api",
  "kamadak-exif",
+ "libc",
  "rusqlite",
  "serde",
  "serde_json",

@@ -175,6 +175,22 @@ pub struct FolderHandle {
     pub path: String,
     pub updated: u64,
 }
+/// An indexed root (CS-1). Roots on external volumes are remembered by volume
+/// UUID and relative path; `path` is where the root is now, or where it was
+/// last seen while its volume is not attached.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct RootInfo {
+    pub path: String,
+    /// The folder's own name.
+    pub name: String,
+    /// None for boot-volume roots (plain paths).
+    pub volume_uuid: Option<String>,
+    pub relative_path: String,
+    /// The drive's name as mounted (its last mount point's name).
+    pub volume_name: Option<String>,
+    pub attached: bool,
+    pub images: u64,
+}
 
 struct Catalog {
     index: index::Index,
@@ -423,6 +439,41 @@ impl Engine {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,
         })
+    }
+    /// Every indexed root. A root whose volume is mounted elsewhere than last
+    /// time is relocated in the catalog and reported at its current path; a
+    /// root whose volume is absent is reported not attached, with its counts.
+    pub fn roots(&self) -> Result<Vec<RootInfo>> {
+        let c = self.lock()?;
+        let mut out = Vec::new();
+        for root in c.index.roots()? {
+            let located = c.index.locate_root(&root)?;
+            let path = located.clone().unwrap_or_else(|| root.path.clone());
+            let volume_name = root.location.volume_uuid.as_ref().map(|_| {
+                // `/Volumes/<name>/<relative>`: the component before the relative path.
+                let depth = Path::new(&root.location.relative_path).components().count();
+                let mut mount = path.clone();
+                for _ in 0..depth {
+                    mount.pop();
+                }
+                mount.file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            });
+            out.push(RootInfo {
+                name: path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| path.to_string_lossy().into_owned()),
+                path: path.to_string_lossy().into_owned(),
+                volume_uuid: root.location.volume_uuid,
+                relative_path: root.location.relative_path,
+                volume_name,
+                attached: located.is_some_and(|p| p.is_dir()),
+                images: root.images,
+            });
+        }
+        Ok(out)
     }
     pub fn list_images(&self, query: ImageQuery) -> Result<Vec<ImageSummary>> {
         let c = self.lock()?;

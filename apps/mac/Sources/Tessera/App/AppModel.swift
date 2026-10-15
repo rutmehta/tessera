@@ -148,6 +148,11 @@ final class AppModel {
     private(set) var source: LibrarySource = .all
     private(set) var visibleCount = 0
     private(set) var recentFolders: [URL] = []
+    /// CS-1: every root the index remembers, by volume; detached ones list as "not attached".
+    private(set) var libraryRoots: [LibraryRoot] = []
+    /// A detached root the person asked to open: it opens when its volume mounts.
+    private(set) var pendingMountOpen: LibraryRoot?
+    @ObservationIgnored private var mountWatcher: VolumeMountWatcher?
     private(set) var canUndo = false
     private(set) var canRedo = false
     private(set) var basketTarget = EngineLibrary.defaultBasketTarget
@@ -606,6 +611,42 @@ final class AppModel {
         }
         lightroomImport.openLibrary = { [weak self] folder, message in self?.openFolder(folder, message: message, alreadyIndexed: true) }
         installOutputHandlers()
+        mountWatcher = VolumeMountWatcher { [weak self] _ in self?.volumesDidChange() }
+    }
+
+    // MARK: Roots by volume (CS-1)
+
+    /// Re-reads the index's roots (off the main actor). With an engine library open its engine
+    /// is used; otherwise the per-machine index is opened for the listing.
+    func refreshLibraryRoots() {
+        let engine = engineLibrary?.engine
+        Task.detached(priority: .utility) {
+            let roots = (try? engine.map { try $0.roots().map(LibraryRoot.init) } ?? LibraryRoot.list()) ?? []
+            await MainActor.run { self.libraryRoots = roots; self.openPendingRootIfAttached() }
+        }
+    }
+
+    /// Opens an attached root; a detached one is remembered and opens when its drive mounts.
+    func openRoot(_ root: LibraryRoot) {
+        if root.attached {
+            pendingMountOpen = nil
+            openFolder(root.url)
+        } else {
+            pendingMountOpen = root
+            statusMessage = root.attachMessage
+            refreshLibraryRoots()
+        }
+    }
+
+    private func volumesDidChange() {
+        refreshLibraryRoots()
+    }
+
+    private func openPendingRootIfAttached() {
+        guard let pending = pendingMountOpen,
+              let root = libraryRoots.first(where: { $0.id == pending.id }), root.attached else { return }
+        pendingMountOpen = nil
+        openFolder(root.url, message: "Opened \(root.name) from “\(root.volumeName ?? root.name)”")
     }
 
     /// Opens the import sheet (a finished report stays until Done; a running import has no sheet).
@@ -737,7 +778,12 @@ final class AppModel {
                         + (seedFaces ? ", synthetic faces seeded" : "")
                     self.finishFolderRequest(requestID, loaded: true)
                 case .failure(let error):
-                    self.statusMessage = error.localizedDescription
+                    // A root whose drive is not attached waits for the mount instead of failing.
+                    if let root = self.libraryRoots.first(where: { $0.path == url.path && !$0.attached }) {
+                        self.openRoot(root)
+                    } else {
+                        self.statusMessage = error.localizedDescription
+                    }
                     self.finishFolderRequest(requestID, loaded: false)
                 }
             }
@@ -769,6 +815,7 @@ final class AppModel {
         recents.insert(folder, at: 0)
         recentFolders = Array(recents.prefix(8))
         defaults.set(recentFolders.map(\.path), forKey: Self.recentFoldersKey)
+        refreshLibraryRoots()
     }
 
     /// Retire a library immediately at the host boundary; join its native worker off-main.

@@ -104,7 +104,7 @@ fn catalog() -> (tempfile::TempDir, Index) {
     let path = dir.path().join("index.sqlite");
     let index = Index::open(&path).unwrap();
     let db = Connection::open(path).unwrap();
-    db.execute_batch("INSERT INTO root VALUES(1,'/p'); INSERT INTO folder VALUES(1,1,'/p');")
+    db.execute_batch("INSERT INTO root(id,path) VALUES(1,'/p'); INSERT INTO folder VALUES(1,1,'/p');")
         .unwrap();
     for n in 1..=4 {
         let id = ImageId(n).to_string();

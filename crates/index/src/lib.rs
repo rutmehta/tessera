@@ -4,9 +4,16 @@ mod changes;
 mod people;
 mod predicate;
 pub use people::{FaceAssignment, FaceKey, Person};
+mod roots;
 mod semantic;
 mod understanding;
+mod volume;
 pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
+pub use roots::RootRecord;
+pub use volume::{
+    FixedVolumes, RootLocation, SystemVolumes, Volume, VolumeResolver, join_relative,
+    relative_path,
+};
 pub use changes::{ChangeBatch, ChangeFields, ChangeKind, ImageChange};
 pub use predicate::{Comparison, Predicate};
 pub use semantic::SemanticSearch;
@@ -41,6 +48,8 @@ type Result<T> = std::result::Result<T, IndexError>;
 struct Core {
     conn: Connection,
     image_info_reads: std::cell::Cell<u64>,
+    /// Which volume a root lives on (CS-1); the system's by default.
+    volumes: Box<dyn VolumeResolver>,
 }
 
 impl Core {
@@ -125,11 +134,11 @@ impl Core {
             COMMIT;")?;
         let version: u32 =
             conn.query_row("SELECT max(version) FROM migration", [], |r| r.get(0))?;
-        if version > 9 {
+        if version > 10 {
             return Err(engine_api::error::EngineError::SchemaVersion {
                 document: "index".into(),
                 found: version,
-                supported: 9,
+                supported: 10,
             }
             .into());
         }
@@ -184,9 +193,25 @@ impl Core {
                 "../migrations/009_people_medoid_invalidation.sql"
             ))?;
         }
+        if missing(10)? {
+            let has_volume_columns: i64 = conn.query_row(
+                "SELECT count(*) FROM pragma_table_info('root') WHERE name='volume_uuid'",
+                [],
+                |r| r.get(0),
+            )?;
+            if has_volume_columns == 0 {
+                conn.execute_batch(
+                    "ALTER TABLE root ADD COLUMN volume_uuid TEXT;
+                     ALTER TABLE root ADD COLUMN relative_path TEXT;
+                     ALTER TABLE root ADD COLUMN mount_hint TEXT;",
+                )?;
+            }
+            conn.execute_batch(include_str!("../migrations/010_volumes.sql"))?;
+        }
         Ok(Self {
             conn,
             image_info_reads: std::cell::Cell::new(0),
+            volumes: Box::new(SystemVolumes),
         })
     }
 
@@ -238,16 +263,13 @@ impl Core {
                 engine_api::error::EngineError::invalid("root", "expected a directory").into(),
             );
         }
-        let root_s = root.to_string_lossy().into_owned();
-        self.conn
-            .execute("INSERT OR IGNORE INTO root(path) VALUES(?)", [&root_s])?;
-        let root_id: i64 =
-            self.conn
-                .query_row("SELECT id FROM root WHERE path=?", [&root_s], |r| r.get(0))?;
+        let root_id = self.register_root(root)?;
         let mut changed = 0;
         for entry in WalkDir::new(only_file.unwrap_or(root))
             .follow_links(false)
             .into_iter()
+            // Drive-resident state (CS-1) is never an original.
+            .filter_entry(|e| e.depth() == 0 || e.file_name() != ".tessera")
         {
             let entry = entry?;
             // A catalog may explicitly reference a generic .raw original.
@@ -296,7 +318,17 @@ impl Core {
                 .unwrap_or_default()
                 .to_string_lossy()
                 .into_owned();
-            let id = stable_id(&path_s);
+            // An indexed original keeps its id (relocated drives, legacy
+            // path-derived ids awaiting migration); new files derive one.
+            let id: String = self
+                .conn
+                .query_row(
+                    "SELECT i.id FROM image i JOIN file f ON f.id=i.file_id WHERE f.path=?",
+                    [&path_s],
+                    |r| r.get(0),
+                )
+                .optional()?
+                .unwrap_or_else(|| stable_id(&path_s));
             let mut data = basic_metadata(path)?;
             let supplied = metadata.read(path)?;
             data.values.extend(supplied.values);
@@ -981,7 +1013,7 @@ mod tests {
                 .query_row("SELECT max(version) FROM migration", [], |r| r
                     .get::<_, u32>(0))
                 .unwrap(),
-            9
+            10
         );
     }
     #[test]
@@ -1024,7 +1056,7 @@ mod tests {
             .conn
             .query_row("SELECT count(*) FROM migration", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(tables, 9);
+        assert_eq!(tables, 10);
         let id = ImageId(7);
         i.conn
             .execute("INSERT INTO root(path) VALUES('root')", [])

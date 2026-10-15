@@ -9,7 +9,7 @@ fn compiled_filters_and_nested_project_scope_use_real_sql() {
     let path = dir.path().join("index.sqlite");
     let index = Index::open(&path).unwrap();
     let db = Connection::open(path).unwrap();
-    db.execute_batch("INSERT INTO root VALUES(1,'/photos'); INSERT INTO folder VALUES(1,1,'/photos'); INSERT INTO keyword VALUES(1,'Anna',NULL); INSERT INTO keyword_closure VALUES(1,1,0);").unwrap();
+    db.execute_batch("INSERT INTO root(id,path) VALUES(1,'/photos'); INSERT INTO folder VALUES(1,1,'/photos'); INSERT INTO keyword VALUES(1,'Anna',NULL); INSERT INTO keyword_closure VALUES(1,1,0);").unwrap();
     for n in 1..=3 {
         let id = ImageId(n).to_string();
         db.execute(
