@@ -24,7 +24,7 @@ xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 \
   || { echo "notarytool profile '$NOTARY_PROFILE' missing: run xcrun notarytool store-credentials $NOTARY_PROFILE" >&2; exit 1; }
 [[ -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' Support/Info.plist 2>/dev/null)" ]] \
   || { echo "SUPublicEDKey is empty in Support/Info.plist; run generate_keys and paste the public key" >&2; exit 1; }
-[[ -z "$(git status --porcelain)" ]] || { echo "working tree is not clean; commit first" >&2; exit 1; }
+[[ -z "$(git status --porcelain --untracked-files=no)" ]] || { echo "working tree is not clean; commit first" >&2; exit 1; }
 git rev-parse -q --verify "refs/tags/$tag" >/dev/null && { echo "$tag already exists" >&2; exit 1; }
 
 previous="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
