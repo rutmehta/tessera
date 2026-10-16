@@ -201,6 +201,9 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
             return XCTFail("Preset fixtures must use the disposable support directory")
         }
         tools.savePreset(name: "AXPrivatePreset731", groups: [.basicTone])
+        // ST-2: the preset file is written and listed on a worker.
+        let presetDeadline = Date().addingTimeInterval(10)
+        while tools.presets.count != 1, Date() < presetDeadline { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertEqual(tools.presets.count, 1)
         tools.refreshHistory()
         // UX-12: every Edit section's More open, so the controls behind it are audited too.

@@ -19,7 +19,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testHeldCloseComposesTwoFilterFieldsWithoutEarlyPublication() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         let originalVisible = f.model.visible
@@ -42,7 +42,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testHeldCloseComposesDistinctPersonFacets() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         let entered = expectation(description: "person facet close entered")
@@ -60,7 +60,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testHeldCloseComposesRepeatedTextAndCancellingPersonToggle() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         let entered = expectation(description: "repeated filter close entered")
@@ -83,7 +83,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testKeepEditingDiscardsFailedFilterDraft() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         f.saves.failNextClose()
@@ -103,7 +103,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testExplicitRetryCommitsAllEditsStagedAfterFailedClose() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         f.saves.failNextClose()
@@ -127,7 +127,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testUnrelatedNavigationSupersedesHeldFilterDraft() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         let entered = expectation(description: "superseded filter close entered")
@@ -146,7 +146,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testOwnerReplacementDropsHeldFilterDraft() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         let entered = expectation(description: "old owner filter close entered")
@@ -165,7 +165,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testFilterAndFacetRequestDuringLayersSaveCancelOnlyItsDestination() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         let entered = expectation(description: "Layers preparation entered Develop close")
@@ -195,7 +195,7 @@ final class StagedLibraryFilterTests: XCTestCase {
     }
 
     func testPersonFacetAloneDuringLayersSaveCancelsItsDestination() async throws {
-        let f = try fixture()
+        let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         guard await openDevelop(f) else { return }
         let entered = expectation(description: "Layers preparation entered Develop close")
@@ -229,7 +229,7 @@ final class StagedLibraryFilterTests: XCTestCase {
         return await waitUntil { f.model.develop != nil && f.model.developStatus == .ready }
     }
 
-    private func fixture() throws -> Fixture {
+    private func fixture() async throws -> Fixture {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("staged-filter-\(UUID().uuidString)")
         let firstFolder = root.appendingPathComponent("photos-a")
@@ -250,7 +250,7 @@ final class StagedLibraryFilterTests: XCTestCase {
                                              itemID: itemID, imageID: reference.imageID)
             })
         model.install(first)
-        model.people.reload(refresh: true)
+        await model.people.reload(refresh: true)
         let personIDs = Array(Set(model.people.tiles.map(\.id))).sorted()
         XCTAssertGreaterThanOrEqual(personIDs.count, 2, "Two distinct real identities are needed for facet assertions")
         guard personIDs.count >= 2 else { throw FilterFixtureMissingPeople() }

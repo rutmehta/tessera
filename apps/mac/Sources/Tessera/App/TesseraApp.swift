@@ -122,6 +122,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // ST-2: `TESSERA_HANG_WATCHDOG=1` logs every main-thread stall over 150 ms with the last
+        // noted UI location and a sampled stack (stderr).
+        if MainThreadWatchdog.isRequested {
+            let watchdog = MainThreadWatchdog.shared
+            watchdog.onGap = { gap in FileHandle.standardError.write(Data(("watchdog: \(gap)\n").utf8)) }
+            watchdog.start()
+        }
         // Background diagnostics must not open updater UI or perform scheduled network checks.
         if !nonactivating { _ = updaterController }
         let model = AppModel.shared

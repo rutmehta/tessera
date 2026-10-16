@@ -77,8 +77,41 @@ enum TryLook: String, CaseIterable, Identifiable {
     }
 }
 
-/// The Try cards' state: real renders of this photo with each look (cached per photo), and which
-/// looks are on. Looks are recorded through the normal develop history so the Edits stack shows them.
+/// When a Try card may render (ST-2). Cards are a background nicety: they never compete with the
+/// photo's own render, a slider drag or an export, and they go one at a time.
+struct TryCardPolicy {
+    /// How long the loupe must have been quiet (no frame of its own) before a card renders.
+    static let idle: TimeInterval = 1
+    /// The coarsest pyramid level a card asks for (`DevelopController.renderLooks(minLevel:)`).
+    static let minLevel = 5
+
+    var firstFrameSeen = false
+    /// The last frame the loupe showed (the cards' own frames do not count).
+    var lastFrameAt: Date?
+    var interacting = false
+    var exporting = false
+    var busy = false
+
+    /// Whether a card may start now.
+    func mayRender(at now: Date) -> Bool {
+        guard firstFrameSeen, !interacting, !exporting, !busy, let lastFrameAt else { return false }
+        return now.timeIntervalSince(lastFrameAt) >= Self.idle
+    }
+
+    /// How long to wait before asking again (nil: nothing to wait for, ask on the next event).
+    func delay(at now: Date) -> TimeInterval? {
+        guard firstFrameSeen, let lastFrameAt else { return nil }
+        return max(Self.idle - now.timeIntervalSince(lastFrameAt), 0)
+    }
+}
+
+/// The Try cards' state: real renders of this photo with each look, and which looks are on. Looks
+/// are recorded through the normal develop history so the Edits stack shows them.
+///
+/// Renders are lazy (ST-2): nothing starts on open. After the photo's own first frame, once the
+/// loupe has been idle for `TryCardPolicy.idle`, one card renders at a time at a coarse level;
+/// the pass is cancelled when the photo changes and never starts during a slider drag or an
+/// export. Only the current photo's renders are kept.
 @MainActor @Observable
 final class TryLooks: LibraryObserver {
     static let shared = TryLooks(model: .shared)
@@ -90,12 +123,15 @@ final class TryLooks: LibraryObserver {
     private(set) var plain: CGImage?
     /// Looks that are on, with the history step each recorded.
     private(set) var active: [TryLook: UInt64] = [:]
-    private(set) var rendering = false
+    /// The card rendering now (its spinner).
+    private(set) var renderingLook: TryLook?
+    var rendering: Bool { renderingLook != nil }
 
-    @ObservationIgnored private var cache: [String: [TryLook: CGImage]] = [:]
+    /// The current photo's renders, kept across a develop reopen of the same photo.
+    @ObservationIgnored private var cached: (imageID: String, thumbnails: [TryLook: CGImage])?
     @ObservationIgnored private var renderTask: Task<Void, Never>?
-    @ObservationIgnored private var renderedFor: String?
-    @ObservationIgnored private var firstFrameSeen = false
+    @ObservationIgnored private var idleTask: Task<Void, Never>?
+    @ObservationIgnored private var policy = TryCardPolicy()
 
     init(model: AppModel) {
         self.model = model
@@ -121,39 +157,65 @@ final class TryLooks: LibraryObserver {
 
     // MARK: Renders
 
-    /// Renders the looks that have what they need (mask looks wait for the AI masks) once the loupe
-    /// shows the photo, through the session's own pipeline at card size, and caches them per photo.
-    private func scheduleRender(delay: Double = 0.3) {
-        guard ready, let d = develop, firstFrameSeen else { return }
-        let key = d.imageID
-        if let cached = cache[key] { thumbnails = cached }
-        let wanted = TryLook.allCases.filter { thumbnails[$0] == nil && $0 != .style }
-        let settings = d.freshSettings()
-        let looks: [(TryLook, [String: Any])] = wanted.compactMap { look in
-            look.patch(over: settings, group: look.maskTarget.flatMap { dial.groupID($0) }).map { (look, $0) }
-        }
-        Self.log("schedule: ready=\(ready) wanted=\(wanted.map(\.rawValue)) looks=\(looks.map(\.0.rawValue)) busy=\(renderTask != nil)")
-        guard !looks.isEmpty, renderTask == nil else { return }
-        rendering = true
-        renderTask = Task { [weak self] in
+    /// The policy's view of now: the loupe's frames, the sliders and the exporter.
+    private func currentPolicy() -> TryCardPolicy {
+        var p = policy
+        p.interacting = develop?.isInteracting ?? false
+        p.exporting = model.exporter.isRunning
+        p.busy = renderTask != nil
+        return p
+    }
+
+    /// Waits for the loupe to be idle, then renders the next card. Re-armed by every loupe frame
+    /// (a drag keeps producing frames, so it keeps pushing the cards back).
+    private func scheduleRender() {
+        idleTask?.cancel()
+        idleTask = nil
+        guard ready, let d = develop, renderTask == nil else { return }
+        guard let delay = currentPolicy().delay(at: Date()) else { return }
+        idleTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
-            guard let self, !Task.isCancelled, self.develop === d, self.ready else { self?.finishRender(); return }
-            let scale = NSScreen.main?.backingScaleFactor ?? 2
-            let images = await d.renderLooks(looks.map(\.1), maxPixels: Int(Theme.Width.tryCard * 2 * scale))
-            Self.log("rendered: \(images.map { $0.map { "\($0.width)x\($0.height)" } ?? "nil" })")
-            guard !Task.isCancelled, self.develop === d else { self.finishRender(); return }
-            for (i, (look, _)) in looks.enumerated() {
-                if let image = images[i] { self.thumbnails[look] = image }
-            }
-            self.cache[key] = self.thumbnails
-            if self.cache.count > 12, let old = self.cache.keys.first(where: { $0 != key }) { self.cache.removeValue(forKey: old) }
-            self.finishRender()
+            guard let self, !Task.isCancelled, self.develop === d else { return }
+            self.idleTask = nil
+            if self.currentPolicy().mayRender(at: Date()) { self.renderNext(d) } else { self.scheduleRender() }
         }
     }
 
-    private func finishRender() {
+    /// One card: the first look without a render that has what it needs (mask looks wait for the
+    /// AI masks), through the session's own pipeline at a coarse level. The next card follows
+    /// once the loupe is idle again.
+    private func renderNext(_ d: DevelopController) {
+        guard ready, renderTask == nil else { return }
+        let settings = d.freshSettings()
+        let next: (TryLook, [String: Any])? = TryLook.allCases.lazy
+            .filter { self.thumbnails[$0] == nil && $0 != .style }
+            .compactMap { look in look.patch(over: settings, group: look.maskTarget.flatMap { self.dial.groupID($0) }).map { (look, $0) } }
+            .first
+        Self.log("next: ready=\(ready) look=\(next?.0.rawValue ?? "none")")
+        guard let (look, patch) = next else { return }
+        renderingLook = look
+        let key = d.imageID
+        renderTask = Task { [weak self] in
+            let scale = NSScreen.main?.backingScaleFactor ?? 2
+            let images = await d.renderLooks([patch], maxPixels: Int(Theme.Width.tryCard * 2 * scale),
+                                             minLevel: TryCardPolicy.minLevel)
+            Self.log("rendered \(look.rawValue): \(images.map { $0.map { "\($0.width)x\($0.height)" } ?? "nil" })")
+            guard let self else { return }
+            self.renderTask = nil
+            self.renderingLook = nil
+            guard !Task.isCancelled, self.develop === d, self.ready else { return }
+            if let image = images.first ?? nil { self.thumbnails[look] = image }
+            self.cached = (key, self.thumbnails)
+            self.scheduleRender()
+        }
+    }
+
+    private func cancelRenders() {
+        idleTask?.cancel()
+        idleTask = nil
+        renderTask?.cancel()
         renderTask = nil
-        rendering = false
+        renderingLook = nil
     }
 
     /// `TESSERA_LOOKS_LOG=1`: the render pass on stderr.
@@ -163,7 +225,7 @@ final class TryLooks: LibraryObserver {
     }
 
     /// The AI masks segmented (the dial created them): the mask looks can render now.
-    func masksDidBecomeReady() { scheduleRender(delay: 0.1) }
+    func masksDidBecomeReady() { scheduleRender() }
 
     // MARK: Apply
 
@@ -202,29 +264,31 @@ final class TryLooks: LibraryObserver {
     // MARK: LibraryObserver
 
     private func reset() {
-        renderTask?.cancel()
-        renderTask = nil
-        rendering = false
+        cancelRenders()
         active = [:]
         thumbnails = [:]
         plain = nil
-        firstFrameSeen = false
+        policy = TryCardPolicy()
         if let item = model.editTarget { plain = model.loader.cached(item, tier: .thumbnail) }
     }
 
     func workspaceWillEnterPhotoEdit() { reset() }
-    func workspaceWillLeavePhotoEdit() { reset() }
-    func libraryDidReload() { reset() }
+    func workspaceWillLeavePhotoEdit() { reset(); cached = nil }
+    func libraryDidReload() { reset(); cached = nil }
     func itemsDidChange(_ positions: IndexSet) {}
     func selectionDidChange(scrollToFocus: Bool) { if model.isPhotoEditing { reset() } }
     func developDidChange() {
         reset()
-        if let d = develop, let cached = cache[d.imageID] { thumbnails = cached }
+        guard let d = develop else { return }
+        if let cached, cached.imageID == d.imageID { thumbnails = cached.thumbnails } else { cached = nil }
     }
 
+    /// Every frame of the loupe's own render re-arms the idle wait; the first final one lets
+    /// the cards start. Frames of a card pass (the tiny surface) are not the loupe's.
     func developDidRender(_ frame: DevelopFrame, controller: DevelopController) {
-        guard controller === develop, frame.isFinal, !frame.isOverlay, !firstFrameSeen else { return }
-        firstFrameSeen = true
+        guard controller === develop, !frame.isOverlay, renderTask == nil else { return }
+        policy.lastFrameAt = Date()
+        if frame.isFinal { policy.firstFrameSeen = true }
         scheduleRender()
     }
 }
@@ -264,7 +328,7 @@ private struct TryCard: View {
                             .frame(width: Theme.Width.tryCard, height: Theme.Height.tryThumbnail)
                             .clipped()
                     }
-                    if looks.rendering, looks.thumbnails[look] == nil, look != .style {
+                    if looks.renderingLook == look {
                         ProgressView().controlSize(.small)
                     }
                 }

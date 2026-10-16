@@ -344,7 +344,8 @@ final class AppModel {
             if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
             if self.collections.filter != draft.filter { self.collections.commitFilter(draft.filter) }
             if self.people.facet != draft.personFacet {
-                self.refreshVisible { self.people.setFacet(draft.personFacet) }
+                // ST-2: the facet's frames come from the engine on a worker; the grid follows.
+                Task { await self.people.setFacet(draft.personFacet); self.refreshVisible() }
             }
         }
     }
@@ -539,6 +540,12 @@ final class AppModel {
     @ObservationIgnored var loupeDisclosurePresented = false
     @ObservationIgnored var dismissLoupeDisclosure: (@MainActor () -> Void)?
     private(set) var developStatus: DevelopStatus = .none
+    /// ST-2: the open photo's recipe is waiting for the engine's writer thread ("saving…"), and
+    /// when it last landed ("saved"). The UI never waits for either.
+    private(set) var developSaving = false
+    private(set) var developSavedAt: Date?
+    /// "saving…" / "saved" for the Edits section readout (nil before the first change).
+    var developSaveLabel: String? { developSaving ? "saving…" : developSavedAt != nil ? "saved" : nil }
     /// Bumped when develop values change outside a slider drag (open, undo, reset, snapshot).
     private(set) var developRevision = 0
     private(set) var developHistory: HistoryState?
@@ -1086,10 +1093,10 @@ final class AppModel {
             guard let self else { return }
             if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
             self.refreshVisible {
-                self.people.setFacet([id])
                 self.source = .all
                 self.collections.refreshMatches()
             }
+            Task { await self.people.setFacet([id]); self.refreshVisible() }
             self.viewMode = .grid
             if let person = self.people.person(id) {
                 self.statusMessage = "\(person.displayName): \(self.visibleCount.formatted()) photo\(self.visibleCount == 1 ? "" : "s")"
@@ -1884,6 +1891,7 @@ final class AppModel {
     /// Grid: spatial arrows. Loupe: one frame at a time. `groupwise` (⌥ + arrows): ←/→ between groups,
     /// ↑/↓ within a group (docs/06 §3). Unfiltered, group moves come from the Rust session.
     func navigate(_ move: Move, groupwise: Bool, extend: Bool) {
+        MainThreadWatchdog.shared.note("AppModel.navigate")
         if isReviewing || isReviewEditing {
             moveReviewSelection(move == .left || move == .up ? -1 : 1)
             return
@@ -2055,8 +2063,7 @@ final class AppModel {
         if isReviewing { statusMessage = "Use Edit photo to undo recipe changes"; return }
         // The People view (grid or detail) is frontmost: ⌘Z replays the engine's people history.
         if source == .people && !isPhotoEditing {
-            people.undo()
-            reportPeople()
+            Task { await people.undo(); reportPeople() }
             return
         }
         if isPhotoEditing {
@@ -2089,8 +2096,7 @@ final class AppModel {
         }
         if isReviewing { statusMessage = "Use Edit photo to redo recipe changes"; return }
         if source == .people && !isPhotoEditing {
-            people.redo()
-            reportPeople()
+            Task { await people.redo(); reportPeople() }
             return
         }
         if isPhotoEditing {
@@ -2511,6 +2517,7 @@ final class AppModel {
 
     /// Opens the session for an indexed photo. Called by the loupe when it shows an image.
     func openDevelop(for item: PhotoItem) {
+        MainThreadWatchdog.shared.note("AppModel.openDevelop")
         // The matching owner/photo's pending sessions were captured before the
         // mutation began. Do not create a new stale session after that barrier.
         if let owner = engineLibrary, let ref = item.engineImage,
@@ -2613,6 +2620,12 @@ final class AppModel {
         developStatus = .ready
         developHistory = controller.history
         developRevision += 1
+        developSaving = controller.isSaving
+        developSavedAt = nil
+        controller.onSaveStateChange = { [weak self, weak controller] in
+            guard let self, let controller, self.develop === controller else { return }
+            self.developSaving = controller.isSaving
+        }
         controller.onFrame = { [weak self, weak controller] frame in
             guard let self, let controller else { return }
             self.developDidRender(frame, controller)
@@ -2680,6 +2693,8 @@ final class AppModel {
             developSessionID = nil
             developStatus = .none
             developHistory = nil
+            developSaving = false
+            developSavedAt = nil
             renderReadout = nil
         case .failed(_, let message):
             guard developRecovery.presentations.contains(where: { presentation in
@@ -2695,6 +2710,7 @@ final class AppModel {
 
     @discardableResult
     func closeDevelop() -> Task<DevelopRecoveryCoordinator.Outcome, Never>? {
+        MainThreadWatchdog.shared.note("AppModel.closeDevelop")
         let cancelledPendingOpen = activeDevelopOpen != nil
         developTask?.cancel()
         developTask = nil
@@ -2765,19 +2781,30 @@ final class AppModel {
 
     /// Recipe + XMP were written: refresh the grid thumbnail (recipe-hash keyed) and the status.
     private func developDidSave(itemID: Int, source: DevelopSourceRoute) {
+        MainThreadWatchdog.shared.note("AppModel.developDidSave")
         // Autosaves must not repeatedly hash/decode full originals and proxies.
         if library.items.indices.contains(itemID), let ref = library.items[itemID].engineImage {
             smartPreviews.didSave(imageID: ref.imageID, source: source)
         }
-        if let d = develop, d.itemID == itemID { developHistory = d.history }
+        if let d = develop, d.itemID == itemID {
+            developHistory = d.history
+            developSaving = d.isSaving
+            developSavedAt = Date()
+        }
         guard library.items.indices.contains(itemID) else { return }
         loader.invalidate(library.items[itemID])
         if library.items[itemID].engineImage?.previewSource == .smartPreview { libraryRevision += 1 }
-        cull.refreshStatuses([itemID])
         var positions = IndexSet()
         if positionOfID.indices.contains(itemID), positionOfID[itemID] >= 0 { positions.insert(positionOfID[itemID]) }
         refreshFocusSummary()
         liveObservers.forEach { $0.thumbnailsDidChange(positions); $0.itemsDidChange(positions) }
+        // The derived status (edited / exported) is one catalog read: on a worker (ST-2), then
+        // the cell redraws.
+        let generation = loadGeneration
+        Task { [weak self] in
+            guard let self, await self.cull.refreshStatusesOffMain([itemID]), self.loadGeneration == generation else { return }
+            self.libraryItemsChanged([itemID])
+        }
     }
 
     /// Items whose derived status changed outside a cull action (an export): redraw their cells.

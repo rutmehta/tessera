@@ -759,6 +759,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let resumedAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
         let resumedModel = AppModel(agent: resumedAgent)
         resumedModel.install(reopened)
+        try await settle { !resumedAgent.queue.isEmpty }   // ST-2: restored off the main actor
 
         let restored = try XCTUnwrap(resumedAgent.queue.entry(entry.imageID))
         XCTAssertEqual(restored.status, .accepted, "recipe review status remains authoritative")
@@ -788,6 +789,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let matchedAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
         let matchedModel = AppModel(agent: matchedAgent)
         matchedModel.install(matchedLibrary)
+        try await settle { !matchedAgent.queue.isEmpty }   // ST-2: restored off the main actor
         let failedButCurrent = try XCTUnwrap(matchedAgent.queue.entry(entry.imageID))
         XCTAssertNotNil(failedButCurrent.error)
         XCTAssertNil(failedButCurrent.unavailableReason)
@@ -804,6 +806,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let supersededAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
         let supersededModel = AppModel(agent: supersededAgent)
         supersededModel.install(supersededLibrary)
+        try await settle { !supersededAgent.queue.isEmpty }
         let superseded = try XCTUnwrap(supersededAgent.queue.entry(entry.imageID))
         XCTAssertNotNil(superseded.unavailableReason)
         XCTAssertNil(supersededAgent.queueTarget(superseded))
@@ -815,6 +818,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let missingAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
         let missingModel = AppModel(agent: missingAgent)
         missingModel.install(missingLibrary)
+        try await settle { !missingAgent.queue.isEmpty }
         let missing = try XCTUnwrap(missingAgent.queue.entry(entry.imageID))
         XCTAssertNotNil(missing.unavailableReason)
         XCTAssertNil(missingAgent.queueTarget(missing))
@@ -841,6 +845,8 @@ final class AgentReviewOwnershipTests: XCTestCase {
 
         hold.release()
         try await settle { !f.agent.isRunning }
+        // ST-2: the completion re-installs the current owner; its restore runs off the main actor.
+        try await settle { f.agent.reviewLibrary === reopened }
 
         XCTAssertTrue(f.agent.reviewLibrary === reopened, "completed work rebinds to the newly installed owner")
         XCTAssertEqual(try store.load(libraryFolder: try XCTUnwrap(f.a.folder))?.state, .completed)
@@ -848,7 +854,7 @@ final class AgentReviewOwnershipTests: XCTestCase {
         XCTAssertEqual(f.agent.queue.entries.first?.imageID, reopened.imageIDs[0])
     }
 
-    func testInterruptedIntentRestoresUnknownTargetWithoutReplaying() throws {
+    func testInterruptedIntentRestoresUnknownTargetWithoutReplaying() async throws {
         let f = try fixture()
         let folder = try XCTUnwrap(f.a.folder)
         let target = ReviewResumeRecord.Target(imageID: f.a.imageIDs[0], name: f.a.items[0].name, ordinal: 0)
@@ -860,6 +866,8 @@ final class AgentReviewOwnershipTests: XCTestCase {
         let resumedAgent = AgentController(arguments: ["--fake-planner"], supportDirectory: f.support)
         let resumedModel = AppModel(agent: resumedAgent)
         resumedModel.install(reopened)
+        // ST-2: the restore reads the manifest and provenance off the main actor.
+        try await settle { !resumedAgent.queue.isEmpty }
 
         let restoredRecord = try XCTUnwrap(ReviewResumeStore(directory: f.support).load(libraryFolder: folder))
         XCTAssertEqual(restoredRecord.state, .interrupted)

@@ -151,7 +151,7 @@ private struct FaceChipButton: View {
                     .accessibilityIdentifier("face-name-person")
                 Button("Show in People") {
                     model.setSource(.people)
-                    model.people.openDetail(tile.id)
+                    Task { await model.people.openDetail(tile.id) }
                 }
             } else {
                 Text("Not grouped into a person yet (Cull ▸ Analyze Faces)")

@@ -237,7 +237,7 @@ struct AppCommands: Commands {
                 .keyboardShortcut("p", modifiers: [.command, .option])
                 .disabled(!model.isEngineBacked)
             // UX-16: was a toolbar button in the People view.
-            Button("Merge Selected People") { model.people.mergeSelection(); model.peopleDidChange() }
+            Button("Merge Selected People") { Task { await model.people.mergeSelection(); model.peopleDidChange() } }
                 .disabled(model.source != .people || !model.people.canMerge || model.people.detailID != nil)
             Divider()
             Button("Suggest Keywords for Selection") { model.collections.understanding.suggestForSelection() }

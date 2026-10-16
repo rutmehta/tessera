@@ -208,24 +208,35 @@ struct AgentEditPanel: View {
         .task(id: key) { await load() }
     }
 
+    /// Reads the provenance off the main actor (ST-2: the call used to block the UI for as long
+    /// as a worker held the engine's catalog lock). Runs only while the section is on screen
+    /// (`.task` of a collapsed `PanelSection` never starts) and is cancelled by the next key. The
+    /// previous content stays up while the engine answers; a different photo clears it first.
     private func load() async {
-        provenance = nil
-        target = nil
-        guard let lib = model.engineLibrary, let item = model.focusedItem, let ref = item.engineImage else { return }
-        // The engine answers busy while a worker holds the catalog: try again shortly.
-        var found: AgentProvenance?
-        for _ in 0..<25 {
-            do {
-                found = try ref.engine.agentProvenance(imageId: ref.imageID)
-                break
-            } catch where EngineBusy.isBusy(error) {
-                try? await Task.sleep(for: .milliseconds(80))
-                if Task.isCancelled { return }
-            } catch {
-                return
-            }
+        guard let lib = model.engineLibrary, let item = model.focusedItem, let ref = item.engineImage else {
+            provenance = nil
+            target = nil
+            return
         }
-        guard let p = found else { return }
+        let samePhoto = target?.entry.imageID == ref.imageID
+        if !samePhoto {
+            provenance = nil
+            target = nil
+        } else {
+            // A history move on the same photo: coalesce bursts of key changes (every commit bumps
+            // the history count) into one read.
+            try? await Task.sleep(for: .milliseconds(150))
+        }
+        guard !Task.isCancelled else { return }
+        MainThreadWatchdog.shared.note("AgentEditPanel.load")
+        let imageID = ref.imageID
+        let p = await EngineCall.optional { try ref.engine.agentProvenance(imageId: imageID) } ?? nil
+        guard !Task.isCancelled, model.focusedItem?.engineImage?.imageID == imageID else { return }
+        guard let p else {
+            provenance = nil
+            target = nil
+            return
+        }
         provenance = p
         target = model.agent.reviewTarget(AgentReviewEntry(p.item, itemID: item.id), library: lib)
     }

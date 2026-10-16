@@ -113,14 +113,37 @@ final class ExportController {
         self.targets = targets
         targetID = (targets.first { $0.kind == preferred } ?? targets.first)?.id
         error = nil
-        reloadPresets()
-        // First export ever: start from the first shipped preset (Web).
-        if UserDefaults.standard.string(forKey: Self.settingsKey) == nil, let first = presets.first { apply(first) }
+        reloadPresets { [weak self] in
+            // First export ever: start from the first shipped preset (Web).
+            guard let self, UserDefaults.standard.string(forKey: Self.settingsKey) == nil, let first = self.presets.first else { return }
+            self.apply(first)
+        }
     }
 
-    func reloadPresets() {
+    /// Reads the presets on a worker (ST-2: the engine reads them from disk under its lock); the
+    /// sheet keeps its last list meanwhile. `then` runs after the list landed.
+    func reloadPresets(then: (@MainActor () -> Void)? = nil) {
         guard let engine else { return }
-        do { presets = try ExportPresetStore(engine: engine).list() } catch { self.error = "Presets: \(error.localizedDescription)" }
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { Result { try ExportPresetStore(engine: engine).list() } }.value
+            guard let self, self.engine === engine else { return }
+            switch result {
+            case .success(let list): self.presets = list
+            case .failure(let error): self.error = "Presets: \(error.localizedDescription)"
+            }
+            then?()
+        }
+    }
+
+    /// One preset edit on a worker, then the list again.
+    private func editPresets(_ body: @escaping @Sendable (ExportPresetStore) throws -> Void, then: (@MainActor () -> Void)? = nil) {
+        guard let engine else { return }
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { Result { try body(ExportPresetStore(engine: engine)) } }.value
+            guard let self, self.engine === engine else { return }
+            if case .failure(let error) = result { self.error = error.localizedDescription; return }
+            self.reloadPresets(then: then)
+        }
     }
 
     /// Takes a preset's settings; an empty preset destination keeps the current folder.
@@ -135,27 +158,22 @@ final class ExportController {
     }
 
     func savePreset(named name: String) {
-        guard let engine else { return }
-        do {
-            try ExportPresetStore(engine: engine).save(name, settings)
-            reloadPresets()
-            presetName = presets.first { $0.name == name.trimmingCharacters(in: .whitespaces) }?.name
-            settingsChanged()
-        } catch { self.error = error.localizedDescription }
+        let settings = self.settings
+        editPresets({ try $0.save(name, settings) }) { [weak self] in
+            guard let self else { return }
+            self.presetName = self.presets.first { $0.name == name.trimmingCharacters(in: .whitespaces) }?.name
+            self.settingsChanged()
+        }
     }
 
     func deletePreset(_ name: String) {
-        guard let engine else { return }
-        do {
-            try ExportPresetStore(engine: engine).delete(name)
-            if presetName == name { presetName = nil }
-            reloadPresets()
-        } catch { self.error = error.localizedDescription }
+        editPresets({ try $0.delete(name) }) { [weak self] in
+            if self?.presetName == name { self?.presetName = nil }
+        }
     }
 
     func restoreDefaultPresets() {
-        guard let engine else { return }
-        do { try ExportPresetStore(engine: engine).restoreDefaults(); reloadPresets() } catch { self.error = error.localizedDescription }
+        editPresets { try $0.restoreDefaults() }
     }
 
     func chooseDestination(in window: NSWindow?) {

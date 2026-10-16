@@ -569,11 +569,18 @@ final class DocumentWorkspace {
             // Legacy headless Save As and ordinary Save preserve their Void route.
             saveWriter(operation.document, url) { result in done(result.map { .saved }) }
         } else {
-            done(Result {
-                if let url { try operation.document.backend.saveAs(path: url.path) }
-                else { try operation.document.backend.save() }
-                return .saved
-            })
+            // ST-2: the document is written on a worker; the workspace settles when it returns.
+            let backend = operation.document.backend
+            let path = url?.path
+            Task {
+                let result = await Task.detached(priority: .userInitiated) {
+                    Result { () throws -> DocSaveAsResult in
+                        if let path { try backend.saveAs(path: path) } else { try backend.save() }
+                        return .saved
+                    }
+                }.value
+                done(result)
+            }
         }
     }
 

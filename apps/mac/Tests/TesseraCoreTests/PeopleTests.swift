@@ -9,7 +9,7 @@ import TesseraFFI
 /// In-memory stand-in for the engine's people calls (WP M2-40, M2-44), with the FFI's semantics:
 /// merge keeps the target's name, split and moves reset confirmation, suggestions are read-only,
 /// every changing edit is one step of a bounded undo history with the engine's descriptions.
-final class StubPeopleEngine: PeopleEngine {
+final class StubPeopleEngine: PeopleEngine, @unchecked Sendable {
     struct Face: Equatable { var person: String; var confirmed: Bool }
     var faces: [PersonFaceRef: Face] = [:]
     var names: [String: String] = [:]
@@ -156,6 +156,28 @@ final class StubPeopleEngine: PeopleEngine {
     }
 }
 
+
+// ST-2: the model's engine calls are async; XCTAssert's autoclosures cannot await, so the people
+// tests assert through these (same file / line reporting).
+@MainActor func assertTrue(_ value: Bool, _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+    XCTAssertTrue(value, message(), file: file, line: line)
+}
+@MainActor func assertFalse(_ value: Bool, _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+    XCTAssertFalse(value, message(), file: file, line: line)
+}
+@MainActor func assertNil(_ value: Any?, _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+    XCTAssertNil(value, message(), file: file, line: line)
+}
+@MainActor func assertNotNil(_ value: Any?, _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+    XCTAssertNotNil(value, message(), file: file, line: line)
+}
+@MainActor func assertEqual<T: Equatable>(_ a: T, _ b: T, _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) {
+    XCTAssertEqual(a, b, message(), file: file, line: line)
+}
+@MainActor func unwrap<T>(_ value: T?, _ message: @autoclosure () -> String = "", file: StaticString = #filePath, line: UInt = #line) throws -> T {
+    try XCTUnwrap(value, message(), file: file, line: line)
+}
+
 @MainActor
 final class PeopleModelTests: XCTestCase {
     private var suite = ""
@@ -168,7 +190,7 @@ final class PeopleModelTests: XCTestCase {
     }
 
     /// alice (named): items 0–2; p1 (unnamed): items 0, 3, 4, 5; p2 (unnamed, confirmed): item 6.
-    private func fixture() -> (StubPeopleEngine, PeopleModel) {
+    private func fixture() async -> (StubPeopleEngine, PeopleModel) {
         let engine = StubPeopleEngine()
         engine.add("alice", [(0, 0), (1, 0), (2, 0)])
         engine.add("p1", [(0, 1), (3, 0), (4, 0), (5, 0)])
@@ -176,19 +198,19 @@ final class PeopleModelTests: XCTestCase {
         engine.names["alice"] = "Alice"
         let model = PeopleModel(defaults: defaults())
         model.install(engine)
-        model.reload()
+        await model.reload()
         return (engine, model)
     }
 
-    func testTilesNamedFirstThenByFramesWithNamesMembersAndBadges() throws {
-        let (_, model) = fixture()
+    func testTilesNamedFirstThenByFramesWithNamesMembersAndBadges() async throws {
+        let (_, model) = await fixture()
         XCTAssertEqual(model.tiles.map(\.id), ["alice", "p1", "p2"], "named first although p1 has more frames")
         let alice = model.tiles[0], p1 = model.tiles[1], p2 = model.tiles[2]
         XCTAssertEqual(alice.displayName, "Alice")
         XCTAssertEqual(p1.displayName, "Unnamed", "the engine's “Person <id>” placeholder is not a name")
         XCTAssertNil(p1.name)
         XCTAssertEqual(p1.items, [0, 3, 4, 5])
-        XCTAssertEqual(try model.members("p1").map(\.face), [PersonFaceRef(item: 0, ordinal: 1), PersonFaceRef(item: 3, ordinal: 0),
+        assertEqual(try await model.members("p1").map(\.face), [PersonFaceRef(item: 0, ordinal: 1), PersonFaceRef(item: 3, ordinal: 0),
                                                             PersonFaceRef(item: 4, ordinal: 0), PersonFaceRef(item: 5, ordinal: 0)])
         XCTAssertTrue(p2.isConfirmed)
         XCTAssertFalse(p1.isConfirmed)
@@ -204,11 +226,11 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(sorted.map(\.id), ["a", "b", "c"], "named ties break by name")
     }
 
-    func testNamingCommitsTrimmedNameWithOptInsAndReloads() {
-        let (engine, model) = fixture()
+    func testNamingCommitsTrimmedNameWithOptInsAndReloads() async {
+        let (engine, model) = await fixture()
         var changes = 0
         model.onPeopleChange = { changes += 1 }
-        XCTAssertTrue(model.name("p1", as: "  Bob \n"))
+        assertTrue(await model.name("p1", as: "  Bob \n"))
         XCTAssertEqual(engine.calls.suffix(2), ["name(p1,Bob)", "people(true)"], "then reloads from people(refresh: true)")
         XCTAssertEqual(engine.nameOptions.last?.writeSidecars, false, "default: no sidecar writes")
         XCTAssertEqual(engine.nameOptions.last?.personKeywords, false)
@@ -217,56 +239,56 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.message, "Named Bob")
         XCTAssertEqual(changes, 1)
 
-        XCTAssertFalse(model.name("p1", as: "Bob"), "unchanged name: no engine call")
+        assertFalse(await model.name("p1", as: "Bob"), "unchanged name: no engine call")
         XCTAssertEqual(engine.calls.filter { $0.hasPrefix("name") }.count, 1)
 
         // Settings ▸ Library opt-ins; keywords only travel with face regions. Persisted.
         model.naming.personKeywords = true
         XCTAssertEqual(model.naming.ffi.personKeywords, false)
         model.naming.writeFaceRegions = true
-        XCTAssertTrue(model.name("p2", as: "Cy"))
+        assertTrue(await model.name("p2", as: "Cy"))
         XCTAssertEqual(engine.nameOptions.last?.writeSidecars, true)
         XCTAssertEqual(engine.nameOptions.last?.personKeywords, true)
         XCTAssertEqual(model.message, "Named Cy · face regions written to XMP")
         let again = PeopleModel(defaults: UserDefaults(suiteName: suite)!)
         XCTAssertEqual(again.naming, PeopleNamingOptions(writeFaceRegions: true, personKeywords: true))
 
-        XCTAssertTrue(model.name("alice", as: " "), "empty clears the name")
+        assertTrue(await model.name("alice", as: " "), "empty clears the name")
         XCTAssertEqual(engine.calls.last { $0.hasPrefix("name") }, "name(alice,nil)")
         XCTAssertNil(model.person("alice")?.name)
     }
 
-    func testSuggestionsAreFilteredSortedAndAcceptingMerges() {
-        let (engine, model) = fixture()
+    func testSuggestionsAreFilteredSortedAndAcceptingMerges() async {
+        let (engine, model) = await fixture()
         engine.candidates = [
             PeopleNameCandidate(unnamedID: "p1", namedID: "alice", name: "Alice", similarity: 0.61),
             PeopleNameCandidate(unnamedID: "p1", namedID: "zed", name: "Zed", similarity: 0.9),     // unknown person
             PeopleNameCandidate(unnamedID: "p2", namedID: "alice", name: "Alice", similarity: 0.7),
             PeopleNameCandidate(unnamedID: "alice", namedID: "alice", name: "Alice", similarity: 1), // not unnamed
         ]
-        model.reload()
+        await model.reload()
         XCTAssertEqual(model.suggestions["p1"]?.map(\.namedID), ["alice"])
         XCTAssertEqual(model.suggestions["p2"]?.first?.similarity, 0.7)
         XCTAssertNil(model.suggestions["alice"])
-        XCTAssertTrue(model.accept(model.suggestions["p2"]![0]))
+        assertTrue(await model.accept(model.suggestions["p2"]![0]))
         XCTAssertTrue(engine.calls.contains("merge(alice,p2)"), "a suggestion is accepted by merging into the named person")
         XCTAssertNil(model.person("p2"))
         XCTAssertEqual(model.person("alice")?.items, [0, 1, 2, 6])
         XCTAssertEqual(model.message, "Merged into Alice")
     }
 
-    func testMergeSelectionKeepsTheNamedPersonAndItsName() {
-        let (engine, model) = fixture()
+    func testMergeSelectionKeepsTheNamedPersonAndItsName() async {
+        let (engine, model) = await fixture()
         model.click("p2")
         XCTAssertFalse(model.canMerge)
-        XCTAssertFalse(model.mergeSelection())
+        assertFalse(await model.mergeSelection())
         XCTAssertEqual(model.message, "Select two or more people to merge")
         model.click("p1", command: true)
         model.click("alice", command: true)
         XCTAssertEqual(model.selection, ["alice", "p1", "p2"])
         XCTAssertTrue(model.canMerge)
         XCTAssertEqual(PeopleModel.mergeTarget(model.tiles.filter { model.selection.contains($0.id) })?.id, "alice")
-        XCTAssertTrue(model.mergeSelection())
+        assertTrue(await model.mergeSelection())
         XCTAssertEqual(engine.calls.filter { $0.hasPrefix("merge") }.sorted(), ["merge(alice,p1)", "merge(alice,p2)"])
         XCTAssertEqual(model.tiles.map(\.id), ["alice"])
         XCTAssertEqual(model.tiles[0].displayName, "Alice")
@@ -275,7 +297,7 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.message, "Merged 3 people into Alice")
 
         // ⇧-click extends in grid order; plain click replaces.
-        let (_, other) = fixture()
+        let (_, other) = await fixture()
         other.click("alice")
         other.click("p2", shift: true)
         XCTAssertEqual(other.selection, ["alice", "p1", "p2"])
@@ -285,13 +307,13 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(other.selection, [])
     }
 
-    func testSplitMovesSelectedFacesToANewUnconfirmedPerson() {
-        let (engine, model) = fixture()
-        model.openDetail("p1")
-        XCTAssertNil(model.splitSelection(newID: "new"), "nothing selected")
+    func testSplitMovesSelectedFacesToANewUnconfirmedPerson() async {
+        let (engine, model) = await fixture()
+        await model.openDetail("p1")
+        assertNil(await model.splitSelection(newID: "new"), "nothing selected")
         XCTAssertEqual(model.message, "Select faces to split off")
         for m in model.detail!.members { model.toggleFace(m.face) }
-        XCTAssertNil(model.splitSelection(newID: "new"), "a split must leave a face behind")
+        assertNil(await model.splitSelection(newID: "new"), "a split must leave a face behind")
         XCTAssertTrue(model.message?.hasPrefix("Leave at least one face") == true)
         model.faceSelection = []
         model.toggleFace(PersonFaceRef(item: 4, ordinal: 0))
@@ -299,7 +321,7 @@ final class PeopleModelTests: XCTestCase {
         model.toggleFace(PersonFaceRef(item: 5, ordinal: 0))
         model.toggleFace(PersonFaceRef(item: 5, ordinal: 0))
         XCTAssertEqual(model.faceSelection.count, 2)
-        XCTAssertEqual(model.splitSelection(newID: "new"), "new")
+        assertEqual(await model.splitSelection(newID: "new"), "new")
         XCTAssertTrue(engine.calls.contains("split(p1,2)"))
         XCTAssertEqual(model.person("new")?.items, [4, 5])
         XCTAssertEqual(model.person("new")?.confirmedCount, 0)
@@ -309,23 +331,23 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.message, "Split 2 faces into a new person")
     }
 
-    func testReassignAndConfirmGoThroughTheEngine() throws {
-        let (engine, model) = fixture()
+    func testReassignAndConfirmGoThroughTheEngine() async throws {
+        let (engine, model) = await fixture()
         let face = PersonFaceRef(item: 3, ordinal: 0)
-        XCTAssertFalse(model.reassign(face, to: "p1"), "already there")
-        XCTAssertFalse(model.reassign(face, to: "nobody"))
-        XCTAssertTrue(model.setConfirmed(face, true))
+        assertFalse(await model.reassign(face, to: "p1"), "already there")
+        assertFalse(await model.reassign(face, to: "nobody"))
+        assertTrue(await model.setConfirmed(face, true))
         XCTAssertEqual(model.person("p1")?.confirmedCount, 1)
-        XCTAssertTrue(model.reassign(face, to: "alice"))
+        assertTrue(await model.reassign(face, to: "alice"))
         XCTAssertEqual(engine.calls.suffix(2), ["assign(3:0,alice)", "people(true)"])
         XCTAssertEqual(model.person("alice")?.items, [0, 1, 2, 3])
-        XCTAssertEqual(try model.members("alice").first { $0.face == face }?.confirmed, false, "moves reset confirmation")
-        model.openDetail("alice")
-        XCTAssertTrue(model.confirmAll())
+        assertEqual(try await model.members("alice").first { $0.face == face }?.confirmed, false, "moves reset confirmation")
+        await model.openDetail("alice")
+        assertTrue(await model.confirmAll())
         XCTAssertTrue(model.detail!.isConfirmed)
         XCTAssertEqual(model.message, "Confirmed 4 faces of Alice")
-        XCTAssertFalse(model.confirmAll(), "nothing left to confirm")
-        XCTAssertTrue(model.setConfirmed(face, false))
+        assertFalse(await model.confirmAll(), "nothing left to confirm")
+        assertTrue(await model.setConfirmed(face, false))
         XCTAssertFalse(model.detail!.isConfirmed)
         XCTAssertEqual(model.detail!.confirmedCount, 3)
         XCTAssertEqual(PersonFaceRef(dragToken: face.dragToken), face)
@@ -333,14 +355,14 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertNil(PersonFaceRef(dragToken: "album:1:2"))
     }
 
-    func testPersonFacetIsAUnionWithinAndIntersectsOtherFilters() {
-        let (engine, model) = fixture()
+    func testPersonFacetIsAUnionWithinAndIntersectsOtherFilters() async {
+        let (engine, model) = await fixture()
         XCTAssertNil(model.facetItems)
         XCTAssertEqual(model.facetTitle, "Person")
-        model.toggleFacet("alice")
+        await model.toggleFacet("alice")
         XCTAssertEqual(model.facetItems, [0, 1, 2])
         XCTAssertEqual(model.facetTitle, "Person · Alice")
-        model.toggleFacet("p2")
+        await model.toggleFacet("p2")
         XCTAssertEqual(model.facetItems, [0, 1, 2, 6], "any of the chosen people")
         XCTAssertEqual(model.facetTitle, "Person · 2")
 
@@ -356,17 +378,17 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.facetCount("nobody", within: nil), 0)
 
         // Identities change under the facet: it follows (merged-away people drop out).
-        XCTAssertTrue(model.accept(PeopleNameCandidate(unnamedID: "p2", namedID: "alice", name: "Alice", similarity: 0.8)))
+        assertTrue(await model.accept(PeopleNameCandidate(unnamedID: "p2", namedID: "alice", name: "Alice", similarity: 0.8)))
         XCTAssertEqual(model.facet, ["alice"])
         XCTAssertEqual(model.facetItems, [0, 1, 2, 6])
         _ = engine
-        model.clearFacet()
+        await model.clearFacet()
         XCTAssertNil(model.facetItems)
         XCTAssertEqual(model.facetTitle, "Person")
     }
 
     func testRefreshRunsTheJobOffTheMainActorAndReportsApproximation() async {
-        let (engine, model) = fixture()
+        let (engine, model) = await fixture()
         XCTAssertNil(model.approximateNote)
         engine.refreshResult = PeopleRefresh(assigned: 12, reclustered: true, approximate: true)
         engine.faces[PersonFaceRef(item: 7, ordinal: 0)] = .init(person: "p3", confirmed: false)
@@ -387,26 +409,26 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertNil(model.approximateNote)
     }
 
-    func testEngineErrorsBecomeMessagesAndNothingIsHalfApplied() {
-        let (engine, model) = fixture()
+    func testEngineErrorsBecomeMessagesAndNothingIsHalfApplied() async {
+        let (engine, model) = await fixture()
         var changes = 0
         model.onPeopleChange = { changes += 1 }
         engine.failNext = "index is locked"
-        XCTAssertFalse(model.name("p1", as: "Bob"))
+        assertFalse(await model.name("p1", as: "Bob"))
         XCTAssertEqual(model.message, "Name failed: index is locked")
         XCTAssertNil(model.person("p1")?.name)
         XCTAssertEqual(changes, 0)
         let empty = PeopleModel(defaults: defaults())
-        XCTAssertFalse(empty.name("p1", as: "Bob"))
+        assertFalse(await empty.name("p1", as: "Bob"))
         XCTAssertEqual(empty.message, "Name: open a folder on the engine first")
-        empty.reload()
+        await empty.reload()
         XCTAssertTrue(empty.tiles.isEmpty)
     }
 
-    func testInstallResetsAndLibraryUpdatesRemapItems() {
-        let (_, model) = fixture()
-        model.toggleFacet("alice")
-        model.openDetail("p1")
+    func testInstallResetsAndLibraryUpdatesRemapItems() async {
+        let (_, model) = await fixture()
+        await model.toggleFacet("alice")
+        await model.openDetail("p1")
         model.toggleFace(PersonFaceRef(item: 3, ordinal: 0))
         // Item 0 left the library; everything else moved up by one.
         model.libraryDidUpdate { $0 == 0 ? nil : $0 - 1 }
@@ -424,8 +446,8 @@ final class PeopleModelTests: XCTestCase {
 
     // MARK: M2-44: medoid tiles, engine counts, one-call members, undo / redo
 
-    func testTilesUseTheMedoidAndEngineCountsWithoutScanningAssignments() {
-        let (engine, model) = fixture()
+    func testTilesUseTheMedoidAndEngineCountsWithoutScanningAssignments() async {
+        let (engine, model) = await fixture()
         XCTAssertFalse(engine.calls.contains { $0.hasPrefix("assignments") || $0.hasPrefix("members") },
                        "the grid reads people() only: no per-image assignment scan, no members")
         XCTAssertTrue(model.tiles.allSatisfy(\.members.isEmpty))
@@ -434,7 +456,7 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.person("p1")?.cover, PersonFaceRef(item: 0, ordinal: 1), "no medoid: the sharpest cover")
 
         engine.medoids["p1"] = PersonFaceRef(item: 4, ordinal: 0)
-        model.reload()
+        await model.reload()
         let p1 = model.person("p1")!
         XCTAssertEqual(p1.medoid, PersonFaceRef(item: 4, ordinal: 0))
         XCTAssertEqual(p1.cover, PersonFaceRef(item: 4, ordinal: 0), "the tile crops the medoid face")
@@ -447,9 +469,9 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.person("p1")?.cover, PersonFaceRef(item: 1, ordinal: 1))
     }
 
-    func testDetailLoadsMembersInOneCall() throws {
-        let (engine, model) = fixture()
-        model.openDetail("p1")
+    func testDetailLoadsMembersInOneCall() async throws {
+        let (engine, model) = await fixture()
+        await model.openDetail("p1")
         XCTAssertEqual(engine.calls.filter { $0.hasPrefix("members") }, ["members(p1)"])
         XCTAssertFalse(engine.calls.contains { $0.hasPrefix("assignments") }, "nothing confirmed: no assignment reads")
         XCTAssertEqual(model.detail?.members.map(\.face), [PersonFaceRef(item: 0, ordinal: 1), PersonFaceRef(item: 3, ordinal: 0),
@@ -457,14 +479,14 @@ final class PeopleModelTests: XCTestCase {
                        "item order, whatever the engine's image-id order")
         XCTAssertTrue(model.tiles.filter { $0.id != "p1" }.allSatisfy(\.members.isEmpty), "only the detail person")
 
-        model.openDetail("p2")
+        await model.openDetail("p2")
         XCTAssertEqual(model.detail?.members.map(\.confirmed), [true], "fully confirmed from the counts")
         XCTAssertTrue(model.person("p1")?.members.isEmpty == true, "the previous detail person drops its members")
         XCTAssertFalse(engine.calls.contains { $0.hasPrefix("assignments") })
 
         // Partly confirmed: the member photos' assignments give each face's state.
-        model.openDetail("p1")
-        XCTAssertTrue(model.setConfirmed(PersonFaceRef(item: 3, ordinal: 0), true))
+        await model.openDetail("p1")
+        assertTrue(await model.setConfirmed(PersonFaceRef(item: 3, ordinal: 0), true))
         XCTAssertEqual(model.detail?.members.map(\.confirmed), [false, true, false, false])
         XCTAssertEqual(model.detail?.confirmedCount, 1)
         model.closeDetail()
@@ -472,7 +494,7 @@ final class PeopleModelTests: XCTestCase {
     }
 
     func testFootnoteReportsTheJobsSampleSize() async {
-        let (engine, model) = fixture()
+        let (engine, model) = await fixture()
         engine.refreshResult = PeopleRefresh(assigned: 900, reclustered: true, approximate: true, sampleSize: 1_000)
         await model.refresh()
         XCTAssertEqual(model.approximateNote, "Clustered from a sample of 1,000 faces")
@@ -481,20 +503,20 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.approximateNote, "Clustered from a sample of 1,000 faces", "an incremental pass keeps the note")
     }
 
-    func testUndoRedoReplayEngineHistoryWithItsDescriptions() {
-        let (engine, model) = fixture()
+    func testUndoRedoReplayEngineHistoryWithItsDescriptions() async {
+        let (engine, model) = await fixture()
         var changes = 0
         model.onPeopleChange = { changes += 1 }
         XCTAssertEqual(model.undoTitle, "Undo")
-        XCTAssertFalse(model.undo(), "empty history")
+        assertFalse(await model.undo(), "empty history")
         XCTAssertEqual(model.message, "Nothing to undo")
 
         model.selection = ["alice", "p1"]
-        XCTAssertTrue(model.mergeSelection())
+        assertTrue(await model.mergeSelection())
         XCTAssertEqual(model.undoTitle, "Undo Merge People")
         XCTAssertEqual(model.redoTitle, "Redo")
         changes = 0
-        XCTAssertTrue(model.undo())
+        assertTrue(await model.undo())
         XCTAssertEqual(engine.calls.suffix(2), ["undo", "people(false)"], "reloads from people(refresh: false)")
         XCTAssertEqual(model.tiles.map(\.id), ["alice", "p1", "p2"])
         XCTAssertEqual(model.person("alice")?.items, [0, 1, 2])
@@ -503,31 +525,31 @@ final class PeopleModelTests: XCTestCase {
         XCTAssertEqual(model.redoTitle, "Redo Merge People")
         XCTAssertEqual(changes, 1, "the face strip and filters follow")
 
-        XCTAssertTrue(model.redo())
+        assertTrue(await model.redo())
         XCTAssertEqual(engine.calls.suffix(2), ["redo", "people(false)"])
         XCTAssertNil(model.person("p1"))
         XCTAssertEqual(model.message, "Redo Merge People")
         XCTAssertEqual(model.undoTitle, "Undo Merge People")
 
         // Several steps: undo walks back one engine step at a time; a new edit clears redo.
-        XCTAssertTrue(model.name("p2", as: "Cy"))
-        model.openDetail("alice")
-        XCTAssertTrue(model.setConfirmed(PersonFaceRef(item: 1, ordinal: 0), true))
+        assertTrue(await model.name("p2", as: "Cy"))
+        await model.openDetail("alice")
+        assertTrue(await model.setConfirmed(PersonFaceRef(item: 1, ordinal: 0), true))
         XCTAssertEqual(model.undoHistory, ["Merge people", "Name person", "Confirm face"])
-        XCTAssertTrue(model.undo())
+        assertTrue(await model.undo())
         XCTAssertEqual(model.detail?.members.first { $0.face.item == 1 }?.confirmed, false, "the detail view reloads its members")
         XCTAssertEqual(model.undoTitle, "Undo Name Person")
-        XCTAssertTrue(model.undo())
+        assertTrue(await model.undo())
         XCTAssertNil(model.person("p2")?.name)
         XCTAssertEqual(model.redoHistory, ["Confirm face", "Name person"])
-        XCTAssertTrue(model.setConfirmed(PersonFaceRef(item: 2, ordinal: 0), true))
+        assertTrue(await model.setConfirmed(PersonFaceRef(item: 2, ordinal: 0), true))
         XCTAssertEqual(model.redoTitle, "Redo", "a new edit clears redo")
-        XCTAssertFalse(model.redo())
+        assertFalse(await model.redo())
         XCTAssertEqual(model.message, "Nothing to redo")
 
         // An engine conflict keeps both histories and reports the error.
         engine.failReplay = "people undo file changed since edit"
-        XCTAssertFalse(model.undo())
+        assertFalse(await model.undo())
         XCTAssertEqual(model.message, "Undo failed: people undo file changed since edit")
         XCTAssertEqual(model.undoTitle, "Undo Confirm Face")
 
@@ -586,7 +608,7 @@ final class PeopleBridgeTests: XCTestCase {
         XCTAssertEqual(summary.confirmedCount, 0)
         XCTAssertNotNil(summary.medoidFace)
         let members = try library.session.personMembers(personId: a.id)
-        XCTAssertEqual(members.count, try model.members(a.id).count)
+        assertEqual(members.count, try await model.members(a.id).count)
         XCTAssertTrue(a.members.isEmpty, "grid tiles carry counts, not members")
         XCTAssertEqual(a.faces, members.count)
         if let medoid = summary.medoidFace {
@@ -608,10 +630,10 @@ final class PeopleBridgeTests: XCTestCase {
         XCTAssertNil(legacy.medoidFace)
         XCTAssertEqual(PeopleJobResult(assigned: 0, reclustered: false, approximate: false).sampleSize, 0)
         XCTAssertNil(a.name)
-        XCTAssertEqual(try model.members(a.id).count, library.items.count)
+        assertEqual(try await model.members(a.id).count, library.items.count)
         XCTAssertNotNil(model.faceRect(try XCTUnwrap(a.cover)))
 
-        XCTAssertTrue(model.name(a.id, as: "Ada"), model.message ?? "")
+        assertTrue(await model.name(a.id, as: "Ada"), model.message ?? "")
         XCTAssertEqual(model.person(a.id)?.name, "Ada")
         XCTAssertEqual(model.tiles.first?.id, a.id)
         let xmp = try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".xmp") }
@@ -619,39 +641,39 @@ final class PeopleBridgeTests: XCTestCase {
                        "default naming writes no face regions")
 
         // Split two faces off, confirm one, move it back, merge the rest back.
-        model.openDetail(a.id)
+        await model.openDetail(a.id)
         let faces = model.detail!.members.map(\.face)
         model.toggleFace(faces[0]); model.toggleFace(faces[1])
-        let split = try XCTUnwrap(model.splitSelection(newID: "person-split-test"), model.message ?? "")
-        XCTAssertEqual(try model.members(split).map(\.face), [faces[0], faces[1]])
+        let split = try await unwrap(model.splitSelection(newID: "person-split-test"), model.message ?? "")
+        assertEqual(try await model.members(split).map(\.face), [faces[0], faces[1]])
         XCTAssertNil(model.person(split)?.name)
         XCTAssertEqual(model.person(a.id)?.members.count, library.items.count - 2)
-        XCTAssertTrue(model.setConfirmed(faces[0], true), model.message ?? "")
+        assertTrue(await model.setConfirmed(faces[0], true), model.message ?? "")
         XCTAssertEqual(model.person(split)?.confirmedCount, 1)
-        XCTAssertTrue(model.reassign(faces[0], to: a.id), model.message ?? "")
+        assertTrue(await model.reassign(faces[0], to: a.id), model.message ?? "")
         XCTAssertEqual(model.person(a.id)?.members.count, library.items.count - 1)
         model.selection = [a.id, split]
-        XCTAssertTrue(model.mergeSelection(), model.message ?? "")
+        assertTrue(await model.mergeSelection(), model.message ?? "")
         XCTAssertNil(model.person(split))
         XCTAssertEqual(model.person(a.id)?.name, "Ada", "the named target's name wins")
         XCTAssertEqual(model.person(a.id)?.members.count, library.items.count)
         // Edit ▸ Undo / Redo through the real session's people history (M2-44).
         XCTAssertEqual(model.undoTitle, "Undo Merge People")
-        XCTAssertTrue(model.undo(), model.message ?? "")
+        assertTrue(await model.undo(), model.message ?? "")
         XCTAssertEqual(model.message, "Undo Merge People")
-        XCTAssertEqual(try model.members(split).count, 1, "the merge source comes back with its id")
+        assertEqual(try await model.members(split).count, 1, "the merge source comes back with its id")
         XCTAssertEqual(model.person(a.id)?.members.count, library.items.count - 1)
-        XCTAssertTrue(model.redo(), model.message ?? "")
+        assertTrue(await model.redo(), model.message ?? "")
         XCTAssertNil(model.person(split))
         XCTAssertEqual(model.person(a.id)?.members.count, library.items.count)
 
         // Person facet: frames_with_person.
-        model.toggleFacet(a.id)
+        await model.toggleFacet(a.id)
         XCTAssertEqual(model.facetItems, Set(library.items.indices))
 
         // Settings ▸ Library opt-in: face regions (and the name as a keyword) go to every photo's XMP.
         model.naming = PeopleNamingOptions(writeFaceRegions: true, personKeywords: true)
-        XCTAssertTrue(model.name(a.id, as: "Ada Lovelace"), model.message ?? "")
+        assertTrue(await model.name(a.id, as: "Ada Lovelace"), model.message ?? "")
         let sidecars = try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".xmp") }
         let named = try sidecars.filter {
             let xml = try String(contentsOf: folder.appendingPathComponent($0), encoding: .utf8)

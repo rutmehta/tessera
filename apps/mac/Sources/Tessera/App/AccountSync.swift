@@ -287,24 +287,28 @@ final class AccountSync {
     private func applyPeople() {
         guard let app, let store, app.people.engine != nil else { return }
         let records = store.list(PersonRecord.self)
-        guard !records.isEmpty else { return }
+        guard !records.isEmpty, !applyingRemote else { return }
         applyingRemote = true
-        defer { applyingRemote = false }
-        for rec in records {
-            let local = Dictionary(app.people.tiles.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            let present = rec.allIDs.filter { local[$0] != nil }.sorted()
-            guard let target = local[rec.id] != nil ? rec.id : present.first else { continue }
-            for source in present where source != target {
-                guard let tile = local[source] else { continue }
-                let candidate = PeopleNameCandidate(unnamedID: source, namedID: target, name: rec.name ?? local[target]?.displayName ?? tile.displayName,
-                                                    similarity: 1)
-                app.people.accept(candidate)
-                peopleDidMerge(target: target, sources: [source])
+        // ST-2: each people edit runs on a worker; the records apply one after another.
+        Task { [weak self] in
+            defer { self?.applyingRemote = false }
+            for rec in records {
+                guard let self, let app = self.app, app.people.engine != nil else { return }
+                let local = Dictionary(app.people.tiles.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                let present = rec.allIDs.filter { local[$0] != nil }.sorted()
+                guard let target = local[rec.id] != nil ? rec.id : present.first else { continue }
+                for source in present where source != target {
+                    guard let tile = local[source] else { continue }
+                    let candidate = PeopleNameCandidate(unnamedID: source, namedID: target, name: rec.name ?? local[target]?.displayName ?? tile.displayName,
+                                                        similarity: 1)
+                    await app.people.accept(candidate)
+                    self.peopleDidMerge(target: target, sources: [source])
+                }
+                if let tile = app.people.person(target), tile.name != rec.name {
+                    await app.people.name(target, as: rec.name ?? "")
+                }
+                self.mergedClusters[target, default: []].formUnion(rec.allIDs.subtracting([target]))
             }
-            if let tile = app.people.person(target), tile.name != rec.name {
-                app.people.name(target, as: rec.name ?? "")
-            }
-            mergedClusters[target, default: []].formUnion(rec.allIDs.subtracting([target]))
         }
     }
 
@@ -363,30 +367,40 @@ final class AccountSync {
     /// and picked up when the folder is next opened.
     private func applyShoots() {
         guard let store else { return }
-        var openIDs: Set<String> = []
-        if let app, let lib = app.engineLibrary, !lib.isReadOnly, let folder = lib.folder {
-            if let s = try? lib.engine.styleProfileStatus(libraryFolder: folder.path) { openIDs.insert(s.libraryId) }
-            if let s = try? app.cull.assistStatus() { openIDs.insert(s.libraryId) }
-        }
-        var files: [(URL, Data, Date)] = []
+        var candidates: [(String, URL, Data, Date)] = []
         if let rec = store.read(StyleProfileRecord.self) {
-            for shoot in rec.shoots.values where !openIDs.contains(shoot.libraryID) {
-                if let model = shoot.model { files.append((shootFile("style-profile", libraryID: shoot.libraryID), model, shoot.modified)) }
+            for shoot in rec.shoots.values {
+                if let model = shoot.model { candidates.append((shoot.libraryID, shootFile("style-profile", libraryID: shoot.libraryID), model, shoot.modified)) }
             }
         }
         if let rec = store.read(LearningRecord.self) {
-            for shoot in rec.shoots.values where !openIDs.contains(shoot.libraryID) {
-                if let model = shoot.model { files.append((shootFile("cull-learning", libraryID: shoot.libraryID), model, shoot.modified)) }
+            for shoot in rec.shoots.values {
+                if let model = shoot.model { candidates.append((shoot.libraryID, shootFile("cull-learning", libraryID: shoot.libraryID), model, shoot.modified)) }
             }
         }
-        for (url, data, modified) in files {
-            let local = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-            if let local, local >= modified { continue }
-            do {
-                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try data.write(to: url, options: .atomic)
-            } catch {
-                NSLog("Sync: could not restore %@: %@", url.lastPathComponent, error.localizedDescription)
+        guard !candidates.isEmpty else { return }
+        // ST-2: the open library's ids (two engine reads) and the files land on a worker; the
+        // engine picks the files up when the folder is next opened.
+        let open: (engine: Engine, folder: String, cull: CullController)? = {
+            guard let app, let lib = app.engineLibrary, !lib.isReadOnly, let folder = lib.folder else { return nil }
+            return (lib.engine, folder.path, app.cull)
+        }()
+        Task.detached(priority: .utility) {
+            var openIDs: Set<String> = []
+            if let open {
+                if let s = try? open.engine.styleProfileStatus(libraryFolder: open.folder) { openIDs.insert(s.libraryId) }
+                if let s = try? open.cull.assistStatus() { openIDs.insert(s.libraryId) }
+            }
+            let files = candidates.filter { !openIDs.contains($0.0) }.map { ($0.1, $0.2, $0.3) }
+            for (url, data, modified) in files {
+                let local = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                if let local, local >= modified { continue }
+                do {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try data.write(to: url, options: .atomic)
+                } catch {
+                    NSLog("Sync: could not restore %@: %@", url.lastPathComponent, error.localizedDescription)
+                }
             }
         }
     }

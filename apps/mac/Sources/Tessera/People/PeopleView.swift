@@ -163,17 +163,19 @@ private struct PersonTileView: View {
             .strokeBorder(targeted ? Theme.accent : Theme.clear, lineWidth: Theme.Space.xxs))
         .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
         .onHover { hovering = $0 }
-        .onTapGesture(count: 2) { people.openDetail(tile.id) }
+        .onTapGesture(count: 2) { Task { await people.openDetail(tile.id) } }
         .onTapGesture {
             let mods = NSEvent.modifierFlags
             people.click(tile.id, command: mods.contains(.command), shift: mods.contains(.shift))
         }
         .dropDestination(for: String.self) { tokens, _ in
             let faces = tokens.compactMap(PersonFaceRef.init(dragToken:))
-            var moved = false
-            for face in faces where people.reassign(face, to: tile.id) { moved = true }
-            model.peopleDidChange()
-            return moved
+            guard !faces.isEmpty else { return false }
+            Task {
+                for face in faces { await people.reassign(face, to: tile.id) }
+                model.peopleDidChange()
+            }
+            return true
         } isTargeted: { targeted = $0 }
         .contextMenu { PersonMenu(model: model, tile: tile) }
         .help(tile.isNamed ? "\(tile.displayName): \(tile.faces) faces. Double-click to see them." :
@@ -196,8 +198,10 @@ private struct PersonTileView: View {
                     .controlSize(.small)
                     .font(Theme.Fonts.caption)
                     .onSubmit {
-                        if people.name(tile.id, as: draft) { draft = "" }
-                        model.peopleDidChange()
+                        Task {
+                            if await people.name(tile.id, as: draft) { draft = "" }
+                            model.peopleDidChange()
+                        }
                     }
                     .help("Type a name and press Return")
                     .accessibilityIdentifier("person-name-field-\(tile.id)")
@@ -207,8 +211,10 @@ private struct PersonTileView: View {
                         Section("Looks like") {
                             ForEach(suggestions, id: \.self) { s in
                                 Button("\(s.name)    \(Int((s.similarity * 100).rounded())) % similar") {
-                                    people.accept(s)
-                                    model.peopleDidChange()
+                                    Task {
+                                        await people.accept(s)
+                                        model.peopleDidChange()
+                                    }
                                 }
                             }
                         }
@@ -232,16 +238,16 @@ private struct PersonMenu: View {
     private var people: PeopleModel { model.people }
 
     var body: some View {
-        Button("Open") { people.openDetail(tile.id) }
+        Button("Open") { Task { await people.openDetail(tile.id) } }
         Button("Show Photos") { model.showPhotos(of: tile.id) }
         Divider()
         Button(tile.isNamed ? "Rename…" : "Name…") { promptPersonName(model: model, person: tile) }
         if tile.isNamed {
-            Button("Clear Name") { people.name(tile.id, as: ""); model.peopleDidChange() }
+            Button("Clear Name") { Task { await people.name(tile.id, as: ""); model.peopleDidChange() } }
         }
         if people.selection.count > 1, people.selection.contains(tile.id) {
             Divider()
-            Button("Merge \(people.selection.count) People") { people.mergeSelection(); model.peopleDidChange() }
+            Button("Merge \(people.selection.count) People") { Task { await people.mergeSelection(); model.peopleDidChange() } }
         }
     }
 }
@@ -254,8 +260,10 @@ func promptPersonName(model: AppModel, person: PersonTile) {
                                      ? "The name is saved in the library and written to the photos' XMP face regions."
                                      : "The name is saved in the library (XMP face regions are off in Settings ▸ Library).",
                                  initial: person.name ?? "", confirm: "Name") { name in
-        model.people.name(person.id, as: name)
-        model.peopleDidChange()
+        Task {
+            await model.people.name(person.id, as: name)
+            model.peopleDidChange()
+        }
     }
 }
 
@@ -311,7 +319,7 @@ private struct PersonDetailView: View {
                 .controlSize(.small)
                 .font(Theme.Fonts.label)
                 .frame(width: Theme.Width.sidebarIdeal)
-                .onSubmit { people.name(person.id, as: draft); model.peopleDidChange() }
+                .onSubmit { Task { await people.name(person.id, as: draft); model.peopleDidChange() } }
                 .help("Type a name and press Return; clear it to remove the name")
                 .accessibilityIdentifier("person-detail-name")
             Text("\(person.items.count.formatted()) photos · \(person.faces.formatted()) faces · \(person.confirmedCount.formatted()) confirmed")
@@ -324,12 +332,12 @@ private struct PersonDetailView: View {
             Button("Show Photos") { model.showPhotos(of: person.id) }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
                 .accessibilityIdentifier("person-show-photos")
-            Button("Confirm All") { people.confirmAll(); model.peopleDidChange() }
+            Button("Confirm All") { Task { await people.confirmAll(); model.peopleDidChange() } }
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                 .disabled(person.isConfirmed)
                 .help("Confirm every face of this person (protects them from automatic re-clustering)")
                 .accessibilityIdentifier("person-confirm-all")
-            Button("Split") { people.splitSelection(); model.peopleDidChange() }
+            Button("Split") { Task { await people.splitSelection(); model.peopleDidChange() } }
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                 .disabled(people.faceSelection.isEmpty || people.faceSelection.count >= person.members.count)
                 .help("Move the selected faces into a new, unnamed person")
@@ -360,8 +368,10 @@ private struct FaceMemberChip: View {
                         .strokeBorder(selected ? Theme.accent : Theme.hairline,
                                       lineWidth: selected ? Theme.Space.xxs : Theme.Space.hairline))
                 Button {
-                    people.setConfirmed(member.face, !member.confirmed)
-                    model.peopleDidChange()
+                    Task {
+                        await people.setConfirmed(member.face, !member.confirmed)
+                        model.peopleDidChange()
+                    }
                 } label: {
                     Image(systemName: member.confirmed ? "checkmark.seal.fill" : "checkmark.seal")
                         .font(Theme.Fonts.iconSmall)
@@ -391,19 +401,21 @@ private struct FaceMemberChip: View {
         }
         .contextMenu {
             Button(member.confirmed ? "Unconfirm" : "Confirm") {
-                people.setConfirmed(member.face, !member.confirmed); model.peopleDidChange()
+                Task { await people.setConfirmed(member.face, !member.confirmed); model.peopleDidChange() }
             }
             Menu("Move To") {
                 ForEach(people.tiles.filter { $0.id != person.id }) { other in
                     Button(other.displayName + (other.isNamed ? "" : " · \(other.faces) faces")) {
-                        people.reassign(member.face, to: other.id); model.peopleDidChange()
+                        Task { await people.reassign(member.face, to: other.id); model.peopleDidChange() }
                     }
                 }
             }
             Button("Split Off") {
                 people.faceSelection = [member.face]
-                people.splitSelection()
-                model.peopleDidChange()
+                Task {
+                    await people.splitSelection()
+                    model.peopleDidChange()
+                }
             }
             .disabled(person.members.count < 2)
             Divider()
@@ -463,14 +475,15 @@ private struct MoveTargetRow: View {
             .strokeBorder(targeted ? Theme.accent : Theme.clear, lineWidth: Theme.Space.hairline))
         .contentShape(Rectangle())
         .dropDestination(for: String.self) { tokens, _ in
-            var moved = false
-            for face in tokens.compactMap(PersonFaceRef.init(dragToken:)) where model.people.reassign(face, to: tile.id) {
-                moved = true
+            let faces = tokens.compactMap(PersonFaceRef.init(dragToken:))
+            guard !faces.isEmpty else { return false }
+            Task {
+                for face in faces { await model.people.reassign(face, to: tile.id) }
+                model.peopleDidChange()
             }
-            model.peopleDidChange()
-            return moved
+            return true
         } isTargeted: { targeted = $0 }
-        .onTapGesture(count: 2) { model.people.openDetail(tile.id) }
+        .onTapGesture(count: 2) { Task { await model.people.openDetail(tile.id) } }
         .help("Drop a face here to move it to \(tile.displayName). Double-click to open.")
         .accessibilityIdentifier("person-move-target-\(tile.id)")
     }
