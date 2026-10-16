@@ -1169,7 +1169,6 @@ enum EstablishedAccessibilityIdentifiers {
         "person-split",
         "person-suggestions-",
         "person-tile-",
-        "photo-edit-inspector-tabs",
         "photo-edit-target",
         "photo-job-cancel",
         "photo-job-progress",

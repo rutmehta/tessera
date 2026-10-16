@@ -18,8 +18,9 @@ import TesseraCore
 ///   K keep the group's suggested best and reject the rest · C compare · ⌫ remove from album
 ///   Assist (toolbar): Y confirm every suggested decision in view · N dismiss the suggestion here
 ///   Compare: ← → pick side · Return choose this · Z fit/1:1 · Esc back
-///   Masking (loupe): M on/off · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
+///   Masking (loupe): ⇧M brush toolbar on/off (M alone closes it) · O overlay (⇧ colour) · [ ] brush size (⇧ feather) · X invert · ⌫ delete
 ///   Develop (loupe): S soft proofing on/off · ⇧S gamut warning · \ held shows the original (UX-13) ·
+///   M the Masks tool (chips over the photo, the mask list at the top of the panel; UX-16) ·
 ///   Esc closes the dial, then leaves Heal, then hides the mask chips (`PhotoDial`)
 ///   Document mode (B5-02, `DocumentKeyMap`): V move · M marquee · Space-drag pan · Tab panels (over the canvas;
 ///   a focused panel / toolbar view keeps Tab for the key-view loop, B5-21; over such a view ⌫ / ⌦ do
@@ -232,7 +233,7 @@ final class KeyRouter {
         }
         switch event.charactersIgnoringModifiers?.lowercased() {
         case "d": model.photoInspectorTab = .develop
-        case "m": model.photoInspectorTab = .masks
+        case "m": model.photoInspectorTab = .masks   // the Masks tool took it above when it owns this model
         case "g": model.returnToLibrary(grid: true)
         case "s":
             if event.modifierFlags.contains(.shift) { SoftProof.shared.gamutWarning.toggle() }

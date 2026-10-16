@@ -333,14 +333,20 @@ final class PhotoDial: LibraryObserver {
 
     // MARK: Masks tool (strip)
 
+    /// The strip's Masks button and M (UX-16): the chips over the photo, and the mask list as a
+    /// section at the top of the panel (`photoInspectorTab == .masks`) while the tool is active.
     func toggleMasksTool() {
         masksToolShown.toggle()
         if masksToolShown {
             if healActive { healActive = false }
             if target == .whole { select(.subject) } else { select(target) }
-        } else if !isOpen {
-            ring = []
-            onLoupeChange?()
+            model.photoInspectorTab = .masks
+        } else {
+            if !isOpen {
+                ring = []
+                onLoupeChange?()
+            }
+            if !MaskTools.shared.active { model.photoInspectorTab = .develop }
         }
         revision += 1
     }
@@ -376,9 +382,17 @@ final class PhotoDial: LibraryObserver {
 
     // MARK: Keys
 
-    /// Esc closes the dial, then leaves healing, then hides the mask chips. Returns true when handled.
+    /// M toggles the Masks tool (UX-16; ⇧M is the brush toolbar, `MaskTools`). Esc closes the
+    /// dial, then leaves healing, then hides the mask chips. Returns true when handled.
     func handleKey(_ event: NSEvent) -> Bool {
-        guard model.isPhotoEditing, event.keyCode == 53 else { return false }
+        guard model.isPhotoEditing else { return false }
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if event.charactersIgnoringModifiers?.lowercased() == "m", mods.isEmpty, model.developStatus == .ready,
+           !MaskTools.shared.active, !tools.cropActive {
+            toggleMasksTool()
+            return true
+        }
+        guard event.keyCode == 53 else { return false }
         if isOpen { close(); return true }
         if healActive { toggleHeal(); return true }
         if masksToolShown { toggleMasksTool(); return true }

@@ -22,7 +22,7 @@ struct MasksPanel: View {
                 }
                 .toggleStyle(.checkbox)
                 .controlSize(.small)
-                .help("Show the mask tools on the loupe (M)")
+                .help("Show the brush, gradient and range tools on the loupe (⇧M)")
                 .accessibilityIdentifier("develop.masks.showTools")
                 Spacer()
                 createMenu

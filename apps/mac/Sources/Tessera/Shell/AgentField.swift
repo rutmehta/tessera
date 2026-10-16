@@ -188,7 +188,7 @@ struct ToolsStrip: View {
 
     var body: some View {
         HStack(spacing: Theme.Space.xs) {
-            IconButton(symbol: "circle.lefthalf.filled", help: "Masks: target the subject, sky or background (M for the brush and gradients)",
+            IconButton(symbol: "circle.lefthalf.filled", help: "Masks (M): target the subject, sky or background; ⇧M for the brush and gradients",
                        on: owned && dial.masksToolShown, size: Theme.Height.toolStrip) {
                 if owned { dial.toggleMasksTool() }
             }
