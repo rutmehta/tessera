@@ -117,7 +117,8 @@ struct ContentView: View {
                                 .padding(Theme.Space.m)
                                 .allowsHitTesting(false)
                             }
-                            if model.isPhotoEditing {
+                            // UX-15 (item 18): the develop chrome belongs to Edit alone.
+                            if model.isPhotoEditing, model.shellMode == .edit {
                                 MaskToolbar(model: model, masks: .shared)
                                 // UX-13: the mask chips, the crop aspect chips and the dial.
                                 EditPhotoHUDs(model: model)
@@ -134,7 +135,9 @@ struct ContentView: View {
                             PeopleView(model: model)
                         } else if model.library.items.isEmpty {
                             EmptyStateView(model: model)
-                        } else if model.deliverMode {
+                        } else if model.deliverMode, !model.isPhotoEditing {
+                            // UX-15 (item 18): never while a Develop session is still on screen; the
+                            // mode switch saves and closes it first (`returnToLibraryThenDeliver`).
                             DeliverView(model: model)
                         } else if model.isCullWorkspace {
                             CullWorkspace(model: model)
@@ -162,7 +165,7 @@ struct ContentView: View {
                     .clipped()
                     // UX-16: Edit's panel is a plain 320 pt column beside the photo (the prototype's),
                     // not the system inspector, whose macOS 26 column covers the toolbar's right.
-                    if model.isPhotoEditing, model.showInspector {
+                    if model.isPhotoEditing, model.shellMode == .edit, model.showInspector {
                         PhotoEditInspectorView(model: model)
                             .frame(width: Theme.Width.editPanel)
                             .transition(Theme.Motion.transition(from: .trailing))
@@ -171,21 +174,24 @@ struct ContentView: View {
                     .animation(Theme.Motion.appear, value: model.showInspector)
                     // UX-11: the agent field sits bottom centre of every mode (Review keeps its own
                     // instruction field in the inspector), over the whole width like the prototype's;
-                    // the toast moves up above it. In a window too narrow to centre the field beside
-                    // Edit's panel it centres over the photo area instead, and the row goes compact.
+                    // the toast sits one row up, above the quick-action chips and the Try cards, in
+                    // the band every mode keeps clear (`Theme.Height.toastBand`, UX-15 item 20). In a
+                    // window too narrow to centre the field beside Edit's panel it centres over the
+                    // photo area instead, and the row goes compact.
                     let panelInset = model.isPhotoEditing && model.showInspector
                         && area.size.width < Theme.Width.editPanel * 2 + Theme.Width.agentField ? Theme.Width.editPanel : 0
                     let rowWidth = area.size.width - panelInset - 2 * Theme.Space.l
-                    VStack {
+                    VStack(spacing: Theme.Space.s) {
                         Spacer()
                         if let toast = model.toast {
                             ToastView(model: model, toast: toast)
-                                .padding(.bottom, Theme.Space.l)
+                                .shellProbe("toast")
                                 .transition(Theme.Motion.transition(from: .bottom))
                         }
                         if model.viewMode != .document, !model.isReviewing {
                             AgentRow(model: model, compact: rowWidth < AgentRow.fullWidth)
                                 .frame(maxWidth: rowWidth)
+                                .shellProbe("agentRow")
                                 .padding(.bottom, Theme.Space.l)
                         }
                     }
@@ -202,7 +208,8 @@ struct ContentView: View {
                 if model.viewMode == .loupe, model.source != .people, !model.assist.faces.isEmpty {
                     FaceStrip(model: model)
                 }
-                AssistProgressBar(assist: model.assist)
+                // UX-15 (item 21): the culling analysis has no bar; the Cull column's "Sorting the
+                // shoot while it loads" line carries its count and the Stop control.
                 UnderstandingProgressBar(understanding: model.collections.understanding)
                 AgentProgressBar(agent: model.agent)
                 LightroomImportProgressBar(importer: model.lightroomImport)
@@ -721,7 +728,7 @@ struct ToastView: View {
         .padding(.leading, Theme.Space.l)
         .padding(.trailing, Theme.Space.xs)
         .padding(.vertical, Theme.Space.xs)
-        .frame(minHeight: Theme.Height.large + Theme.Space.s)
+        .frame(minHeight: Theme.Height.toast)
         .background(HUDBackground())
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("toast")

@@ -3,3 +3,7 @@ module_name = "TesseraFFI"
 ffi_module_name = "CTesseraFFI"
 ffi_module_filename = "CTesseraFFI"
 generate_module_map = true
+# UX-15 (item 24): the generated `LocalizedError` conformance describes a BridgeError as
+# `TesseraFFI.BridgeError.Failure(message: "…")`. TesseraCore supplies the conformance instead
+# (`BridgeError+LocalizedError.swift`), with the message as `errorDescription`.
+omit_localized_error_conformance = true

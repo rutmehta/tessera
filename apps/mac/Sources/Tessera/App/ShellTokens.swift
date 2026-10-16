@@ -44,6 +44,11 @@ extension Theme.Width {
 
 extension Theme.Height {
     static let agentField: CGFloat = 48
+    /// UX-15 (item 20): the toast (one line with Undo), and the band above the agent row that
+    /// every mode keeps clear for it: the toast and its gap, so it sits one row up from the
+    /// quick-action chips and never on a control.
+    static let toast: CGFloat = large + Theme.Space.s
+    static let toastBand: CGFloat = toast + Theme.Space.s
     /// One button of the tools strip beside the agent field (Masks, Crop, Heal).
     static let toolStrip: CGFloat = 36
     /// The folder popover (the source sidebar's content).

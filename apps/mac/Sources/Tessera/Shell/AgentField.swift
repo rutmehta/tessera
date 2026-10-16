@@ -17,9 +17,10 @@ struct AgentRow: View {
         let mode = model.shellMode
         VStack(spacing: Theme.Space.s + Theme.Space.xxs) {
             // UX-14: the quick actions of Cull (SPEC §4), each one undoable step with a toast.
-            if mode == .cull, model.isCullWorkspace { CullQuickActions(model: model) }
-            // UX-13: the Try cards, real renders of this photo, above the field in Edit.
-            if mode == .edit, model.viewMode == .loupe {
+            if mode == .cull, model.isCullWorkspace { CullQuickActions(model: model).shellProbe("cullQuickActions") }
+            // UX-13: the Try cards, real renders of this photo, above the field in Edit (and only
+            // while the photo is being edited, UX-15 item 18).
+            if mode == .edit, model.isPhotoEditing, model.viewMode == .loupe {
                 if compact {
                     ScrollView(.horizontal) { TryCardsRow(model: model) }.scrollIndicators(.never)
                 } else {

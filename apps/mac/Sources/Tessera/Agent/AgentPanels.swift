@@ -198,11 +198,12 @@ struct AgentEditPanel: View {
                         .disabled(instruction.trimmingCharacters(in: .whitespaces).isEmpty || model.agent.isRunning || !model.agent.busy.isEmpty)
                 }
             } else {
-                Hint(model.isEngineBacked ? "No agent edit on this photo. Develop ▸ Auto Edit… (⇧⌘A) makes one."
-                     : "Auto Edit needs a folder opened on the engine.")
+                // UX-15 (item 22): one line and the button; the rest is the tooltip.
+                Hint(model.isEngineBacked ? "No agent edit on this photo." : "Needs a folder opened on the engine.")
                 Button("Auto Edit…") { model.agent.present() }.accessibilityIdentifier("library.agent.autoEdit")
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                     .disabled(!model.isEngineBacked || model.agent.isRunning || !model.agent.busy.isEmpty)
+                    .help("Let the agent make an edit of this photo (Develop ▸ Auto Edit…, ⇧⌘A)")
             }
         }
         .task(id: key) { await load() }

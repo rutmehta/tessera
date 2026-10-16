@@ -128,6 +128,23 @@ enum ShellLayoutAudit {
     }
 }
 
+/// Layout tests read the frames of the shell's SwiftUI rows through this probe (the AppKit tree
+/// has no view for them): the toast, the agent row, Cull's quick-action chips and burst actions,
+/// Deliver's status line (UX-15 item 20). Off in the app; frames are in window coordinates.
+@MainActor
+enum ShellLayoutProbe {
+    static var isEnabled = false
+    static var frames: [String: CGRect] = [:]
+}
+
+extension View {
+    func shellProbe(_ name: String) -> some View {
+        onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { rect in
+            if ShellLayoutProbe.isEnabled { ShellLayoutProbe.frames[name] = rect }
+        }
+    }
+}
+
 private struct ToolbarCompactKey: EnvironmentKey {
     static let defaultValue = false
 }

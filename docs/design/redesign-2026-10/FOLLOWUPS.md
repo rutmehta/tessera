@@ -49,8 +49,12 @@ much they would annoy Rut.
 
 ## UX-15: collisions located (2026-10-16, screenshots on the sample shoot at 1385 × 868 pt)
 
-Item 17 is located. Evidence: `docs/design/evidence/UX-15/` (to be added by the WP) and the
+Item 17 is located. Evidence: `docs/design/redesign-2026-10/evidence/UX-15/` (`before/` and
+`after/`, rendered in-process by `CollisionEvidenceTests` with `TESSERA_UX15_EVIDENCE` and
+`TESSERA_UX15_SHOOT` on a copy of the five fixture RAWs at 1385 × 868; see its README) and the
 session screenshots described here. All on the 8-ARW sample shoot, window 1385 × 868.
+
+**Fixed by the UX-15 collisions package (2026-10-16); what remains is noted per item.**
 
 18. **Deliver drawn over an open Develop session.** Switching Cull → Edit → Deliver with a photo
     open leaves the Edit panel (Light/Color/Detail/Optics/Effects/Edits), the six Try cards, the
@@ -59,31 +63,85 @@ session screenshots described here. All on the 8-ARW sample shoot, window 1385 �
     agent can also do this…" lines print across the Try cards. A mode switch must close or
     suspend the develop chrome first (save-and-close like navigation does), and Deliver shows
     only its columns, its grid and the agent field.
+    *Done:* `selectShellMode(.deliver)` with a photo open goes through
+    `AppModel.returnToLibraryThenDeliver()` (the `navigateAfterDevelopSave` path: save, close,
+    leave Edit, then `enterDeliver`); a save that cannot finish keeps Edit up and says so. The
+    views gate the Edit panel, the HUDs and the Try cards on `isPhotoEditing && shellMode == .edit`
+    and `DeliverView` on `deliverMode && !isPhotoEditing`. `ShellModeSwitchTests`; evidence
+    `after/06-deliver-switching.png` (captured 0.3 s after the switch) and `07-deliver-settled.png`.
 19. **Edit never leaves "Rendering…".** The loupe showed the photo at thumbnail size (about
     120 × 80 pt, centred, not scaled to the loupe) with a loose "Rendering…" capsule at the top
     of the panel for over a minute. Cause: the develop open waited on the catalog lock held by
     `flush_drive → Index::roots()` (PF-1, fixed on main). The shell side still needs: the
     embedded preview scaled to fit the loupe immediately, the capsule inside the Edits readout
     line rather than floating, and after 2 s a reason ("Waiting for the engine · 12 s").
+    *Done:* `LoupePlacement.fit(magnify:)` lets a preview frame (not an engine frame) scale past
+    1:1, so the thumbnail and then the embedded preview fill the loupe at once; the histogram
+    strip stays empty while opening and the Edits readout carries "Rendering…", then after 2 s
+    `DevelopLoadingReadout.text` ("Rendering… · Waiting for the engine · 12 s", a `TimelineView`
+    ticking each second from `AppModel.developLoadingSince`). `DevelopLoadingReadoutTests`;
+    evidence `after/04-edit-opening.png` (0.4 s after the switch; the fixtures open in under 2 s,
+    so the reason text is covered by the unit test only).
 20. **Toast over the quick-action chips.** In Cull the "Opened sample-shoot: 8 images" toast
     sits exactly on the "Keep the pick in every burst · Reject the blurry ones · Find closed
     eyes" chip row above the agent field. The toast belongs above the chips (one row up), or
     the chips hide while a toast shows.
+    *Done:* the toast is one row up, `Theme.Space.s` above the agent row (chips included), and
+    every mode keeps that band clear (`Theme.Height.toastBand` = 44 pt added to the burst view's
+    bottom padding, `CullWorkspace.gridBottomInset` and Deliver's preview padding), so it also
+    never sits on the burst view's action buttons (where the in-process render had it) or
+    Deliver's status line. `ToastLayoutTests` measures the toast, the chips, the burst actions
+    and Deliver's status line through `ShellLayoutProbe`; evidence `after/01-cull-toast.png`.
 21. **Bottom progress bar in Cull.** "Measuring sharpness and exposure for culling · 0 / 8 ·
     DSC02497.ARW · Stop" is a full-width bar at the bottom while the Cull column already says
     "Sorting the shoot while it loads: 0 of 8 measured". One place: the column line gets the
     Stop control; the bar goes.
+    *Done:* `AssistProgressBar` is gone; the Cull column's line reads "Sorting the shoot while
+    it loads: n of m measured" (a face pass names itself) with the Stop button
+    (`library.assist.stop`). With the panel hidden (Tab) the pass runs without an indicator.
 22. **Inspector in Cull is a wall of prose.** With the panel open: Image, Selection (three rows
     of chips), Assist (two-line paragraph), People, Agent Edit (paragraph + button), Keywords
     (field + "Suggested" + paragraph + "Keyword List" + paragraph), Metadata (eight fields +
     paragraph), Photo Edit (button + paragraph). Keep one short line per section at most and
     move the rest to `.help`; Keywords and Metadata collapsed by default in Cull; drop the
     "Photo Edit" section (Edit is a mode).
+    *Done:* Assist, People, Agent Edit, Keywords (Suggested, Keyword List) and Metadata keep one
+    short line each and carry the explanations as tooltips; Keywords and Metadata start
+    collapsed (`PanelSection` remembers the person's choice in `InspectorPanel.<title>`); the
+    Photo Edit section is removed (`library.inspector.editPhoto` dropped from the established
+    identifiers). Evidence `after/03-cull-loupe-panel.png`. The Image rows stay: they are values,
+    not prose.
 23. **Grid view.** Burst 3's two thumbnails stayed blank while bursts 1–2 drew (the strip in
     Burst view had drawn them). The built-preview thumbnails carry a "Smart Preview" text label
     inside the cell; a small glyph in the corner, not text. "review" is a bare lowercase link.
+    *Done:* a cell whose request returned without an image (the engine declined, the embedded
+    preview was unreadable, the preview event stream closed) stayed blank for good:
+    `ThumbnailCell.resumeLoading` only re-asked after a *cancelled* request, never a *finished*
+    one. The cell now tracks `delivered` and asks again whenever it is shown without an image
+    (`PreviewRequest.isFinished`); the loader gives a pending render one more pass after its
+    event stream ends and logs every flight that ends empty under `dev.tessera.app`/`thumbnails`
+    (there was no log line for this case before, which is why the owner's screenshot had no
+    trace). The exact engine-side reason on the owner's shoot is not reproduced here (the
+    fixtures render every thumbnail); the log now names it. The Smart Preview state is a
+    chip-sized corner glyph (`BadgeOverlayView.smartPreviewGlyphFrame`, tooltip = the text) and
+    the row header has a secondary **Review** button (`SecondaryHeaderButton`).
+    `ThumbnailRetryTests`; evidence `after/02-cull-grid.png` (the fixtures carry no Smart
+    Previews, so the glyph is covered by the layout test).
 24. **Raw error text in menus.** Library ▸ Smart Previews shows
     `TesseraFFI.BridgeError.Failure(message: "…")`: `BridgeError` needs `LocalizedError`
     (`errorDescription` = the message) and every surface shows `localizedDescription`.
+    *Done:* the generated binding already conformed, with `errorDescription` =
+    `String(reflecting:)`; `crates/tessera-ffi/uniffi.toml` now sets
+    `omit_localized_error_conformance = true` (the checked-in `TesseraFFI.swift` is edited to
+    what the generator emits with it; the next `build-ffi.sh` produces the same) and
+    `TesseraCore/BridgeError+LocalizedError.swift` supplies the conformance with the message.
+    Audit: `CullShutdownQueue` showed `String(describing:)`, now `localizedDescription`;
+    `EngineCall.isBusy` matches the `Busy` case directly. `BridgeErrorDescriptionTests` also
+    scans the sources for a `"\(error)"` shown in a status, toast or `Text`.
 25. **Mode segmented control ignores raw clicks** (AX press works): the Cull · Edit · Deliver
     control needs a hit target the size of its label row, and a hover state.
+    *Done:* each segment of `SegmentedPicker` is now the full row inside the track (the hit
+    target and the fill are the same rectangle) and shows the hover fill with primary ink. The
+    raw-click report could not be reproduced in-process (there is no pointer in the harness);
+    if it persists on the owner's Mac the next thing to check is the macOS 26 toolbar item's
+    own hit testing of the principal item.

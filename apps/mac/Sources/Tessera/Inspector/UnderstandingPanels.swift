@@ -30,9 +30,9 @@ struct SuggestedKeywordsSection: View {
                     .accessibilityIdentifier("keyword-suggest-selection")
             }
             if chips.isEmpty {
-                Hint(understanding.info?.hasKeywords == true
-                     ? "No more suggestions for this photo."
-                     : "Suggestions appear here with their confidence. Nothing is applied until you accept it.")
+                // UX-15 (item 22): one line; how suggestions work is the tooltip.
+                Hint(understanding.info?.hasKeywords == true ? "No more suggestions for this photo." : "No suggestions yet.")
+                    .help("Suggestions appear here with their confidence; nothing is applied until you accept it")
             } else {
                 FlowRow(spacing: Theme.Space.xs) {
                     ForEach(Array(chips.items.enumerated()), id: \.element.id) { index, s in

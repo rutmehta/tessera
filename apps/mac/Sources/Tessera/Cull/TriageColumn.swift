@@ -30,10 +30,21 @@ struct TriageColumn: View {
                     .accessibilityIdentifier("library.cull.triage.reasons")
                 row(.rest, color: Theme.track)
             }
-            Text(summary)
-                .font(Theme.Fonts.label).foregroundStyle(Theme.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("library.cull.triage.summary")
+            // UX-15 (item 21): the one place the analysis pass reports: its count here, with the
+            // Stop control; there is no bar at the bottom of the window.
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Space.s) {
+                Text(summary)
+                    .font(Theme.Fonts.label).foregroundStyle(Theme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("library.cull.triage.summary")
+                if assist.progress != nil {
+                    Spacer(minLength: 0)
+                    Button("Stop") { assist.cancel() }
+                        .buttonStyle(.theme(.bordered, height: Theme.Height.small))
+                        .help("Pause measuring; it picks up where it left off the next time this folder opens")
+                        .accessibilityIdentifier("library.assist.stop")
+                }
+            }
             Hairline()
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
                 Text("Your decisions").font(Theme.Fonts.bodySemibold).foregroundStyle(Theme.textPrimary)
@@ -76,8 +87,10 @@ struct TriageColumn: View {
     }
 
     private var summary: String {
-        if let p = assist.progress, p.total > 0 {
-            return "Sorting the shoot while it loads: \(p.done.formatted()) of \(p.total.formatted()) measured."
+        if let p = assist.progress {
+            // The culling pass; a face pass (Cull ▸ Analyze Faces) names itself.
+            let what = p.title.hasPrefix("Measuring") ? "Sorting the shoot while it loads" : p.title
+            return p.total > 0 ? "\(what): \(p.done.formatted()) of \(p.total.formatted()) measured" : what + "…"
         }
         if !model.isEngineBacked { return "Signals need a folder opened on the engine; bursts still group by time." }
         if triage.measured == 0 { return "Nothing measured yet. Cull ▸ Analyze Shoot Again sorts the shoot." }

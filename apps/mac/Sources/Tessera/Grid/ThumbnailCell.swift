@@ -18,6 +18,9 @@ final class ThumbnailCell: NSCollectionViewItem {
     private var request: PreviewRequest?
     private var representedItem: PhotoItem?
     private(set) var itemID: Int = -1
+    /// An image for `representedItem` reached the cell (UX-15 item 23): a request that finished
+    /// without one is asked again the next time the cell is shown, instead of staying blank.
+    private(set) var delivered = false
 
     deinit { request?.cancel() }
 
@@ -35,6 +38,7 @@ final class ThumbnailCell: NSCollectionViewItem {
         request = nil
         itemID = -1
         representedItem = nil
+        delivered = false
         cellView.setImage(nil)
     }
 
@@ -62,9 +66,11 @@ final class ThumbnailCell: NSCollectionViewItem {
         representedItem = item
         itemID = item.id
         request?.cancel()
+        delivered = false
         v.setImage(nil)
         request = loader.request(item, tier: .thumbnail, priority: .high) { [weak self] image in
             guard let self, self.representedItem == item else { return }
+            self.delivered = true
             self.cellView.setImage(image)
         }
     }
@@ -75,9 +81,10 @@ final class ThumbnailCell: NSCollectionViewItem {
         guard let item = representedItem else { return }
         request?.cancel()
         // A discarded/invalid proxy must not leave its old bitmap presented forever.
-        if item.engineImage?.previewSource == .smartPreview { cellView.setImage(nil) }
+        if item.engineImage?.previewSource == .smartPreview { cellView.setImage(nil); delivered = false }
         request = loader.request(item, tier: .thumbnail, priority: .high) { [weak self] image in
             guard let self, self.representedItem == item else { return }
+            self.delivered = true
             self.cellView.setImage(image)
         }
     }
@@ -87,8 +94,12 @@ final class ThumbnailCell: NSCollectionViewItem {
         request = nil
     }
 
+    /// Shown again (or the grid became the viewport): a cell still without its image asks for it
+    /// unless a request is in flight. A request that was cancelled, trimmed by the loader or
+    /// finished without an image (UX-15 item 23: the later bursts' blank cells) counts as done.
     func resumeLoading(loader: ThumbnailLoader) {
-        guard request == nil || request?.isCancelled == true else { return }
+        guard !delivered else { return }
+        if let request, !request.isCancelled, !request.isFinished { return }
         refreshThumbnail(loader: loader)
     }
 
@@ -186,7 +197,8 @@ final class ThumbnailCellView: NSView {
     }
 }
 
-/// Draws decision / grade pill, mark chip, basket chip and the caption. Text only, no symbol fonts.
+/// Draws decision / grade pill, mark chip, basket chip and the caption as text chips, and the
+/// Smart Preview state as one corner glyph (UX-15 item 23).
 @MainActor
 final class BadgeOverlayView: NSView {
     private var name = ""
@@ -240,18 +252,35 @@ final class BadgeOverlayView: NSView {
         }
     }
 
-    /// Bottom-right status text: derived phase (unedited is implicit) and albums other than the
-    /// basket target, whose membership already shows as the basket chip.
+    /// The Smart Preview state of the photo (UX-15 item 23): a small glyph in the bottom-right
+    /// corner of the image, its text as the tooltip and the accessibility label, not a text
+    /// label inside the cell.
     var smartPreviewBadge: String? { didSet {
         if smartPreviewBadge != oldValue { needsDisplay = true }
+        toolTip = smartPreviewBadge
         setAccessibilityElement(smartPreviewBadge != nil)
         setAccessibilityRole(.staticText)
         setAccessibilityIdentifier("library.smart-preview-badge")
         setAccessibilityLabel(smartPreviewBadge)
     } }
 
+    /// Where the Smart Preview glyph sits: a chip-sized square in the image's bottom-right corner.
+    static func smartPreviewGlyphFrame(imageRect r: NSRect, small: Bool) -> NSRect {
+        let pad = small ? Theme.Space.xxs : Theme.Space.xs
+        let size = Theme.Height.chip
+        return NSRect(x: r.maxX - pad - size, y: r.maxY - pad - size, width: size, height: size)
+    }
+
+    private static let smartPreviewSymbol: NSImage? = {
+        let config = NSImage.SymbolConfiguration(pointSize: Theme.NSFonts.captionMedium.pointSize, weight: .medium)
+            .applying(.init(paletteColors: [Theme.Palette.OnImage.text]))
+        return NSImage(systemSymbolName: "rectangle.dashed", accessibilityDescription: nil)?.withSymbolConfiguration(config)
+    }()
+
+    /// Bottom-right status text: derived phase (unedited is implicit) and albums other than the
+    /// basket target, whose membership already shows as the basket chip.
     private var statusText: String? {
-        var parts: [String] = smartPreviewBadge.map { [$0] } ?? []
+        var parts: [String] = []
         if status.isCachedDeclaration { parts.append("Cached declaration") }
         else if status.phase != .unedited { parts.append(status.phase.rawValue.capitalized) }
         let others = status.albums.filter { $0 != basketTarget }
@@ -298,11 +327,23 @@ final class BadgeOverlayView: NSView {
             basketWidth = drawChip(small ? "B" : basketTarget, fill: OnImage.basket, text: OnImage.ink,
                                    at: NSPoint(x: r.minX + pad, y: bottom), maxWidth: r.width * 0.55).width
         }
-        // Derived status (bottom-right).
+        // The Smart Preview glyph (bottom-right corner), then the derived status left of it.
+        var right = r.maxX - pad
+        if smartPreviewBadge != nil {
+            let glyph = Self.smartPreviewGlyphFrame(imageRect: r, small: small)
+            OnImage.scrim.setFill()
+            NSBezierPath(roundedRect: glyph.insetBy(dx: 0.5, dy: 0.5), xRadius: Theme.Radius.chip, yRadius: Theme.Radius.chip).fill()
+            if let symbol = Self.smartPreviewSymbol {
+                let s = symbol.size
+                symbol.draw(in: NSRect(x: glyph.midX - s.width / 2, y: glyph.midY - s.height / 2, width: s.width, height: s.height),
+                            from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+            }
+            right = glyph.minX - gap
+        }
         if !small, let s = statusText {
-            let maxW = r.width - 2 * pad - basketWidth - gap
+            let maxW = right - (r.minX + pad) - basketWidth - gap
             let size = chipSize(s, maxWidth: maxW)
-            drawChip(s, fill: OnImage.scrim, text: OnImage.text, at: NSPoint(x: r.maxX - pad - size.width, y: bottom), maxWidth: maxW)
+            drawChip(s, fill: OnImage.scrim, text: OnImage.text, at: NSPoint(x: right - size.width, y: bottom), maxWidth: maxW)
         }
         // Caption: name (secondary) and group (tertiary, tabular) on one baseline.
         if style == .grid {

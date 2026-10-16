@@ -115,6 +115,10 @@ public final class PreviewRequest: @unchecked Sendable {
         for waiter in pending { waiter.resume() }
     }
     public var isCancelled: Bool { lock.withLock { cancelled } }
+    /// The flight behind this request has returned (with or without an image) or the request
+    /// was cancelled: nothing more will arrive through its completion. A cell whose request
+    /// finished without an image asks again when it is next shown (UX-15 item 23).
+    public var isFinished: Bool { lock.withLock { completed } }
 
     /// Waits until this subscriber has delivered or has been fully detached.
     public func waitForCompletion() async {
@@ -447,13 +451,17 @@ public final class ThumbnailLoader: @unchecked Sendable {
                     defer { subscription?.cancel() }
                     var iterator = subscription?.stream.makeAsyncIterator()
                     var proxyRetries = 0
+                    var eventsEnded = false
                     while !Task.isCancelled {
                         let result = await Self.renderQueued(flight.item, tier: flight.key.tier,
                                                              priority: flight.priority, queue: queue,
                                                              beforeRender: beforeRender)
                         guard !Task.isCancelled else { return }
                         if result.proxyRequestFailed {
-                            guard proxyRetries < Self.proxyRetryDelays.count else { return }
+                            guard proxyRetries < Self.proxyRetryDelays.count else {
+                                thumbnailLog.error("thumbnail for \(flight.item.name, privacy: .public): the Smart Preview proxy request kept failing")
+                                return
+                            }
                             let delay = Self.proxyRetryDelays[proxyRetries]
                             proxyRetries += 1
                             // Keep this flight's slot/identity throughout backoff. Cancellation
@@ -467,7 +475,19 @@ public final class ThumbnailLoader: @unchecked Sendable {
                             afterDelivery?()
                             return
                         }
-                        guard result.pending, await iterator?.next() != nil else { return }
+                        // UX-15 (item 23): a flight that ends without an image is logged (the cell
+                        // stayed blank with nothing in the log before), and a pending render gets
+                        // one more pass after its event stream closes: the engine may have finished
+                        // the job between the stream ending and the request being asked again.
+                        guard result.pending else {
+                            thumbnailLog.error("no thumbnail for \(flight.item.name, privacy: .public): the engine and the embedded preview gave nothing")
+                            return
+                        }
+                        if eventsEnded {
+                            thumbnailLog.error("thumbnail for \(flight.item.name, privacy: .public) still pending after its preview events ended; the cell asks again when shown")
+                            return
+                        }
+                        if await iterator?.next() == nil { eventsEnded = true }
                     }
                 }
             }

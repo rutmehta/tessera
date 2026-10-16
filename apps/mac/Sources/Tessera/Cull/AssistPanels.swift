@@ -16,6 +16,7 @@ struct AssistPanel: View {
                     .toggleStyle(.checkbox)
                     .font(Theme.Fonts.caption)
                     .disabled(!model.isEngineBacked)
+                    .help("Predicts keepers from sharpness, blur, exposure, faces and your past decisions, and sorts likely rejects last")
                     .accessibilityIdentifier("assist-panel-toggle")
                 Spacer(minLength: Theme.Space.xs)
                 SegmentedPicker(selection: Binding(get: { model.agent.preferences.assistAutomated },
@@ -69,12 +70,12 @@ struct AssistPanel: View {
                 } else {
                     Hint("No prediction for this photo yet.")
                 }
-                Hint("\(assist.suggestionCount) suggested · learner has \(assist.labels) confirmed label\(assist.labels == 1 ? "" : "s"). Keep and reject decisions teach it.")
+                // UX-15 (item 22): one line; the explanation is the tooltip.
+                Hint("\(assist.suggestionCount) suggested · \(assist.labels) label\(assist.labels == 1 ? "" : "s")")
+                    .help("Suggested decisions in view, and the confirmed labels the learner has. Keep and reject decisions teach it.")
                     .accessibilityIdentifier("assist-status")
-            } else {
-                Hint(model.isEngineBacked
-                     ? "Assist predicts keepers from sharpness, blur, exposure, faces and your past decisions, and sorts likely rejects last."
-                     : "Assist needs a folder opened on the engine.")
+            } else if !model.isEngineBacked {
+                Hint("Needs a folder opened on the engine.")
             }
         }
     }
@@ -97,7 +98,7 @@ struct PeoplePanel: View {
                 }
             }
             if assist.people.isEmpty {
-                Hint("No faces analysed yet. Cull ▸ Analyze Faces finds faces and groups them into people (the models download once).")
+                Hint("No faces analysed yet.")
             }
             ForEach(assist.people) { person in
                 HStack(spacing: Theme.Space.s) {
@@ -118,23 +119,7 @@ struct PeoplePanel: View {
             Button("Analyze Faces") { assist.analyze(faces: true, force: false, title: "Finding faces") }.accessibilityIdentifier("library.assist.analyzeFaces")
                 .buttonStyle(.theme(.bordered, height: Theme.Height.small))
                 .disabled(!model.isEngineBacked || assist.isRunning)
-        }
-    }
-}
-
-/// Background analysis progress above the status bar.
-struct AssistProgressBar: View {
-    let assist: AssistController
-    var body: some View {
-        if let p = assist.progress {
-            ProgressStrip(title: p.title, done: p.done, total: p.total, current: p.current) {
-                Button("Stop") { assist.cancel() }.accessibilityIdentifier("library.assist.stop")
-                    .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-            }
-            .help("Scores each photo's sharpness, motion blur, noise and clipping so Assist can suggest keepers. "
-                  + "Runs in the background. Stop pauses it; it picks up where it left off the next time this folder opens.")
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("analysis-progress")
+                .help("Find faces in the shoot and group them into people; the models download once")
         }
     }
 }

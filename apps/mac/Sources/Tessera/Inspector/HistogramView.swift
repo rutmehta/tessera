@@ -87,8 +87,10 @@ struct HistogramPanel: NSViewRepresentable {
         func developDidChange() {
             guard let model else { return }
             view.histogram = model.develop?.histogram
+            // UX-15 (item 19): while the session opens the strip stays empty; the Edits
+            // readout line says "Rendering…" and, after 2 s, why.
             view.placeholder = switch model.developStatus {
-            case .loading: "Rendering…"
+            case .loading: ""
             case .unavailable(let why): why
             default: model.photoEditAvailabilityHint
             }

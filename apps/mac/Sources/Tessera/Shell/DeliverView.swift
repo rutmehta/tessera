@@ -196,8 +196,9 @@ private struct DeliverPreview: View {
         }
         .padding(.top, Theme.Space.m)
         .padding(.horizontal, Theme.Space.xl)
-        // Clear of the agent row (the field and the button) at the bottom of the canvas.
-        .padding(.bottom, Theme.Height.agentField + Theme.Space.l + Theme.Space.l)
+        // Clear of the agent row (the field and the button) at the bottom of the canvas, and of the
+        // toast band above it (UX-15 item 20).
+        .padding(.bottom, Theme.Height.agentField + Theme.Space.l + Theme.Space.l + Theme.Height.toastBand)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -249,6 +250,7 @@ private struct DeliverPreview: View {
         .font(Theme.Fonts.label)
         .foregroundStyle(Theme.textTertiary)
         .frame(height: Theme.Height.large)
+        .shellProbe("deliverStatus")
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("library.deliver.status")
     }
