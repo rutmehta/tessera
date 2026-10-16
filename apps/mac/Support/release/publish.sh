@@ -20,7 +20,17 @@ tag="v$version"
 export CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)}"
 export NOTARY_PROFILE="${NOTARY_PROFILE:-tessera-release}"
 [[ -n "$CODESIGN_IDENTITY" ]] || { echo "no Developer ID Application identity in the Keychain" >&2; exit 1; }
-if [[ "${ALLOW_UNNOTARIZED:-}" == "1" ]]; then
+# An API key file in ~/.config/tessera (AuthKey_<KEYID>.p8 next to notary.env with NOTARY_KEY_ID and
+# NOTARY_ISSUER) is picked up automatically and bypasses the Keychain profile.
+if [[ -f "$HOME/.config/tessera/notary.env" ]]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.config/tessera/notary.env"
+  export NOTARY_KEY_ID NOTARY_ISSUER
+  export NOTARY_KEY_PATH="${NOTARY_KEY_PATH:-$HOME/.config/tessera/AuthKey_${NOTARY_KEY_ID}.p8}"
+fi
+if [[ -n "${NOTARY_KEY_PATH:-}" && -f "$NOTARY_KEY_PATH" ]]; then
+  : # API key auth; no Keychain profile needed
+elif [[ "${ALLOW_UNNOTARIZED:-}" == "1" ]]; then
   # A stopgap release: signed with the Developer ID, not notarized (macOS asks the user to allow
   # it once on a fresh download; Sparkle updates are unaffected). Notarize and republish after.
   unset NOTARY_PROFILE

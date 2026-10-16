@@ -58,6 +58,21 @@ that owns the Developer ID certificate:
 Notarization is unchanged. The profile expires yearly with the certificate; regenerate it in
 step 3 and rebuild.
 
+## Notarization credentials
+
+Preferred: an App Store Connect API key, which never touches the login Keychain (the
+`notarytool` Keychain profile has silently disappeared on the release Mac more than once when
+used from a non-interactive shell). Once: App Store Connect ▸ Users and Access ▸ Integrations ▸
+App Store Connect API ▸ Team Keys ▸ + (role Developer), download `AuthKey_<KEYID>.p8`, then
+
+```sh
+mkdir -p ~/.config/tessera && mv ~/Downloads/AuthKey_<KEYID>.p8 ~/.config/tessera/
+printf 'NOTARY_KEY_ID=<KEYID>\nNOTARY_ISSUER=<ISSUER UUID>\n' > ~/.config/tessera/notary.env
+chmod 600 ~/.config/tessera/*
+```
+
+`publish.sh` picks it up automatically. Fallback: `xcrun notarytool store-credentials tessera-release`.
+
 ## Local release
 
 From `apps/mac` (preserve an existing external `CARGO_TARGET_DIR`):
