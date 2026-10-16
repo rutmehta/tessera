@@ -1045,6 +1045,9 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
      */
     func assignPersonFace(face: PersonFace, personId: String) throws 
     
+    /**
+     * UI-safe: `Busy` when a worker holds the queue.
+     */
     func assistStatus() throws  -> AssistStatus
     
     /**
@@ -1067,7 +1070,7 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     
     /**
      * Faces of one image, in detection order, with identities. Empty when the
-     * image has no analysed faces.
+     * image has no analysed faces. UI-safe: `Busy` when a worker holds the queue.
      */
     func faceStrip(imageId: String) throws  -> [FaceChipInfo]
     
@@ -1093,6 +1096,7 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     /**
      * People in this queue, most frequent first. `refresh` ingests new faces
      * and runs the job's periodic refit; use `refresh_people(true)` to force it.
+     * UI-safe: `Busy` when a worker holds the queue.
      */
     func people(refresh: Bool) throws  -> [PersonInfo]
     
@@ -1134,7 +1138,7 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     /**
      * Predicts every frame (read-only) in review order: likely keepers first,
      * uncertain next, likely rejects last. Regenerate after new signals,
-     * decisions or confirmations.
+     * decisions or confirmations. UI-safe: `Busy` when a worker holds the queue.
      */
     func review() throws  -> [KeepPrediction]
     
@@ -1208,9 +1212,13 @@ public protocol CullSessionProtocol: AnyObject, Sendable {
     
     /**
      * Scores may have changed since the last call: every best is picked afresh.
+     * UI-safe: `Busy` when a worker holds the queue.
      */
     func groups() throws  -> [CullGroup]
     
+    /**
+     * UI-safe (see `Engine::lock`): `Busy` when a worker holds the queue.
+     */
     func images() throws  -> [SessionImage]
     
     /**
@@ -1376,6 +1384,9 @@ open func assignPersonFace(face: PersonFace, personId: String)throws   {try rust
 }
 }
     
+    /**
+     * UI-safe: `Busy` when a worker holds the queue.
+     */
 open func assistStatus()throws  -> AssistStatus  {
     return try  FfiConverterTypeAssistStatus_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -1428,7 +1439,7 @@ open func dismissSuggestions(imageIds: [String])throws   {try rustCallWithError(
     
     /**
      * Faces of one image, in detection order, with identities. Empty when the
-     * image has no analysed faces.
+     * image has no analysed faces. UI-safe: `Busy` when a worker holds the queue.
      */
 open func faceStrip(imageId: String)throws  -> [FaceChipInfo]  {
     return try  FfiConverterSequenceTypeFaceChipInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -1488,6 +1499,7 @@ open func namePerson(personId: String, name: String?, options: PeopleNameOptions
     /**
      * People in this queue, most frequent first. `refresh` ingests new faces
      * and runs the job's periodic refit; use `refresh_people(true)` to force it.
+     * UI-safe: `Busy` when a worker holds the queue.
      */
 open func people(refresh: Bool)throws  -> [PersonInfo]  {
     return try  FfiConverterSequenceTypePersonInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -1583,7 +1595,7 @@ open func reorderQueue()throws  -> [String]  {
     /**
      * Predicts every frame (read-only) in review order: likely keepers first,
      * uncertain next, likely rejects last. Regenerate after new signals,
-     * decisions or confirmations.
+     * decisions or confirmations. UI-safe: `Busy` when a worker holds the queue.
      */
 open func review()throws  -> [KeepPrediction]  {
     return try  FfiConverterSequenceTypeKeepPrediction.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -1810,6 +1822,7 @@ open func gradeImages(imageIds: [String], grade: UInt8)throws  -> CullUpdate  {
     
     /**
      * Scores may have changed since the last call: every best is picked afresh.
+     * UI-safe: `Busy` when a worker holds the queue.
      */
 open func groups()throws  -> [CullGroup]  {
     return try  FfiConverterSequenceTypeCullGroup.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -1820,6 +1833,9 @@ open func groups()throws  -> [CullGroup]  {
 })
 }
     
+    /**
+     * UI-safe (see `Engine::lock`): `Busy` when a worker holds the queue.
+     */
 open func images()throws  -> [SessionImage]  {
     return try  FfiConverterSequenceTypeSessionImage.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -8489,6 +8505,7 @@ public protocol EngineProtocol: AnyObject, Sendable {
      * Every indexed root. A root whose volume is mounted elsewhere than last
      * time is relocated in the catalog and reported at its current path; a
      * root whose volume is absent is reported not attached, with its counts.
+     * UI-safe (see `lock`): `Busy` when a worker holds the catalog.
      */
     func roots() throws  -> [RootInfo]
     
@@ -8511,6 +8528,7 @@ public protocol EngineProtocol: AnyObject, Sendable {
     
     /**
      * The latest agent run's provenance and review item, if the image has one.
+     * UI-safe (see `Engine::lock`): `Busy` when a worker holds the catalog.
      */
     func agentProvenance(imageId: String) throws  -> AgentProvenance?
     
@@ -8973,6 +8991,7 @@ open func listImages(query: ImageQuery)throws  -> [ImageSummary]  {
      * Every indexed root. A root whose volume is mounted elsewhere than last
      * time is relocated in the catalog and reported at its current path; a
      * root whose volume is absent is reported not attached, with its counts.
+     * UI-safe (see `lock`): `Busy` when a worker holds the catalog.
      */
 open func roots()throws  -> [RootInfo]  {
     return try  FfiConverterSequenceTypeRootInfo.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -9034,6 +9053,7 @@ open func acceptAgentEdit(imageId: String, libraryFolder: String)throws  -> Agen
     
     /**
      * The latest agent run's provenance and review item, if the image has one.
+     * UI-safe (see `Engine::lock`): `Busy` when a worker holds the catalog.
      */
 open func agentProvenance(imageId: String)throws  -> AgentProvenance?  {
     return try  FfiConverterOptionTypeAgentProvenance.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
@@ -29040,6 +29060,12 @@ enum BridgeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
     
     case Failure(message: String
     )
+    /**
+     * A UI-safe call found the engine busy for longer than its budget (see
+     * `lock::UI_BUDGET`); nothing was done. Retry shortly, off the main thread.
+     */
+    case Busy(message: String
+    )
 
     
 
@@ -29072,6 +29098,9 @@ public struct FfiConverterTypeBridgeError: FfiConverterRustBuffer {
         case 1: return .Failure(
             message: try FfiConverterString.read(from: &buf)
             )
+        case 2: return .Busy(
+            message: try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -29086,6 +29115,11 @@ public struct FfiConverterTypeBridgeError: FfiConverterRustBuffer {
         
         case let .Failure(message):
             writeInt(&buf, Int32(1))
+            FfiConverterString.write(message, into: &buf)
+            
+        
+        case let .Busy(message):
+            writeInt(&buf, Int32(2))
             FfiConverterString.write(message, into: &buf)
             
         }
@@ -37810,7 +37844,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_list_images() != 16781) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_roots() != 28908) {
+    if (uniffi_tessera_ffi_checksum_method_engine_roots() != 27641) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_set_event_listener() != 57764) {
@@ -37825,7 +37859,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_accept_agent_edit() != 32956) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_agent_provenance() != 59295) {
+    if (uniffi_tessera_ffi_checksum_method_engine_agent_provenance() != 48640) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_revert_agent_edit() != 61892) {
@@ -38986,7 +39020,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_assign_person_face() != 63718) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_cullsession_assist_status() != 64314) {
+    if (uniffi_tessera_ffi_checksum_method_cullsession_assist_status() != 14749) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_confirm_person_face() != 35245) {
@@ -38998,7 +39032,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_dismiss_suggestions() != 36283) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_cullsession_face_strip() != 18200) {
+    if (uniffi_tessera_ffi_checksum_method_cullsession_face_strip() != 43701) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_frames_with_person() != 649) {
@@ -39010,7 +39044,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_name_person() != 65324) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_cullsession_people() != 10890) {
+    if (uniffi_tessera_ffi_checksum_method_cullsession_people() != 14258) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_people_name_suggestions() != 33853) {
@@ -39031,7 +39065,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_reorder_queue() != 22330) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_cullsession_review() != 34657) {
+    if (uniffi_tessera_ffi_checksum_method_cullsession_review() != 22074) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_set_assist_mode() != 20018) {
@@ -39091,10 +39125,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_cullsession_grade_images() != 37492) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_cullsession_groups() != 59908) {
+    if (uniffi_tessera_ffi_checksum_method_cullsession_groups() != 7198) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_cullsession_images() != 25101) {
+    if (uniffi_tessera_ffi_checksum_method_cullsession_images() != 45966) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_cullsession_keep_best_reject_rest() != 47644) {

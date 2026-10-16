@@ -707,8 +707,8 @@ impl Engine {
     /// Keywords applied to a photo in the catalog (sidecar tags and local
     /// acceptances), lowercased.
     fn applied_keywords(&self, id: &str) -> Result<HashSet<String>> {
-        let c = self.lock()?;
-        let mut stmt = c.reader.prepare(
+        let reader = self.reader.lock()?;
+        let mut stmt = reader.prepare(
             "SELECT k.name FROM image_keyword ik JOIN keyword k ON k.id=ik.keyword_id WHERE ik.image_id=?",
         )?;
         let names = stmt

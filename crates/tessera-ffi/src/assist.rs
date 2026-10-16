@@ -478,7 +478,7 @@ impl Engine {
         let (path, orientation) = {
             let c = self.lock()?;
             let path = Self::path(&c, image_id)?;
-            let orientation: String = c.reader.query_row(
+            let orientation: String = c.reader()?.query_row(
                 "SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')",
                 [image_id],
                 |r| r.get(0),
@@ -590,8 +590,11 @@ impl Engine {
             model: ANALYSIS_MODEL.into(),
         };
         if quality {
+            // The classical analysis runs outside the catalog lock; only its
+            // rows go in under it.
+            let q = ml_quality::analyze(&rgb)?;
             let c = self.lock()?;
-            let q = ml_quality::analyze_and_store(&c.index, id, &rgb)?;
+            ml_quality::store(&c.index, id, &q)?;
             let highlights = q.highlight_clipping.iter().copied().fold(0., f64::max);
             c.index
                 .set_score(id, &score("highlight_clipping", highlights))?;
@@ -1395,10 +1398,10 @@ impl CullSession {
     }
 
     /// Faces of one image, in detection order, with identities. Empty when the
-    /// image has no analysed faces.
+    /// image has no analysed faces. UI-safe: `Busy` when a worker holds the queue.
     pub fn face_strip(&self, image_id: String) -> Result<Vec<FaceChipInfo>> {
         let id = parse_id(&image_id)?;
-        let mut s = self.lock()?;
+        let mut s = self.lock_ui()?;
         let Some((width, height)) = analysis_space(s.core.index(), id)? else {
             return Ok(Vec::new());
         };
@@ -1430,8 +1433,9 @@ impl CullSession {
 
     /// People in this queue, most frequent first. `refresh` ingests new faces
     /// and runs the job's periodic refit; use `refresh_people(true)` to force it.
+    /// UI-safe: `Busy` when a worker holds the queue.
     pub fn people(&self, refresh: bool) -> Result<Vec<PersonInfo>> {
-        let mut s = self.lock()?;
+        let mut s = self.lock_ui()?;
         if refresh && !s.core.is_declared_read_only() {
             s.refresh_people_job(false)?;
         }
@@ -1488,8 +1492,9 @@ impl CullSession {
         })
     }
 
+    /// UI-safe: `Busy` when a worker holds the queue.
     pub fn assist_status(&self) -> Result<AssistStatus> {
-        let mut s = self.lock()?;
+        let mut s = self.lock_ui()?;
         let mode = s.assist.mode;
         let labels = s.assist.learner()?.label_count();
         Ok(AssistStatus {
@@ -1501,9 +1506,9 @@ impl CullSession {
 
     /// Predicts every frame (read-only) in review order: likely keepers first,
     /// uncertain next, likely rejects last. Regenerate after new signals,
-    /// decisions or confirmations.
+    /// decisions or confirmations. UI-safe: `Busy` when a worker holds the queue.
     pub fn review(&self) -> Result<Vec<KeepPrediction>> {
-        let mut s = self.lock()?;
+        let mut s = self.lock_ui()?;
         let mode = match s.assist.mode {
             AssistMode::Off | AssistMode::Assisted => ReviewMode::Assisted,
             AssistMode::Automated {

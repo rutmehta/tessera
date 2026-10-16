@@ -461,12 +461,9 @@ impl Engine {
                 return Err(failure("conflict: original content changed"));
             }
             publish_sync_sidecars(&pending, &recipe_path, &xmp_path, atomic_local)?;
-            self.lock()?.index.scan(
-                path.parent()
-                    .ok_or_else(|| failure("original has no folder"))?,
-                &catalog::Sidecars,
-                &catalog::IndexedMetadata,
-            )?;
+            self.lock()?
+                .index
+                .scan_file(&path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
             journal
                 .mark_synced(
                     pending.recipe.clone(),

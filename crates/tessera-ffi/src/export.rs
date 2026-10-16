@@ -805,7 +805,7 @@ impl Engine {
         ids.iter()
             .map(|id| {
                 parse_id(id)?;
-                let (path, date, orientation) = c.reader.query_row(
+                let (path, date, orientation) = c.reader()?.query_row(
                     "SELECT f.path, COALESCE(strftime('%Y-%m-%d', i.capture_time, 'auto'), ''), \
                      COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1') \
                      FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
@@ -831,9 +831,10 @@ impl Engine {
                 "original unavailable: full-quality export requires the original",
             ));
         }
-        // The recipe document is authoritative; read it under the catalog
-        // lock so a concurrent develop save cannot tear it.
-        let _c = self.lock()?;
+        // The recipe document is authoritative; read it under the destination
+        // gate so a concurrent develop save cannot tear the recipe/XMP pair.
+        let gate = crate::recipe_write::gate_for(&item.path)?;
+        let _read = gate.begin_read()?;
         let doc = catalog::document(&item.path, parse_id(&item.id)?)?;
         let xmp = catalog::xmp_path(&item.path);
         let packet = if xmp.exists() {

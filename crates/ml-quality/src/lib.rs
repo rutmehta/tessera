@@ -109,6 +109,18 @@ pub fn analyze_and_store(
 ) -> engine_api::EngineResult<QualityScores> {
     index.image_info(id)?;
     let scores = analyze(preview)?;
+    store(index, id, &scores)?;
+    Ok(scores)
+}
+
+/// Writes the signals of an `analyze` result (callers that hold a catalog
+/// lock analyze first, then store under it).
+pub fn store(
+    index: &index::Index,
+    id: engine_api::id::ImageId,
+    scores: &QualityScores,
+) -> engine_api::EngineResult<()> {
+    index.image_info(id)?;
     let clipping = scores
         .shadow_clipping
         .iter()
@@ -147,7 +159,7 @@ pub fn analyze_and_store(
             },
         )?;
     }
-    Ok(scores)
+    Ok(())
 }
 
 #[derive(Default)]

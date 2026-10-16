@@ -290,18 +290,30 @@ impl Engine {
             return Err(failure("select 1..128 images"));
         }
         let mut seen = HashSet::new();
-        let c = self.lock()?;
-        ids.iter().map(|id| {
-            let canonical = parse_id(id)?.to_string();
-            if !seen.insert(canonical.clone()) { return Err(failure("duplicate image_id")); }
-            let path: PathBuf = Self::path(&c, &canonical)?.into();
-            let orientation: String = c.reader.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&canonical], |r| r.get(0))?;
-            // The catalog orientation replaces EXIF and wins over a stale
-            // index row, as in export's Source::open (REV-SP-B S2).
-            let orientation = crate::catalog::catalog_orientation(&path)
-                .unwrap_or_else(|| orientation.parse().unwrap_or(1));
-            Ok(PhotoSource { id: canonical, path, orientation })
-        }).collect()
+        let rows = {
+            let c = self.lock()?;
+            ids.iter().map(|id| {
+                let canonical = parse_id(id)?.to_string();
+                if !seen.insert(canonical.clone()) { return Err(failure("duplicate image_id")); }
+                let path: PathBuf = Self::path(&c, &canonical)?.into();
+                let orientation: String = c.reader()?.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&canonical], |r| r.get(0))?;
+                Ok((canonical, path, orientation))
+            }).collect::<Result<Vec<_>>>()?
+        };
+        // The catalog orientation (a sidecar read) replaces EXIF and wins over
+        // a stale index row, as in export's Source::open (REV-SP-B S2).
+        Ok(rows
+            .into_iter()
+            .map(|(id, path, orientation)| {
+                let orientation = crate::catalog::catalog_orientation(&path)
+                    .unwrap_or_else(|| orientation.parse().unwrap_or(1));
+                PhotoSource {
+                    id,
+                    path,
+                    orientation,
+                }
+            })
+            .collect())
     }
     /// Atomic no-clobber file publication. Cancellation after this checkpoint may
     /// finish this one publication. Already published outputs survive later errors.
@@ -338,9 +350,7 @@ impl Engine {
         ::merge::write_dng(&mut temp, image, &recipe)?;
         temp.flush()?;
         temp.as_file().sync_all()?;
-        job.check()?;
-        let mut c = self.lock()?;
-        // Recheck after acquiring a contended catalog lock, before committing.
+        // Last cancellation check before the file is committed.
         job.check()?;
         let mut n = 1u32;
         let suffix = publication.suffix;
@@ -364,21 +374,24 @@ impl Engine {
             }
         };
         // Index IDs are derived from canonical paths. Do not duplicate that algorithm.
-        let indexed = c
-            .index
-            .scan_file(&path, &catalog::Sidecars, &catalog::IndexedMetadata);
-        if let Err(e) = indexed {
-            return Err(failure(format!(
-                "DNG saved at {}; catalog scan failed: {e}",
-                path.display()
-            )));
-        }
         let path_string = path.to_string_lossy().into_owned();
-        let id: String = c.reader.query_row(
-            "SELECT i.id FROM image i JOIN file f ON f.id=i.file_id WHERE f.path=?",
-            [&path_string],
-            |r| r.get(0),
-        )?;
+        let id: String = {
+            let mut c = self.lock()?;
+            let indexed = c
+                .index
+                .scan_file(&path, &catalog::Sidecars, &catalog::IndexedMetadata);
+            if let Err(e) = indexed {
+                return Err(failure(format!(
+                    "DNG saved at {}; catalog scan failed: {e}",
+                    path.display()
+                )));
+            }
+            c.reader()?.query_row(
+                "SELECT i.id FROM image i JOIN file f ON f.id=i.file_id WHERE f.path=?",
+                [&path_string],
+                |r| r.get(0),
+            )?
+        };
         let output = PhotoOutput {
             image_id: id.clone(),
             path: path_string,
@@ -391,11 +404,12 @@ impl Engine {
             ..Default::default()
         };
         doc.record_write("tessera-photo-job", crate::now_ms())?;
-        Self::persist(&mut c, &path, &doc)?;
+        self.persist(&path, &doc)?;
         if publication.create_stack {
+            // Its own connection; the catalog lock keeps it serial with index writes.
+            let _c = self.lock()?;
             catalog::stack_photos(&self.db, &id, publication.source_ids)?;
         }
-        drop(c);
         self.notify_changes();
         Ok(output)
     }

@@ -267,7 +267,17 @@ public final class PeopleModel {
     public func reload(refresh: Bool = false) {
         guard let engine else { tiles = []; return }
         do {
-            let people = try engine.people(refresh: refresh)
+            let people: [PersonSummary]
+            do {
+                people = try engine.people(refresh: refresh)
+            } catch where EngineBusy.isBusy(error) {
+                // A worker holds the queue: keep the tiles and come back shortly.
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(80))
+                    self?.reload(refresh: refresh)
+                }
+                return
+            }
             tiles = Self.sorted(people.map { p in
                 let name = p.named ? p.name.trimmingCharacters(in: .whitespaces) : ""
                 return PersonTile(id: p.id, name: name.isEmpty ? nil : name, items: p.items, faces: p.faces,

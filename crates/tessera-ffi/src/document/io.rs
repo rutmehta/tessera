@@ -253,7 +253,7 @@ pub(crate) fn open_image(
     let (path, orientation) = {
         let c = engine.lock()?;
         let path = Engine::path(&c, image_id)?;
-        let orientation: String = c.reader.query_row(
+        let orientation: String = c.reader()?.query_row(
             "SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')",
             [image_id],
             |r| r.get(0),

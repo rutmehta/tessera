@@ -160,8 +160,8 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
         let events = PreviewEvents()
         engine.setEventListener(listener: events)
         let session = try engine.openSmartPreviewLibrarySession(folder: path)
-        let rows = try session.images()
-        let layout = try session.groups()
+        let rows = try EngineBusy.waiting { try session.images() }
+        let layout = try EngineBusy.waiting { try session.groups() }
         return EngineLibrary(title: folder.lastPathComponent, folder: folder, subfolders: [],
                              scanDuration: Date().timeIntervalSince(start), engine: engine,
                              session: session, previewEvents: events, rows: rows, layout: layout,
@@ -197,8 +197,8 @@ public final class EngineLibrary: PhotoLibrary, @unchecked Sendable {
         let session = try engine.openCullSession(folder: path)
         try session.setBasketTarget(name: basketTarget)
         let sequence = try session.changeSequence()
-        let rows = try session.images()
-        let layout = try session.groups()
+        let rows = try EngineBusy.waiting { try session.images() }
+        let layout = try EngineBusy.waiting { try session.groups() }
         // Display order: group by group.
         var ids: [String] = []
         ids.reserveCapacity(rows.count)

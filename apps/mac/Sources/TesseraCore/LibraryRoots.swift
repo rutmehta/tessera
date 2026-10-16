@@ -42,7 +42,7 @@ public struct LibraryRoot: Hashable, Sendable, Identifiable {
     /// (opens the index): call off the main actor.
     public static func list(appSupport: URL? = nil) throws -> [LibraryRoot] {
         let engine = try Engine.open(appSupportDir: (appSupport ?? EngineLibrary.defaultSupportDirectory).path)
-        return try engine.roots().map(LibraryRoot.init)
+        return try EngineBusy.waiting { try engine.roots() }.map(LibraryRoot.init)
     }
 }
 

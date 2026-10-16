@@ -17,11 +17,18 @@ use std::{
 const DEBOUNCE: Duration = Duration::from_secs(1);
 /// Idle writers still look for work this often (writes by other connections).
 const IDLE: Duration = Duration::from_secs(10);
+/// Records exported (and later marked clean) per catalog lock acquisition:
+/// enough to amortize the lock, few enough that a hold stays well under the
+/// UI's 20 ms budget on a large shoot.
+const EXPORT_BATCH: usize = 8;
 
 #[derive(Default)]
 pub(crate) struct DriveWriter {
     poked: Mutex<bool>,
     wake: Condvar,
+    /// Test aid: a delay per file written, standing in for a slow drive.
+    #[cfg(test)]
+    pub(crate) write_delay: Mutex<Duration>,
 }
 
 impl DriveWriter {
@@ -94,62 +101,89 @@ impl Engine {
     }
 
     /// Writes every dirty record whose root is attached. Returns the number of
-    /// files written. Records are read under the catalog lock and written
-    /// outside it; a record is marked clean only if nothing stamped it since.
+    /// files written. The catalog lock is taken only for short SQL passes:
+    /// ids and paths first, then records a batch at a time; stats, JSON and the
+    /// files themselves happen outside it (ST-1: an external drive used to
+    /// stall every main-thread lookup for the length of a flush). A record is
+    /// marked clean only if nothing stamped it since.
     pub(crate) fn flush_drive(&self) -> Result<u32> {
         struct Pending {
             path: PathBuf,
             bytes: Vec<u8>,
             image: Option<(ImageId, i64)>,
         }
-        let (pending, people_rev) = {
+        let (roots, dirty, people_rev) = {
             let c = self.lock()?;
-            let roots: Vec<_> = c
-                .index
-                .roots()?
-                .into_iter()
-                .filter(|r| r.path.is_dir())
-                .collect();
-            let root_of = |path: &Path| {
-                roots
-                    .iter()
-                    .filter(|r| path.starts_with(&r.path))
-                    .max_by_key(|r| r.path.as_os_str().len())
-                    .map(|r| r.path.clone())
-            };
-            let mut pending = Vec::new();
+            let mut dirty = Vec::new();
             for id in c.index.drive_dirty_images()? {
-                let Ok(info) = c.index.image_info(id) else {
-                    continue;
-                };
-                // A root that is not attached keeps its records dirty for later.
-                let Some(root) = root_of(&info.path) else {
-                    continue;
-                };
-                let record = c.index.export_analysis(&root, id)?;
+                if let Ok(info) = c.index.image_info(id) {
+                    dirty.push((id, info.path));
+                }
+            }
+            (c.index.roots()?, dirty, c.index.people_rev()?)
+        };
+        // A root that is not attached keeps its records dirty for later.
+        let roots: Vec<PathBuf> = roots
+            .into_iter()
+            .map(|r| r.path)
+            .filter(|p| p.is_dir())
+            .collect();
+        let root_of = |path: &Path| {
+            roots
+                .iter()
+                .filter(|r| path.starts_with(r))
+                .max_by_key(|r| r.as_os_str().len())
+                .cloned()
+        };
+        let dirty: Vec<(ImageId, PathBuf)> = dirty
+            .into_iter()
+            .filter_map(|(id, path)| root_of(&path).map(|root| (id, root)))
+            .collect();
+        let mut pending = Vec::new();
+        for batch in dirty.chunks(EXPORT_BATCH) {
+            let records = {
+                let c = self.lock()?;
+                batch
+                    .iter()
+                    .map(|(id, root)| Ok((*id, root, c.index.export_analysis(root, *id)?)))
+                    .collect::<Result<Vec<_>>>()?
+            };
+            for (id, root, record) in records {
                 pending.push(Pending {
-                    path: TesseraDir::of_root(&root).analysis(id),
+                    path: TesseraDir::of_root(root).analysis(id),
                     bytes: serde_json::to_vec_pretty(&record).map_err(failure)?,
                     image: Some((id, record.modified)),
                 });
             }
-            let people_rev = c.index.people_rev()?;
-            if people_rev.0 != people_rev.1 {
-                for root in &roots {
-                    let document = c.index.export_people(&root.path)?;
-                    pending.push(Pending {
-                        path: TesseraDir::of_root(&root.path).people(),
-                        bytes: serde_json::to_vec_pretty(&document).map_err(failure)?,
-                        image: None,
-                    });
-                }
+        }
+        if people_rev.0 != people_rev.1 {
+            let documents = {
+                let c = self.lock()?;
+                roots
+                    .iter()
+                    .map(|root| Ok((root, c.index.export_people(root)?)))
+                    .collect::<Result<Vec<_>>>()?
+            };
+            for (root, document) in documents {
+                pending.push(Pending {
+                    path: TesseraDir::of_root(root).people(),
+                    bytes: serde_json::to_vec_pretty(&document).map_err(failure)?,
+                    image: None,
+                });
             }
-            (pending, people_rev)
-        };
+        }
         let mut written = 0;
         let mut clean = Vec::new();
         let mut people_written = true;
         for item in &pending {
+            #[cfg(test)]
+            std::thread::sleep(
+                *self
+                    .drive
+                    .write_delay
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()),
+            );
             match index::write_if_changed(&item.path, &item.bytes) {
                 Ok(changed) => {
                     written += u32::from(changed);
@@ -165,10 +199,11 @@ impl Engine {
                 }
             }
         }
-        let c = self.lock()?;
-        c.index.mark_drive_clean(&clean)?;
+        for batch in clean.chunks(EXPORT_BATCH) {
+            self.lock()?.index.mark_drive_clean(batch)?;
+        }
         if people_written && people_rev.0 != people_rev.1 {
-            c.index.mark_people_flushed(people_rev.0)?;
+            self.lock()?.index.mark_people_flushed(people_rev.0)?;
         }
         Ok(written)
     }
@@ -188,6 +223,81 @@ impl Engine {
 mod tests {
     use super::*;
     use crate::{AnalysisOptions, Decision, FaceInput, ImageQuery, PeopleNameOptions, Selection};
+    use std::time::Instant;
+
+    /// ST-1: the writer never holds the catalog lock across the drive. A slow
+    /// drive (2 ms per file) and a few hundred face records make the flush
+    /// take half a second while no single hold reaches 20 ms.
+    #[test]
+    fn flush_never_holds_the_catalog_lock_across_the_drive() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir = dir.path().canonicalize().unwrap();
+        let photos = dir.join("shoot");
+        std::fs::create_dir_all(&photos).unwrap();
+        let count = 240;
+        for n in 0..count {
+            image::RgbImage::from_pixel(16, 12, image::Rgb([n as u8, 90, 120]))
+                .save(photos.join(format!("f{n:03}.jpg")))
+                .unwrap();
+        }
+        let engine = Engine::open(dir.join("app").to_string_lossy().into()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into())
+            .unwrap();
+        let ids: Vec<String> = engine
+            .list_images(ImageQuery::default())
+            .unwrap()
+            .into_iter()
+            .map(|i| i.id)
+            .collect();
+        assert_eq!(ids.len(), count);
+        let faces = || {
+            vec![FaceInput {
+                x: 2.,
+                y: 2.,
+                width: 8.,
+                height: 8.,
+                focus: 0.7,
+                eyes_open: Some(0.9),
+                embedding: Some(vec![0.5; 128]),
+            }]
+        };
+        for id in &ids {
+            engine.set_faces(id.clone(), faces(), 16, 12).unwrap();
+        }
+        *engine.drive.write_delay.lock().unwrap() = Duration::from_millis(2);
+        // A loaded machine (the whole suite in parallel) can stretch any hold;
+        // the best of three flushes is the writer's own behaviour.
+        let mut best = Duration::MAX;
+        for attempt in 0..3 {
+            if attempt > 0 {
+                for id in &ids {
+                    engine.set_faces(id.clone(), faces(), 16, 12).unwrap();
+                }
+            }
+            engine.catalog.stats().reset();
+            let started = Instant::now();
+            // The writer thread may have flushed a few records on its own wake.
+            let written = engine.flush_drive_state().unwrap() as usize;
+            let took = started.elapsed();
+            let hold = engine.catalog.stats().max_hold();
+            eprintln!("drive flush: {written} files in {took:?}, longest catalog hold {hold:?}");
+            assert!(written > count / 2 && written <= count, "{written}");
+            assert!(
+                took >= Duration::from_millis(2 * written as u64),
+                "{took:?}"
+            );
+            assert_eq!(engine.flush_drive_state().unwrap(), 0);
+            best = best.min(hold);
+            if best < Duration::from_millis(20) {
+                break;
+            }
+        }
+        assert!(
+            best < Duration::from_millis(20),
+            "catalog lock held {best:?} during a flush"
+        );
+    }
 
     fn photos(dir: &Path) -> PathBuf {
         let photos = dir.join("shoot");
