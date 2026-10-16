@@ -90,6 +90,8 @@ final class AgentController {
     private(set) var profile: StyleProfileStatus?
     private(set) var training: AgentRunProgress?
     @ObservationIgnored private var cancelFlag: CancelFlag?
+    /// Only the newest folder's review restore may land (ST-2: it runs off the main actor).
+    @ObservationIgnored private var restoreGeneration = LibraryRequestGeneration()
 
     var isRunning: Bool { progress != nil }
 
@@ -157,50 +159,79 @@ final class AgentController {
             resumeMessage = "Auto Edit is still running for this library. Its results will appear when it finishes."
             return
         }
-        do {
-            guard let record = try resumeStore.restore(libraryFolder: folder) else {
-                clearReviewQueue()
-                return
+        // ST-2: the manifest read and one `agent_provenance` per target run off the main actor
+        // (the queue shows empty until they return); a folder switch meanwhile drops the result.
+        clearReviewQueue()
+        let generation = restoreGeneration.next()
+        let store = resumeStore
+        let itemOfImage = library.itemOfImage
+        Task { [weak self] in
+            let restore = await Task.detached(priority: .userInitiated) { Result { try store.restore(libraryFolder: folder) } }.value
+            let result: Result<(ReviewResumeRecord, [AgentReviewEntry])?, Error>
+            switch restore {
+            case .failure(let error):
+                result = .failure(error)
+            case .success(nil):
+                result = .success(nil)
+            case .success(let record?):
+                var entries: [AgentReviewEntry] = []
+                for target in record.targets.sorted(by: { $0.ordinal < $1.ordinal }) {
+                    entries.append(await Self.restoredEntry(target, record: record, library: library,
+                                                            itemID: itemOfImage[target.imageID]))
+                }
+                result = .success((record, entries))
             }
-            let entries = record.targets.sorted { $0.ordinal < $1.ordinal }.map { target -> AgentReviewEntry in
-                let itemID = library.itemOfImage[target.imageID]
-                guard let expectedGroup = target.expectedGroupID else {
-                    if let error = target.error {
-                        return AgentReviewEntry(imageID: target.imageID, itemID: itemID, name: target.name,
-                                                confidence: 0, error: error)
-                    }
-                    return unavailableEntry(target, itemID: itemID,
-                                            reason: record.state == .interrupted
-                                                ? "This target may not have completed before Tessera closed."
-                                                : "This target has no saved review result.")
-                }
-                guard let itemID,
-                      let provenance = try? library.engine.agentProvenance(imageId: target.imageID) else {
-                    return unavailableEntry(target, itemID: itemID,
-                                            reason: "This photo or its saved review result is unavailable.")
-                }
-                guard provenance.item.groupId == expectedGroup else {
-                    return unavailableEntry(target, itemID: itemID,
-                                            reason: "A newer agent edit replaced this review result.")
-                }
-                var entry = AgentReviewEntry(provenance.item, itemID: itemID)
-                if let error = target.error { entry.error = error }
-                return entry
+            guard let self, self.restoreGeneration.accepts(generation), self.app?.engineLibrary === library else { return }
+            switch result {
+            case .success(nil):
+                self.clearReviewQueue()
+            case .success(let restored?):
+                let (record, entries) = restored
+                self.queue = AgentReviewQueue(entries: entries, provider: record.provider)
+                self.queueOwner = library
+                self.queueGeneration = UUID()
+                self.resumeRecord = record
+                self.resumeMessage = nil
+                self.showReview = false
+                self.app?.reviewNavigation.restoreCursor(selectedID: record.selectedImageID,
+                                                         anchorID: record.anchorImageID, queue: self.queue)
+                self.app?.reconcileReviewNavigation()
+            case .failure(let error):
+                self.clearReviewQueue()
+                self.resumeMessage = "Review history unavailable: \(error.localizedDescription)"
+                self.app?.statusMessage = self.resumeMessage
             }
-            queue = AgentReviewQueue(entries: entries, provider: record.provider)
-            queueOwner = library
-            queueGeneration = UUID()
-            resumeRecord = record
-            resumeMessage = nil
-            showReview = false
-            app?.reviewNavigation.restoreCursor(selectedID: record.selectedImageID,
-                                                anchorID: record.anchorImageID, queue: queue)
-            app?.reconcileReviewNavigation()
-        } catch {
-            clearReviewQueue()
-            resumeMessage = "Review history unavailable: \(error.localizedDescription)"
-            app?.statusMessage = resumeMessage
         }
+    }
+
+    /// One restored target: its saved result when the engine still has the same group, else why
+    /// it is unavailable. Off the main actor; a `Busy` refusal is retried.
+    private nonisolated static func restoredEntry(_ target: ReviewResumeRecord.Target, record: ReviewResumeRecord,
+                                                  library: EngineLibrary, itemID: Int?) async -> AgentReviewEntry {
+        guard let expectedGroup = target.expectedGroupID else {
+            if let error = target.error {
+                return AgentReviewEntry(imageID: target.imageID, itemID: itemID, name: target.name,
+                                        confidence: 0, error: error)
+            }
+            return unavailableEntry(target, itemID: itemID,
+                                    reason: record.state == .interrupted
+                                        ? "This target may not have completed before Tessera closed."
+                                        : "This target has no saved review result.")
+        }
+        let imageID = target.imageID
+        let engine = library.engine
+        guard let itemID,
+              let provenance = await EngineCall.optional({ try engine.agentProvenance(imageId: imageID) }) ?? nil else {
+            return unavailableEntry(target, itemID: itemID,
+                                    reason: "This photo or its saved review result is unavailable.")
+        }
+        guard provenance.item.groupId == expectedGroup else {
+            return unavailableEntry(target, itemID: itemID,
+                                    reason: "A newer agent edit replaced this review result.")
+        }
+        var entry = AgentReviewEntry(provenance.item, itemID: itemID)
+        if let error = target.error { entry.error = error }
+        return entry
     }
 
     private func clearReviewQueue() {
@@ -212,7 +243,7 @@ final class AgentController {
         showReview = false
     }
 
-    private func unavailableEntry(_ target: ReviewResumeRecord.Target, itemID: Int?, reason: String) -> AgentReviewEntry {
+    private nonisolated static func unavailableEntry(_ target: ReviewResumeRecord.Target, itemID: Int?, reason: String) -> AgentReviewEntry {
         AgentReviewEntry(imageID: target.imageID, itemID: itemID, name: target.name,
                          groupID: target.expectedGroupID, confidence: 0, unavailableReason: reason)
     }
@@ -263,17 +294,35 @@ final class AgentController {
 
     // MARK: Style profile
 
+    /// Reads the profile off the main actor (ST-2); the sheet shows the last status meanwhile.
     func refreshProfile() {
         guard let lib = app?.engineLibrary, !lib.isReadOnly, let folder = lib.folder else { profile = nil; return }
-        profile = try? lib.engine.styleProfileStatus(libraryFolder: folder.path)
+        let engine = lib.engine
+        let path = folder.path
+        Task { [weak self] in
+            let status = await EngineCall.optional { try engine.styleProfileStatus(libraryFolder: path) }
+            guard let self, self.app?.engineLibrary === lib else { return }
+            self.profile = status
+        }
     }
 
     func saveQuestionnaire(_ q: StyleQuestionnaire) {
         guard let lib = app?.engineLibrary, !lib.isReadOnly, let folder = lib.folder else { return }
-        do {
-            profile = try lib.engine.setStyleQuestionnaire(libraryFolder: folder.path, answers: q)
-            app?.sync.styleProfileDidChange()
-        } catch { app?.statusMessage = "Style profile: \(error.localizedDescription)" }
+        let engine = lib.engine
+        let path = folder.path
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try engine.setStyleQuestionnaire(libraryFolder: path, answers: q) }
+            }.value
+            guard let self, self.app?.engineLibrary === lib else { return }
+            switch result {
+            case .success(let status):
+                self.profile = status
+                self.app?.sync.styleProfileDidChange()
+            case .failure(let error):
+                self.app?.statusMessage = "Style profile: \(error.localizedDescription)"
+            }
+        }
     }
 
     /// Settings ▸ AI ▸ Learn from My Edits (non-modal, progress in Settings).
@@ -569,8 +618,8 @@ final class AgentController {
         var entries = report.items.map { AgentReviewEntry($0, itemID: lib.itemOfImage[$0.imageId]) }
         let returned = Set(report.items.map(\.imageId))
         for target in resumeRecord.targets where runImageIDs.contains(target.imageID) && !returned.contains(target.imageID) {
-            entries.append(unavailableEntry(target, itemID: lib.itemOfImage[target.imageID],
-                                            reason: "The run stopped before saving a review result for this photo."))
+            entries.append(Self.unavailableEntry(target, itemID: lib.itemOfImage[target.imageID],
+                                                 reason: "The run stopped before saving a review result for this photo."))
         }
         if queueOwner === lib && (redo || !queue.isEmpty && queue.provider == report.provider) {
             queue.merge(entries)

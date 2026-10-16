@@ -287,24 +287,28 @@ final class AccountSync {
     private func applyPeople() {
         guard let app, let store, app.people.engine != nil else { return }
         let records = store.list(PersonRecord.self)
-        guard !records.isEmpty else { return }
+        guard !records.isEmpty, !applyingRemote else { return }
         applyingRemote = true
-        defer { applyingRemote = false }
-        for rec in records {
-            let local = Dictionary(app.people.tiles.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            let present = rec.allIDs.filter { local[$0] != nil }.sorted()
-            guard let target = local[rec.id] != nil ? rec.id : present.first else { continue }
-            for source in present where source != target {
-                guard let tile = local[source] else { continue }
-                let candidate = PeopleNameCandidate(unnamedID: source, namedID: target, name: rec.name ?? local[target]?.displayName ?? tile.displayName,
-                                                    similarity: 1)
-                app.people.accept(candidate)
-                peopleDidMerge(target: target, sources: [source])
+        // ST-2: each people edit runs on a worker; the records apply one after another.
+        Task { [weak self] in
+            defer { self?.applyingRemote = false }
+            for rec in records {
+                guard let self, let app = self.app, app.people.engine != nil else { return }
+                let local = Dictionary(app.people.tiles.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                let present = rec.allIDs.filter { local[$0] != nil }.sorted()
+                guard let target = local[rec.id] != nil ? rec.id : present.first else { continue }
+                for source in present where source != target {
+                    guard let tile = local[source] else { continue }
+                    let candidate = PeopleNameCandidate(unnamedID: source, namedID: target, name: rec.name ?? local[target]?.displayName ?? tile.displayName,
+                                                        similarity: 1)
+                    await app.people.accept(candidate)
+                    self.peopleDidMerge(target: target, sources: [source])
+                }
+                if let tile = app.people.person(target), tile.name != rec.name {
+                    await app.people.name(target, as: rec.name ?? "")
+                }
+                self.mergedClusters[target, default: []].formUnion(rec.allIDs.subtracting([target]))
             }
-            if let tile = app.people.person(target), tile.name != rec.name {
-                app.people.name(target, as: rec.name ?? "")
-            }
-            mergedClusters[target, default: []].formUnion(rec.allIDs.subtracting([target]))
         }
     }
 

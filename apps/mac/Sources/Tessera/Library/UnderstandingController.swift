@@ -124,59 +124,71 @@ final class UnderstandingController {
     /// Metadata panel ▸ Generate: the focused photo only (a caption describes one photo). A
     /// cached caption fills the fields at once; otherwise they fill when the job finishes.
     func generateCaption() {
-        guard let engine, let catalog, let app = library?.app, let item = app.focusedItem,
+        guard engine != nil, let catalog, let app = library?.app, let item = app.focusedItem,
               let id = catalog.imageID(of: item.id) else { return }
         if let info, info.imageId == id, info.hasCaption {
             draft = CaptionDraft(imageID: id, caption: info.caption, altText: info.altText)
             return
         }
-        do {
-            _ = try engine.caption(imageIds: [id])
-            captionWanted = id
-            app.statusMessage = "Describing \(item.name) on this Mac…"
-            startPolling()
-        } catch {
-            app.statusMessage = "Generate caption failed: \(error.localizedDescription)"
-        }
+        let name = item.name
+        captionWanted = id
+        app.statusMessage = "Describing \(name) on this Mac…"
+        submit("Generate caption") { try $0.caption(imageIds: [id]) } failed: { [weak self] in self?.captionWanted = nil }
     }
 
-    private func start(_ verb: String, _ submit: (Engine, [String]) throws -> UInt64) {
-        guard let engine, let catalog, let app = library?.app else { return }
+    private func start(_ verb: String, _ submit: @escaping @Sendable (Engine, [String]) throws -> UInt64) {
+        guard let catalog, let app = library?.app else { return }
         let ids = catalog.imageIDs(for: app.targetIDs)
         guard !ids.isEmpty else { app.statusMessage = "Select photos first"; return }
-        do {
-            _ = try submit(engine, ids)
-            startPolling()
-        } catch {
-            app.statusMessage = "\(verb) failed: \(error.localizedDescription)"
+        self.submit(verb) { try submit($0, ids) }
+    }
+
+    /// Hands a job to the engine off the main actor (ST-2) and starts polling when it took it.
+    private func submit(_ verb: String, _ body: @escaping @Sendable (Engine) throws -> UInt64,
+                        failed: (@MainActor () -> Void)? = nil) {
+        guard let engine, let catalog else { return }
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { Result { try body(engine) } }.value
+            guard let self, self.catalog === catalog else { return }
+            switch result {
+            case .success: self.startPolling()
+            case .failure(let error):
+                failed?()
+                self.library?.app?.statusMessage = "\(verb) failed: \(error.localizedDescription)"
+            }
         }
     }
 
     func cancel(_ job: UInt64) {
-        try? engine?.cancelUnderstandingJob(id: job)
-        refreshJobs()
+        guard let engine else { return }
+        Task { [weak self] in
+            _ = await EngineCall.optional { try engine.cancelUnderstandingJob(id: job) }
+            await self?.refreshJobs()
+        }
     }
 
-    private func refreshJobs() {
-        guard let engine, let fresh = try? engine.understandingJobs() else { return }
+    /// Re-reads the job list on a worker; the strip keeps showing the last list meanwhile.
+    private func refreshJobs() async {
+        guard let engine, let catalog else { return }
+        guard let fresh = await EngineCall.optional({ try engine.understandingJobs() }), self.catalog === catalog else { return }
         if fresh != jobs { jobs = fresh }
     }
 
     private func startPolling() {
-        refreshJobs()
         guard poll == nil else { return }
         poll = Task { @MainActor [weak self] in
+            await self?.refreshJobs()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(300))
                 guard let self, !Task.isCancelled else { return }
-                if !self.tick() { self.poll = nil; return }
+                if await !self.tick() { self.poll = nil; return }
             }
         }
     }
 
     /// One poll: returns whether any job is still active.
-    private func tick() -> Bool {
-        refreshJobs()
+    private func tick() async -> Bool {
+        await refreshJobs()
         var changed = false
         for job in jobs {
             let progress = job.done + job.failed
@@ -280,17 +292,27 @@ final class UnderstandingController {
 
     func setSettings(_ s: AiMetadataSettings) {
         guard let engine else { settings = s; return }
-        do {
-            try engine.setAiMetadataSettings(settings: s)
-            settings = s
-        } catch {
-            library?.app?.statusMessage = "Settings: \(error.localizedDescription)"
+        let previous = settings
+        settings = s   // the toggle follows the click; the engine's answer confirms or reverts it
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { Result { try engine.setAiMetadataSettings(settings: s) } }.value
+            guard let self else { return }
+            if case .failure(let error) = result {
+                if self.settings == s { self.settings = previous }
+                self.library?.app?.statusMessage = "Settings: \(error.localizedDescription)"
+            }
         }
     }
 
     func refreshSettings() {
         guard let engine else { return }
-        if let s = try? engine.aiMetadataSettings() { settings = s }
-        modelStatus = try? engine.understandingModelStatus()
+        Task { [weak self] in
+            let fresh = await Task.detached(priority: .utility) {
+                (try? engine.aiMetadataSettings(), try? engine.understandingModelStatus())
+            }.value
+            guard let self, self.engine === engine else { return }
+            if let s = fresh.0 { self.settings = s }
+            self.modelStatus = fresh.1
+        }
     }
 }

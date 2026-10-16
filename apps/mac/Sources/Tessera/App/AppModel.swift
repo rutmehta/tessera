@@ -344,7 +344,8 @@ final class AppModel {
             if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
             if self.collections.filter != draft.filter { self.collections.commitFilter(draft.filter) }
             if self.people.facet != draft.personFacet {
-                self.refreshVisible { self.people.setFacet(draft.personFacet) }
+                // ST-2: the facet's frames come from the engine on a worker; the grid follows.
+                Task { await self.people.setFacet(draft.personFacet); self.refreshVisible() }
             }
         }
     }
@@ -1085,10 +1086,10 @@ final class AppModel {
             guard let self else { return }
             if self.isPhotoEditing || self.isReviewing { self.commitReturnToLibrary(grid: false) }
             self.refreshVisible {
-                self.people.setFacet([id])
                 self.source = .all
                 self.collections.refreshMatches()
             }
+            Task { await self.people.setFacet([id]); self.refreshVisible() }
             self.viewMode = .grid
             if let person = self.people.person(id) {
                 self.statusMessage = "\(person.displayName): \(self.visibleCount.formatted()) photo\(self.visibleCount == 1 ? "" : "s")"
@@ -2054,8 +2055,7 @@ final class AppModel {
         if isReviewing { statusMessage = "Use Edit photo to undo recipe changes"; return }
         // The People view (grid or detail) is frontmost: ⌘Z replays the engine's people history.
         if source == .people && !isPhotoEditing {
-            people.undo()
-            reportPeople()
+            Task { await people.undo(); reportPeople() }
             return
         }
         if isPhotoEditing {
@@ -2088,8 +2088,7 @@ final class AppModel {
         }
         if isReviewing { statusMessage = "Use Edit photo to redo recipe changes"; return }
         if source == .people && !isPhotoEditing {
-            people.redo()
-            reportPeople()
+            Task { await people.redo(); reportPeople() }
             return
         }
         if isPhotoEditing {

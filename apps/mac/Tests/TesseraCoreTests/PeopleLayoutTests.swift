@@ -6,16 +6,16 @@ import XCTest
 
 @MainActor
 final class PeopleLayoutTests: XCTestCase {
-    func testDetailFitsWindowAndKeepsHeaderAtTop() throws {
+    func testDetailFitsWindowAndKeepsHeaderAtTop() async throws {
         LayoutProbeHarness.prepare()   // M2-56: background-safe (never activates, never key)
         let model = AppModel()
         model.install(StubLibrary.synthetic(count: 40))
         let engine = StubPeopleEngine()
         engine.add("person", (0..<40).map { ($0, UInt32(0)) })
         model.people.install(engine)
-        model.people.reload()
+        await model.people.reload()
         model.setSource(.people)
-        model.people.openDetail("person")
+        await model.people.openDetail("person")
 
         let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 600),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
@@ -43,7 +43,7 @@ final class PeopleLayoutTests: XCTestCase {
 /// Edit ▸ Undo / Redo follow the People view (WP M2-44).
 @MainActor
 final class PeopleUndoMenuTests: XCTestCase {
-    func testUndoRedoCoverPeopleEditsWhileThePeopleViewIsFrontmost() {
+    func testUndoRedoCoverPeopleEditsWhileThePeopleViewIsFrontmost() async {
         let model = AppModel()
         model.install(StubLibrary.synthetic(count: 8))
         let engine = StubPeopleEngine()
@@ -51,23 +51,25 @@ final class PeopleUndoMenuTests: XCTestCase {
         engine.add("ben", [(2, 0)])
         engine.names["ada"] = "Ada"
         model.people.install(engine)
-        model.people.reload()
+        await model.people.reload()
         model.people.selection = ["ada", "ben"]
-        XCTAssertTrue(model.people.mergeSelection())
+        assertTrue(await model.people.mergeSelection())
 
         XCTAssertEqual(model.undoMenuTitle, "Undo", "outside the People view ⌘Z addresses culling")
         model.setSource(.people)
         XCTAssertEqual(model.undoMenuTitle, "Undo Merge People")
         XCTAssertEqual(model.redoMenuTitle, "Redo")
         model.undo()
+        await settle { engine.calls.contains("undo") && model.statusMessage == "Undo Merge People" }
         XCTAssertTrue(engine.calls.contains("undo"))
         XCTAssertEqual(model.statusMessage, "Undo Merge People")
         XCTAssertEqual(model.people.tiles.map(\.id), ["ada", "ben"])
         XCTAssertEqual(model.redoMenuTitle, "Redo Merge People")
 
         // In the detail view too.
-        model.people.openDetail("ada")
+        await model.people.openDetail("ada")
         model.redo()
+        await settle { engine.calls.contains("redo") && model.statusMessage == "Redo Merge People" }
         XCTAssertTrue(engine.calls.contains("redo"))
         XCTAssertEqual(model.statusMessage, "Redo Merge People")
         XCTAssertNil(model.people.person("ben"))
@@ -77,6 +79,13 @@ final class PeopleUndoMenuTests: XCTestCase {
         XCTAssertEqual(model.undoMenuTitle, "Undo")
         let before = engine.calls.filter { $0 == "undo" }.count
         model.undo()
+        try? await Task.sleep(for: .milliseconds(100))
         XCTAssertEqual(engine.calls.filter { $0 == "undo" }.count, before, "culling undo leaves people history alone")
+    }
+
+    /// ⌘Z / ⇧⌘Z hand the engine step to a worker (ST-2): wait for its result.
+    private func settle(_ predicate: () -> Bool) async {
+        let deadline = Date().addingTimeInterval(10)
+        while !predicate(), Date() < deadline { try? await Task.sleep(for: .milliseconds(10)) }
     }
 }

@@ -205,14 +205,37 @@ struct AgentEditPanel: View {
                     .disabled(!model.isEngineBacked || model.agent.isRunning || !model.agent.busy.isEmpty)
             }
         }
-        .task(id: key) { load() }
+        .task(id: key) { await load() }
     }
 
-    private func load() {
-        provenance = nil
-        target = nil
-        guard let lib = model.engineLibrary, let item = model.focusedItem, let ref = item.engineImage,
-              let p = try? ref.engine.agentProvenance(imageId: ref.imageID) else { return }
+    /// Reads the provenance off the main actor (ST-2: the call used to block the UI for as long
+    /// as a worker held the engine's catalog lock). Runs only while the section is on screen
+    /// (`.task` of a collapsed `PanelSection` never starts) and is cancelled by the next key. The
+    /// previous content stays up while the engine answers; a different photo clears it first.
+    private func load() async {
+        guard let lib = model.engineLibrary, let item = model.focusedItem, let ref = item.engineImage else {
+            provenance = nil
+            target = nil
+            return
+        }
+        let samePhoto = target?.entry.imageID == ref.imageID
+        if !samePhoto {
+            provenance = nil
+            target = nil
+        } else {
+            // A history move on the same photo: coalesce bursts of key changes (every commit bumps
+            // the history count) into one read.
+            try? await Task.sleep(for: .milliseconds(150))
+        }
+        guard !Task.isCancelled else { return }
+        let imageID = ref.imageID
+        let p = await EngineCall.optional { try ref.engine.agentProvenance(imageId: imageID) } ?? nil
+        guard !Task.isCancelled, model.focusedItem?.engineImage?.imageID == imageID else { return }
+        guard let p else {
+            provenance = nil
+            target = nil
+            return
+        }
         provenance = p
         target = model.agent.reviewTarget(AgentReviewEntry(p.item, itemID: item.id), library: lib)
     }

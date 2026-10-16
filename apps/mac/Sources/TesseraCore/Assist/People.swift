@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import Observation
+import Synchronization
 import TesseraFFI
 
 // People view (docs/01 §1.4, WP M2-40): persistent identities from face clusters, naming, merge /
@@ -77,7 +78,7 @@ public struct PeopleNamingOptions: Sendable, Equatable {
 }
 
 /// What the People view needs from the engine. `CullController` conforms for engine libraries.
-public protocol PeopleEngine: AnyObject {
+public protocol PeopleEngine: AnyObject, Sendable {
     /// A clustering job to run off the main actor (`refresh_people`).
     func peopleRefreshJob(force: Bool) throws -> @Sendable () throws -> PeopleRefresh
     func people(refresh: Bool) throws -> [PersonSummary]
@@ -195,6 +196,7 @@ public final class PeopleModel {
     public func install(_ engine: (any PeopleEngine)?) {
         self.engine = engine
         refreshGeneration += 1
+        installGeneration += 1
         tiles = []; selection = []; detailID = nil; faceSelection = []; suggestions = [:]
         isRefreshing = false; approximate = false; sampleSize = 0; message = nil
         undoHistory = []; redoHistory = []
@@ -234,6 +236,63 @@ public final class PeopleModel {
         }
     }
 
+    // MARK: Engine access (ST-2: every FFI call runs off the main actor)
+
+    /// Operations run one after another (an edit, then its reload), each on a worker, so the
+    /// engine's people history and the mirror here stay in step. The view keeps its last state
+    /// until a result lands; a `Busy` refusal (ST-1) is retried by `EngineCall`.
+    @ObservationIgnored private var chain: Task<Void, Never>?
+    /// Bumped by `install`: results of operations started on the previous library are dropped.
+    @ObservationIgnored private var installGeneration = 0
+
+    private func serialized<T: Sendable>(_ body: @escaping @MainActor () async -> T) async -> T {
+        let previous = chain
+        let task = Task { @MainActor () -> T in
+            await previous?.value
+            return await body()
+        }
+        chain = Task { _ = await task.value }
+        return await task.value
+    }
+
+    private struct NoEngine: LocalizedError {
+        var errorDescription: String? { "open a folder on the engine first" }
+    }
+
+    /// One engine call on a worker (`EngineCall.detached`: `Busy` retried, other errors thrown).
+    private func call<T: Sendable>(_ body: @escaping @Sendable (any PeopleEngine) throws -> T) async throws -> T {
+        guard let engine else { throw NoEngine() }
+        return try await EngineCall.detached { try body(engine) }
+    }
+
+    /// What one reload reads: the people, the detail person's members, the suggestions and the
+    /// facet's frames, in one worker pass (`people` first, as the engine's history expects).
+    private struct Snapshot: Sendable {
+        var people: [PersonSummary]
+        var members: [PersonTile.Member]?
+        var suggestions: [PeopleNameCandidate]
+        var facetItems: Set<Int>?
+    }
+
+    private nonisolated static func snapshot(_ engine: any PeopleEngine, refresh: Bool, detail: String?,
+                                             facet: Set<String>) throws -> Snapshot {
+        let people = try engine.people(refresh: refresh)
+        var members: [PersonTile.Member]?
+        if let detail, let summary = people.first(where: { $0.id == detail }) {
+            members = try Self.members(of: detail, confirmedCount: summary.confirmedCount, engine: engine)
+        }
+        let suggestions = (try? engine.peopleNameSuggestions()) ?? []
+        var facetItems: Set<Int>?
+        if !facet.isEmpty {
+            var items = Set<Int>()
+            for id in facet.sorted() where people.contains(where: { $0.id == id }) {
+                items.formUnion(try engine.items(withPerson: id, eyesClosedBelow: nil))
+            }
+            facetItems = items
+        }
+        return Snapshot(people: people, members: members, suggestions: suggestions, facetItems: facetItems)
+    }
+
     // MARK: Loading
 
     /// The People view opened, or faces were analysed: run the incremental job off the main
@@ -254,52 +313,74 @@ public final class PeopleModel {
                 approximate = r.approximate
                 sampleSize = r.sampleSize
             }
-            reload()
+            await reload()
         case .failure(let error):
             fail("People", error)
-            reload()
+            await reload()
         }
     }
 
     /// Re-reads identities, names, counts and suggestions from `people()` alone (names, counts
     /// and the medoid come with each person), then the detail person's members. `refresh` also
     /// ingests new faces (`people(refresh: true)`, the incremental job) — used after every edit.
-    public func reload(refresh: Bool = false) {
-        guard let engine else { tiles = []; return }
+    public func reload(refresh: Bool = false) async {
+        guard engine != nil else { tiles = []; return }
+        await serialized { await self.reloadNow(refresh: refresh) }
+    }
+
+    /// The reload itself, inside the chain (an edit calls it after its own engine step).
+    private func reloadNow(refresh: Bool) async {
+        let generation = installGeneration
+        let detail = detailID
+        let facet = self.facet
         do {
-            let people = try engine.people(refresh: refresh)
-            tiles = Self.sorted(people.map { p in
-                let name = p.named ? p.name.trimmingCharacters(in: .whitespaces) : ""
-                return PersonTile(id: p.id, name: name.isEmpty ? nil : name, items: p.items, faces: p.faces,
-                                  coverItem: p.coverItem, coverOrdinal: p.coverOrdinal, members: [],
-                                  confirmedCount: p.confirmedCount, medoid: p.medoid)
-            })
-            let ids = Set(tiles.map(\.id))
-            selection.formIntersection(ids)
-            if let d = detailID, !ids.contains(d) { detailID = nil }
-            try loadDetailMembers()
-            faceRects = [:]
+            let snapshot = try await call { try Self.snapshot($0, refresh: refresh, detail: detail, facet: facet) }
+            guard generation == installGeneration else { return }
+            apply(snapshot)
         } catch {
+            guard generation == installGeneration else { return }
             fail("People", error)
-        }
-        do {
-            let unnamed = Set(tiles.filter { !$0.isNamed }.map(\.id))
-            let named = Set(tiles.filter(\.isNamed).map(\.id))
-            suggestions = Dictionary(grouping: try engine.peopleNameSuggestions()
-                .filter { unnamed.contains($0.unnamedID) && named.contains($0.namedID) }, by: \.unnamedID)
-                .mapValues { $0.sorted { $0.similarity > $1.similarity } }
-        } catch {
             suggestions = [:]
         }
-        refreshFacetItems()
+    }
+
+    private func apply(_ snapshot: Snapshot) {
+        tiles = Self.sorted(snapshot.people.map { p in
+            let name = p.named ? p.name.trimmingCharacters(in: .whitespaces) : ""
+            return PersonTile(id: p.id, name: name.isEmpty ? nil : name, items: p.items, faces: p.faces,
+                              coverItem: p.coverItem, coverOrdinal: p.coverOrdinal, members: [],
+                              confirmedCount: p.confirmedCount, medoid: p.medoid)
+        })
+        let ids = Set(tiles.map(\.id))
+        selection.formIntersection(ids)
+        if let d = detailID, !ids.contains(d) { detailID = nil }
+        if let d = detailID, let i = tiles.firstIndex(where: { $0.id == d }), let members = snapshot.members {
+            tiles[i].members = members
+            faceSelection.formIntersection(members.map(\.face))
+        } else {
+            faceSelection = []
+        }
+        faceRects = [:]
+        let unnamed = Set(tiles.filter { !$0.isNamed }.map(\.id))
+        let named = Set(tiles.filter(\.isNamed).map(\.id))
+        suggestions = Dictionary(grouping: snapshot.suggestions
+            .filter { unnamed.contains($0.unnamedID) && named.contains($0.namedID) }, by: \.unnamedID)
+            .mapValues { $0.sorted { $0.similarity > $1.similarity } }
+        facet.formIntersection(ids)
+        facetItems = facet.isEmpty ? nil : snapshot.facetItems
     }
 
     /// Every member of one person (one `person_members` call), in item order. Confirmation comes
     /// from the person's counts; only a partly confirmed person reads its members' assignments.
-    public func members(_ id: String) throws -> [PersonTile.Member] {
-        guard let engine else { return [] }
-        let faces = try engine.personMembers(id).sorted()
+    public func members(_ id: String) async throws -> [PersonTile.Member] {
+        guard engine != nil else { return [] }
         let confirmed = person(id)?.confirmedCount ?? 0
+        return try await call { try Self.members(of: id, confirmedCount: confirmed, engine: $0) }
+    }
+
+    private nonisolated static func members(of id: String, confirmedCount confirmed: Int,
+                                            engine: any PeopleEngine) throws -> [PersonTile.Member] {
+        let faces = try engine.personMembers(id).sorted()
         if confirmed == 0 { return faces.map { .init(face: $0, confirmed: false) } }
         if confirmed >= faces.count { return faces.map { .init(face: $0, confirmed: true) } }
         var state: [PersonFaceRef: Bool] = [:]
@@ -310,13 +391,21 @@ public final class PeopleModel {
     }
 
     /// Fills the detail person's members; the face selection keeps only its faces.
-    private func loadDetailMembers() throws {
-        guard let d = detailID, let i = tiles.firstIndex(where: { $0.id == d }) else {
+    private func loadDetailMembers() async {
+        guard let d = detailID, tiles.contains(where: { $0.id == d }) else {
             faceSelection = []
             return
         }
-        tiles[i].members = try members(d)
-        faceSelection.formIntersection(tiles[i].members.map(\.face))
+        let generation = installGeneration
+        do {
+            let members = try await members(d)
+            guard generation == installGeneration, detailID == d, let i = tiles.firstIndex(where: { $0.id == d }) else { return }
+            tiles[i].members = members
+            faceSelection.formIntersection(members.map(\.face))
+        } catch {
+            guard generation == installGeneration else { return }
+            fail("People", error)
+        }
     }
 
     /// Footnote under the grid when the clustering was sampled (the job's reported sample size).
@@ -326,9 +415,10 @@ public final class PeopleModel {
     }
 
     /// Normalized face rectangle (origin top-left) in the item's preview, from the face strip.
+    /// `face_strip` is UI-safe (ST-1): a `Busy` answer leaves the cache empty so the next draw asks again.
     public func faceRect(_ face: PersonFaceRef) -> CGRect? {
         if let hit = faceRects[face.item] { return hit[face.ordinal] }
-        let strip = (try? engine?.faceStrip(face.item)) ?? []
+        guard let strip = try? engine?.faceStrip(face.item) else { return nil }
         let rects = Dictionary(strip.map { ($0.ordinal, $0.rect) }, uniquingKeysWith: { a, _ in a })
         faceRects[face.item] = rects
         return rects[face.ordinal]
@@ -341,48 +431,64 @@ public final class PeopleModel {
     }
 
     /// One engine edit = one step of the engine's people history (mirrored for the menu titles).
-    private func step(_ description: String, _ call: () throws -> Void) rethrows {
-        try call()
+    private func recordStep(_ description: String) {
         redoHistory = []
         undoHistory.append(description)
         if undoHistory.count > Self.historyLimit { undoHistory.removeFirst(undoHistory.count - Self.historyLimit) }
     }
 
-    private func edit(_ verb: String, _ body: (any PeopleEngine) throws -> String) -> Bool {
-        guard let engine else { message = "\(verb): open a folder on the engine first"; return false }
-        do {
-            message = try body(engine)
-        } catch {
-            fail(verb, error)
-            reload(refresh: true)
-            return false
+    private struct Step: Sendable {
+        let description: String
+        let call: @Sendable (any PeopleEngine) throws -> Void
+    }
+
+    /// Runs `steps` in order on a worker (each one engine history step), mirrors the ones that
+    /// applied, reloads from `people(refresh: true)` and reports `message` on success.
+    private func edit(_ verb: String, _ steps: [Step], message: String) async -> Bool {
+        guard engine != nil else { self.message = "\(verb): open a folder on the engine first"; return false }
+        return await serialized {
+            let generation = self.installGeneration
+            // How many steps applied before a failure, so the mirror matches the engine's history.
+            let applied = Mutex(0)
+            let result = await Task { try await self.call { engine in
+                for step in steps {
+                    try step.call(engine)
+                    applied.withLock { $0 += 1 }
+                }
+            } }.result
+            guard generation == self.installGeneration else { return false }
+            for step in steps.prefix(applied.withLock { $0 }) { self.recordStep(step.description) }
+            if case .failure(let error) = result {
+                self.fail(verb, error)
+                await self.reloadNow(refresh: true)
+                return false
+            }
+            self.message = message
+            await self.reloadNow(refresh: true)
+            self.onPeopleChange?()
+            return true
         }
-        reload(refresh: true)
-        onPeopleChange?()
-        return true
     }
 
     /// Return in a tile's name field: `name_person` with the Settings opt-ins. Empty clears.
     @discardableResult
-    public func name(_ id: String, as text: String) -> Bool {
+    public func name(_ id: String, as text: String) async -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let old = person(id)?.name
         guard trimmed != (old ?? "") else { return false }
         let options = naming
-        return edit("Name") { engine in
-            try step("Name person") { try engine.namePerson(id, name: trimmed.isEmpty ? nil : trimmed, options: options) }
-            let written = options.writeFaceRegions ? " · face regions written to XMP" : ""
-            return trimmed.isEmpty ? "Cleared the name of \(old ?? "person")" : "Named \(trimmed)\(written)"
-        }
+        let written = options.writeFaceRegions ? " · face regions written to XMP" : ""
+        return await edit("Name", [Step(description: "Name person") {
+            try $0.namePerson(id, name: trimmed.isEmpty ? nil : trimmed, options: options)
+        }], message: trimmed.isEmpty ? "Cleared the name of \(old ?? "person")" : "Named \(trimmed)\(written)")
     }
 
     /// A suggestion from the name menu: the unnamed cluster is the named person (merge, name wins).
     @discardableResult
-    public func accept(_ suggestion: PeopleNameCandidate) -> Bool {
-        let ok = edit("Merge") { engine in
-            try step("Merge people") { try engine.mergePeople(target: suggestion.namedID, source: suggestion.unnamedID) }
-            return "Merged into \(suggestion.name)"
-        }
+    public func accept(_ suggestion: PeopleNameCandidate) async -> Bool {
+        let ok = await edit("Merge", [Step(description: "Merge people") {
+            try $0.mergePeople(target: suggestion.namedID, source: suggestion.unnamedID)
+        }], message: "Merged into \(suggestion.name)")
         if ok { onMerge?(suggestion.namedID, [suggestion.unnamedID]) }
         return ok
     }
@@ -394,17 +500,17 @@ public final class PeopleModel {
 
     /// Toolbar ▸ Merge: every selected person into the target (the target's name wins).
     @discardableResult
-    public func mergeSelection() -> Bool {
+    public func mergeSelection() async -> Bool {
         let people = tiles.filter { selection.contains($0.id) }
         guard people.count >= 2, let target = Self.mergeTarget(people) else {
             message = "Select two or more people to merge"
             return false
         }
         let sources = people.filter { $0.id != target.id }
-        let ok = edit("Merge") { engine in
-            for source in sources { try step("Merge people") { try engine.mergePeople(target: target.id, source: source.id) } }
-            return "Merged \(sources.count + 1) people into \(target.displayName)"
+        let steps = sources.map { source in
+            Step(description: "Merge people") { try $0.mergePeople(target: target.id, source: source.id) }
         }
+        let ok = await edit("Merge", steps, message: "Merged \(sources.count + 1) people into \(target.displayName)")
         if ok {
             selection = [target.id]
             onMerge?(target.id, sources.map(\.id))
@@ -414,7 +520,7 @@ public final class PeopleModel {
 
     /// Detail ▸ Split: the selected faces become a new unnamed person. Returns its id.
     @discardableResult
-    public func splitSelection(newID: String = "person-split-\(UUID().uuidString.lowercased())") -> String? {
+    public func splitSelection(newID: String = "person-split-\(UUID().uuidString.lowercased())") async -> String? {
         guard let person = detail else { return nil }
         let faces = person.members.map(\.face).filter(faceSelection.contains)
         guard !faces.isEmpty else { message = "Select faces to split off"; return nil }
@@ -422,10 +528,9 @@ public final class PeopleModel {
             message = "Leave at least one face in \(person.displayName)"
             return nil
         }
-        let ok = edit("Split") { engine in
-            try step("Split person") { try engine.splitPerson(person.id, newID: newID, faces: faces) }
-            return "Split \(faces.count) face\(faces.count == 1 ? "" : "s") into a new person"
-        }
+        let ok = await edit("Split", [Step(description: "Split person") {
+            try $0.splitPerson(person.id, newID: newID, faces: faces)
+        }], message: "Split \(faces.count) face\(faces.count == 1 ? "" : "s") into a new person")
         guard ok else { return nil }
         faceSelection = []
         return newID
@@ -433,39 +538,35 @@ public final class PeopleModel {
 
     /// A face chip dropped on another person's tile (or Move To in its menu).
     @discardableResult
-    public func reassign(_ face: PersonFaceRef, to target: String) -> Bool {
+    public func reassign(_ face: PersonFaceRef, to target: String) async -> Bool {
         guard person(target) != nil else { return false }
         // The face's current owner, from its photo's assignments (tiles carry no members).
-        if let current = (try? engine?.personAssignments(face.item))?.first(where: { $0.face == face }),
-           current.personID == target { return false }
+        let current = try? await call { try $0.personAssignments(face.item) }.first { $0.face == face }
+        if current?.personID == target { return false }
         let name = person(target)?.displayName ?? "person"
-        let ok = edit("Move face") { engine in
-            try step("Assign face") { try engine.assignFace(face, to: target) }
-            return "Moved the face to \(name) (unconfirmed)"
-        }
+        let ok = await edit("Move face", [Step(description: "Assign face") { try $0.assignFace(face, to: target) }],
+                            message: "Moved the face to \(name) (unconfirmed)")
         if ok { faceSelection.remove(face) }
         return ok
     }
 
     /// Confirm protects an assignment from automatic refits.
     @discardableResult
-    public func setConfirmed(_ face: PersonFaceRef, _ confirmed: Bool) -> Bool {
-        edit(confirmed ? "Confirm" : "Unconfirm") { engine in
-            try step(confirmed ? "Confirm face" : "Unconfirm face") { try engine.confirmFace(face, confirmed: confirmed) }
-            return confirmed ? "Confirmed the face" : "Unconfirmed the face"
-        }
+    public func setConfirmed(_ face: PersonFaceRef, _ confirmed: Bool) async -> Bool {
+        await edit(confirmed ? "Confirm" : "Unconfirm",
+                   [Step(description: confirmed ? "Confirm face" : "Unconfirm face") { try $0.confirmFace(face, confirmed: confirmed) }],
+                   message: confirmed ? "Confirmed the face" : "Unconfirmed the face")
     }
 
     /// Confirms every face of the detail person.
     @discardableResult
-    public func confirmAll() -> Bool {
+    public func confirmAll() async -> Bool {
         guard let person = detail else { return false }
         let pending = person.members.filter { !$0.confirmed }
         guard !pending.isEmpty else { return false }
-        return edit("Confirm") { engine in
-            for m in pending { try step("Confirm face") { try engine.confirmFace(m.face, confirmed: true) } }
-            return "Confirmed \(pending.count) face\(pending.count == 1 ? "" : "s") of \(person.displayName)"
-        }
+        let steps = pending.map { m in Step(description: "Confirm face") { try $0.confirmFace(m.face, confirmed: true) } }
+        return await edit("Confirm", steps,
+                          message: "Confirmed \(pending.count) face\(pending.count == 1 ? "" : "s") of \(person.displayName)")
     }
 
     // MARK: Undo / Redo (Edit menu while the People view is frontmost)
@@ -481,39 +582,44 @@ public final class PeopleModel {
 
     /// Undo the last people edit (`undo_people_edit`), then reload from `people(refresh: false)`.
     @discardableResult
-    public func undo() -> Bool { replay(redo: false) }
+    public func undo() async -> Bool { await replay(redo: false) }
 
     /// Redo the last undone people edit (`redo_people_edit`), then reload from `people(refresh: false)`.
     @discardableResult
-    public func redo() -> Bool { replay(redo: true) }
+    public func redo() async -> Bool { await replay(redo: true) }
 
-    private func replay(redo: Bool) -> Bool {
+    private func replay(redo: Bool) async -> Bool {
         let verb = redo ? "Redo" : "Undo"
-        guard let engine else { message = "Nothing to \(verb.lowercased())"; return false }
-        let applied: String?
-        do {
-            applied = redo ? try engine.redoPeopleEdit() : try engine.undoPeopleEdit()
-        } catch {
-            // The engine keeps its history on a conflict: so does the mirror.
-            fail(verb, error)
-            return false
+        guard engine != nil else { message = "Nothing to \(verb.lowercased())"; return false }
+        return await serialized {
+            let generation = self.installGeneration
+            let applied: String?
+            do {
+                applied = try await self.call { redo ? try $0.redoPeopleEdit() : try $0.undoPeopleEdit() }
+            } catch {
+                guard generation == self.installGeneration else { return false }
+                // The engine keeps its history on a conflict: so does the mirror.
+                self.fail(verb, error)
+                return false
+            }
+            guard generation == self.installGeneration else { return false }
+            guard let description = applied else {
+                if redo { self.redoHistory = [] } else { self.undoHistory = [] }
+                self.message = "Nothing to \(verb.lowercased())"
+                return false
+            }
+            if redo {
+                if !self.redoHistory.isEmpty { self.redoHistory.removeLast() }
+                self.undoHistory.append(description)
+            } else {
+                if !self.undoHistory.isEmpty { self.undoHistory.removeLast() }
+                self.redoHistory.append(description)
+            }
+            self.message = "\(verb) \(Self.menuTitle(description))"
+            await self.reloadNow(refresh: false)
+            self.onPeopleChange?()
+            return true
         }
-        guard let description = applied else {
-            if redo { redoHistory = [] } else { undoHistory = [] }
-            message = "Nothing to \(verb.lowercased())"
-            return false
-        }
-        if redo {
-            if !redoHistory.isEmpty { redoHistory.removeLast() }
-            undoHistory.append(description)
-        } else {
-            if !undoHistory.isEmpty { undoHistory.removeLast() }
-            redoHistory.append(description)
-        }
-        message = "\(verb) \(Self.menuTitle(description))"
-        reload(refresh: false)
-        onPeopleChange?()
-        return true
     }
 
     // MARK: Selection
@@ -534,12 +640,13 @@ public final class PeopleModel {
         if faceSelection.contains(face) { faceSelection.remove(face) } else { faceSelection.insert(face) }
     }
 
-    public func openDetail(_ id: String) {
+    /// Opens the detail view at once; its members arrive from the worker.
+    public func openDetail(_ id: String) async {
         clearDetailMembers()
         detailID = id
         faceSelection = []
         selection = [id]
-        do { try loadDetailMembers() } catch { fail("People", error) }
+        await serialized { await self.loadDetailMembers() }
     }
 
     public func closeDetail() {
@@ -555,27 +662,34 @@ public final class PeopleModel {
 
     // MARK: Filter bar ▸ Person
 
-    public func toggleFacet(_ id: String) {
+    public func toggleFacet(_ id: String) async {
         if facet.contains(id) { facet.remove(id) } else { facet.insert(id) }
-        refreshFacetItems()
+        await refreshFacetItems()
     }
 
-    public func setFacet(_ ids: Set<String>) {
+    public func setFacet(_ ids: Set<String>) async {
         facet = ids
-        refreshFacetItems()
+        await refreshFacetItems()
     }
 
-    public func clearFacet() { setFacet([]) }
+    public func clearFacet() async { await setFacet([]) }
 
     /// Frames with any of the selected people (`frames_with_person`), nil with no selection.
-    private func refreshFacetItems() {
+    private func refreshFacetItems() async {
         facet.formIntersection(tiles.map(\.id))
-        guard !facet.isEmpty, let engine else { facetItems = nil; return }
-        var items = Set<Int>()
+        guard !facet.isEmpty, engine != nil else { facetItems = nil; return }
+        let ids = facet
+        let generation = installGeneration
         do {
-            for id in facet.sorted() { items.formUnion(try engine.items(withPerson: id, eyesClosedBelow: nil)) }
+            let items = try await call { engine in
+                var items = Set<Int>()
+                for id in ids.sorted() { items.formUnion(try engine.items(withPerson: id, eyesClosedBelow: nil)) }
+                return items
+            }
+            guard generation == installGeneration, facet == ids else { return }
             facetItems = items
         } catch {
+            guard generation == installGeneration else { return }
             fail("Person filter", error)
             facetItems = []
         }
@@ -597,6 +711,7 @@ public final class PeopleModel {
         return tile.items.filter(matches.contains).count
     }
 
+
     /// The grid rule: items that pass the source and the filter bar (`matches`, nil = all) and,
     /// with a Person facet, show one of the selected people. Order follows `base`.
     public static func visible(base: [Int], matches: Set<Int>?, people: Set<Int>?) -> [Int] {
@@ -605,6 +720,10 @@ public final class PeopleModel {
 }
 
 // MARK: - Engine conformance
+
+/// The people calls read the library's id maps (mutated on the main actor only) and the session
+/// (locked by the engine), so the adapter can be handed to a worker (ST-2).
+extension CullController: @unchecked Sendable {}
 
 extension CullController: PeopleEngine {
     private func peopleLibrary() throws -> EngineLibrary {

@@ -73,6 +73,14 @@ extension AppModel {
     /// Toast and status; published DNGs (also those of a job that failed or was cancelled later)
     /// are pulled into the grid through the change feed and selected.
     func photoJobDidFinish(_ outcome: PhotoJobController.Outcome) {
+        // ST-2: the stack line is one catalog read; it runs on a worker before the toast shows.
+        Task { [weak self] in
+            let stack = outcome.state == .completed ? await self?.photoStackLine(outcome) : nil
+            self?.presentPhotoJobOutcome(outcome, stackLine: stack)
+        }
+    }
+
+    private func presentPhotoJobOutcome(_ outcome: PhotoJobController.Outcome, stackLine: String?) {
         let names = outcome.outputs.map { URL(fileURLWithPath: $0.path).lastPathComponent }
         let what = outcome.operation.title
         let message: String
@@ -84,7 +92,7 @@ extension AppModel {
             } else {
                 message = "Enhanced \(names.count) photo\(names.count == 1 ? "" : "s")"
             }
-            if let stack = photoStackLine(outcome) { details.append(stack) }
+            if let stackLine { details.append(stackLine) }
         case .cancelled:
             message = names.isEmpty ? "\(what) cancelled" : "\(what) cancelled after \(names.count) photo\(names.count == 1 ? "" : "s")"
         case .failed, .running:
@@ -99,9 +107,11 @@ extension AppModel {
     }
 
     /// "Stacked with 3 source photos" from the engine's persistent stack.
-    private func photoStackLine(_ outcome: PhotoJobController.Outcome) -> String? {
-        guard let lib = engineLibrary, let first = outcome.outputs.first,
-              let stack = try? lib.engine.photoStack(imageId: first.imageId), stack.count > 1 else { return nil }
+    private func photoStackLine(_ outcome: PhotoJobController.Outcome) async -> String? {
+        guard let lib = engineLibrary, let first = outcome.outputs.first else { return nil }
+        let engine = lib.engine
+        let imageID = first.imageId
+        guard let stack = await EngineCall.optional({ try engine.photoStack(imageId: imageID) }), stack.count > 1 else { return nil }
         return "Stacked with \(stack.count - 1) source photo\(stack.count == 2 ? "" : "s")"
     }
 
