@@ -540,6 +540,12 @@ final class AppModel {
     @ObservationIgnored var loupeDisclosurePresented = false
     @ObservationIgnored var dismissLoupeDisclosure: (@MainActor () -> Void)?
     private(set) var developStatus: DevelopStatus = .none
+    /// ST-2: the open photo's recipe is waiting for the engine's writer thread ("saving…"), and
+    /// when it last landed ("saved"). The UI never waits for either.
+    private(set) var developSaving = false
+    private(set) var developSavedAt: Date?
+    /// "saving…" / "saved" for the Edits section readout (nil before the first change).
+    var developSaveLabel: String? { developSaving ? "saving…" : developSavedAt != nil ? "saved" : nil }
     /// Bumped when develop values change outside a slider drag (open, undo, reset, snapshot).
     private(set) var developRevision = 0
     private(set) var developHistory: HistoryState?
@@ -2611,6 +2617,12 @@ final class AppModel {
         developStatus = .ready
         developHistory = controller.history
         developRevision += 1
+        developSaving = controller.isSaving
+        developSavedAt = nil
+        controller.onSaveStateChange = { [weak self, weak controller] in
+            guard let self, let controller, self.develop === controller else { return }
+            self.developSaving = controller.isSaving
+        }
         controller.onFrame = { [weak self, weak controller] frame in
             guard let self, let controller else { return }
             self.developDidRender(frame, controller)
@@ -2678,6 +2690,8 @@ final class AppModel {
             developSessionID = nil
             developStatus = .none
             developHistory = nil
+            developSaving = false
+            developSavedAt = nil
             renderReadout = nil
         case .failed(_, let message):
             guard developRecovery.presentations.contains(where: { presentation in
@@ -2767,15 +2781,25 @@ final class AppModel {
         if library.items.indices.contains(itemID), let ref = library.items[itemID].engineImage {
             smartPreviews.didSave(imageID: ref.imageID, source: source)
         }
-        if let d = develop, d.itemID == itemID { developHistory = d.history }
+        if let d = develop, d.itemID == itemID {
+            developHistory = d.history
+            developSaving = d.isSaving
+            developSavedAt = Date()
+        }
         guard library.items.indices.contains(itemID) else { return }
         loader.invalidate(library.items[itemID])
         if library.items[itemID].engineImage?.previewSource == .smartPreview { libraryRevision += 1 }
-        cull.refreshStatuses([itemID])
         var positions = IndexSet()
         if positionOfID.indices.contains(itemID), positionOfID[itemID] >= 0 { positions.insert(positionOfID[itemID]) }
         refreshFocusSummary()
         liveObservers.forEach { $0.thumbnailsDidChange(positions); $0.itemsDidChange(positions) }
+        // The derived status (edited / exported) is one catalog read: on a worker (ST-2), then
+        // the cell redraws.
+        let generation = loadGeneration
+        Task { [weak self] in
+            guard let self, await self.cull.refreshStatusesOffMain([itemID]), self.loadGeneration == generation else { return }
+            self.libraryItemsChanged([itemID])
+        }
     }
 
     /// Items whose derived status changed outside a cull action (an export): redraw their cells.

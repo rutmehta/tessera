@@ -122,6 +122,11 @@ public final class DevelopController {
 
     public var onFrame: ((DevelopFrame) -> Void)?
     public var onSaved: ((String) -> Void)?
+    /// A recorded step, history move or snapshot is waiting for the engine's writer thread
+    /// (ST-2: the recipe and XMP are written there, never on the main actor); cleared by `saved`.
+    public private(set) var isSaving = false
+    /// Called on the main actor when `isSaving` changes.
+    public var onSaveStateChange: (() -> Void)?
     public var onFailure: ((String) -> Void)?
     /// Called when a coalesced change is waiting; the host calls `flushPending()` on its next
     /// display-link tick. Without a handler changes are sent immediately.
@@ -261,10 +266,12 @@ public final class DevelopController {
             return result
         }
         closed = true
+        isSaving = false
         session.setListener(listener: nil)
         session.setMaskListener(listener: nil)
         onFrame = nil
         onSaved = nil
+        onSaveStateChange = nil
         onFailure = nil
         onNeedsFlush = nil
         onPatchSent = nil
@@ -622,9 +629,16 @@ public final class DevelopController {
         if recorded {
             ignoredSettings = (try? session.ignoredSettings()) ?? ignoredSettings
             refreshRenderNotices()
+            noteSaveScheduled()
         }
         refreshHistory()
         return recorded
+    }
+
+    private func noteSaveScheduled() {
+        guard !isSaving else { return }
+        isSaving = true
+        onSaveStateChange?()
     }
 
     public func undo() throws -> Bool { try requireMutation(); return try historyMove { try session.undo() } }
@@ -635,6 +649,7 @@ public final class DevelopController {
         try requireMutation()
         flushPending()
         try session.snapshot(name: name)
+        noteSaveScheduled()
         refreshHistory()
     }
 
@@ -717,6 +732,7 @@ public final class DevelopController {
         try requireMutation()
         flushPending()
         let moved = try body()
+        if moved { noteSaveScheduled() }
         try reloadSettings()
         return moved
     }
@@ -753,6 +769,10 @@ public final class DevelopController {
 
     fileprivate func didSave(_ hash: String) {
         refreshHistory()
+        if isSaving {
+            isSaving = false
+            onSaveStateChange?()
+        }
         onSaved?(hash)
     }
 

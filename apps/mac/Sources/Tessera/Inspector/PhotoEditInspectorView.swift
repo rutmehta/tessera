@@ -349,7 +349,8 @@ struct EditsSection: View {
                 .disabled(!ready || steps == 0)
                 .help("Back to the unedited photo (one undo step)")
                 .accessibilityIdentifier("develop.basic.reset"))
-        EditSection("Edits", readout: ready ? "\(steps) step\(steps == 1 ? "" : "s")" : nil, compact: true, accessory: reset) {
+        let readout = ready ? ["\(steps) step\(steps == 1 ? "" : "s")", model.developSaveLabel].compactMap { $0 }.joined(separator: " · ") : nil
+        EditSection("Edits", readout: readout, compact: true, accessory: reset) {
             HistoryPanel(model: model, tools: tools)
         }
     }

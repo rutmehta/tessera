@@ -561,6 +561,20 @@ public final class CullController {
         for (id, status) in zip(ids, fresh) { statuses[id] = ItemStatus(status) }
     }
 
+    /// `refreshStatuses` with the catalog read on a worker (ST-2: the autosave callback must not
+    /// take the engine lock on the main actor). Returns whether anything was read.
+    @discardableResult
+    public func refreshStatusesOffMain(_ ids: [Int]) async -> Bool {
+        guard !isReadOnly, case .engine(let lib) = backend, !ids.isEmpty,
+              ids.allSatisfy(lib.imageIDs.indices.contains) else { return false }
+        let session = lib.session
+        let imageIDs = ids.map { lib.imageIDs[$0] }
+        guard let fresh = await EngineCall.optional({ try session.derivedStatuses(imageIds: imageIDs) }),
+              case .engine(let now) = backend, now === lib else { return false }
+        for (id, status) in zip(ids, fresh) { statuses[id] = ItemStatus(status) }
+        return true
+    }
+
     private func refreshAlbums() {
         guard !isReadOnly else { albums = []; return }
         var result: [AlbumSummary]

@@ -383,14 +383,18 @@ final class AccountSync {
                 if let model = shoot.model { files.append((shootFile("cull-learning", libraryID: shoot.libraryID), model, shoot.modified)) }
             }
         }
-        for (url, data, modified) in files {
-            let local = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-            if let local, local >= modified { continue }
-            do {
-                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try data.write(to: url, options: .atomic)
-            } catch {
-                NSLog("Sync: could not restore %@: %@", url.lastPathComponent, error.localizedDescription)
+        guard !files.isEmpty else { return }
+        // ST-2: the files land on a worker; the engine picks them up when the folder is next opened.
+        Task.detached(priority: .utility) {
+            for (url, data, modified) in files {
+                let local = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                if let local, local >= modified { continue }
+                do {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try data.write(to: url, options: .atomic)
+                } catch {
+                    NSLog("Sync: could not restore %@: %@", url.lastPathComponent, error.localizedDescription)
+                }
             }
         }
     }

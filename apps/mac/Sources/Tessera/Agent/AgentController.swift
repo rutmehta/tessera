@@ -144,6 +144,8 @@ final class AgentController {
 
     var providers: [AIProviderKind] { AIProviderKind.visible + (scriptedAvailable ? [.scripted] : []) }
 
+    /// One small JSON file in app support, written here: the account sync relies on the save and
+    /// its push happening within the same remote-apply pass (ST-2 leaves it synchronous).
     func savePreferences() {
         do { try store.save(preferences) } catch { app?.statusMessage = "AI settings not saved: \(error.localizedDescription)" }
         app?.sync.preferencesDidChange()
@@ -248,6 +250,8 @@ final class AgentController {
                          groupID: target.expectedGroupID, confidence: 0, unavailableReason: reason)
     }
 
+    /// One small JSON manifest in app support, written here: a reopen during a live run and the
+    /// run's completion read it back in order (ST-2 leaves it synchronous).
     private func writeResumeRecord(_ record: ReviewResumeRecord, for library: EngineLibrary) {
         do {
             try resumeStore.save(record)

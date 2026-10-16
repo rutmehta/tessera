@@ -324,18 +324,30 @@ final class DevelopTools: LibraryObserver {
 
     // MARK: Presets
 
-    func reloadPresets() { presets = presetStore.list() }
+    /// Lists the preset files on a worker (ST-2); the menu keeps its last list meanwhile.
+    func reloadPresets() {
+        let store = presetStore
+        Task { [weak self] in
+            let list = await Task.detached(priority: .utility) { store.list() }.value
+            self?.presets = list
+        }
+    }
 
     func savePreset(name: String, groups: Set<PresetGroup>) {
         guard let d = develop else { return }
         d.flushPending()
         let preset = DevelopPreset(name: name, groups: Array(groups), from: d.settingsObject)
-        do {
-            try presetStore.save(preset)
-            reloadPresets()
-            model.statusMessage = "Preset “\(name)” saved"
-        } catch {
-            model.statusMessage = "Preset not saved: \(error.localizedDescription)"
+        let store = presetStore
+        Task { [weak self] in
+            let result = await Task.detached(priority: .utility) { Result { try store.save(preset) } }.value
+            guard let self else { return }
+            switch result {
+            case .success:
+                self.reloadPresets()
+                self.model.statusMessage = "Preset “\(name)” saved"
+            case .failure(let error):
+                self.model.statusMessage = "Preset not saved: \(error.localizedDescription)"
+            }
         }
     }
 
@@ -349,8 +361,12 @@ final class DevelopTools: LibraryObserver {
     }
 
     func deletePreset(_ p: DevelopPreset) {
-        try? presetStore.delete(p.name)
-        reloadPresets()
+        let store = presetStore
+        let name = p.name
+        Task { [weak self] in
+            _ = await Task.detached(priority: .utility) { Result { try store.delete(name) } }.value
+            self?.reloadPresets()
+        }
     }
 
     // MARK: History
