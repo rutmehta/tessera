@@ -35,7 +35,9 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView(model: model)
-                .toolbar(removing: model.viewMode == .document ? .sidebarToggle : nil)
+                // UX-16: no automatic sidebar toggle (View ▸ Show Library Sidebar; the folder
+                // button is the sidebar's content); document mode keeps its labelled one below.
+                .toolbar(removing: .sidebarToggle)
                 .toolbar {
                     if model.viewMode == .document {
                         // SwiftUI's automatic item has no hook for AX metadata. Keep its native
@@ -76,11 +78,17 @@ struct ContentView: View {
                     }
                 }
                 if model.isCachedPreviewLibrary, model.viewMode != .document { CachedPreviewNotice(model: model) }
+                // UX-16: ⌘F drops the search field under the toolbar in Cull.
+                if model.showSearch, model.isLibraryWorkspace, !model.isPhotoEditing, !model.deliverMode, model.source != .people {
+                    SearchBar(model: model)
+                }
                 if model.tether.showPanel {
                     TetherPanel(model: model, tether: model.tether)
                         .disabled(model.isCachedPreviewLibrary)
                 }
                 GeometryReader { area in
+                    ZStack {
+                    HStack(spacing: 0) {
                     ZStack {
                         // Both stay alive so grid scroll position and loupe texture survive mode switches.
                         // UX-14: in Cull the grid shows through the burst workspace's centre (grouped by
@@ -131,21 +139,59 @@ struct ContentView: View {
                         } else if model.isCullWorkspace {
                             CullWorkspace(model: model)
                         }
-                        // UX-11: the agent field sits bottom centre of every mode (Review keeps its own
-                        // instruction field in the inspector); the toast moves up above it.
-                        VStack {
-                            Spacer()
-                            if let toast = model.toast {
-                                ToastView(model: model, toast: toast)
-                                    .padding(.bottom, Theme.Space.l)
-                                    .transition(Theme.Motion.transition(from: .bottom))
+                        // Debug ▸ Show Engine Readouts: the render timing floats top right of the canvas.
+                        if model.showRenderReadout, model.viewMode != .document, let readout = model.renderReadout {
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Text(readout)
+                                        .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textSecondary)
+                                        .padding(.horizontal, Theme.Space.s).frame(height: Theme.Height.regular)
+                                        .background(Capsule().fill(Theme.hud))
+                                        .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: Theme.Space.hairline))
+                                        .help("Settings change → frame in the loupe surface (Debug ▸ Show Engine Readouts)")
+                                        .accessibilityIdentifier("renderReadout")
+                                }
+                                Spacer()
                             }
-                            if model.viewMode != .document, !model.isReviewing {
-                                AgentRow(model: model)
-                                    .padding(.bottom, Theme.Space.l)
-                            }
+                            .padding(Theme.Space.panelInset)
+                            .allowsHitTesting(false)
                         }
-                        .animation(Theme.Motion.appear, value: model.toast)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    // UX-16: Edit's panel is a plain 320 pt column beside the photo (the prototype's),
+                    // not the system inspector, whose macOS 26 column covers the toolbar's right.
+                    if model.isPhotoEditing, model.showInspector {
+                        PhotoEditInspectorView(model: model)
+                            .frame(width: Theme.Width.editPanel)
+                            .transition(Theme.Motion.transition(from: .trailing))
+                    }
+                    }
+                    .animation(Theme.Motion.appear, value: model.showInspector)
+                    // UX-11: the agent field sits bottom centre of every mode (Review keeps its own
+                    // instruction field in the inspector), over the whole width like the prototype's;
+                    // the toast moves up above it. In a window too narrow to centre the field beside
+                    // Edit's panel it centres over the photo area instead, and the row goes compact.
+                    let panelInset = model.isPhotoEditing && model.showInspector
+                        && area.size.width < Theme.Width.editPanel * 2 + Theme.Width.agentField ? Theme.Width.editPanel : 0
+                    let rowWidth = area.size.width - panelInset - 2 * Theme.Space.l
+                    VStack {
+                        Spacer()
+                        if let toast = model.toast {
+                            ToastView(model: model, toast: toast)
+                                .padding(.bottom, Theme.Space.l)
+                                .transition(Theme.Motion.transition(from: .bottom))
+                        }
+                        if model.viewMode != .document, !model.isReviewing {
+                            AgentRow(model: model, compact: rowWidth < AgentRow.fullWidth)
+                                .frame(maxWidth: rowWidth)
+                                .padding(.bottom, Theme.Space.l)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.trailing, panelInset)
+                    .animation(Theme.Motion.appear, value: model.toast)
                     }
                     .frame(width: area.size.width, height: area.size.height)
                     .clipped()
@@ -163,21 +209,11 @@ struct ContentView: View {
                 ExportProgressBar(exporter: model.exporter)
                 PrintProgressBar(printing: model.printing)
                 PhotoJobProgressBar(jobs: model.photoJobs)   // M2-50
+                // UX-16: no status bar outside document mode. Counts are in the Cull column, the
+                // position in the Cull header and the folder button, messages are the toast
+                // (`AppModel.statusMessage`), engine readouts a floating overlay behind Debug.
                 if model.viewMode == .document {
                     DocumentStatusBar(model: model, workspace: model.documents)
-                } else if model.isReviewing {
-                    HStack {
-                        Text(model.statusMessage ?? model.agent.queue.summary)
-                            .lineLimit(1).truncationMode(.tail)
-                            .help(model.statusMessage ?? model.agent.queue.summary)
-                        Spacer(minLength: Theme.Space.m)
-                        Text("↑ ↓ Browse · D Edit · Esc Back").fixedSize()
-                    }
-                    .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                    .padding(.horizontal, Theme.Space.gutter).frame(height: Theme.Height.statusBar)
-                    .background(Theme.panel)
-                } else {
-                    StatusBar(model: model)
                 }
                 if showsFilmstrip {
                     Hairline()
@@ -200,9 +236,10 @@ struct ContentView: View {
             .frame(minWidth: Self.documentDetailMinWidth,
                    idealWidth: model.viewMode == .document ? Self.documentDetailMinWidth : nil, maxWidth: .infinity)
             // B5-10 end
+            // The title is hidden (the folder button is the title); it still names the window in
+            // the Window menu and the Dock.
             .navigationTitle(model.viewMode == .document ? (model.documents.current?.title ?? "Tessera")
                              : model.library.items.isEmpty ? "Tessera" : model.library.title)
-            .navigationSubtitle(subtitle)
         }
         .sheet(item: $model.layeredCopyRequest) { request in
             LayeredCopySheet(model: model, request: request)
@@ -235,12 +272,12 @@ struct ContentView: View {
                                     set: { if !$0 { model.collections.editor = nil } })) {
             SmartAlbumSheet(library: model.collections)
         }
-        // UX-14 / UX-15: in Cull the panel is the triage column on the left, in Deliver the
-        // What · How · Where column; the inspector stays for the loupe, Compare, Edit, Review and
-        // documents.
-        .inspector(isPresented: Binding(get: { model.showInspector && !model.isCullWorkspace && !model.deliverMode },
+        // UX-14 / UX-15 / UX-16: in Cull the panel is the triage column on the left, in Deliver the
+        // What · How · Where column, in Edit the 320 pt column beside the photo; the inspector
+        // stays for the library loupe, Compare, Review and documents.
+        .inspector(isPresented: Binding(get: { model.showInspector && !model.isCullWorkspace && !model.deliverMode && !model.isPhotoEditing },
                                         set: { shown in
-                                            if !model.isCullWorkspace, !model.deliverMode, shown != model.showInspector { model.toggleInspectorPanel() }
+                                            if !model.isCullWorkspace, !model.deliverMode, !model.isPhotoEditing, shown != model.showInspector { model.toggleInspectorPanel() }
                                         })) {
             Group {
                 if model.viewMode == .document {
@@ -248,8 +285,6 @@ struct ContentView: View {
                 } else if model.isReviewing {
                     AgentReviewInspector(model: model, busy: model.agent.isRunning || !model.agent.busy.isEmpty,
                                          canEdit: model.canEnterPhotoEdit)
-                } else if model.isPhotoEditing {
-                    PhotoEditInspectorView(model: model)
                 } else {
                     InspectorView(model: model)
                 }
@@ -261,6 +296,11 @@ struct ContentView: View {
                                       max: inspectorFit)
         }
         .toolbar { toolbar }
+        // UX-16: the folder button is the title (none inline either, as happens with the sidebar
+        // collapsed), and the bar is the canvas ground with a hairline under it, not the toolbar
+        // material.
+        .toolbar(removing: .title)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .environment(\.toolbarCompact, windowSize.width > 0 && windowSize.width < ShellBudget.compactToolbarWidth)
         .tint(Theme.accent)
         .background(WindowToolbarConfigurator())
@@ -314,56 +354,51 @@ struct ContentView: View {
 
     /// M2-56 yield order, step 3: the filmstrip hides when the canvas above it would be shorter than
     /// `ShellBudget.canvasMinHeight`. Decided from the height without the strip, so it cannot flicker.
+    /// UX-16: only with View ▸ Filmstrip on, and never under the burst view (its strip is the only
+    /// strip) or Deliver.
     private var showsFilmstrip: Bool {
-        guard model.showFilmstrip, !model.isReviewing, !model.isReviewEditing, !model.library.items.isEmpty, model.viewMode != .document else { return false }
+        guard model.showFilmstrip, !model.isReviewing, !model.isReviewEditing, !model.library.items.isEmpty, model.viewMode != .document,
+              !model.isBurstViewShown, !model.deliverMode else { return false }
         guard canvasBase > 0 else { return true }
         return ShellBudget.filmstripFits(detailHeight: canvasBase, chrome: 0)
     }
 
     private static let filmstripSpan = Theme.Height.filmstrip + Theme.Space.hairline
 
-    private var subtitle: String {
-        if model.viewMode == .document {
-            guard let doc = model.documents.current else { return "" }
-            return (doc.isDirty ? "Edited · " : "") + "\(doc.layers.count) layer\(doc.layers.count == 1 ? "" : "s")"
-        }
-        let n = model.visibleCount
-        guard n > 0 else { return "" }
-        return model.source == .all ? "\(n.formatted()) images" : "\(model.source.title) · \(n.formatted()) images"
-    }
-
+    /// UX-16: the toolbar is the prototype's bar and nothing more: the folder button (the window
+    /// title), the mode control, Before (Edit), the info button (loupe), Panel and Export. Open
+    /// Folder… lives in the folder popover and the File menu (⌘O); search is ⌘F (a bar under the
+    /// toolbar in Cull); thumbnail size is View ▸ Thumbnail Size and a pinch on the grid.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(id: "open", placement: .navigation) {
-            Button { model.presentOpenPanel() } label: {
-                Label("Open Folder…", systemImage: "folder.badge.plus")
-            }
-            .buttonStyle(ToolbarButtonStyle())
-            .help("Open a folder of JPEG / RAW images (⌘O)")
-            .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.open" : "\(axMode).toolbar.open")
-        }
-        .flatToolbarItem()
         ToolbarItem(id: "folder", placement: .navigation) {
-            // The folder name opens the source sidebar's content (folders, albums, people, culling
-            // lists) as a popover; the sidebar column itself is hidden unless View ▸ Show Library
-            // Sidebar brings it back.
+            // The folder name and count open the source sidebar's content (folders, albums,
+            // people, culling lists) as a popover; the sidebar column itself is hidden unless
+            // View ▸ Show Library Sidebar brings it back. In Edit a thin "n of 226" line says where
+            // ← → are (the filmstrip is off by default).
             if model.viewMode != .document {
                 Button { showFolders.toggle() } label: {
-                    HStack(spacing: Theme.Space.xs) {
-                        Image(systemName: "folder").font(Theme.Fonts.iconSmall)
-                        Text(model.library.items.isEmpty ? "No folder" : model.library.title)
-                            .lineLimit(1).truncationMode(.middle)
+                    HStack(spacing: Theme.Space.s) {
+                        Image(systemName: "folder").font(Theme.Fonts.icon)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(folderTitle).lineLimit(1).truncationMode(.middle)
+                            if let position = folderPosition {
+                                Text(position)
+                                    .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
+                                    .accessibilityIdentifier("\(axMode).toolbar.position")
+                            }
+                        }
                         Image(systemName: "chevron.down").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
                     }
                     .frame(maxWidth: Theme.Width.folderButton)
                 }
                 .buttonStyle(ToolbarButtonStyle(on: showFolders))
-                .help(model.library.items.isEmpty ? "Folders, albums and people" : "\(model.library.title): folders, albums, people and culling lists")
+                .help(model.library.items.isEmpty ? "Open a folder; folders, albums and people" : "\(model.library.title): folders, albums, people and culling lists")
                 .accessibilityLabel("Folder")
+                .accessibilityValue(folderTitle + (folderPosition.map { ", \($0)" } ?? ""))
                 .accessibilityIdentifier("\(axMode).toolbar.folder")
                 .popover(isPresented: $showFolders, arrowEdge: .bottom) {
-                    SidebarView(model: model)
-                        .frame(width: Theme.Width.sidebarMax, height: Theme.Height.folderPopover)
+                    FolderPopover(model: model, dismiss: { showFolders = false })
                 }
             }
         }
@@ -375,11 +410,12 @@ struct ContentView: View {
                     .help("Return to Library; open documents stay available")
                     .accessibilityIdentifier("document.toolbar.library")
             } else {
+                // The prototype's modes: titles only, the chosen one ink-filled.
                 SegmentedPicker(selection: Binding(get: { model.shellMode }, set: { model.selectShellMode($0) }),
                                 segments: ShellMode.allCases.map { mode in
-                    .init(value: mode, title: mode.title, symbol: mode.symbol,
+                    .init(value: mode, title: mode.title,
                           help: "\(mode.title) (⌘\(ShellMode.allCases.firstIndex(of: mode)! + 1))")
-                }, height: Theme.Height.large, fill: false, accessibilityPrefix: "\(axMode).toolbar.workspace")
+                }, height: Theme.Height.sectionHeader, fill: false, prominent: true, accessibilityPrefix: "\(axMode).toolbar.workspace")
                 .accessibilityLabel("Mode")
             }
         }
@@ -390,65 +426,108 @@ struct ContentView: View {
             }
         }
         .flatToolbarItem()
-        ToolbarItem(id: "search", placement: .primaryAction) {
-            if model.isEngineBacked, !model.isCachedPreviewLibrary, model.source != .people, model.isLibraryWorkspace, !model.deliverMode {
-                LibrarySearchField(library: model.collections, model: model)
-            }
-        }
-        .flatToolbarItem()
-        ToolbarItem(id: "size", placement: .primaryAction) {
-            // Grid only. M2-56: removed (not transparent) in the other modes, so its 130 pt slot
-            // goes back to the toolbar instead of pushing items into the overflow menu.
-            if model.viewMode == .grid, !model.deliverMode {
-                HStack(spacing: Theme.Space.xs) {
-                    Image(systemName: "square.grid.3x3").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
-                    Slider(value: $model.thumbnailSize, in: 110...360)
-                        .accessibilityIdentifier("library.toolbar.thumbnailSize").accessibilityLabel("Thumbnail size")
-                        .controlSize(.mini)
-                        .frame(width: Theme.Width.thumbnailSlider)
-                    Image(systemName: "square.grid.2x2").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
-                }
-                .help("Thumbnail size")
-            }
-        }
-        .flatToolbarItem()
-        ToolbarItem(id: "peopleMerge", placement: .primaryAction) {
-            if model.source == .people, model.isLibraryWorkspace {
-                Button { model.people.mergeSelection(); model.peopleDidChange() } label: {
-                    Label("Merge", systemImage: "person.2.badge.plus")
-                }
-                .buttonStyle(ToolbarButtonStyle())
-                .disabled(!model.people.canMerge || model.people.detailID != nil)
-                .help("Merge the selected people into one (a named person's name wins). Select tiles with ⌘-click.")
-                .accessibilityIdentifier("toolbar-people-merge")
-            }
-        }
-        .flatToolbarItem()
         ToolbarItem(id: "before", placement: .primaryAction) {
             if model.isPhotoEditing { BeforeAfterButton(model: model) }
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "info", placement: .primaryAction) {
+            // UX-16: the display-info popover (colour space, EDR headroom, soft proof) moved off
+            // the photo; an `i` right of Before.
+            if model.viewMode == .loupe { LoupeInfoButton(model: model) }
         }
         .flatToolbarItem()
         ToolbarItem(id: "inspector", placement: .primaryAction) {
             Toggle(isOn: Binding(get: { model.showInspector }, set: { _ in model.toggleInspectorPanel() })) {
                 Label("Panel", systemImage: "sidebar.right")
             }
-            .toggleStyle(ToolbarToggleStyle())
+            .toggleStyle(ToolbarToggleStyle(iconOnly: true))
             .help(model.viewMode == .document ? "Show or hide the inspector (⌥⌘I)" : "Show or hide the panel (Tab)")
             .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.inspector" : "\(axMode).toolbar.inspector")
         }
         .flatToolbarItem()
         ToolbarItem(id: "export", placement: .primaryAction) {
+            // The prototype's one filled button: the accent, 32 pt, radius 8.
             if model.viewMode != .document {
-                Button { model.presentExport() } label: {
-                    Label("Export", systemImage: "square.and.arrow.up")
-                }
-                .buttonStyle(ToolbarButtonStyle())
-                .disabled(!model.isEngineBacked || model.exporter.isRunning)
-                .help("Export the selection or the view (⇧⌘E)")
-                .accessibilityIdentifier("\(axMode).toolbar.export")
+                Button("Export") { model.presentExport() }
+                    .buttonStyle(ToolbarPrimaryButtonStyle())
+                    .disabled(!model.isEngineBacked || model.exporter.isRunning)
+                    .help("Export the selection or the view (⇧⌘E)")
+                    .accessibilityIdentifier("\(axMode).toolbar.export")
             }
         }
         .flatToolbarItem()
+    }
+
+    /// "World Cup final + NYC · 226": the folder (or album / person) and how many photos are in view.
+    private var folderTitle: String {
+        guard !model.library.items.isEmpty else { return "No folder" }
+        let n = model.visibleCount
+        return n > 0 ? "\(model.library.title) · \(n.formatted())" : model.library.title
+    }
+
+    /// Edit's thin position line under the folder name ("3 of 226"), where ← → move.
+    private var folderPosition: String? {
+        guard model.isPhotoEditing, let p = model.focusedPosition, model.visibleCount > 0 else { return nil }
+        return "\((p + 1).formatted()) of \(model.visibleCount.formatted())"
+    }
+}
+
+/// The folder button's popover: the source sidebar's content with an Open Folder… row at the
+/// bottom (⌘O stays in the File menu).
+private struct FolderPopover: View {
+    let model: AppModel
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SidebarView(model: model)
+                .frame(width: Theme.Width.sidebarMax, height: Theme.Height.folderPopover)
+            Hairline()
+            Button {
+                dismiss()
+                model.presentOpenPanel()
+            } label: {
+                HStack(spacing: Theme.Space.s) {
+                    Image(systemName: "folder.badge.plus").font(Theme.Fonts.icon)
+                    Text("Open Folder…")
+                    Spacer()
+                    KeyCap("⌘O")
+                }
+                .font(Theme.Fonts.label)
+                .foregroundStyle(Theme.textPrimary)
+                .padding(.horizontal, Theme.Space.m)
+                .frame(height: Theme.Height.sectionHeader)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.theme(.borderless, height: Theme.Height.sectionHeader))
+            .help("Open a folder of JPEG / RAW images (⌘O)")
+            .accessibilityIdentifier("library.folders.openFolder")
+        }
+        .background(Theme.panel)
+    }
+}
+
+/// UX-16: the search field in a bar under the toolbar (⌘F shows it and gives it the keyboard in
+/// Cull); the facet menus hang off its filter button as before.
+struct SearchBar: View {
+    let model: AppModel
+
+    var body: some View {
+        HStack(spacing: Theme.Space.m) {
+            LibrarySearchField(library: model.collections, model: model, focusRequest: model.searchFieldFocusRequest)
+            Spacer(minLength: Theme.Space.m)
+            Button { model.toggleSearch() } label: {
+                Image(systemName: "xmark").font(Theme.Fonts.iconSmall)
+            }
+            .buttonStyle(.theme(.borderless, height: Theme.Height.regular, square: true))
+            .help("Hide the search bar (⌘F); the filter stays")
+            .accessibilityLabel("Hide search")
+            .accessibilityIdentifier("library.search.hide")
+        }
+        .padding(.horizontal, Theme.Space.panelInset)
+        .frame(height: Theme.Height.searchBar)
+        .background(Theme.canvas)
+        Hairline()
     }
 }
 
@@ -467,45 +546,65 @@ extension ToolbarContent {
 /// Toolbar toggle: icon + label, flat. On = a neutral pressed fill and primary text (the accent
 /// stays reserved for content selection, focus and primary actions).
 struct ToolbarToggleStyle: ToggleStyle {
+    var iconOnly = false
     func makeBody(configuration: Configuration) -> some View {
         Button { configuration.isOn.toggle() } label: {
             configuration.label
         }
-        .buttonStyle(ToolbarButtonStyle(on: configuration.isOn))
+        .buttonStyle(ToolbarButtonStyle(on: configuration.isOn, iconOnly: iconOnly))
         .accessibilityAddTraits(configuration.isOn ? .isSelected : [])
     }
 }
 
-/// Flat toolbar button: 28 pt, radius 6, hover and pressed fills only.
+/// Flat toolbar button: 32 pt, radius 6, hover and pressed fills only. `iconOnly` is the
+/// prototype's 32 × 32 icon button (Before, the info button, Panel).
 struct ToolbarButtonStyle: ButtonStyle {
     var on = false
+    var iconOnly = false
     func makeBody(configuration: Configuration) -> some View {
-        ToolbarButtonBody(configuration: configuration, on: on)
+        ToolbarButtonBody(configuration: configuration, on: on, iconOnly: iconOnly)
     }
 }
 
 private struct ToolbarButtonBody: View {
     let configuration: ButtonStyle.Configuration
     let on: Bool
+    let iconOnly: Bool
     @State private var hovering = false
     /// M2-56: icons only in a narrow window (the title stays the help / accessibility label).
     @Environment(\.toolbarCompact) private var compact
     var body: some View {
         Group {
-            if compact {
-                configuration.label.labelStyle(.iconOnly)
+            if compact || iconOnly {
+                configuration.label.labelStyle(.iconOnly).font(Theme.Fonts.icon)
+                    .frame(width: iconOnly ? Theme.Height.sectionHeader : nil)
             } else {
-                configuration.label.labelStyle(.titleAndIcon)
+                configuration.label.labelStyle(.titleAndIcon).font(Theme.Fonts.bodyMedium)
+                    .padding(.horizontal, Theme.Space.s)
             }
         }
-            .font(Theme.Fonts.label)
             .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
-            .padding(.horizontal, Theme.Space.s)
-            .frame(height: Theme.Height.large)
+            .frame(height: Theme.Height.sectionHeader)
             .background(RoundedRectangle(cornerRadius: Theme.Radius.control)
                 .fill(configuration.isPressed || on ? Theme.pressed : hovering ? Theme.hover : Theme.clear))
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
+    }
+}
+
+/// The toolbar's one filled button (Export): the accent, 32 pt, radius 8, 13/600 on `textOnAccent`.
+struct ToolbarPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Theme.Fonts.bodySemibold)
+            .foregroundStyle(Theme.textOnAccent)
+            .padding(.horizontal, Theme.Space.m + Theme.Space.xxs)
+            .frame(height: Theme.Height.sectionHeader)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.card)
+                .fill(Theme.accent.opacity(configuration.isPressed ? 0.85 : 1)))
+            .opacity(enabled ? 1 : Theme.Opacity.disabled)
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 }
 
@@ -514,21 +613,14 @@ private struct ToolbarButtonBody: View {
 struct BeforeAfterButton: View {
     let model: AppModel
     @State private var hovering = false
-    @Environment(\.toolbarCompact) private var compact
 
     var body: some View {
         let on = model.showingBefore
-        Group {
-            if compact {
-                Label("Before", systemImage: "rectangle.split.2x1").labelStyle(.iconOnly)
-            } else {
-                Label("Before", systemImage: "rectangle.split.2x1").labelStyle(.titleAndIcon)
-            }
-        }
-        .font(Theme.Fonts.label)
+        // The prototype's 32 × 32 icon button; the title is the help and accessibility label.
+        Label("Before", systemImage: "rectangle.split.2x1").labelStyle(.iconOnly)
+        .font(Theme.Fonts.icon)
         .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
-        .padding(.horizontal, Theme.Space.s)
-        .frame(height: Theme.Height.large)
+        .frame(width: Theme.Height.sectionHeader, height: Theme.Height.sectionHeader)
         .background(RoundedRectangle(cornerRadius: Theme.Radius.control)
             .fill(on ? Theme.pressed : hovering ? Theme.hover : Theme.clear))
         .contentShape(Rectangle())
@@ -552,7 +644,12 @@ struct WindowToolbarConfigurator: NSViewRepresentable {
         }
 
         func configure(_ window: NSWindow) {
+            // UX-16: the folder button is the title; the bar is the canvas ground with a hairline
+            // under it (the prototype's 52 pt bar), not the system's titlebar material.
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
             window.titlebarSeparatorStyle = .line
+            window.backgroundColor = Theme.Palette.canvas
             RecoveryWindowCloseGuard.install(on: window)
         }
     }
@@ -565,118 +662,6 @@ struct WindowToolbarConfigurator: NSViewRepresentable {
                 anchor.configure(window)
             }
         }
-    }
-}
-
-/// One line, three groups: where you are (position, group, decision) · what happened (message) ·
-/// the session (counts, basket). Hairline-separated, tabular figures throughout.
-struct StatusBar: View {
-    let model: AppModel
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Hairline()
-            // M2-56 (L3): the full row when it fits, else a compact one (position, decision, counts
-            // as K / R, the basket's count without its name; every full string stays in help).
-            // The message never decides which fits: it takes whatever width is left and truncates.
-            ViewThatFits(in: .horizontal) {
-                row(compact: false)
-                row(compact: true)
-            }
-            .font(Theme.Fonts.captionNumeric)
-            .foregroundStyle(Theme.textSecondary)
-            .padding(.horizontal, Theme.Space.gutter)
-            .frame(height: Theme.Height.statusBar)
-        }
-        .background(Theme.panel)
-    }
-
-    private func row(compact: Bool) -> some View {
-        HStack(spacing: Theme.Space.m) {
-            if let item = model.focusedItem, let p = model.focusedPosition {
-                HStack(spacing: Theme.Space.s) {
-                    Text("\((p + 1).formatted()) of \(model.visibleCount.formatted())")
-                        .foregroundStyle(Theme.textPrimary)
-                    if !compact {
-                        Text("G\(item.groupID + 1) · \(model.indexInGroup(of: item) + 1)/\(model.groupSize(of: item))"
-                             + (model.focusedIsBest ? " · suggested best" : ""))
-                    }
-                    HStack(spacing: Theme.Space.xs) {
-                        Circle().fill(Color(nsColor: model.focusedState.decision.color))
-                            .frame(width: Theme.Space.s - Theme.Space.xxs, height: Theme.Space.s - Theme.Space.xxs)
-                        Text(compact ? model.focusedState.decision.label : stateText)
-                    }
-                    .help(stateText)
-                    if model.selectionCount > 1 {
-                        Text(compact ? "+\((model.selectionCount - 1).formatted())" : "\(model.selectionCount.formatted()) selected")
-                            .foregroundStyle(Theme.accent)
-                            .help("\(model.selectionCount.formatted()) selected")
-                    }
-                }
-                .fixedSize()
-                separator
-            }
-            if let person = model.assist.personFilterTitle {
-                Button { model.assist.clearPersonFilter() } label: {
-                    HStack(spacing: Theme.Space.xs) {
-                        Text(person).lineLimit(1).truncationMode(.middle)
-                        Image(systemName: "xmark.circle.fill").font(Theme.Fonts.iconSmall)
-                    }
-                }
-                .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                .foregroundStyle(Theme.accent)
-                .help("Showing frames with \(person) only. Click to show all.")
-                .accessibilityIdentifier("status-person-filter")
-                .frame(maxWidth: compact ? Theme.Width.labelWide : nil)
-                separator
-            }
-            // Ideal width 0: the message fills what is left and truncates; it never makes a row "not fit".
-            Group {
-                if let msg = model.statusMessage {
-                    Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(Theme.textTertiary)
-                        .help(msg)
-                } else {
-                    Color.clear
-                }
-            }
-            .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
-            if !compact, model.showRenderReadout, let readout = model.renderReadout {
-                Text(readout)
-                    .foregroundStyle(Theme.textTertiary)
-                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Engine Readouts)")
-                    .accessibilityIdentifier("renderReadout")
-                    .fixedSize()
-                separator
-            }
-            HStack(spacing: Theme.Space.s) {
-                Text(compact ? "K \(model.counts.keep.formatted())" : "Keep \(model.counts.keep.formatted())")
-                Text(compact ? "R \(model.counts.reject.formatted())" : "Reject \(model.counts.reject.formatted())")
-            }
-            .fixedSize()
-            .help("Keep \(model.counts.keep.formatted()) · Reject \(model.counts.reject.formatted())")
-            separator
-            HStack(spacing: Theme.Space.xs) {
-                RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(Theme.basket)
-                    .frame(width: Theme.Space.s, height: Theme.Space.s)
-                Text(compact ? model.counts.basket.formatted() : "\(model.basketTarget) \(model.counts.basket.formatted())")
-            }
-            .fixedSize()
-            .help("Basket target \(model.basketTarget): B adds to this album. Change it in Cull ▸ Basket Target or the sidebar.")
-        }
-    }
-
-    private var separator: some View {
-        Hairline(vertical: true).frame(height: Theme.Space.m)
-    }
-
-    private var stateText: String {
-        let s = model.focusedState
-        var parts = [s.decision.label]
-        if s.grade > 0 { parts.append("Grade \(s.grade) (\(CullState.gradeNames[Int(s.grade)]))") }
-        if s.mark > 0 { parts.append("Mark \(s.mark)") }
-        if s.inBasket { parts.append("In \(model.basketTarget)") }
-        if model.focusedStatus.phase != .unedited { parts.append(model.focusedStatus.phase.rawValue.capitalized) }
-        return parts.joined(separator: " · ")
     }
 }
 

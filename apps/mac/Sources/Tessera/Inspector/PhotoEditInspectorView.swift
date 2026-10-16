@@ -2,47 +2,81 @@ import SwiftUI
 import TesseraCore
 import TesseraFFI
 
-/// The Edit panel (redesign SPEC §3, WP UX-12). The Develop tab is a 40 pt histogram strip, then
-/// Light · Color · Detail · Optics · Effects with the everyday controls visible and the rest of
-/// each group behind its More, the agent's change cards once a run from the agent field has
-/// finished (`AgentChangesSection`), and the Edits stack. Masks keep their tab (M and the loupe
-/// tools switch to it). Every control of the former panels is still here; the sections regroup
-/// them. Uses the existing controls and controller; tabs change inspector composition only.
+/// The Edit panel (redesign SPEC §3, WP UX-12; UX-16 removed the Develop / Masks tab switcher).
+/// The panel starts with the 40 pt histogram strip, then Light · Color · Detail · Optics ·
+/// Effects with the everyday controls visible and the rest of each group behind its More, the
+/// agent's change cards once a run from the agent field has finished (`AgentChangesSection`),
+/// and the Edits stack. While the Masks tool is active (the strip's button, M) the mask list sits
+/// above the histogram as a sheet-like section (`MasksSheet`; `photoInspectorTab == .masks` is
+/// that state). Every control of the former panels is still here; the sections regroup them.
 struct PhotoEditInspectorView: View {
     @Bindable var model: AppModel
     private var tools: DevelopTools { .shared }
     private var masks: MaskTools { .shared }
+    private var dial: PhotoDial { .shared }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SegmentedPicker(selection: $model.photoInspectorTab, segments: [
-                .init(value: PhotoInspectorTab.develop, title: "Develop"),
-                .init(value: PhotoInspectorTab.masks, title: "Masks"),
-            ], accessibilityPrefix: "develop.inspector.tabs")
-            .padding(Theme.Space.gutter)
-            .accessibilityIdentifier("photo-edit-inspector-tabs")
-
-            Hairline()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if model.photoInspectorTab == .masks {
-                        PanelSection("Masks", headerIdentifier: "develop.panel.Masks") { MasksPanel(model: model, masks: masks) }
-                            .developContext(model, tools)
-                    } else {
-                        PhotoDevelopPanels(model: model)
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if model.photoInspectorTab == .masks {
+                    MasksSheet(model: model, masks: masks)
+                        .developContext(model, tools)
+                        .transition(Theme.Motion.transition(from: .top))
                 }
+                PhotoDevelopPanels(model: model)
             }
-            .scrollIndicators(.never)
+            .animation(Theme.Motion.appear, value: model.photoInspectorTab)
+            // The Try cards and the agent row cross the panel's bottom (as in the prototype).
+            .padding(.bottom, Theme.Height.bottomRow)
         }
-        .background(Theme.panel)
+        .scrollIndicators(.never)
+        // The prototype's panel: the canvas ground with a hairline on its left, no fill.
+        .background(Theme.canvas)
+        .overlay(alignment: .leading) { Hairline(vertical: true) }
         .tint(Theme.accent)
         .onChange(of: model.photoInspectorTab) { _, tab in
-            if tab == .develop { masks.setActive(false) }
+            if tab == .develop {
+                masks.setActive(false)
+                if dial.model === model, dial.masksToolShown { dial.toggleMasksTool() }
+            }
         }
         .onChange(of: masks.active) { _, active in
             if active { model.photoInspectorTab = .masks }
         }
+    }
+}
+
+/// The mask list and the selected mask's controls (`MasksPanel`) as a card at the top of the
+/// panel while the Masks tool is active: a 13/600 title, Done (Esc does the same), the list.
+private struct MasksSheet: View {
+    let model: AppModel
+    let masks: MaskTools
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            HStack(alignment: .center, spacing: Theme.Space.s) {
+                Text("Masks")
+                    .font(Theme.Fonts.bodySemibold)
+                    .foregroundStyle(Theme.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("develop.panel.Masks")
+                Spacer(minLength: 0)
+                Button("Done") { model.photoInspectorTab = .develop }
+                    .buttonStyle(.theme(.borderless, height: Theme.Height.small))
+                    .help("Leave the Masks tool (Esc)")
+                    .accessibilityIdentifier("develop.masks.done")
+            }
+            .frame(height: Theme.Height.large)
+            MasksPanel(model: model, masks: masks)
+        }
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.bottom, Theme.Space.m)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.card).fill(Theme.panel))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.hairlineStrong, lineWidth: Theme.Space.hairline))
+        .padding(.horizontal, Theme.Space.panelInset)
+        .padding(.top, Theme.Space.panelInset - Theme.Space.xxs)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Masks")
     }
 }
 
@@ -53,8 +87,9 @@ private struct PhotoDevelopPanels: View {
         Group {
             HistogramPanel(model: model)
                 .frame(height: HistogramView.height)
-                .padding(.horizontal, Theme.Space.gutter)
-                .padding(.vertical, Theme.Space.s)
+                .padding(.horizontal, Theme.Space.panelInset)
+                .padding(.top, Theme.Space.panelInset - Theme.Space.xxs)
+                .padding(.bottom, Theme.Space.s)
                 .help("Luminance of the photo as shown; a mark in a corner means that end clips")
             LightSection(model: model, tools: tools)
             ColorSection(model: model, tools: tools)
@@ -153,7 +188,7 @@ struct EditSection<Content: View, More: View>: View {
                 }
             }
         }
-        .padding(.horizontal, Theme.Space.gutter)
+        .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.l)
         Hairline()
     }

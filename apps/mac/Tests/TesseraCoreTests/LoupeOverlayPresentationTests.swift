@@ -28,19 +28,6 @@ final class LoupeOverlayPresentationTests: XCTestCase {
                                                   status: "", gamutWarning: false))
     }
 
-    func testReviewEditShortcutDisclosureNamesQueueAndReturnDestination() {
-        let model = AppModel()
-        model.loadStubItems(count: 8)
-        model.enterReview()
-        model.openReviewPhotoForEditing(5)
-
-        XCTAssertTrue(model.isReviewEditing)
-        let shortcuts = LoupeOverlay(model: model).shortcutText
-        XCTAssertTrue(shortcuts.contains("previous / next review photo"))
-        XCTAssertTrue(shortcuts.contains("Esc tool / Back to Review"))
-        XCTAssertFalse(shortcuts.contains("Back to Library"))
-    }
-
     func testDisplayInfoCarriesFullLibraryNameAndPhotoEditUsesHeaderInstead() {
         let model = AppModel()
         model.loadStubItems(count: 1)

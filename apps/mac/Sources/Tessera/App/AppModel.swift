@@ -460,7 +460,12 @@ final class AppModel {
     }
     var autoAdvance = true
     var showInspector = true
-    var showFilmstrip = true
+    /// UX-16: the filmstrip is off by default (View ▸ Filmstrip, remembered); in Cull the burst
+    /// strip is the only strip, and Edit moves with ← → (the folder button says "n of 226").
+    var showFilmstrip = UserDefaults.standard.bool(forKey: AppModel.filmstripKey) {
+        didSet { UserDefaults.standard.set(showFilmstrip, forKey: Self.filmstripKey) }
+    }
+    static let filmstripKey = "ShowFilmstrip"
     /// UX-11 / UX-15: the Deliver workspace (What · How · Where over the Library canvas; see
     /// AppModel+Deliver.swift). Cleared by every Library / Edit / Review navigation.
     var deliverMode = false {
@@ -481,6 +486,9 @@ final class AppModel {
     @ObservationIgnored var deliverPixelSizes: [Int: (width: Int, height: Int)] = [:]
     /// UX-11: bumped by ⌘K; the agent field of the current mode takes the keyboard.
     var agentFieldFocusRequest = 0
+    /// UX-16: ⌘F shows the search bar under the toolbar in Cull; the bump gives its field the keyboard.
+    var showSearch = false
+    var searchFieldFocusRequest = 0
     /// UX-14: Cull shows one burst at a time or the grid grouped by burst (G); remembered.
     var cullLayout: CullLayout = CullLayout(rawValue: UserDefaults.standard.string(forKey: AppModel.cullLayoutKey) ?? "") ?? .burst {
         didSet { if cullLayout != oldValue { cullLayoutDidChange() } }
@@ -516,7 +524,11 @@ final class AppModel {
     private(set) var smartPreviewSelectionRevision = 0
     private(set) var smartPreviewBatchActive = false
     private(set) var smartPreviewCancelRequested = false
-    var statusMessage: String?
+    /// What just happened, in one line. UX-16: there is no status bar; a new message shows as
+    /// the toast for 3 s (nil clears nothing: a message that was shown stays until it expires).
+    var statusMessage: String? {
+        didSet { if let statusMessage, statusMessage != oldValue { showToast(statusMessage, undoable: false, seconds: 3) } }
+    }
     @ObservationIgnored private var developRenderNotice: String?
     /// The open photo's omitted-setting notices, shown persistently in the loupe.
     /// Independent of `statusMessage`, so a newer status never hides them.
@@ -2164,11 +2176,14 @@ final class AppModel {
 
     // MARK: Toast
 
-    func showToast(_ message: String, undoable: Bool, details: [String] = []) {
+    /// Bottom centre above the agent row: 5 s for an undoable action, 15 s with details, 3 s for
+    /// a status message. A plain status never replaces an undoable toast that is still up.
+    func showToast(_ message: String, undoable: Bool, details: [String] = [], seconds: Double? = nil) {
+        if !undoable, details.isEmpty, let current = toast, current.undoable || !current.details.isEmpty { return }
         let t = Toast(message: message, undoable: undoable, details: details)
         toast = t
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(details.isEmpty ? 5 : 15))
+            try? await Task.sleep(for: .seconds(seconds ?? (details.isEmpty ? 5 : 15)))
             if self?.toast?.id == t.id { self?.toast = nil }
         }
     }

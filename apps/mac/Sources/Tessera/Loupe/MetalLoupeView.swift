@@ -407,7 +407,7 @@ final class MetalLoupeView: NSView {
     func displayUV(_ p: CGPoint) -> (u: Double, v: Double)? {
         guard cropView == nil, let frame = currentFrame, let metalLayer else { return nil }
         let scale = metalLayer.contentsScale
-        let place = LoupePlacement.fit(display: frame.displaySize, drawable: metalLayer.drawableSize)
+        let place = LoupePlacement.fit(display: frame.displaySize, drawable: metalLayer.drawableSize, scale: scale)
         return place.uv(p.x * scale, p.y * scale)
     }
 
@@ -415,7 +415,7 @@ final class MetalLoupeView: NSView {
     func viewPoint(u: Double, v: Double) -> CGPoint? {
         guard cropView == nil, let frame = currentFrame, let metalLayer else { return nil }
         let scale = metalLayer.contentsScale
-        let place = LoupePlacement.fit(display: frame.displaySize, drawable: metalLayer.drawableSize)
+        let place = LoupePlacement.fit(display: frame.displaySize, drawable: metalLayer.drawableSize, scale: scale)
         let x = (u - place.row0.z) / place.row0.x, y = (v - place.row1.z) / place.row1.y
         return CGPoint(x: x / scale, y: y / scale)
     }
@@ -443,7 +443,7 @@ final class MetalLoupeView: NSView {
     func pictureLocation(_ p: CGPoint) -> (u: Double, v: Double, texel: (x: Int, y: Int))? {
         guard cropView == nil, let frame = currentFrame, let metalLayer else { return nil }
         let scale = metalLayer.contentsScale
-        let place = LoupePlacement.fit(display: frame.displaySize, drawable: metalLayer.drawableSize)
+        let place = LoupePlacement.fit(display: frame.displaySize, drawable: metalLayer.drawableSize, scale: scale)
         let d = place.uv(p.x * scale, p.y * scale)
         guard (0...1).contains(d.u), (0...1).contains(d.v) else { return nil }
         let st = CropGeometry.orient(d.u, d.v, frame.orientation)

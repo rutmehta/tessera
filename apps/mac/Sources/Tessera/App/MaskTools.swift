@@ -393,7 +393,8 @@ final class MaskTools: LibraryObserver {
         let ch = event.charactersIgnoringModifiers?.lowercased() ?? ""
         let plain = mods.subtracting([.shift, .option, .capsLock, .numericPad, .function]).isEmpty
         guard plain else { return false }
-        if ch == "m", mods.isEmpty, !DevelopTools.shared.cropActive {
+        // UX-16: M is the strip's Masks tool (`PhotoDial`); ⇧M is this toolbar, and M closes it.
+        if ch == "m", mods == [.shift] || (mods.isEmpty && active), !DevelopTools.shared.cropActive {
             toggle()
             return true
         }

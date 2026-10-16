@@ -54,6 +54,21 @@ private struct BurstHeader: View {
                     .accessibilityIdentifier("library.cull.burst.title")
                 Text(detail(burst)).font(Theme.Fonts.labelNumeric).foregroundStyle(Theme.textTertiary)
                     .lineLimit(1).truncationMode(.tail)
+                    .accessibilityIdentifier("library.cull.burst.position")
+            }
+            // UX-16: the person filter (Show me <name>) is cleared here; the status bar is gone.
+            if let person = model.assist.personFilterTitle {
+                Button { model.assist.clearPersonFilter() } label: {
+                    HStack(spacing: Theme.Space.xs) {
+                        Text(person).lineLimit(1).truncationMode(.middle)
+                        Image(systemName: "xmark.circle.fill").font(Theme.Fonts.iconSmall)
+                    }
+                }
+                .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
+                .foregroundStyle(Theme.accent)
+                .help("Showing frames with \(person) only. Click to show all.")
+                .accessibilityIdentifier("status-person-filter")
+                .frame(maxWidth: Theme.Width.labelWide * 2)
             }
             Spacer(minLength: Theme.Space.m)
             Text(pickReason(burst)).font(Theme.Fonts.label).foregroundStyle(Theme.textTertiary)
@@ -77,11 +92,14 @@ private struct BurstHeader: View {
         return "Burst \(model.focusedBurstOrdinal ?? burst.group + 1) · \(burst.frames.count) frames"
     }
 
+    /// "· 18:06:48 · 1/640 f/4 · 3 of 226": the pick's time and exposure, then the focused
+    /// frame's position in the view (UX-16: formerly the status bar's).
     private func detail(_ burst: (group: Int, frames: Range<Int>, pick: Int)?) -> String {
         guard let burst else { return "" }
         let pick = model.item(id: burst.pick)
         var parts = ["· " + Self.time.string(from: pick.captureDate)]
         if let exposure, exposure.id == burst.pick, !exposure.text.isEmpty { parts.append("· " + exposure.text) }
+        if let p = model.focusedPosition { parts.append("· \((p + 1).formatted()) of \(model.visibleCount.formatted())") }
         return parts.joined(separator: " ")
     }
 

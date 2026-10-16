@@ -124,8 +124,21 @@ struct AppCommands: Commands {
             // UX-11: the source sidebar is hidden by default (its content is the toolbar's folder popover).
             Button(model.librarySidebarShown ? "Hide Library Sidebar" : "Show Library Sidebar") { model.toggleLibrarySidebar() }
                 .disabled(docMode || model.isPhotoEditing || model.isReviewing)
-            Button(model.showFilmstrip ? "Hide Filmstrip" : "Show Filmstrip") { model.showFilmstrip.toggle() }
+            // UX-16: off by default; the burst strip is Cull's strip and Edit moves with ← →.
+            Toggle("Filmstrip", isOn: Binding(get: { model.showFilmstrip }, set: { model.showFilmstrip = $0 }))
                 .keyboardShortcut("f", modifiers: [.command, .option])
+            // UX-16: search left the toolbar (⌘F drops it under the toolbar in Cull) and so did the
+            // thumbnail size slider (this submenu and a pinch on the grid).
+            Button(model.showSearch ? "Hide Search" : "Search") { model.toggleSearch() }
+                .shortcut(!docMode, "f", .command)
+                .disabled(docMode || model.isPhotoEditing || model.deliverMode)
+            Menu("Thumbnail Size") {
+                Button("Larger") { model.stepThumbnailSize(1) }
+                    .shortcut(!docMode, "=", .command)
+                Button("Smaller") { model.stepThumbnailSize(-1) }
+                    .shortcut(!docMode, "-", .command)
+            }
+            .disabled(docMode || model.isPhotoEditing)
             Picker("Appearance", selection: Binding(get: { appearance }, set: { new in
                 appearance = new
                 AppearancePreference(rawValue: new)?.apply()
@@ -223,6 +236,9 @@ struct AppCommands: Commands {
             Button("Show People") { model.setSource(.people) }
                 .keyboardShortcut("p", modifiers: [.command, .option])
                 .disabled(!model.isEngineBacked)
+            // UX-16: was a toolbar button in the People view.
+            Button("Merge Selected People") { model.people.mergeSelection(); model.peopleDidChange() }
+                .disabled(model.source != .people || !model.people.canMerge || model.people.detailID != nil)
             Divider()
             Button("Suggest Keywords for Selection") { model.collections.understanding.suggestForSelection() }
                 .keyboardShortcut("k", modifiers: [.command, .option])

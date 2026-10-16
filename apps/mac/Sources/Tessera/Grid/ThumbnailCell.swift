@@ -278,13 +278,8 @@ final class BadgeOverlayView: NSView {
             x += drawChip(t, fill: state.decision.chipColor, text: OnImage.ink,
                           at: NSPoint(x: x, y: r.minY + pad), maxWidth: r.width / 2).width + gap
         }
-        // Assist's pre-filled decision: an outlined hint over the scrim until Y confirms it.
-        if let suggestion, state.decision == .undecided {
-            let color = suggestion == .keep ? OnImage.keep : OnImage.reject
-            let text = small ? (suggestion == .keep ? "K?" : "X?") : (suggestion == .keep ? "Keep?" : "Reject?")
-            x += drawChip(text, fill: OnImage.scrim, text: color, outline: color,
-                          at: NSPoint(x: x, y: r.minY + pad), maxWidth: r.width / 2).width + gap
-        }
+        // Assist's pre-filled decision (Y confirms it) is in the accessibility label only (UX-16,
+        // SPEC §7: badges are the focus ring, the keep / reject mark and the burst's pick).
         // The burst's pick (UX-14): the accent, like the burst view's badge. A suggestion only.
         if suggestedBest, !small {
             drawChip("Pick", fill: Theme.Palette.accent, text: Theme.Palette.textOnAccent,

@@ -39,7 +39,7 @@ final class UprightGuideTool: LibraryObserver {
     func begin() {
         guard let d = develop, model.developStatus == .ready else { return }
         guard model.viewMode == .loupe else { model.statusMessage = "Guided Upright works in the loupe (E)"; return }
-        guard !MaskTools.shared.active else { model.statusMessage = "Close masking (M) to draw Upright guides"; return }
+        guard !MaskTools.shared.active else { model.statusMessage = "Close masking (⇧M) to draw Upright guides"; return }
         if tools.cropActive { tools.cancelCrop() }
         tools.hslPicker = nil
         tools.detailPicking = false

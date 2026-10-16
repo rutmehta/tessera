@@ -2,12 +2,14 @@ import SwiftUI
 import TesseraCore
 import TesseraFFI
 
-/// The toolbar search field (UX-11): the rule text in a field that widens while it has the
-/// keyboard, with the facet menus hanging off its filter button as a popover (`FilterBar`). The
-/// breadcrumb and filter bars above the grid are gone; this is the only bar.
+/// The search field (UX-11, UX-16): the rule text in a field that widens while it has the
+/// keyboard, with the facet menus hanging off its filter button as a popover (`FilterBar`). It
+/// sits in the bar ⌘F drops under the toolbar (`SearchBar`), not in the toolbar.
 struct LibrarySearchField: View {
     @Bindable var library: LibraryModel
     let model: AppModel
+    /// Bumped to give the field the keyboard (⌘F).
+    var focusRequest = 0
     @State private var editing = false
     @State private var showFilters = false
 
@@ -18,7 +20,8 @@ struct LibrarySearchField: View {
             RuleTextField(text: Binding(get: { library.filter.text },
                                         set: { value in model.updateLibraryFilter { $0.text = value } }),
                           diagnostic: library.diagnostic, placeholder: "Search", onSubmit: {}, plain: true,
-                          onFocusChange: { focused in withAnimation(Theme.Motion.appear) { editing = focused } })
+                          onFocusChange: { focused in withAnimation(Theme.Motion.appear) { editing = focused } },
+                          focusRequest: focusRequest)
             Button { showFilters.toggle() } label: {
                 Image(systemName: filtering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                     .font(Theme.Fonts.icon)

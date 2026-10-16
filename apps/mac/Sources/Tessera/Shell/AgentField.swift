@@ -6,6 +6,12 @@ import TesseraCore
 /// cards above the field (SPEC §3, UX-13); in Cull the quick actions sit above the field (UX-14).
 struct AgentRow: View {
     let model: AppModel
+    /// UX-16: the row's width is less than `fullWidth`: the side slots hug their content (the
+    /// agent status is left out), the field takes what is left, the Try cards scroll.
+    var compact = false
+
+    /// The row at full size: the field and its two side slots.
+    static let fullWidth: CGFloat = Theme.Width.agentField + 2 * (Theme.Width.agentSide + Theme.Space.m)
 
     var body: some View {
         let mode = model.shellMode
@@ -13,11 +19,20 @@ struct AgentRow: View {
             // UX-14: the quick actions of Cull (SPEC §4), each one undoable step with a toast.
             if mode == .cull, model.isCullWorkspace { CullQuickActions(model: model) }
             // UX-13: the Try cards, real renders of this photo, above the field in Edit.
-            if mode == .edit, model.viewMode == .loupe { TryCardsRow(model: model) }
+            if mode == .edit, model.viewMode == .loupe {
+                if compact {
+                    ScrollView(.horizontal) { TryCardsRow(model: model) }.scrollIndicators(.never)
+                } else {
+                    TryCardsRow(model: model)
+                }
+            }
             // UX-12: in Edit the tools strip and the agent status sit in two equal side slots, so
             // the field stays centred.
             HStack(alignment: .center, spacing: Theme.Space.m) {
-                if mode == .edit {
+                if mode == .edit, compact {
+                    ToolsStrip(model: model)
+                    AgentField(model: model, mode: mode)
+                } else if mode == .edit {
                     ToolsStrip(model: model).frame(width: Theme.Width.agentSide, alignment: .trailing)
                     AgentField(model: model, mode: mode)
                     AgentStatus(model: model).frame(width: Theme.Width.agentSide, alignment: .leading)
@@ -151,7 +166,9 @@ struct AgentField: View {
         }
         .padding(.leading, Theme.Space.l)
         .padding(.trailing, Theme.Space.m)
-        .frame(width: Theme.Width.agentField, height: Theme.Height.agentField)
+        // 560 wide; narrower only when the row cannot hold it (UX-16, the minimum window in Edit).
+        .frame(minWidth: Theme.Width.agentFieldMin, idealWidth: Theme.Width.agentField, maxWidth: Theme.Width.agentField)
+        .frame(height: Theme.Height.agentField)
         .background(RoundedRectangle(cornerRadius: Theme.Radius.agentField).fill(Theme.panel))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.agentField)
             .strokeBorder(focused ? Theme.accent.opacity(0.6) : Theme.hairlineStrong, lineWidth: Theme.Space.hairline))
@@ -188,7 +205,7 @@ struct ToolsStrip: View {
 
     var body: some View {
         HStack(spacing: Theme.Space.xs) {
-            IconButton(symbol: "circle.lefthalf.filled", help: "Masks: target the subject, sky or background (M for the brush and gradients)",
+            IconButton(symbol: "circle.lefthalf.filled", help: "Masks (M): target the subject, sky or background; ⇧M for the brush and gradients",
                        on: owned && dial.masksToolShown, size: Theme.Height.toolStrip) {
                 if owned { dial.toggleMasksTool() }
             }

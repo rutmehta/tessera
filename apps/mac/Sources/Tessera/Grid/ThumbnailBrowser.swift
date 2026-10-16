@@ -155,6 +155,17 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
         (item as? ThumbnailCell)?.stopLoading()
     }
 
+    /// The thumbnail size when the pinch began.
+    private var pinchBase: Double = 0
+
+    @objc private func pinched(_ gesture: NSMagnificationGestureRecognizer) {
+        switch gesture.state {
+        case .began: pinchBase = model.thumbnailSize
+        case .changed: model.setThumbnailSize(pinchBase * (1 + Double(gesture.magnification)))
+        default: break
+        }
+    }
+
     init(model: AppModel, style: CellStyle) {
         self.model = model
         self.style = style
@@ -171,6 +182,8 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
             let edge = Theme.Space.gutter - style.imageInset
             layout.inset = NSEdgeInsets(top: edge, left: edge, bottom: edge, right: edge)
             layout.onColumnsChange = { [weak model] cols in model?.gridColumns = cols }
+            // UX-16: a pinch on the grid sets the thumbnail size (the toolbar slider is gone).
+            collectionView.addGestureRecognizer(NSMagnificationGestureRecognizer(target: self, action: #selector(pinched(_:))))
         case .filmstrip:
             layout.heightRatio = 0.72
             layout.spacing = Theme.Space.xxs

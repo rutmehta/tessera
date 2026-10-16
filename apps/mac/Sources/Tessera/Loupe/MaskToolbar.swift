@@ -49,8 +49,8 @@ struct MaskToolbar: View {
             }
             Spacer()
         }
-        // Below the loupe's 32 pt information strip, never over its text.
-        .padding(.top, Theme.Height.sectionHeader + Theme.Space.xs)
+        // UX-16: the loupe's information strip is gone; the toolbar sits where the chip pills do.
+        .padding(.top, EditPhotoHUDs.pillTop)
         .disabled(!ready)
         .tint(Theme.accent)
     }

@@ -100,7 +100,7 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         }
         let required: [String]
         switch scenario {
-        case "library.populated": required = ["ruleTextField", "library.toolbar.open", "library.sidebar.row.src:all",
+        case "library.populated": required = ["library.toolbar.folder", "library.sidebar.row.src:all",
                                               "library.cull.triage.bursts", "library.cull.burst.keepPick", "library.cull.quick.keepPicks"]
         case "library.populatedGrid": required = ["library.cull.layout.1"]
         case "develop.modelRetry": required = ["detail-ai-denoise-model-retry", "lensblur-model-retry"]
@@ -416,7 +416,7 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         XCTAssertTrue(slider.contains("if s.accessibilityLabel() != label"))
         XCTAssertTrue(thumbnail.contains("if v.accessibilityIdentifier() != identifier"))
         XCTAssertTrue(thumbnail.contains("if cellView.accessibilityLabel() != label"))
-        XCTAssertTrue(shell.contains(".toolbar(removing: model.viewMode == .document ? .sidebarToggle : nil)"))
+        XCTAssertTrue(shell.contains(".toolbar(removing: .sidebarToggle)"))
     }
 
     func testKeywordIdentifierPrivacy() async throws {
@@ -651,7 +651,6 @@ enum EstablishedAccessibilityIdentifiers {
         "develop.history.step.",
         "develop.hsl.target",
         "develop.lensBlur.bokehShape",
-        "develop.loupe.masks",
         "develop.maskToolbar.ai.",
         "develop.maskToolbar.brush.",
         "develop.maskToolbar.done",
@@ -960,7 +959,6 @@ enum EstablishedAccessibilityIdentifiers {
         "document.tool.remove",
         "document.toolbar.inspector",
         "document.toolbar.library",
-        "document.toolbar.open",
         "document.toolbar.sidebar",
         "document.tools",
         "document.transform.amount",
@@ -1120,12 +1118,9 @@ enum EstablishedAccessibilityIdentifiers {
         "library.selection.",
         "library.sidebar.row.",
         "library.thumbnail.",
-        "library.toolbar.thumbnailSize",
         "loupe-display-info",
         "loupe-display-info-details",
         "loupe-display-photo-name",
-        "loupe-shortcut-details",
-        "loupe-shortcuts",
         "lrimport-cancel",
         "lrimport-folders",
         "lrimport-keywords",
@@ -1147,7 +1142,6 @@ enum EstablishedAccessibilityIdentifiers {
         "ocr-detect",
         "ocr-find",
         "ocr-text",
-        "open",
         "people-analyze-faces",
         "people-approximate-note",
         "people-clear-filter",
@@ -1159,7 +1153,6 @@ enum EstablishedAccessibilityIdentifiers {
         "people-setting-person-keywords",
         "people-setting-write-regions",
         "people-view",
-        "peopleMerge",
         "person-confirm-all",
         "person-confirmed-",
         "person-detail-back",
@@ -1174,7 +1167,6 @@ enum EstablishedAccessibilityIdentifiers {
         "person-split",
         "person-suggestions-",
         "person-tile-",
-        "photo-edit-inspector-tabs",
         "photo-edit-target",
         "photo-job-cancel",
         "photo-job-progress",
@@ -1243,7 +1235,6 @@ enum EstablishedAccessibilityIdentifiers {
         "smart-preview-local-save-warning",
         "smart-preview-thumbnail-limitation",
         "smartAlbumMatchCount",
-        "softproof-badge",
         "softproof-status",
         "softproof-toggle",
         "src:people",
@@ -1289,7 +1280,6 @@ enum EstablishedAccessibilityIdentifiers {
         "tether-smart-album",
         "tether-summary",
         "toast",
-        "toolbar-people-merge",
         "transform-",
         "transform-constrain-crop",
         "transform-constrain-crop-unavailable",

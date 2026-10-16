@@ -36,7 +36,10 @@ commands may not claim the reserved combinations listed below.
 | Document | ⌘0 | AppCommands / Fit on Screen |
 | Document | ⌘1 | AppCommands / 100 % |
 | Document / Library | ⌥⌘I | AppCommands / Hide Inspector / Show Inspector |
-| Document / Library | ⌥⌘F | AppCommands / Hide Filmstrip / Show Filmstrip |
+| Document / Library | ⌥⌘F | AppCommands / Filmstrip |
+| Library | ⌘F | AppCommands / Hide Search / Search |
+| Library | ⌘= | AppCommands / Larger |
+| Library | ⌘- | AppCommands / Smaller |
 | Document / Library | ⇧⌘D | AppCommands / Defect Sweep… |
 | Document / Library | ⌥⌘A | AppCommands / Assist |
 | Document / Library | ⌥⌘Right | AppCommands / Next Group |
@@ -885,7 +888,8 @@ func handleKey(_ event: NSEvent) -> Bool {
         let ch = event.charactersIgnoringModifiers?.lowercased() ?? ""
         let plain = mods.subtracting([.shift, .option, .capsLock, .numericPad, .function]).isEmpty
         guard plain else { return false }
-        if ch == "m", mods.isEmpty, !DevelopTools.shared.cropActive {
+        // UX-16: M is the strip's Masks tool (`PhotoDial`); ⇧M is this toolbar, and M closes it.
+        if ch == "m", mods == [.shift] || (mods.isEmpty && active), !DevelopTools.shared.cropActive {
             toggle()
             return true
         }
