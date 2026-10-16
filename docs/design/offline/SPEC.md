@@ -78,7 +78,7 @@ impl Engine {
     /// in `original_path`; keep it that way). A refusal (non-mosaic source, lens opcode list 3,
     /// denoise on) is an error with the engine's message, not a panic.
     pub fn ensure_smart_preview(&self, image_id: String) -> Result<SmartPreviewInfo>;
-    /// Ids whose journal has edits not yet synchronized. Scans `smart-previews/*/journal.json`.
+    /// Ids whose journal has edits not yet synchronized. Scans `smart-previews/<image id>/journal.json`.
     pub fn pending_sync_smart_previews(&self) -> Result<Vec<String>>;
     /// Bytes under `smart-previews/`.
     pub fn smart_preview_storage(&self) -> Result<u64>;
