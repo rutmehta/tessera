@@ -190,6 +190,47 @@ pub struct ImportCounts {
     pub assignments: usize,
 }
 
+/// What `<root>/.tessera/` holds, parsed with no catalog access (ST-4):
+/// the readable analysis records and `people.json`, if present.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct DriveState {
+    pub analysis: Vec<AnalysisRecord>,
+    pub people: Option<PeopleDocument>,
+}
+impl DriveState {
+    /// Reads and parses the root's drive state. One unreadable record must
+    /// not hide the rest of the drive, so it is left out rather than failing.
+    pub fn read(root: &Path) -> EngineResult<Self> {
+        let dir = TesseraDir::of_root(root);
+        let entries = match std::fs::read_dir(dir.analysis_dir()) {
+            Ok(entries) => entries.collect::<Vec<_>>(),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+            Err(e) => return Err(EngineError::io_at(dir.analysis_dir(), &e)),
+        };
+        let people = match std::fs::read(dir.people()) {
+            Ok(bytes) => Some(serde_json::from_slice::<PeopleDocument>(&bytes)?),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => return Err(EngineError::io_at(dir.people(), &e)),
+        };
+        let mut analysis = Vec::new();
+        for entry in entries {
+            let entry = entry.map_err(|e| EngineError::io_at(dir.analysis_dir(), &e))?;
+            if entry.path().extension().is_none_or(|e| e != "json") {
+                continue;
+            }
+            let bytes =
+                std::fs::read(entry.path()).map_err(|e| EngineError::io_at(entry.path(), &e))?;
+            if let Ok(record) = serde_json::from_slice::<AnalysisRecord>(&bytes) {
+                analysis.push(record);
+            }
+        }
+        Ok(Self { analysis, people })
+    }
+    pub fn is_empty(&self) -> bool {
+        self.analysis.is_empty() && self.people.is_none()
+    }
+}
+
 fn sql(error: rusqlite::Error) -> EngineError {
     IndexError::Sql(error).into()
 }
@@ -495,51 +536,43 @@ impl Index {
         Ok(document)
     }
 
-    /// Loads `<root>/.tessera/` into the index: analysis records first (they
-    /// create the image rows the scan will refresh, and the faces the
-    /// assignments need), then `people.json`. A record is applied when the
-    /// index has no stamp for the image or the record is newer; a record whose
-    /// id does not match the file it names (another volume, a moved file) is
-    /// skipped. `volume` is the root's volume, as the scanner resolves it.
+    /// Loads `<root>/.tessera/` into the index: `DriveState::read` then
+    /// `apply_drive_state`, on one connection. A host that keeps the index
+    /// behind a lock reads first, with the lock free, and applies under it.
     pub fn import_drive_state(
         &mut self,
         root: &Path,
         volume: Option<&Volume>,
     ) -> EngineResult<ImportCounts> {
-        let dir = TesseraDir::of_root(root);
+        let state = DriveState::read(root)?;
+        self.apply_drive_state(root, volume, &state)
+    }
+
+    /// Applies parsed drive state: analysis records first (they create the
+    /// image rows the scan will refresh, and the faces the assignments
+    /// need), then `people.json`. A record is applied when the index has no
+    /// stamp for the image or the record is newer; a record whose id does
+    /// not match the file it names (another volume, a moved file) is
+    /// skipped. `volume` is the root's volume, as the scanner resolves it.
+    pub fn apply_drive_state(
+        &mut self,
+        root: &Path,
+        volume: Option<&Volume>,
+        state: &DriveState,
+    ) -> EngineResult<ImportCounts> {
         let mut counts = ImportCounts::default();
-        let entries = match std::fs::read_dir(dir.analysis_dir()) {
-            Ok(entries) => entries.collect::<Vec<_>>(),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-            Err(e) => return Err(EngineError::io_at(dir.analysis_dir(), &e)),
-        };
-        let people = match std::fs::read(dir.people()) {
-            Ok(bytes) => Some(serde_json::from_slice::<PeopleDocument>(&bytes)?),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => return Err(EngineError::io_at(dir.people(), &e)),
-        };
-        if entries.is_empty() && people.is_none() {
+        if state.is_empty() {
             return Ok(counts);
         }
         let root_id = self.0.register_root(root).map_err(EngineError::from)?;
         self.0.importing(true).map_err(EngineError::from)?;
         let result = (|| -> EngineResult<()> {
-            for entry in entries {
-                let entry = entry.map_err(|e| EngineError::io_at(dir.analysis_dir(), &e))?;
-                if entry.path().extension().is_none_or(|e| e != "json") {
-                    continue;
-                }
-                let bytes = std::fs::read(entry.path())
-                    .map_err(|e| EngineError::io_at(entry.path(), &e))?;
-                // One unreadable record must not hide the rest of the drive.
-                let Ok(record) = serde_json::from_slice::<AnalysisRecord>(&bytes) else {
-                    continue;
-                };
+            for record in &state.analysis {
                 counts.analysis +=
-                    usize::from(self.import_analysis(root, root_id, volume, &record)?);
+                    usize::from(self.import_analysis(root, root_id, volume, record)?);
             }
-            if let Some(people) = people {
-                let (persons, assignments) = self.import_people(&people)?;
+            if let Some(people) = &state.people {
+                let (persons, assignments) = self.import_people(people)?;
                 counts.persons += persons;
                 counts.assignments += assignments;
             }

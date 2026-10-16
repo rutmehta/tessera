@@ -33,7 +33,10 @@ fn shoot() -> Shoot {
             .save(photos.join(format!("{name}.jpg")))
             .unwrap();
     }
-    let library = photos.join("library.json");
+    // The document lives in `.tessera/` (CS-1): a legacy `library.json`
+    // beside the photos would be migrated there by `index_folder`, and the
+    // store would then open an empty library at the old path.
+    let library = library::Library::path_in(&photos);
     let mut doc = library::Library::default();
     doc.add_keyword("Colors", None).unwrap();
     doc.add_keyword("Blue", Some("Colors")).unwrap();
