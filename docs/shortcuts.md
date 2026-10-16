@@ -37,6 +37,9 @@ commands may not claim the reserved combinations listed below.
 | Document | ⌘1 | AppCommands / 100 % |
 | Document / Library | ⌥⌘I | AppCommands / Hide Inspector / Show Inspector |
 | Document / Library | ⌥⌘F | AppCommands / Hide Filmstrip / Show Filmstrip |
+| Library | ⌘F | AppCommands / Hide Search / Search |
+| Library | ⌘= | AppCommands / Larger |
+| Library | ⌘- | AppCommands / Smaller |
 | Document / Library | ⇧⌘D | AppCommands / Defect Sweep… |
 | Document / Library | ⌥⌘A | AppCommands / Assist |
 | Document / Library | ⌥⌘Right | AppCommands / Next Group |

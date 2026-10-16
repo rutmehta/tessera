@@ -100,7 +100,7 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         }
         let required: [String]
         switch scenario {
-        case "library.populated": required = ["ruleTextField", "library.toolbar.open", "library.sidebar.row.src:all",
+        case "library.populated": required = ["library.toolbar.folder", "library.sidebar.row.src:all",
                                               "library.cull.triage.bursts", "library.cull.burst.keepPick", "library.cull.quick.keepPicks"]
         case "library.populatedGrid": required = ["library.cull.layout.1"]
         case "develop.modelRetry": required = ["detail-ai-denoise-model-retry", "lensblur-model-retry"]
@@ -960,7 +960,6 @@ enum EstablishedAccessibilityIdentifiers {
         "document.tool.remove",
         "document.toolbar.inspector",
         "document.toolbar.library",
-        "document.toolbar.open",
         "document.toolbar.sidebar",
         "document.tools",
         "document.transform.amount",
@@ -1120,7 +1119,6 @@ enum EstablishedAccessibilityIdentifiers {
         "library.selection.",
         "library.sidebar.row.",
         "library.thumbnail.",
-        "library.toolbar.thumbnailSize",
         "loupe-display-info",
         "loupe-display-info-details",
         "loupe-display-photo-name",
@@ -1289,7 +1287,6 @@ enum EstablishedAccessibilityIdentifiers {
         "tether-smart-album",
         "tether-summary",
         "toast",
-        "toolbar-people-merge",
         "transform-",
         "transform-constrain-crop",
         "transform-constrain-crop-unavailable",

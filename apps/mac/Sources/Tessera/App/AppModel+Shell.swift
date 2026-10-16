@@ -102,6 +102,34 @@ extension AppModel {
         restorePanelState(for: shellMode)
     }
 
+    // MARK: Search and thumbnail size (UX-16)
+
+    /// ⌘F: the search bar drops under the toolbar in Cull and takes the keyboard; ⌘F again (or
+    /// its close button) hides it. The filter itself stays until Library ▸ Clear Filter.
+    func toggleSearch() {
+        guard viewMode != .document else { return }
+        if showSearch, searchFieldFocusRequest > 0 {
+            showSearch = false
+        } else {
+            showSearch = true
+            searchFieldFocusRequest += 1
+        }
+    }
+
+    static let thumbnailSizeRange: ClosedRange<Double> = 110...360
+
+    /// View ▸ Thumbnail Size ▸ Larger / Smaller: one step of a quarter.
+    func stepThumbnailSize(_ direction: Int) {
+        let factor = direction > 0 ? 1.25 : 0.8
+        setThumbnailSize(thumbnailSize * factor)
+    }
+
+    /// A pinch on the grid, or the menu: clamped to the grid's range.
+    func setThumbnailSize(_ size: Double) {
+        let clamped = min(max(size, Self.thumbnailSizeRange.lowerBound), Self.thumbnailSizeRange.upperBound)
+        if clamped != thumbnailSize { thumbnailSize = clamped }
+    }
+
     // MARK: Agent field
 
     /// ⌘K: the agent field of the current mode takes the keyboard.

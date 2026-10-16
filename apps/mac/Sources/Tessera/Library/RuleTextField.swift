@@ -18,9 +18,12 @@ struct RuleTextField: NSViewRepresentable {
     /// UX-11: called with true when the field takes the keyboard and false when editing ends (the
     /// toolbar search field widens while it has focus).
     var onFocusChange: ((Bool) -> Void)? = nil
+    /// UX-16: bumped (⌘F) to give the field the keyboard.
+    var focusRequest = 0
 
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: RuleTextField
+        var focusRequest = 0
         init(_ parent: RuleTextField) { self.parent = parent }
 
         func controlTextDidChange(_ note: Notification) {
@@ -91,6 +94,16 @@ struct RuleTextField: NSViewRepresentable {
 
     func updateNSView(_ field: NSTextField, context: Context) {
         context.coordinator.parent = self
+        if context.coordinator.focusRequest != focusRequest {
+            context.coordinator.focusRequest = focusRequest
+            if focusRequest > 0 {
+                // After the bar it sits in has been laid out (⌘F shows the bar and focuses at once).
+                DispatchQueue.main.async { [weak field] in
+                    guard let field, let window = field.window else { return }
+                    window.makeFirstResponder(field)
+                }
+            }
+        }
         let editor = field.currentEditor() as? NSTextView
         if editor == nil, field.stringValue != text { field.stringValue = text }
         else if let editor, editor.string != text {

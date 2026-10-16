@@ -481,6 +481,9 @@ final class AppModel {
     @ObservationIgnored var deliverPixelSizes: [Int: (width: Int, height: Int)] = [:]
     /// UX-11: bumped by ⌘K; the agent field of the current mode takes the keyboard.
     var agentFieldFocusRequest = 0
+    /// UX-16: ⌘F shows the search bar under the toolbar in Cull; the bump gives its field the keyboard.
+    var showSearch = false
+    var searchFieldFocusRequest = 0
     /// UX-14: Cull shows one burst at a time or the grid grouped by burst (G); remembered.
     var cullLayout: CullLayout = CullLayout(rawValue: UserDefaults.standard.string(forKey: AppModel.cullLayoutKey) ?? "") ?? .burst {
         didSet { if cullLayout != oldValue { cullLayoutDidChange() } }

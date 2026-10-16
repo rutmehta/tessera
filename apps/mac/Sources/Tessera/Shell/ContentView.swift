@@ -76,6 +76,10 @@ struct ContentView: View {
                     }
                 }
                 if model.isCachedPreviewLibrary, model.viewMode != .document { CachedPreviewNotice(model: model) }
+                // UX-16: ⌘F drops the search field under the toolbar in Cull.
+                if model.showSearch, model.isLibraryWorkspace, !model.isPhotoEditing, !model.deliverMode, model.source != .people {
+                    SearchBar(model: model)
+                }
                 if model.tether.showPanel {
                     TetherPanel(model: model, tether: model.tether)
                         .disabled(model.isCachedPreviewLibrary)
@@ -200,9 +204,10 @@ struct ContentView: View {
             .frame(minWidth: Self.documentDetailMinWidth,
                    idealWidth: model.viewMode == .document ? Self.documentDetailMinWidth : nil, maxWidth: .infinity)
             // B5-10 end
+            // The title is hidden (the folder button is the title); it still names the window in
+            // the Window menu and the Dock.
             .navigationTitle(model.viewMode == .document ? (model.documents.current?.title ?? "Tessera")
                              : model.library.items.isEmpty ? "Tessera" : model.library.title)
-            .navigationSubtitle(subtitle)
         }
         .sheet(item: $model.layeredCopyRequest) { request in
             LayeredCopySheet(model: model, request: request)
@@ -322,48 +327,40 @@ struct ContentView: View {
 
     private static let filmstripSpan = Theme.Height.filmstrip + Theme.Space.hairline
 
-    private var subtitle: String {
-        if model.viewMode == .document {
-            guard let doc = model.documents.current else { return "" }
-            return (doc.isDirty ? "Edited · " : "") + "\(doc.layers.count) layer\(doc.layers.count == 1 ? "" : "s")"
-        }
-        let n = model.visibleCount
-        guard n > 0 else { return "" }
-        return model.source == .all ? "\(n.formatted()) images" : "\(model.source.title) · \(n.formatted()) images"
-    }
-
+    /// UX-16: the toolbar is the prototype's bar and nothing more: the folder button (the window
+    /// title), the mode control, Before (Edit), the info button (loupe), Panel and Export. Open
+    /// Folder… lives in the folder popover and the File menu (⌘O); search is ⌘F (a bar under the
+    /// toolbar in Cull); thumbnail size is View ▸ Thumbnail Size and a pinch on the grid.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(id: "open", placement: .navigation) {
-            Button { model.presentOpenPanel() } label: {
-                Label("Open Folder…", systemImage: "folder.badge.plus")
-            }
-            .buttonStyle(ToolbarButtonStyle())
-            .help("Open a folder of JPEG / RAW images (⌘O)")
-            .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.open" : "\(axMode).toolbar.open")
-        }
-        .flatToolbarItem()
         ToolbarItem(id: "folder", placement: .navigation) {
-            // The folder name opens the source sidebar's content (folders, albums, people, culling
-            // lists) as a popover; the sidebar column itself is hidden unless View ▸ Show Library
-            // Sidebar brings it back.
+            // The folder name and count open the source sidebar's content (folders, albums,
+            // people, culling lists) as a popover; the sidebar column itself is hidden unless
+            // View ▸ Show Library Sidebar brings it back. In Edit a thin "n of 226" line says where
+            // ← → are (the filmstrip is off by default).
             if model.viewMode != .document {
                 Button { showFolders.toggle() } label: {
-                    HStack(spacing: Theme.Space.xs) {
-                        Image(systemName: "folder").font(Theme.Fonts.iconSmall)
-                        Text(model.library.items.isEmpty ? "No folder" : model.library.title)
-                            .lineLimit(1).truncationMode(.middle)
+                    HStack(spacing: Theme.Space.s) {
+                        Image(systemName: "folder").font(Theme.Fonts.icon)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(folderTitle).lineLimit(1).truncationMode(.middle)
+                            if let position = folderPosition {
+                                Text(position)
+                                    .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textTertiary)
+                                    .accessibilityIdentifier("\(axMode).toolbar.position")
+                            }
+                        }
                         Image(systemName: "chevron.down").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
                     }
                     .frame(maxWidth: Theme.Width.folderButton)
                 }
                 .buttonStyle(ToolbarButtonStyle(on: showFolders))
-                .help(model.library.items.isEmpty ? "Folders, albums and people" : "\(model.library.title): folders, albums, people and culling lists")
+                .help(model.library.items.isEmpty ? "Open a folder; folders, albums and people" : "\(model.library.title): folders, albums, people and culling lists")
                 .accessibilityLabel("Folder")
+                .accessibilityValue(folderTitle + (folderPosition.map { ", \($0)" } ?? ""))
                 .accessibilityIdentifier("\(axMode).toolbar.folder")
                 .popover(isPresented: $showFolders, arrowEdge: .bottom) {
-                    SidebarView(model: model)
-                        .frame(width: Theme.Width.sidebarMax, height: Theme.Height.folderPopover)
+                    FolderPopover(model: model, dismiss: { showFolders = false })
                 }
             }
         }
@@ -390,42 +387,14 @@ struct ContentView: View {
             }
         }
         .flatToolbarItem()
-        ToolbarItem(id: "search", placement: .primaryAction) {
-            if model.isEngineBacked, !model.isCachedPreviewLibrary, model.source != .people, model.isLibraryWorkspace, !model.deliverMode {
-                LibrarySearchField(library: model.collections, model: model)
-            }
-        }
-        .flatToolbarItem()
-        ToolbarItem(id: "size", placement: .primaryAction) {
-            // Grid only. M2-56: removed (not transparent) in the other modes, so its 130 pt slot
-            // goes back to the toolbar instead of pushing items into the overflow menu.
-            if model.viewMode == .grid, !model.deliverMode {
-                HStack(spacing: Theme.Space.xs) {
-                    Image(systemName: "square.grid.3x3").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
-                    Slider(value: $model.thumbnailSize, in: 110...360)
-                        .accessibilityIdentifier("library.toolbar.thumbnailSize").accessibilityLabel("Thumbnail size")
-                        .controlSize(.mini)
-                        .frame(width: Theme.Width.thumbnailSlider)
-                    Image(systemName: "square.grid.2x2").font(Theme.Fonts.iconSmall).foregroundStyle(Theme.textTertiary)
-                }
-                .help("Thumbnail size")
-            }
-        }
-        .flatToolbarItem()
-        ToolbarItem(id: "peopleMerge", placement: .primaryAction) {
-            if model.source == .people, model.isLibraryWorkspace {
-                Button { model.people.mergeSelection(); model.peopleDidChange() } label: {
-                    Label("Merge", systemImage: "person.2.badge.plus")
-                }
-                .buttonStyle(ToolbarButtonStyle())
-                .disabled(!model.people.canMerge || model.people.detailID != nil)
-                .help("Merge the selected people into one (a named person's name wins). Select tiles with ⌘-click.")
-                .accessibilityIdentifier("toolbar-people-merge")
-            }
-        }
-        .flatToolbarItem()
         ToolbarItem(id: "before", placement: .primaryAction) {
             if model.isPhotoEditing { BeforeAfterButton(model: model) }
+        }
+        .flatToolbarItem()
+        ToolbarItem(id: "info", placement: .primaryAction) {
+            // UX-16: the display-info popover (colour space, EDR headroom, soft proof) moved off
+            // the photo; an `i` right of Before.
+            if model.viewMode == .loupe { LoupeInfoButton(model: model) }
         }
         .flatToolbarItem()
         ToolbarItem(id: "inspector", placement: .primaryAction) {
@@ -449,6 +418,78 @@ struct ContentView: View {
             }
         }
         .flatToolbarItem()
+    }
+
+    /// "World Cup final + NYC · 226": the folder (or album / person) and how many photos are in view.
+    private var folderTitle: String {
+        guard !model.library.items.isEmpty else { return "No folder" }
+        let n = model.visibleCount
+        return n > 0 ? "\(model.library.title) · \(n.formatted())" : model.library.title
+    }
+
+    /// Edit's thin position line under the folder name ("3 of 226"), where ← → move.
+    private var folderPosition: String? {
+        guard model.isPhotoEditing, let p = model.focusedPosition, model.visibleCount > 0 else { return nil }
+        return "\((p + 1).formatted()) of \(model.visibleCount.formatted())"
+    }
+}
+
+/// The folder button's popover: the source sidebar's content with an Open Folder… row at the
+/// bottom (⌘O stays in the File menu).
+private struct FolderPopover: View {
+    let model: AppModel
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SidebarView(model: model)
+                .frame(width: Theme.Width.sidebarMax, height: Theme.Height.folderPopover)
+            Hairline()
+            Button {
+                dismiss()
+                model.presentOpenPanel()
+            } label: {
+                HStack(spacing: Theme.Space.s) {
+                    Image(systemName: "folder.badge.plus").font(Theme.Fonts.icon)
+                    Text("Open Folder…")
+                    Spacer()
+                    KeyCap("⌘O")
+                }
+                .font(Theme.Fonts.label)
+                .foregroundStyle(Theme.textPrimary)
+                .padding(.horizontal, Theme.Space.m)
+                .frame(height: Theme.Height.sectionHeader)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.theme(.borderless, height: Theme.Height.sectionHeader))
+            .help("Open a folder of JPEG / RAW images (⌘O)")
+            .accessibilityIdentifier("library.folders.openFolder")
+        }
+        .background(Theme.panel)
+    }
+}
+
+/// UX-16: the search field in a bar under the toolbar (⌘F shows it and gives it the keyboard in
+/// Cull); the facet menus hang off its filter button as before.
+struct SearchBar: View {
+    let model: AppModel
+
+    var body: some View {
+        HStack(spacing: Theme.Space.m) {
+            LibrarySearchField(library: model.collections, model: model, focusRequest: model.searchFieldFocusRequest)
+            Spacer(minLength: Theme.Space.m)
+            Button { model.toggleSearch() } label: {
+                Image(systemName: "xmark").font(Theme.Fonts.iconSmall)
+            }
+            .buttonStyle(.theme(.borderless, height: Theme.Height.regular, square: true))
+            .help("Hide the search bar (⌘F); the filter stays")
+            .accessibilityLabel("Hide search")
+            .accessibilityIdentifier("library.search.hide")
+        }
+        .padding(.horizontal, Theme.Space.panelInset)
+        .frame(height: Theme.Height.searchBar)
+        .background(Theme.canvas)
+        Hairline()
     }
 }
 
@@ -552,7 +593,12 @@ struct WindowToolbarConfigurator: NSViewRepresentable {
         }
 
         func configure(_ window: NSWindow) {
+            // UX-16: the folder button is the title; the bar is the canvas ground with a hairline
+            // under it (the prototype's 52 pt bar), not the system's titlebar material.
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
             window.titlebarSeparatorStyle = .line
+            window.backgroundColor = Theme.Palette.canvas
             RecoveryWindowCloseGuard.install(on: window)
         }
     }

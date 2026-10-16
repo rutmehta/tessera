@@ -181,7 +181,9 @@ struct LoupeOverlay: View {
         model.dismissLoupeDisclosure = nil
     }
 
-    private var displayInfoPopover: some View {
+    /// The display-info popover: the photo (library loupe), the screen's colour space and EDR
+    /// headroom, and the soft-proof status. UX-16: opened from the toolbar's `i` (`LoupeInfoButton`).
+    var displayInfoPopover: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             Text("Display info")
                 .font(Theme.Fonts.labelSemibold)
@@ -235,5 +237,35 @@ struct LoupeOverlay: View {
         .padding(Theme.Space.m)
         .frame(minWidth: Theme.Width.toolbarSegment, alignment: .leading)
         .background(Theme.panel)
+    }
+}
+
+/// UX-16: the `i` in the toolbar, right of Before, that opens the display-info popover (the pill
+/// on the photo is gone). Esc closes it through the loupe's disclosure ownership, as before.
+struct LoupeInfoButton: View {
+    let model: AppModel
+    @State private var presented = false
+
+    var body: some View {
+        Button { presented.toggle() } label: {
+            Label("Info", systemImage: "info.circle").labelStyle(.iconOnly)
+        }
+        .buttonStyle(ToolbarButtonStyle(on: presented))
+        .help("Display information and soft proof status")
+        .accessibilityLabel("Display info")
+        .accessibilityIdentifier("loupe-display-info")
+        .popover(isPresented: $presented, arrowEdge: .bottom) {
+            LoupeOverlay(model: model).displayInfoPopover
+                .onExitCommand { presented = false }
+        }
+        .onChange(of: presented) { _, on in
+            model.loupeDisclosurePresented = on
+            if on {
+                let dismiss: @MainActor () -> Void = { presented = false }
+                model.dismissLoupeDisclosure = dismiss
+            } else {
+                model.dismissLoupeDisclosure = nil
+            }
+        }
     }
 }

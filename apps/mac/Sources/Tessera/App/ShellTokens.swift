@@ -3,10 +3,20 @@ import SwiftUI
 // UX-11 shell tokens (redesign SPEC §1–2). Kept out of Theme.swift while UX-10 replaces its values;
 // fold them into the Width / Height / Radius enums there once that pass has landed.
 
+extension Theme.Space {
+    /// UX-16: the photo area's padding and the panel's inner padding (the prototype's 20 px).
+    static let panelInset: CGFloat = 20
+}
+
+extension Theme.Height {
+    /// UX-16: the search bar ⌘F drops under the toolbar.
+    static let searchBar: CGFloat = 40
+}
+
 extension Theme.Width {
     /// The agent field, bottom centre of every mode.
     static let agentField: CGFloat = 560
-    /// The toolbar search field, collapsed and while it has the keyboard.
+    /// The search field, collapsed and while it has the keyboard.
     static let search: CGFloat = 180
     static let searchExpanded: CGFloat = 360
     /// The filter chips popover under the search field.
