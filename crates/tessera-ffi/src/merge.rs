@@ -296,7 +296,7 @@ impl Engine {
                 let canonical = parse_id(id)?.to_string();
                 if !seen.insert(canonical.clone()) { return Err(failure("duplicate image_id")); }
                 let path: PathBuf = Self::path(&c, &canonical)?.into();
-                let orientation: String = c.reader.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&canonical], |r| r.get(0))?;
+                let orientation: String = c.reader()?.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&canonical], |r| r.get(0))?;
                 Ok((canonical, path, orientation))
             }).collect::<Result<Vec<_>>>()?
         };
@@ -386,7 +386,7 @@ impl Engine {
                     path.display()
                 )));
             }
-            c.reader.query_row(
+            c.reader()?.query_row(
                 "SELECT i.id FROM image i JOIN file f ON f.id=i.file_id WHERE f.path=?",
                 [&path_string],
                 |r| r.get(0),

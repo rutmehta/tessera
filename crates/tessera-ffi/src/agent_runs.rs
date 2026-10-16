@@ -451,10 +451,9 @@ impl Engine {
     fn agent(&self, profile: Profile, config: Config) -> Result<Agent> {
         Agent::open(self.support_dir()?.join("agent"), profile, config).map_err(failure)
     }
-    /// UI-safe: `Busy` rather than waiting out a worker.
+    /// UI-safe: the reader alone, so a scan or a save never delays it.
     fn image_path(&self, image_id: &str) -> Result<PathBuf> {
-        let c = self.lock_ui()?;
-        Ok(PathBuf::from(Self::path(&c, image_id)?))
+        Ok(PathBuf::from(Self::path_on(&*self.reader_ui()?, image_id)?))
     }
     /// After a writer outside the develop session changed the recipe: the XMP
     /// (develop values + selection) and the index (recipe hash, status).

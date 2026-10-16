@@ -805,7 +805,7 @@ impl Engine {
         ids.iter()
             .map(|id| {
                 parse_id(id)?;
-                let (path, date, orientation) = c.reader.query_row(
+                let (path, date, orientation) = c.reader()?.query_row(
                     "SELECT f.path, COALESCE(strftime('%Y-%m-%d', i.capture_time, 'auto'), ''), \
                      COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1') \
                      FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",

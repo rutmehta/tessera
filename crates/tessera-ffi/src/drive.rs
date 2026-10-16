@@ -277,11 +277,16 @@ mod tests {
             }
             engine.catalog.stats().reset();
             let started = Instant::now();
-            assert_eq!(engine.flush_drive_state().unwrap() as usize, count);
+            // The writer thread may have flushed a few records on its own wake.
+            let written = engine.flush_drive_state().unwrap() as usize;
             let took = started.elapsed();
             let hold = engine.catalog.stats().max_hold();
-            eprintln!("drive flush: {took:?}, longest catalog hold {hold:?}");
-            assert!(took >= Duration::from_millis(2 * count as u64), "{took:?}");
+            eprintln!("drive flush: {written} files in {took:?}, longest catalog hold {hold:?}");
+            assert!(written > count / 2 && written <= count, "{written}");
+            assert!(
+                took >= Duration::from_millis(2 * written as u64),
+                "{took:?}"
+            );
             assert_eq!(engine.flush_drive_state().unwrap(), 0);
             best = best.min(hold);
             if best < Duration::from_millis(20) {

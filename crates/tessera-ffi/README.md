@@ -18,6 +18,12 @@ synchronous; Swift dispatches blocking work off its main actor.
   `catalog lock: crates/tessera-ffi/src/lib.rs:502:30 held 183 ms`.
 - Tests can assert on the longest hold (`Traced::stats`); see
   `drive::tests::flush_never_holds_the_catalog_lock_across_the_drive`.
+- The catalog's read-only connection (`Engine::reader`) has its own lock,
+  inner to the catalog's: a lookup that needs no `Index` API (image paths,
+  metadata rows) takes it alone and never queues behind a scan or a save (WAL
+  readers see committed rows). Previews, thumbnails, face models,
+  understanding jobs and the drive writer's queue each have their own lock too;
+  only index writes serialize on the catalog.
 
 ### UI-safe methods
 
@@ -31,7 +37,7 @@ worker holds the lock and must be called off the main actor.
 | Object        | Method              |
 | ------------- | ------------------- |
 | `Engine`      | `roots`             |
-| `Engine`      | `agent_provenance`  |
+| `Engine`      | `agent_provenance`  (reader only: never waits on the catalog) |
 | `CullSession` | `images`            |
 | `CullSession` | `groups`            |
 | `CullSession` | `people`            |

@@ -478,7 +478,7 @@ impl Engine {
         let (path, orientation) = {
             let c = self.lock()?;
             let path = Self::path(&c, image_id)?;
-            let orientation: String = c.reader.query_row(
+            let orientation: String = c.reader()?.query_row(
                 "SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')",
                 [image_id],
                 |r| r.get(0),

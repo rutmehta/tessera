@@ -398,7 +398,7 @@ impl DocumentSession {
         let engine = self.shared.engine.upgrade()?;
         let c = engine.lock().ok()?;
         let value: String = c
-            .reader
+            .reader().ok()?
             .query_row(
                 "SELECT value FROM metadata WHERE image_id=? AND (key='FocalLengthIn35mmFilm' OR key LIKE '%:FocalLengthIn35mmFilm') LIMIT 1",
                 [image.to_string()],

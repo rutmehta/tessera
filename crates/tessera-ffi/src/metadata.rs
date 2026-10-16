@@ -153,8 +153,8 @@ impl LibraryStore {
                 },
             );
         }
-        let row: Option<(Option<String>, Option<String>, Option<String>)> = c
-            .reader
+        let reader = c.reader()?;
+        let row: Option<(Option<String>, Option<String>, Option<String>)> = reader
             .query_row(
                 "SELECT datetime(capture_time,'auto'),camera,lens FROM image WHERE id=?",
                 [&image_id],
@@ -166,9 +166,7 @@ impl LibraryStore {
             push("Camera", "Camera", camera.unwrap_or_default());
             push("Camera", "Lens", lens.unwrap_or_default());
         }
-        let mut stmt = c
-            .reader
-            .prepare("SELECT key,value FROM metadata WHERE image_id=?")?;
+        let mut stmt = reader.prepare("SELECT key,value FROM metadata WHERE image_id=?")?;
         let mut exif: Vec<(String, String)> = stmt
             .query_map([id.to_string()], |r| Ok((r.get(0)?, r.get(1)?)))?
             .collect::<rusqlite::Result<_>>()?;

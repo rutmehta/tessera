@@ -200,7 +200,17 @@ pub struct RootInfo {
 
 struct Catalog {
     index: index::Index,
-    reader: Connection,
+    /// The read-only connection, shared with `Engine::reader`: a lookup that
+    /// needs no `Index` API takes it alone and never waits on the writer (WAL
+    /// readers see committed rows and are never blocked). It is inner to the
+    /// catalog lock: a catalog holder may take it, never the other way round.
+    reader: Arc<lock::Traced<Connection>>,
+}
+impl Catalog {
+    #[track_caller]
+    fn reader(&self) -> Result<lock::Guard<'_, Connection>> {
+        self.reader.lock()
+    }
 }
 /// The engine's resolver, handed to the index as well.
 #[derive(Debug)]
@@ -243,6 +253,9 @@ pub struct Engine {
     /// ML or hashing: snapshot under the lock, work outside, write back
     /// briefly. `lock` reports long holds and waits (see `lock`).
     catalog: lock::Traced<Catalog>,
+    /// The catalog's read-only connection (see `Catalog::reader`), for
+    /// lookups that must not queue behind a scan or a save.
+    reader: Arc<lock::Traced<Connection>>,
     previews: previews::PreviewStore,
     /// Shared scheduler: RAW previews (`Priority::Preview`) and develop
     /// viewports (`Priority::Viewport`). Jobs are not pre-empted, so it keeps
@@ -345,12 +358,21 @@ impl Engine {
         self.catalog.lock_for(lock::UI_BUDGET)
     }
     fn path(c: &Catalog, id: &str) -> Result<String> {
+        Self::path_on(&*c.reader()?, id)
+    }
+    fn path_on(reader: &Connection, id: &str) -> Result<String> {
         parse_id(id)?;
-        Ok(c.reader.query_row(
+        Ok(reader.query_row(
             "SELECT f.path FROM image i JOIN file f ON f.id=i.file_id WHERE i.id=?",
             [id],
             |r| r.get(0),
         )?)
+    }
+    /// The reader for a UI-safe lookup: never queues behind the writer, and
+    /// waits at most `lock::UI_BUDGET` for another reader.
+    #[track_caller]
+    fn reader_ui(&self) -> Result<lock::Guard<'_, Connection>> {
+        self.reader.lock_for(lock::UI_BUDGET)
     }
     /// The image still resolves to `path`: a relocated volume or a prune
     /// since the caller looked it up fails the write instead of landing
@@ -478,9 +500,17 @@ impl Engine {
             previews::PreviewStore::new(Path::new(&app_support_dir).join("previews"), 512 << 20)
                 .map_err(failure)?
                 .with_retouch_renderer(Arc::new(brush::render_retouch));
+        let reader = Arc::new(lock::Traced::new("catalog reader", reader));
         let engine = Arc::new_cyclic(|this| Self {
             db,
-            catalog: lock::Traced::new("catalog", Catalog { index, reader }),
+            catalog: lock::Traced::new(
+                "catalog",
+                Catalog {
+                    index,
+                    reader: reader.clone(),
+                },
+            ),
+            reader,
             previews,
             jobs: jobs::ThreadPoolScheduler::with_interactive_reservation(3),
             renderer: std::sync::OnceLock::new(),
@@ -627,7 +657,7 @@ impl Engine {
         let mut result = Vec::new();
         for id in ids {
             let id_string = id.to_string();
-            let (path, capture_time, orientation, recipe_hash, listed, original) = c.reader.query_row(
+            let (path, capture_time, orientation, recipe_hash, listed, original) = c.reader()?.query_row(
                 "SELECT f.path,i.capture_time,COALESCE((SELECT value FROM metadata WHERE image_id=i.id AND key='orientation'),'1'),COALESCE(h.hash,''),(SELECT value FROM metadata WHERE image_id=i.id AND key=?2),(SELECT value FROM metadata WHERE image_id=i.id AND key=?3) FROM image i JOIN file f ON f.id=i.file_id LEFT JOIN recipe_hash h ON h.image_id=i.id WHERE i.id=?1",
                 [id_string.as_str(), catalog::LISTING_RECIPE_KEY, catalog::LISTING_ORIGINAL_KEY], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?)))?;
             let row = catalog::project(
@@ -678,7 +708,7 @@ impl Engine {
         let _read = gate.begin_read()?;
         if let Some((_, snapshot)) = self.local_smart_preview(id)?
             && (snapshot.dirty || {
-                let path = Self::path(&*self.lock()?, &image_id)?;
+                let path = Self::path_on(&*self.reader.lock()?, &image_id)?;
                 // Indexed ownership is sufficient offline; never canonicalize the
                 // absent original folder or synthesize a default recipe here.
                 !Path::new(&path).is_file()
@@ -688,7 +718,7 @@ impl Engine {
                 serde_json::from_slice(&snapshot.recipe).map_err(failure)?;
             return String::from_utf8(doc.recipe.to_json()?).map_err(failure);
         }
-        let path = Self::path(&*self.lock()?, &image_id)?;
+        let path = Self::path_on(&*self.reader.lock()?, &image_id)?;
         // The sidecars are read under their destination gate, not the catalog.
         let gate = recipe_write::gate_for(Path::new(&path))?;
         let _read = gate.begin_read()?;
@@ -755,8 +785,8 @@ impl Engine {
         let (path, orientation, recipe_hash) = {
             let c = self.lock()?;
             let path = Self::path(&c, &image_id)?;
-            let orientation: String = c.reader.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&image_id], |r| r.get(0))?;
-            let recipe_hash: String = c.reader.query_row(
+            let orientation: String = c.reader()?.query_row("SELECT COALESCE((SELECT value FROM metadata WHERE image_id=? AND key='orientation'),'1')", [&image_id], |r| r.get(0))?;
+            let recipe_hash: String = c.reader()?.query_row(
                 "SELECT COALESCE((SELECT hash FROM recipe_hash WHERE image_id=?),'')",
                 [&image_id],
                 |r| r.get(0),
@@ -817,7 +847,8 @@ mod tests {
             s.spawn(|| {
                 let started = std::time::Instant::now();
                 assert!(busy(engine.roots().map(drop)));
-                assert!(busy(engine.agent_provenance(id.clone()).map(drop)));
+                // A path lookup uses the reader alone: the writer never delays it.
+                assert!(engine.agent_provenance(id.clone()).is_ok());
                 assert!(started.elapsed() < std::time::Duration::from_millis(500));
                 // The queue has its own lock: still answering.
                 assert_eq!(session.images().unwrap().len(), 1);
