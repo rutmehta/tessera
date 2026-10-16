@@ -36,7 +36,7 @@ for attempt in 1 2 3; do
 done
 [[ -n "$submission" ]] || { echo "notarization: no submission id after 3 attempts" >&2; exit 1; }
 status=""
-for _ in $(seq 1 80); do
+for _ in $(seq 1 720); do
   sleep 15
   status="$(xcrun notarytool info "$submission" "${NOTARY_AUTH[@]}" 2>/dev/null | sed -n 's/^ *status: *//p' | head -1)"
   echo "notarization $submission: ${status:-no answer yet}"
