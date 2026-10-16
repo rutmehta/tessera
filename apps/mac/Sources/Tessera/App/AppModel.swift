@@ -1890,6 +1890,7 @@ final class AppModel {
     /// Grid: spatial arrows. Loupe: one frame at a time. `groupwise` (⌥ + arrows): ←/→ between groups,
     /// ↑/↓ within a group (docs/06 §3). Unfiltered, group moves come from the Rust session.
     func navigate(_ move: Move, groupwise: Bool, extend: Bool) {
+        MainThreadWatchdog.shared.note("AppModel.navigate")
         if isReviewing || isReviewEditing {
             moveReviewSelection(move == .left || move == .up ? -1 : 1)
             return
@@ -2515,6 +2516,7 @@ final class AppModel {
 
     /// Opens the session for an indexed photo. Called by the loupe when it shows an image.
     func openDevelop(for item: PhotoItem) {
+        MainThreadWatchdog.shared.note("AppModel.openDevelop")
         // The matching owner/photo's pending sessions were captured before the
         // mutation began. Do not create a new stale session after that barrier.
         if let owner = engineLibrary, let ref = item.engineImage,
@@ -2707,6 +2709,7 @@ final class AppModel {
 
     @discardableResult
     func closeDevelop() -> Task<DevelopRecoveryCoordinator.Outcome, Never>? {
+        MainThreadWatchdog.shared.note("AppModel.closeDevelop")
         let cancelledPendingOpen = activeDevelopOpen != nil
         developTask?.cancel()
         developTask = nil
@@ -2777,6 +2780,7 @@ final class AppModel {
 
     /// Recipe + XMP were written: refresh the grid thumbnail (recipe-hash keyed) and the status.
     private func developDidSave(itemID: Int, source: DevelopSourceRoute) {
+        MainThreadWatchdog.shared.note("AppModel.developDidSave")
         // Autosaves must not repeatedly hash/decode full originals and proxies.
         if library.items.indices.contains(itemID), let ref = library.items[itemID].engineImage {
             smartPreviews.didSave(imageID: ref.imageID, source: source)

@@ -228,6 +228,7 @@ struct AgentEditPanel: View {
             try? await Task.sleep(for: .milliseconds(150))
         }
         guard !Task.isCancelled else { return }
+        MainThreadWatchdog.shared.note("AgentEditPanel.load")
         let imageID = ref.imageID
         let p = await EngineCall.optional { try ref.engine.agentProvenance(imageId: imageID) } ?? nil
         guard !Task.isCancelled, model.focusedItem?.engineImage?.imageID == imageID else { return }

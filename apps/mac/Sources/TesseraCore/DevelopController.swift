@@ -284,6 +284,7 @@ public final class DevelopController {
     }
 
     private func drainPendingForClose() -> Error? {
+        MainThreadWatchdog.shared.note("DevelopController.close")
         let mask = flushMaskPendingResult(allowClosing: true)
         if let error = mask.error { return error }
         return flushSettingsPendingResult().error
@@ -624,6 +625,7 @@ public final class DevelopController {
     @discardableResult
     public func commit(label: String) -> Bool {
         guard admitsMutation() else { return false }
+        MainThreadWatchdog.shared.note("DevelopController.commit")
         flushPending()
         let recorded = (try? session.commit(label: label)) ?? false
         if recorded {
@@ -730,6 +732,7 @@ public final class DevelopController {
 
     private func historyMove(_ body: () throws -> Bool) throws -> Bool {
         try requireMutation()
+        MainThreadWatchdog.shared.note("DevelopController.historyMove")
         flushPending()
         let moved = try body()
         if moved { noteSaveScheduled() }
