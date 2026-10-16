@@ -8,7 +8,7 @@ use rusqlite::{Connection, OpenFlags};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::Arc,
 };
 
 /// One image of the review queue, in queue order.
@@ -171,7 +171,7 @@ pub(crate) struct Inner {
 #[derive(uniffi::Object)]
 pub struct CullSession {
     pub(crate) support_dir: std::path::PathBuf,
-    inner: Mutex<Inner>,
+    inner: crate::lock::Traced<Inner>,
 }
 
 impl CullSession {
@@ -285,13 +285,16 @@ impl Engine {
         core.set_auto_advance(false);
         Ok(Arc::new(CullSession {
             support_dir: self.support_dir()?.to_path_buf(),
-            inner: Mutex::new(Inner {
-                core,
-                listing: Default::default(),
-                reader,
-                assist,
-                bests: HashMap::new(),
-            }),
+            inner: crate::lock::Traced::new(
+                "cull session",
+                Inner {
+                    core,
+                    listing: Default::default(),
+                    reader,
+                    assist,
+                    bests: HashMap::new(),
+                },
+            ),
         }))
     }
 }
@@ -335,17 +338,23 @@ impl Engine {
         core.set_auto_advance(false);
         Ok(Arc::new(CullSession {
             support_dir: support.clone(),
-            inner: Mutex::new(Inner {
-                core,
-                listing: Default::default(),
-                reader: Connection::open_with_flags(&self.db, OpenFlags::SQLITE_OPEN_READ_ONLY)?,
-                assist: crate::assist::AssistState::new(
-                    support,
-                    crate::assist::library_key(Some(&folder)),
-                    None,
-                ),
-                bests: HashMap::new(),
-            }),
+            inner: crate::lock::Traced::new(
+                "cull session",
+                Inner {
+                    core,
+                    listing: Default::default(),
+                    reader: Connection::open_with_flags(
+                        &self.db,
+                        OpenFlags::SQLITE_OPEN_READ_ONLY,
+                    )?,
+                    assist: crate::assist::AssistState::new(
+                        support,
+                        crate::assist::library_key(Some(&folder)),
+                        None,
+                    ),
+                    bests: HashMap::new(),
+                },
+            ),
         }))
     }
     /// Filtered queue. Zero limit means all matches. Call `set_library` before
@@ -386,8 +395,9 @@ impl Engine {
 }
 
 impl CullSession {
-    pub(crate) fn lock(&self) -> Result<MutexGuard<'_, Inner>> {
-        self.inner.lock().map_err(failure)
+    #[track_caller]
+    pub(crate) fn lock(&self) -> Result<crate::lock::Guard<'_, Inner>> {
+        self.inner.lock()
     }
 }
 
@@ -939,7 +949,7 @@ mod offline_library_tests {
         let (_dir, engine, photos) = proxy_library(1);
         let (entered, started) = mpsc::channel();
         let (release, blocked) = mpsc::channel::<()>();
-        let blocked = Mutex::new(blocked);
+        let blocked = std::sync::Mutex::new(blocked);
         let mut core = Core::open_owned_with_previews(
             index::Index::open(&engine.db).unwrap(),
             cull::Source::from(photos.clone()),
@@ -957,18 +967,24 @@ mod offline_library_tests {
         let support = engine.support_dir().unwrap().to_path_buf();
         let session = Arc::new(CullSession {
             support_dir: support.clone(),
-            inner: Mutex::new(Inner {
-                core,
-                reader: Connection::open_with_flags(&engine.db, OpenFlags::SQLITE_OPEN_READ_ONLY)
+            inner: crate::lock::Traced::new(
+                "cull session",
+                Inner {
+                    core,
+                    reader: Connection::open_with_flags(
+                        &engine.db,
+                        OpenFlags::SQLITE_OPEN_READ_ONLY,
+                    )
                     .unwrap(),
-                listing: Default::default(),
-                assist: crate::assist::AssistState::new(
-                    support,
-                    crate::assist::library_key(Some(&photos)),
-                    Some(photos.clone()),
-                ),
-                bests: HashMap::new(),
-            }),
+                    listing: Default::default(),
+                    assist: crate::assist::AssistState::new(
+                        support,
+                        crate::assist::library_key(Some(&photos)),
+                        Some(photos.clone()),
+                    ),
+                    bests: HashMap::new(),
+                },
+            ),
         });
         let (done, finished) = mpsc::channel();
         let closing = session.clone();

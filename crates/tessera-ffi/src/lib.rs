@@ -15,6 +15,7 @@ mod export;
     reason = "journal storage awaits Smart Preview caller integration"
 )]
 mod image_edit_admission;
+mod lock;
 mod lrcat;
 mod lrcat_fidelity;
 mod lrcat_masks;
@@ -61,7 +62,7 @@ use sidecar::Sidecar;
 use std::{
     path::Path,
     sync::{
-        Arc, Mutex, MutexGuard,
+        Arc, Mutex,
         atomic::{AtomicBool, AtomicU64},
     },
 };
@@ -223,7 +224,10 @@ pub trait EngineEventListener: Send + Sync {
 #[derive(uniffi::Object)]
 pub struct Engine {
     db: std::path::PathBuf,
-    catalog: Mutex<Catalog>,
+    /// The catalog (index writer). Never hold it across file I/O, rendering,
+    /// ML or hashing: snapshot under the lock, work outside, write back
+    /// briefly. `lock` reports long holds and waits (see `lock`).
+    catalog: lock::Traced<Catalog>,
     previews: previews::PreviewStore,
     /// Shared scheduler: RAW previews (`Priority::Preview`) and develop
     /// viewports (`Priority::Viewport`). Jobs are not pre-empted, so it keeps
@@ -312,8 +316,9 @@ impl Engine {
             })
             .clone()
     }
-    fn lock(&self) -> Result<MutexGuard<'_, Catalog>> {
-        self.catalog.lock().map_err(failure)
+    #[track_caller]
+    fn lock(&self) -> Result<lock::Guard<'_, Catalog>> {
+        self.catalog.lock()
     }
     fn path(c: &Catalog, id: &str) -> Result<String> {
         parse_id(id)?;
@@ -434,7 +439,7 @@ impl Engine {
                 .with_retouch_renderer(Arc::new(brush::render_retouch));
         let engine = Arc::new_cyclic(|this| Self {
             db,
-            catalog: Mutex::new(Catalog { index, reader }),
+            catalog: lock::Traced::new("catalog", Catalog { index, reader }),
             previews,
             jobs: jobs::ThreadPoolScheduler::with_interactive_reservation(3),
             renderer: std::sync::OnceLock::new(),

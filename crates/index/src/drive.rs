@@ -269,16 +269,16 @@ impl Index {
     /// Clears the dirty flag of records written at `modified`; a record
     /// stamped again since stays dirty.
     pub fn mark_drive_clean(&self, written: &[(ImageId, i64)]) -> EngineResult<()> {
+        // One commit for the batch, not one per record.
+        let tx = self.0.conn.unchecked_transaction().map_err(sql)?;
         for (id, modified) in written {
-            self.0
-                .conn
-                .execute(
-                    "UPDATE drive_stamp SET dirty=0 WHERE image_id=? AND modified=?",
-                    params![id.to_string(), modified],
-                )
-                .map_err(sql)?;
+            tx.execute(
+                "UPDATE drive_stamp SET dirty=0 WHERE image_id=? AND modified=?",
+                params![id.to_string(), modified],
+            )
+            .map_err(sql)?;
         }
-        Ok(())
+        tx.commit().map_err(sql)
     }
     /// (current revision of persons and assignments, revision last written).
     pub fn people_rev(&self) -> EngineResult<(i64, i64)> {
