@@ -5,6 +5,8 @@ import XCTest
 /// SPEC §3 (CS-2): the account store over a temp directory standing in for the iCloud container.
 /// Merge rules (last writer wins per record, people union their cluster ids, shoots and drive
 /// roots union by key), the stamp, the file layout, and an unavailable store that does nothing.
+/// CS-2b: the same store over a synced folder (availability, round trip, the persisted location,
+/// conflict copies merged and removed, the FSEvents watcher over a real temp folder).
 final class AccountSyncTests: XCTestCase {
     private var base: URL!
     private var defaults: UserDefaults!
@@ -248,5 +250,130 @@ final class AccountSyncTests: XCTestCase {
         XCTAssertEqual(s.changed([(url, stamp + 2)]), [], "reported once")
         // Something that is not a record.
         XCTAssertEqual(s.changed([(base.appendingPathComponent("Tessera/notes.txt"), stamp + 3)]), [])
+    }
+
+    // MARK: Synced folder (CS-2b)
+
+    func testFolderStoreIsAvailableWhenTheFolderIsThereAndWritable() throws {
+        let s = AccountStore(folder: base, defaults: defaults)
+        XCTAssertEqual(s.availability, .available)
+        XCTAssertEqual(s.location, .folder(base))
+        XCTAssertEqual(s.root, base.appendingPathComponent("Tessera", isDirectory: true))
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: s.root!.path, isDirectory: &isDirectory) && isDirectory.boolValue,
+                      "Tessera/ is created under the folder")
+
+        // Write / read round trip through the same coordinated, atomic path.
+        let prefs = PreferencesRecord(ai: AIPreferences(), accent: "F0A52A", ground: "black", modified: t0, machine: s.machine)
+        XCTAssertEqual(s.write(prefs), prefs)
+        XCTAssertEqual(AccountStore(folder: base, defaults: defaults).read(PreferencesRecord.self), prefs)
+        XCTAssertEqual(s.stats().files, 1)
+
+        // Not there (the sync app is not running): unavailable, with a one-line fix.
+        let gone = AccountStore(folder: base.appendingPathComponent("Nextcloud"), defaults: defaults)
+        XCTAssertEqual(gone.availability, .unavailable(.folderMissing))
+        XCTAssertNil(gone.root)
+        XCTAssertNil(gone.write(prefs))
+        XCTAssertTrue(gone.unavailableReason!.message.hasPrefix("Folder not found"))
+        XCTAssertFalse(gone.unavailableReason!.fix.isEmpty)
+        // A file where the folder should be is not a folder.
+        let file = base.appendingPathComponent("notes.txt")
+        try Data().write(to: file)
+        XCTAssertEqual(AccountStore(folder: file, defaults: defaults).availability, .unavailable(.folderMissing))
+        // No folder chosen yet.
+        XCTAssertEqual(AccountStore.live(location: nil, defaults: defaults).availability, .unavailable(.noFolder))
+        for reason in [AccountStore.UnavailableReason.noFolder, .folderMissing, .folderReadOnly] { XCTAssertFalse(reason.fix.isEmpty) }
+    }
+
+    func testFolderStoreIsUnavailableWhenTheFolderIsReadOnly() throws {
+        let locked = base.appendingPathComponent("locked", isDirectory: true)
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: locked.path) }
+        XCTAssertEqual(AccountStore(folder: locked, defaults: defaults).availability, .unavailable(.folderReadOnly))
+    }
+
+    func testSyncLocationPersistsWithABookmark() throws {
+        XCTAssertEqual(SyncLocation.stored(in: defaults), .iCloudDrive, "iCloud Drive by default")
+        SyncLocation.folder(base).save(in: defaults)
+        XCTAssertNotNil(defaults.data(forKey: SyncLocation.bookmarkKey))
+        XCTAssertEqual(SyncLocation.stored(in: defaults)?.folderURL?.standardizedFileURL.resolvingSymlinksInPath(),
+                       base.standardizedFileURL.resolvingSymlinksInPath())
+        // Back to iCloud: the folder is still remembered for the Settings row.
+        SyncLocation.iCloudDrive.save(in: defaults)
+        XCTAssertEqual(SyncLocation.stored(in: defaults), .iCloudDrive)
+        XCTAssertNotNil(SyncLocation.storedFolder(in: defaults))
+        // "A synced folder" with none chosen.
+        defaults.removeObject(forKey: SyncLocation.bookmarkKey)
+        defaults.removeObject(forKey: SyncLocation.pathKey)
+        SyncLocation.saveFolderPending(in: defaults)
+        XCTAssertNil(SyncLocation.stored(in: defaults))
+    }
+
+    func testConflictCopyNamesMapToTheirRecord() {
+        let s = AccountStore(folder: base, defaults: defaults)
+        let people = s.root!.appendingPathComponent("people")
+        let cases = [
+            "keywords (conflicted copy 2026-10-15).json", "keywords (Rut's conflicted copy 2026-10-15).json",
+            "keywords (conflict 2026-10-15 120000).json", "keywords.sync-conflict-20261015-120000-ABCDEFG.json",
+            "keywords_conflict-20261015-120000.json",
+        ]
+        for name in cases {
+            XCTAssertEqual(s.canonicalURL(forConflictCopy: people.appendingPathComponent(name))?.lastPathComponent, "keywords.json", name)
+        }
+        XCTAssertNil(s.canonicalURL(forConflictCopy: people.appendingPathComponent("keywords.json")))
+        XCTAssertNil(s.canonicalURL(forConflictCopy: people.appendingPathComponent("person%2F1.json")))
+    }
+
+    func testConflictCopiesAreMergedByTheRecordRulesAndRemoved() throws {
+        let s = AccountStore(folder: base, defaults: defaults)
+        // This Mac named p1 "Rut" with cluster p2; the other Mac's copy came back as a conflict.
+        let mine = PersonRecord(id: "p1", name: "Rut", clusters: ["p2"], modified: t0, machine: "mac-a")
+        XCTAssertEqual(s.write(mine, id: "p1"), mine)
+        let theirs = PersonRecord(id: "p1", name: "Rut M.", clusters: ["p3"], modified: t0 + 10, machine: "mac-b")
+        let copy = try XCTUnwrap(s.url(for: RecordKey(.person, id: "p1"))).deletingLastPathComponent()
+            .appendingPathComponent("p1 (conflicted copy 2026-10-15).json")
+        try AccountStore.encoder().encode(theirs).write(to: copy)
+        // And a stale keywords copy from Syncthing that must not replace the newer record.
+        let newer = KeywordsRecord(keywords: [.init(name: "Weddings", parent: nil)], modified: t0 + 60, machine: "mac-b")
+        XCTAssertEqual(s.write(newer), newer)
+        let stale = KeywordsRecord(keywords: [.init(name: "Travel", parent: nil)], modified: t0, machine: "mac-a")
+        let staleCopy = s.root!.appendingPathComponent("keywords.sync-conflict-20261015-120000-ABCDEFG.json")
+        try AccountStore.encoder().encode(stale).write(to: staleCopy)
+
+        XCTAssertEqual(Set(s.absorbConflictCopies()), [RecordKey(.person, id: "p1"), RecordKey(.keywords)])
+        let merged = try XCTUnwrap(s.read(PersonRecord.self, id: "p1"))
+        XCTAssertEqual(merged.name, "Rut M.")
+        XCTAssertEqual(merged.clusters, ["p2", "p3"], "a union, as if the other Mac had written it")
+        XCTAssertEqual(s.read(KeywordsRecord.self), newer, "last writer wins")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: copy.path), "the copy is removed once merged")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: staleCopy.path))
+        XCTAssertEqual(s.absorbConflictCopies(), [], "nothing left")
+        XCTAssertEqual(s.list(PersonRecord.self).count, 1)
+    }
+
+    @MainActor
+    func testFolderWatcherReportsAWriteFromAnotherMac() throws {
+        let s = AccountStore(folder: base, defaults: defaults)
+        let watcher = AccountStore.Watcher(store: s)
+        defer { watcher.stop() }
+        var seen: [RecordKey] = []
+        let reported = expectation(description: "the remote write is reported")
+        watcher.onChange = { key in
+            seen.append(key)
+            if key == RecordKey(.drive, id: "VOL-9") { reported.fulfill() }
+        }
+        watcher.start()
+        XCTAssertEqual(seen, [], "an empty folder reports nothing")
+        // Another Mac's file lands (the sync app writes it; here, a plain write from this process).
+        let url = try XCTUnwrap(s.url(for: RecordKey(.drive, id: "VOL-9")))
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let rec = DriveRecord(volumeUUID: "VOL-9", name: "Rut photo", roots: [], lastSeenMachine: "mac-b", lastSeenMachineName: nil,
+                              lastSeen: t0, modified: t0, machine: "mac-b")
+        try AccountStore.encoder().encode(rec).write(to: url, options: .atomic)
+        // FSEvents coalesces for 1 s; allow 2 s.
+        wait(for: [reported], timeout: 2)
+        XCTAssertEqual(seen, [RecordKey(.drive, id: "VOL-9")])
+        XCTAssertEqual(s.read(DriveRecord.self, id: "VOL-9"), rec)
     }
 }
