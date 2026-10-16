@@ -399,6 +399,12 @@ impl CullSession {
     pub(crate) fn lock(&self) -> Result<crate::lock::Guard<'_, Inner>> {
         self.inner.lock()
     }
+    /// The queue for a UI-safe method: waits at most `lock::UI_BUDGET`, then
+    /// returns `BridgeError::Busy` for the host to retry.
+    #[track_caller]
+    pub(crate) fn lock_ui(&self) -> Result<crate::lock::Guard<'_, Inner>> {
+        self.inner.lock_for(crate::lock::UI_BUDGET)
+    }
 }
 
 impl Inner {
@@ -542,8 +548,9 @@ impl CullSession {
         Ok(())
     }
 
+    /// UI-safe (see `Engine::lock`): `Busy` when a worker holds the queue.
     pub fn images(&self) -> Result<Vec<SessionImage>> {
-        let mut s = self.lock()?;
+        let mut s = self.lock_ui()?;
         let ids = s.core.images().to_vec();
         s.session_images(&ids)
     }
@@ -562,8 +569,9 @@ impl CullSession {
             .collect())
     }
     /// Scores may have changed since the last call: every best is picked afresh.
+    /// UI-safe: `Busy` when a worker holds the queue.
     pub fn groups(&self) -> Result<Vec<CullGroup>> {
-        let mut s = self.lock()?;
+        let mut s = self.lock_ui()?;
         s.bests.clear();
         s.group_records(&HashSet::new())
     }

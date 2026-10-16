@@ -205,14 +205,27 @@ struct AgentEditPanel: View {
                     .disabled(!model.isEngineBacked || model.agent.isRunning || !model.agent.busy.isEmpty)
             }
         }
-        .task(id: key) { load() }
+        .task(id: key) { await load() }
     }
 
-    private func load() {
+    private func load() async {
         provenance = nil
         target = nil
-        guard let lib = model.engineLibrary, let item = model.focusedItem, let ref = item.engineImage,
-              let p = try? ref.engine.agentProvenance(imageId: ref.imageID) else { return }
+        guard let lib = model.engineLibrary, let item = model.focusedItem, let ref = item.engineImage else { return }
+        // The engine answers busy while a worker holds the catalog: try again shortly.
+        var found: AgentProvenance?
+        for _ in 0..<25 {
+            do {
+                found = try ref.engine.agentProvenance(imageId: ref.imageID)
+                break
+            } catch where EngineBusy.isBusy(error) {
+                try? await Task.sleep(for: .milliseconds(80))
+                if Task.isCancelled { return }
+            } catch {
+                return
+            }
+        }
+        guard let p = found else { return }
         provenance = p
         target = model.agent.reviewTarget(AgentReviewEntry(p.item, itemID: item.id), library: lib)
     }

@@ -641,7 +641,8 @@ final class AppModel {
     func refreshLibraryRoots() {
         let engine = engineLibrary?.engine
         Task.detached(priority: .utility) {
-            let roots = (try? engine.map { try $0.roots().map(LibraryRoot.init) } ?? LibraryRoot.list()) ?? []
+            let roots = (try? engine.map { engine in try EngineBusy.waiting { try engine.roots() }.map(LibraryRoot.init) }
+                         ?? LibraryRoot.list()) ?? []
             await MainActor.run { self.libraryRoots = roots; self.openPendingRootIfAttached() }
         }
     }

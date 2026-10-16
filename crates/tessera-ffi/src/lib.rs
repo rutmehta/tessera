@@ -74,6 +74,10 @@ uniffi::setup_scaffolding!();
 pub enum BridgeError {
     #[error("{message}")]
     Failure { message: String },
+    /// A UI-safe call found the engine busy for longer than its budget (see
+    /// `lock::UI_BUDGET`); nothing was done. Retry shortly, off the main thread.
+    #[error("{message}")]
+    Busy { message: String },
 }
 type Result<T> = std::result::Result<T, BridgeError>;
 fn failure(e: impl std::fmt::Display) -> BridgeError {
@@ -334,6 +338,12 @@ impl Engine {
     fn lock(&self) -> Result<lock::Guard<'_, Catalog>> {
         self.catalog.lock()
     }
+    /// The catalog for a UI-safe method: waits at most `lock::UI_BUDGET`,
+    /// then returns `BridgeError::Busy` for the host to retry.
+    #[track_caller]
+    fn lock_ui(&self) -> Result<lock::Guard<'_, Catalog>> {
+        self.catalog.lock_for(lock::UI_BUDGET)
+    }
     fn path(c: &Catalog, id: &str) -> Result<String> {
         parse_id(id)?;
         Ok(c.reader.query_row(
@@ -563,11 +573,12 @@ impl Engine {
     /// Every indexed root. A root whose volume is mounted elsewhere than last
     /// time is relocated in the catalog and reported at its current path; a
     /// root whose volume is absent is reported not attached, with its counts.
+    /// UI-safe (see `lock`): `Busy` when a worker holds the catalog.
     pub fn roots(&self) -> Result<Vec<RootInfo>> {
         // Listing mounted volumes stats each one; a slow or hung volume must
         // not stall the catalog.
         let mounted = self.volumes.mounted()?;
-        let c = self.lock()?;
+        let c = self.lock_ui()?;
         let mut out = Vec::new();
         for root in c.index.roots()? {
             let located = c.index.locate_root_among(&root, &mounted)?;
@@ -780,6 +791,60 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// ST-1: a UI-safe method answers `Busy` within its budget while a
+    /// worker holds the catalog or the queue, and works again once released.
+    #[test]
+    fn ui_safe_methods_report_busy_instead_of_waiting() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::new(32, 16)
+            .save(photos.join("one.jpg"))
+            .unwrap();
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let folder = engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap()
+            .path;
+        let id = engine.list_images(ImageQuery::default()).unwrap()[0]
+            .id
+            .clone();
+        let session = engine.open_cull_session(folder).unwrap();
+        let busy = |r: Result<()>| matches!(r, Err(BridgeError::Busy { .. }));
+        std::thread::scope(|s| {
+            let held = engine.lock().unwrap();
+            s.spawn(|| {
+                let started = std::time::Instant::now();
+                assert!(busy(engine.roots().map(drop)));
+                assert!(busy(engine.agent_provenance(id.clone()).map(drop)));
+                assert!(started.elapsed() < std::time::Duration::from_millis(500));
+                // The queue has its own lock: still answering.
+                assert_eq!(session.images().unwrap().len(), 1);
+            });
+            // Longer than every budget above together.
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            drop(held);
+        });
+        std::thread::scope(|s| {
+            let held = session.lock().unwrap();
+            s.spawn(|| {
+                assert!(busy(session.images().map(drop)));
+                assert!(busy(session.groups().map(drop)));
+                assert!(busy(session.people(false).map(drop)));
+                assert!(busy(session.face_strip(id.clone()).map(drop)));
+                assert!(busy(session.assist_status().map(drop)));
+                assert!(busy(session.review().map(drop)));
+                assert_eq!(engine.roots().unwrap().len(), 1);
+            });
+            // Longer than every budget above together.
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            drop(held);
+        });
+        assert_eq!(engine.roots().unwrap().len(), 1);
+        assert_eq!(session.images().unwrap().len(), 1);
+        assert!(session.review().is_ok());
+    }
 
     #[test]
     fn jpeg_preview_reopen_uses_revision_cache_without_source_work() {

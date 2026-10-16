@@ -451,8 +451,9 @@ impl Engine {
     fn agent(&self, profile: Profile, config: Config) -> Result<Agent> {
         Agent::open(self.support_dir()?.join("agent"), profile, config).map_err(failure)
     }
+    /// UI-safe: `Busy` rather than waiting out a worker.
     fn image_path(&self, image_id: &str) -> Result<PathBuf> {
-        let c = self.lock()?;
+        let c = self.lock_ui()?;
         Ok(PathBuf::from(Self::path(&c, image_id)?))
     }
     /// After a writer outside the develop session changed the recipe: the XMP
@@ -822,6 +823,7 @@ impl Engine {
     }
 
     /// The latest agent run's provenance and review item, if the image has one.
+    /// UI-safe (see `Engine::lock`): `Busy` when a worker holds the catalog.
     pub fn agent_provenance(&self, image_id: String) -> Result<Option<AgentProvenance>> {
         let id = parse_id(&image_id)?;
         let path = self.image_path(&image_id)?;

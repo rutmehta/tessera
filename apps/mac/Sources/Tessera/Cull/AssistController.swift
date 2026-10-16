@@ -184,7 +184,7 @@ final class AssistController {
         let box = WeakAssist(self)
         Task.detached(priority: .utility) {
             let raw = try? lib.rawFrameSignals()
-            let review = try? lib.session.review()
+            let review = try? EngineBusy.waiting { try lib.session.review() }
             let hashes = try? lib.rawPreviewHashes()
             await MainActor.run { box.value?.triageDidRefresh(lib, raw: raw, review: review, hashes: hashes) }
         }
@@ -251,7 +251,8 @@ final class AssistController {
         if enabled { setEnabled(true) }
     }
 
-    /// Re-predicts every frame (after new signals, decisions or confirmations).
+    /// Re-predicts every frame (after new signals, decisions or confirmations). While a worker
+    /// holds the queue the engine answers busy: the predictions stay and we come back shortly.
     func refresh() {
         guard enabled, let app else { return }
         do {
@@ -260,10 +261,22 @@ final class AssistController {
             order = review.map(\.itemID)
             suggestionCount = review.filter { $0.suggested != nil }.count
             labels = (try? app.cull.assistStatus().labels) ?? labels
+        } catch where EngineBusy.isBusy(error) {
+            retryLater { $0.refresh() }
+            return
         } catch {
             app.statusMessage = "Assist: \(error.localizedDescription)"
         }
         app.assistDidChange()
+    }
+
+    /// Runs `again` after a short pause (an engine call answered busy).
+    private func retryLater(_ again: @escaping @MainActor (AssistController) -> Void) {
+        let box = WeakAssist(self)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(80))
+            if let assist = box.value { again(assist) }
+        }
     }
 
     func suggestion(for id: Int) -> Decision? {
@@ -316,7 +329,13 @@ final class AssistController {
 
     func refreshPeople(refresh: Bool = false) {
         guard let app else { return }
-        people = (try? app.cull.people(refresh: refresh)) ?? []
+        do {
+            people = try app.cull.people(refresh: refresh)
+        } catch where EngineBusy.isBusy(error) {
+            retryLater { $0.refreshPeople(refresh: refresh) }
+        } catch {
+            people = []
+        }
     }
 
     /// Loads the focused photo's face strip (cheap: an index read).
@@ -324,7 +343,15 @@ final class AssistController {
         guard let app, let item = app.focusedItem else { faces = []; facesItem = nil; return }
         guard force || facesItem != item.id else { return }
         facesItem = item.id
-        faces = app.isEngineBacked ? ((try? app.cull.faceStrip(item.id)) ?? []) : []
+        guard app.isEngineBacked else { faces = []; return }
+        do {
+            faces = try app.cull.faceStrip(item.id)
+        } catch where EngineBusy.isBusy(error) {
+            facesItem = nil
+            retryLater { $0.refreshFaces() }
+        } catch {
+            faces = []
+        }
     }
 
     func person(_ id: String?) -> PersonSummary? { id.flatMap { pid in people.first { $0.id == pid } } }

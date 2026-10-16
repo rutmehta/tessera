@@ -274,7 +274,7 @@ extension DocumentError {
     init(bridge: BridgeError) {
         let message: String
         switch bridge {
-        case .Failure(let m): message = m
+        case .Failure(let m), .Busy(let m): message = m
         }
         let lower = message.lowercased()
         if lower.contains("not found") || lower.contains("unknown layer") || lower.contains("no such layer")
