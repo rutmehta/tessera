@@ -1,12 +1,75 @@
+import CoreServices
 import Foundation
 import Security
 
-/// The account-resident records in the app's iCloud Drive container (SPEC §3, CS-2): `Tessera/`
-/// under `iCloud.dev.tessera.app`, one JSON file per record. Writes go through
-/// `NSFileCoordinator` and are atomic; `Watcher` runs an `NSMetadataQuery` so a change made on
-/// another Mac applies live. The store is injectable with any base URL, so tests use a temp
-/// directory and never need iCloud; with no container at all it is `.unavailable(reason)` and
-/// every call is a no-op (the app keeps working locally).
+/// Where the account records live (SPEC §3, CS-2b): the app's iCloud Drive container, or a
+/// folder some other app keeps in sync between the user's Macs (Nextcloud, Dropbox, Google
+/// Drive, Syncthing). The choice and the folder persist in user defaults; the folder as a
+/// security-scoped bookmark (the app is not sandboxed today, but the bookmark keeps the folder
+/// reachable if it ever is), with its path beside it so Settings can still show a folder that
+/// no longer resolves.
+public enum SyncLocation: Equatable, Sendable {
+    case iCloudDrive
+    case folder(URL)
+
+    /// "icloud" or "folder".
+    public static let kindKey = "Sync.Location"
+    public static let bookmarkKey = "Sync.FolderBookmark"
+    public static let pathKey = "Sync.FolderPath"
+
+    public var isFolder: Bool { if case .folder = self { true } else { false } }
+    public var folderURL: URL? { if case .folder(let url) = self { url } else { nil } }
+
+    /// What Settings ▸ Sync chose. Nil: "a synced folder", with none chosen yet.
+    public static func stored(in defaults: UserDefaults) -> SyncLocation? {
+        guard defaults.string(forKey: kindKey) == "folder" else { return .iCloudDrive }
+        return storedFolder(in: defaults).map { .folder($0) }
+    }
+
+    /// The last chosen folder, whichever location is in use.
+    public static func storedFolder(in defaults: UserDefaults) -> URL? {
+        if let data = defaults.data(forKey: bookmarkKey) {
+            var stale = false
+            if let url = (try? URL(resolvingBookmarkData: data, options: [.withSecurityScope, .withoutUI], bookmarkDataIsStale: &stale))
+                ?? (try? URL(resolvingBookmarkData: data, options: [.withoutUI], bookmarkDataIsStale: &stale)) {
+                _ = url.startAccessingSecurityScopedResource()
+                if stale { saveBookmark(for: url, in: defaults) }
+                return url
+            }
+        }
+        return defaults.string(forKey: pathKey).map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    /// Persists the choice; `.folder` also remembers the folder (see `storedFolder`).
+    public func save(in defaults: UserDefaults) {
+        switch self {
+        case .iCloudDrive:
+            defaults.set("icloud", forKey: Self.kindKey)
+        case .folder(let url):
+            defaults.set("folder", forKey: Self.kindKey)
+            Self.saveBookmark(for: url, in: defaults)
+        }
+    }
+
+    /// "A synced folder" with no folder chosen yet.
+    public static func saveFolderPending(in defaults: UserDefaults) { defaults.set("folder", forKey: kindKey) }
+
+    static func saveBookmark(for url: URL, in defaults: UserDefaults) {
+        defaults.set(url.path, forKey: pathKey)
+        let data = (try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil))
+            ?? (try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil))
+        defaults.set(data, forKey: bookmarkKey)
+    }
+}
+
+/// The account-resident records (SPEC §3, CS-2): `Tessera/` under the app's iCloud Drive
+/// container `iCloud.dev.tessera.app`, or under a synced folder of the user's choosing (CS-2b),
+/// one JSON file per record. Writes go through `NSFileCoordinator` and are atomic; `Watcher`
+/// runs an `NSMetadataQuery` (iCloud) or an FSEvents stream (folder) so a change made on
+/// another Mac applies live. Conflict copies a sync tool leaves beside a record are merged in
+/// by the record's own rules and removed. The store is injectable with any base URL, so tests
+/// use a temp directory and never need iCloud; with no container at all it is
+/// `.unavailable(reason)` and every call is a no-op (the app keeps working locally).
 public final class AccountStore: @unchecked Sendable {
     public static let containerIdentifier = "iCloud.dev.tessera.app"
     public static let folderName = "Tessera"
@@ -23,6 +86,12 @@ public final class AccountStore: @unchecked Sendable {
         case iCloudDriveOff
         /// An isolated run (`--app-dir`, `TESSERA_APP_DIR`, background audits) never touches the account.
         case isolatedRun
+        /// "A synced folder" is chosen, but no folder has been picked yet.
+        case noFolder
+        /// The chosen folder is not there (the sync app is not running, or the folder moved).
+        case folderMissing
+        /// The chosen folder is there but cannot be written.
+        case folderReadOnly
 
         public var message: String {
             switch self {
@@ -30,6 +99,9 @@ public final class AccountStore: @unchecked Sendable {
             case .noAccount: "This Mac is not signed in to iCloud."
             case .iCloudDriveOff: "iCloud Drive is off for Tessera."
             case .isolatedRun: "Sync is off for this run (--app-dir)."
+            case .noFolder: "No folder chosen."
+            case .folderMissing: "Folder not found: is Nextcloud (or the app that syncs it) running?"
+            case .folderReadOnly: "The folder is read-only."
             }
         }
         public var fix: String {
@@ -38,6 +110,9 @@ public final class AccountStore: @unchecked Sendable {
             case .noAccount: "Sign in to iCloud in System Settings, then turn on iCloud Drive."
             case .iCloudDriveOff: "Turn on iCloud Drive in System Settings ▸ iCloud, and allow Tessera under it."
             case .isolatedRun: "Launch Tessera without --app-dir or TESSERA_APP_DIR."
+            case .noFolder: "Click Choose… and pick a folder your sync app keeps on every Mac."
+            case .folderMissing: "Start the sync app, or choose the folder again."
+            case .folderReadOnly: "Choose a folder you can write to."
             }
         }
     }
@@ -48,7 +123,8 @@ public final class AccountStore: @unchecked Sendable {
     }
 
     public let availability: Availability
-    /// `<container>/Tessera`; nil when unavailable.
+    public let location: SyncLocation
+    /// `<container>/Tessera` (or `<folder>/Tessera`); nil when unavailable.
     public let root: URL?
     /// This Mac, for `machine` stamps: a UUID made once and kept in user defaults.
     public let machine: String
@@ -58,9 +134,11 @@ public final class AccountStore: @unchecked Sendable {
     /// did not change (or that we changed ourselves) is not reported again.
     private var seen: [String: Date] = [:]
 
+    /// An iCloud-style store over `baseURL` (the container, or a temp directory in tests).
     public init(baseURL: URL?, reason: UnavailableReason? = nil, defaults: UserDefaults = .standard) {
         self.defaults = defaults
         machine = Self.machineID(in: defaults)
+        location = .iCloudDrive
         if let baseURL, reason == nil {
             root = baseURL.appendingPathComponent(Self.folderName, isDirectory: true)
             availability = .available
@@ -70,9 +148,35 @@ public final class AccountStore: @unchecked Sendable {
         }
     }
 
-    /// The real container. `url(forUbiquityContainerIdentifier:)` may block while iCloud sets the
-    /// container up, so call this off the main actor.
-    public static func live(defaults: UserDefaults = .standard) -> AccountStore {
+    /// A store over `<folder>/Tessera/` in a folder another app syncs. Available when the folder
+    /// is there and writable (`Tessera/` is created if missing); otherwise the reason names what
+    /// to fix.
+    public init(folder: URL, defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        machine = Self.machineID(in: defaults)
+        location = .folder(folder)
+        let fm = FileManager.default
+        var isDirectory: ObjCBool = false
+        guard fm.fileExists(atPath: folder.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            root = nil; availability = .unavailable(.folderMissing); return
+        }
+        let root = folder.appendingPathComponent(Self.folderName, isDirectory: true)
+        guard fm.isWritableFile(atPath: folder.path), (try? fm.createDirectory(at: root, withIntermediateDirectories: true)) != nil else {
+            self.root = nil; availability = .unavailable(.folderReadOnly); return
+        }
+        self.root = root
+        availability = .available
+    }
+
+    /// The store for a location: the real container, or the chosen folder (nil: "a synced folder"
+    /// with none chosen yet). `url(forUbiquityContainerIdentifier:)` may block while iCloud sets
+    /// the container up, so call this off the main actor.
+    public static func live(location: SyncLocation? = .iCloudDrive, defaults: UserDefaults = .standard) -> AccountStore {
+        switch location {
+        case .folder(let url): return AccountStore(folder: url, defaults: defaults)
+        case nil: return AccountStore(baseURL: nil, reason: .noFolder, defaults: defaults)
+        case .iCloudDrive: break
+        }
         guard hasEntitlement() else { return AccountStore(baseURL: nil, reason: .noEntitlement, defaults: defaults) }
         guard FileManager.default.ubiquityIdentityToken != nil else {
             return AccountStore(baseURL: nil, reason: .noAccount, defaults: defaults)
@@ -246,6 +350,67 @@ public final class AccountStore: @unchecked Sendable {
         }
     }
 
+    /// Every record file under the root with its modification date (what the folder watcher feeds
+    /// to `changed`).
+    func recordFiles() -> [(url: URL, modified: Date?)] {
+        guard let root, let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.contentModificationDateKey]) else { return [] }
+        var out: [(url: URL, modified: Date?)] = []
+        for case let url as URL in files where key(for: url) != nil {
+            out.append((url, (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate))
+        }
+        return out
+    }
+
+    // MARK: Conflict copies
+
+    /// A sync tool that cannot merge leaves the other Mac's copy beside the record: Dropbox and
+    /// Nextcloud "name (conflicted copy 2026-10-15).json" / "name (conflict …).json", Syncthing
+    /// "name.sync-conflict-20261015-120000-ABCDEFG.json", older Nextcloud "name_conflict-….json".
+    /// A record name never contains a space or "_conflict-" (ids are percent-encoded), so the stem
+    /// before the marker is the record's.
+    nonisolated(unsafe) static let conflictCopy = try! NSRegularExpression(
+        pattern: #"^(.+?)(?: \([^)]*conflict[^)]*\)|\.sync-conflict-[^.]+|_conflict-[^.]+)\.json$"#, options: .caseInsensitive)
+
+    /// The record file a conflict copy belongs to; nil for a regular file.
+    public func canonicalURL(forConflictCopy url: URL) -> URL? {
+        let name = url.lastPathComponent
+        guard let m = Self.conflictCopy.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)),
+              let stem = Range(m.range(at: 1), in: name) else { return nil }
+        return url.deletingLastPathComponent().appendingPathComponent("\(name[stem]).json")
+    }
+
+    /// Merges every conflict copy under the root into its record (the record's own rules decide)
+    /// and removes the copy. Returns the keys merged into; a copy that does not decode (a newer
+    /// schema) stays where it is.
+    @discardableResult
+    public func absorbConflictCopies() -> [RecordKey] {
+        guard isActive, let root, let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else { return [] }
+        var merged: [RecordKey] = []
+        for case let url as URL in files {
+            guard url.pathExtension == "json", let canonical = canonicalURL(forConflictCopy: url), let key = key(for: canonical) else { continue }
+            let absorbed = switch key.kind {
+            case .preferences: absorb(PreferencesRecord.self, copy: url, key: key)
+            case .keywords: absorb(KeywordsRecord.self, copy: url, key: key)
+            case .styleProfile: absorb(StyleProfileRecord.self, copy: url, key: key)
+            case .learning: absorb(LearningRecord.self, copy: url, key: key)
+            case .person: absorb(PersonRecord.self, copy: url, key: key)
+            case .drive: absorb(DriveRecord.self, copy: url, key: key)
+            }
+            if absorbed, !merged.contains(key) { merged.append(key) }
+        }
+        return merged
+    }
+
+    private func absorb<R: SyncRecord>(_ type: R.Type, copy: URL, key: RecordKey) -> Bool {
+        guard let record = readFile(type, at: copy), write(record, id: key.id) != nil else { return false }
+        do {
+            try FileManager.default.removeItem(at: copy)
+        } catch {
+            NSLog("Sync: could not remove conflict copy %@: %@", copy.lastPathComponent, error.localizedDescription)
+        }
+        return true
+    }
+
     // MARK: Stats (Settings ▸ Sync)
 
     public struct Stats: Equatable, Sendable {
@@ -272,13 +437,17 @@ public final class AccountStore: @unchecked Sendable {
 
     // MARK: Watching
 
-    /// Runs a metadata query over the container so a record written on another Mac is reported
-    /// (and downloaded first when iCloud has only its metadata). Main-actor: `NSMetadataQuery`
-    /// needs the main run loop.
+    /// Reports records written on another Mac. iCloud: a metadata query over the container (a
+    /// record iCloud has only the metadata of is downloaded first). Folder: an FSEvents stream on
+    /// `Tessera/`, coalesced to 1 s, after which the folder is rescanned (the sync app may land
+    /// several files and a conflict copy at once). Main-actor: `NSMetadataQuery` needs the main
+    /// run loop, and the stream delivers on the main queue.
     @MainActor
     public final class Watcher {
         private let store: AccountStore
         private var query: NSMetadataQuery?
+        /// Touched only on the main actor and in deinit (which cannot be isolated on this toolchain).
+        nonisolated(unsafe) private var stream: FSEventStreamRef?
         private var observers: [NSObjectProtocol] = []
         /// Called on the main actor with each changed record.
         public var onChange: ((RecordKey) -> Void)?
@@ -286,7 +455,35 @@ public final class AccountStore: @unchecked Sendable {
         public init(store: AccountStore) { self.store = store }
 
         public func start() {
-            guard query == nil, store.isAvailable else { return }
+            guard query == nil, stream == nil, store.isAvailable else { return }
+            if store.location.isFolder { startStream() } else { startQuery() }
+        }
+
+        public func stop() {
+            query?.stop()
+            query = nil
+            observers.forEach { NotificationCenter.default.removeObserver($0) }
+            observers = []
+            if let stream {
+                FSEventStreamStop(stream)
+                FSEventStreamInvalidate(stream)
+                FSEventStreamRelease(stream)
+                self.stream = nil
+            }
+        }
+
+        deinit {
+            // The stream holds an unretained pointer to the watcher; it must not outlive it.
+            if let stream {
+                FSEventStreamStop(stream)
+                FSEventStreamInvalidate(stream)
+                FSEventStreamRelease(stream)
+            }
+        }
+
+        // MARK: iCloud
+
+        private func startQuery() {
             let q = NSMetadataQuery()
             q.searchScopes = [NSMetadataQueryUbiquitousDataScope, NSMetadataQueryUbiquitousDocumentsScope]
             q.predicate = NSPredicate(format: "%K LIKE '*.json'", NSMetadataItemFSNameKey)
@@ -299,13 +496,6 @@ public final class AccountStore: @unchecked Sendable {
             }
             query = q
             q.start()
-        }
-
-        public func stop() {
-            query?.stop()
-            query = nil
-            observers.forEach { NotificationCenter.default.removeObserver($0) }
-            observers = []
         }
 
         private func collect() {
@@ -324,6 +514,36 @@ public final class AccountStore: @unchecked Sendable {
                 files.append((url, item.value(forAttribute: NSMetadataItemFSContentChangeDateKey) as? Date))
             }
             for key in store.changed(files) { onChange?(key) }
+        }
+
+        // MARK: Folder
+
+        /// The first scan stands in for the query's initial gather. Our own writes are not ignored
+        /// at the stream (tests write "remotely" from this process); `changed` filters them.
+        private func startStream() {
+            guard let root = store.root else { return }
+            var context = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
+                                               retain: nil, release: nil, copyDescription: nil)
+            let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
+                guard let info else { return }
+                let watcher = Unmanaged<Watcher>.fromOpaque(info).takeUnretainedValue()
+                MainActor.assumeIsolated { watcher.scanFolder() }
+            }
+            let flags = FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes)
+            guard let s = FSEventStreamCreate(nil, callback, &context, [root.path] as CFArray,
+                                              FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 1, flags) else { return }
+            FSEventStreamSetDispatchQueue(s, .main)
+            stream = s
+            FSEventStreamStart(s)
+            scanFolder()
+        }
+
+        /// Conflict copies first (merging one writes the record, which the scan then sees as our
+        /// own write), then whatever else changed.
+        private func scanFolder() {
+            var keys = store.absorbConflictCopies()
+            for key in store.changed(store.recordFiles()) where !keys.contains(key) { keys.append(key) }
+            for key in keys { onChange?(key) }
         }
     }
 }
