@@ -173,3 +173,14 @@ session screenshots described here. All on the 8-ARW sample shoot, window 1385 �
 33. **Slider response (PL-1, engine):** the owner reports that apart from Exposure, ±100 on
     Shadows, Highlights, Contrast and Vibrance feels like about ±20 in Lightroom. Calibrate the
     native pipeline's response so ±100 spans a comparable range (see PL-1 brief).
+34. **Deliver: the Panel toggle opens an empty pane.** With Deliver up and the column hidden,
+    clicking the toolbar Panel toggle shows an empty column instead of What · How · Where
+    (`DeliverView` shows `DeliverColumn` on `showInspector`; something else is presenting an
+    empty pane — the system `.inspector` or the split view's sidebar). Reproduce in-process
+    (the Deliver evidence harness) and fix; the owner saw it at 2000 × 1257 after Cull → Edit →
+    Deliver.
+35. **"Deliv…" truncates in the mode control** at 2000 pt wide: segments take their label's
+    intrinsic width (UX-15 item 25 made them full-row buttons; keep the hit target, fix the width).
+36. **The window sits under the Dock** (the agent field and the Try cards were behind it in the
+    owner's screenshots): on first launch and on zoom the window frame is constrained to
+    `NSScreen.visibleFrame`; a saved frame that overlaps the Dock is pulled up on restore.
