@@ -24,6 +24,7 @@ mod mem_trace;
 mod merge;
 mod metadata;
 mod models;
+mod offline;
 mod original_write;
 mod preview;
 mod proof;
@@ -39,6 +40,7 @@ mod smart_preview;
 )]
 mod smart_preview_store;
 mod smart_preview_thumbnail;
+pub use offline::OfflineCoverage;
 pub use smart_preview::{SmartPreviewInfo, SmartPreviewState};
 #[doc(hidden)]
 pub mod surface;

@@ -8755,6 +8755,41 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func photoStack(imageId: String) throws  -> [String]
     
     /**
+     * The existing preview's info when one is present and usable (ready,
+     * original offline, or dirty awaiting sync); otherwise the build. A
+     * clean stale preview is replaced by the build; a conflict, a failed
+     * preview or a dirty stale one is refused by it with the engine's message.
+     */
+    func ensureSmartPreview(imageId: String) throws  -> SmartPreviewInfo
+    
+    /**
+     * RAW image ids under `folder` that a build can act on (no local preview,
+     * or a clean stale one), ordered: keep decisions first, then newest
+     * capture first. `limit` 0 means all. Conflicting, failed and dirty
+     * stale previews are not candidates: a build would refuse them, and they
+     * are counted in `needs_attention` for a person to resolve.
+     */
+    func offlineCandidates(folder: String, limit: UInt32) throws  -> [String]
+    
+    /**
+     * Cheap: the file list from the reader connection, then stat and journal
+     * reads with no catalog lock held.
+     */
+    func offlineCoverage(folder: String) throws  -> OfflineCoverage
+    
+    /**
+     * Ids whose journal has edits not yet synchronized, from
+     * `smart-previews/*/journal.json`, sorted. An unreadable journal is not
+     * listed: nothing can be published from it.
+     */
+    func pendingSyncSmartPreviews() throws  -> [String]
+    
+    /**
+     * Bytes under `smart-previews/`.
+     */
+    func smartPreviewStorage() throws  -> UInt64
+    
+    /**
      * Recursive folder queue over already-indexed images (call `index_folder`
      * first). The library defaults to `<folder>/library.json`. Auto-advance is
      * off; hosts move the cursor with `set_current`/navigation.
@@ -9606,6 +9641,80 @@ open func photoStack(imageId: String)throws  -> [String]  {
     uniffi_tessera_ffi_fn_method_engine_photo_stack(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The existing preview's info when one is present and usable (ready,
+     * original offline, or dirty awaiting sync); otherwise the build. A
+     * clean stale preview is replaced by the build; a conflict, a failed
+     * preview or a dirty stale one is refused by it with the engine's message.
+     */
+open func ensureSmartPreview(imageId: String)throws  -> SmartPreviewInfo  {
+    return try  FfiConverterTypeSmartPreviewInfo_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_ensure_smart_preview(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(imageId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * RAW image ids under `folder` that a build can act on (no local preview,
+     * or a clean stale one), ordered: keep decisions first, then newest
+     * capture first. `limit` 0 means all. Conflicting, failed and dirty
+     * stale previews are not candidates: a build would refuse them, and they
+     * are counted in `needs_attention` for a person to resolve.
+     */
+open func offlineCandidates(folder: String, limit: UInt32)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_offline_candidates(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(folder),
+        FfiConverterUInt32.lower(limit),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Cheap: the file list from the reader connection, then stat and journal
+     * reads with no catalog lock held.
+     */
+open func offlineCoverage(folder: String)throws  -> OfflineCoverage  {
+    return try  FfiConverterTypeOfflineCoverage_lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_offline_coverage(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(folder),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Ids whose journal has edits not yet synchronized, from
+     * `smart-previews/*/journal.json`, sorted. An unreadable journal is not
+     * listed: nothing can be published from it.
+     */
+open func pendingSyncSmartPreviews()throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_pending_sync_smart_previews(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Bytes under `smart-previews/`.
+     */
+open func smartPreviewStorage()throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeBridgeError_lift) {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_smart_preview_storage(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -23223,6 +23332,113 @@ public func FfiConverterTypeOcrRegionInfo_lift(_ buf: RustBuffer) throws -> OcrR
 #endif
 public func FfiConverterTypeOcrRegionInfo_lower(_ value: OcrRegionInfo) -> RustBuffer {
     return FfiConverterTypeOcrRegionInfo.lower(value)
+}
+
+
+/**
+ * How many of a folder's RAWs can be edited with the drive detached.
+ */
+public struct OfflineCoverage: Equatable, Hashable {
+    public var folder: String
+    /**
+     * Mosaic RAW originals under `folder` (recursive, same rule as the cull
+     * session). Imported Lightroom Smart Previews are not originals.
+     */
+    public var raws: UInt64
+    /**
+     * Of those, with a local preview that is not stale or conflicting.
+     */
+    public var ready: UInt64
+    /**
+     * Local previews with journaled edits not yet written to the sidecars.
+     */
+    public var pendingSync: UInt64
+    /**
+     * Stale, conflicting or failed previews: a person decides (Smart Previews menu).
+     */
+    public var needsAttention: UInt64
+    /**
+     * On-disk size of the previews counted in `ready`, `pending_sync` and
+     * `needs_attention`.
+     */
+    public var bytes: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(folder: String, 
+        /**
+         * Mosaic RAW originals under `folder` (recursive, same rule as the cull
+         * session). Imported Lightroom Smart Previews are not originals.
+         */raws: UInt64, 
+        /**
+         * Of those, with a local preview that is not stale or conflicting.
+         */ready: UInt64, 
+        /**
+         * Local previews with journaled edits not yet written to the sidecars.
+         */pendingSync: UInt64, 
+        /**
+         * Stale, conflicting or failed previews: a person decides (Smart Previews menu).
+         */needsAttention: UInt64, 
+        /**
+         * On-disk size of the previews counted in `ready`, `pending_sync` and
+         * `needs_attention`.
+         */bytes: UInt64) {
+        self.folder = folder
+        self.raws = raws
+        self.ready = ready
+        self.pendingSync = pendingSync
+        self.needsAttention = needsAttention
+        self.bytes = bytes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OfflineCoverage: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOfflineCoverage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OfflineCoverage {
+        return
+            try OfflineCoverage(
+                folder: FfiConverterString.read(from: &buf), 
+                raws: FfiConverterUInt64.read(from: &buf), 
+                ready: FfiConverterUInt64.read(from: &buf), 
+                pendingSync: FfiConverterUInt64.read(from: &buf), 
+                needsAttention: FfiConverterUInt64.read(from: &buf), 
+                bytes: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OfflineCoverage, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.folder, into: &buf)
+        FfiConverterUInt64.write(value.raws, into: &buf)
+        FfiConverterUInt64.write(value.ready, into: &buf)
+        FfiConverterUInt64.write(value.pendingSync, into: &buf)
+        FfiConverterUInt64.write(value.needsAttention, into: &buf)
+        FfiConverterUInt64.write(value.bytes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOfflineCoverage_lift(_ buf: RustBuffer) throws -> OfflineCoverage {
+    return try FfiConverterTypeOfflineCoverage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOfflineCoverage_lower(_ value: OfflineCoverage) -> RustBuffer {
+    return FfiConverterTypeOfflineCoverage.lower(value)
 }
 
 
@@ -37992,6 +38208,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_photo_stack() != 59182) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_ensure_smart_preview() != 55010) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_offline_candidates() != 51104) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_offline_coverage() != 27154) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_pending_sync_smart_previews() != 46436) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_tessera_ffi_checksum_method_engine_smart_preview_storage() != 43270) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_open_cull_session() != 42664) {
