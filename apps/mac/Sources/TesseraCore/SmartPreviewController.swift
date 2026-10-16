@@ -88,7 +88,7 @@ public enum SmartPreviewRouting {
 /// Injectable actor-isolated boundary. Live implementations MUST dispatch blocking
 /// native work off MainActor; deterministic tests may suspend with continuations.
 /// The offline half (OF-2: coverage, candidates, ensure, pending sync, storage) defaults to
-/// "not available" so callers built before OF-1 lands keep compiling and fail softly.
+/// "not available", so a fake built for the Smart Preview batch alone still fails softly.
 @MainActor
 public struct SmartPreviewAPI {
     public var info: @MainActor (String) async throws -> SmartPreviewSnapshot

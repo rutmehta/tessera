@@ -8779,7 +8779,7 @@ public protocol EngineProtocol: AnyObject, Sendable {
     
     /**
      * Ids whose journal has edits not yet synchronized, from
-     * `smart-previews/*/journal.json`, sorted. An unreadable journal is not
+     * `smart-previews/<image id>/journal.json`, sorted. An unreadable journal is not
      * listed: nothing can be published from it.
      */
     func pendingSyncSmartPreviews() throws  -> [String]
@@ -9695,7 +9695,7 @@ open func offlineCoverage(folder: String)throws  -> OfflineCoverage  {
     
     /**
      * Ids whose journal has edits not yet synchronized, from
-     * `smart-previews/*/journal.json`, sorted. An unreadable journal is not
+     * `smart-previews/<image id>/journal.json`, sorted. An unreadable journal is not
      * listed: nothing can be published from it.
      */
 open func pendingSyncSmartPreviews()throws  -> [String]  {

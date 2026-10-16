@@ -322,7 +322,7 @@ impl Engine {
     }
 
     /// Ids whose journal has edits not yet synchronized, from
-    /// `smart-previews/*/journal.json`, sorted. An unreadable journal is not
+    /// `smart-previews/<image id>/journal.json`, sorted. An unreadable journal is not
     /// listed: nothing can be published from it.
     pub fn pending_sync_smart_previews(&self) -> Result<Vec<String>> {
         let previews = self.previews_root()?;

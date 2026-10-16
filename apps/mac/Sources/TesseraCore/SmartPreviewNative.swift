@@ -4,14 +4,8 @@ import TesseraFFI
 // API. Do not hand-edit TesseraFFI.swift or replace these calls with successful stubs.
 extension SmartPreviewAPI {
     public static func live(engine: Engine) -> SmartPreviewAPI {
-        // OF-2: the offline calls go through `OfflineEngineMethods`; nil until OF-1's bindings
-        // land and the wiring extension below is uncommented. Until then they report
-        // `offlineUnavailable` and the builder stays idle.
-        let offline = engine as? any OfflineEngineMethods
-        func offlineEngine() throws -> any OfflineEngineMethods {
-            guard let offline else { throw SmartPreviewUIError.unavailable(offlineUnavailable) }
-            return offline
-        }
+        // OF-2: the offline calls go through `OfflineEngineMethods` (OF-1's bindings, below).
+        func offlineEngine() throws -> any OfflineEngineMethods { engine }
         return .init(info: { id in
             try await Task.detached(priority: .utility) {
                 SmartPreviewSnapshot(try engine.smartPreviewInfo(imageId: id))
@@ -48,24 +42,23 @@ extension SmartPreviewAPI {
     }
 }
 
-// OF-1 wiring: uncomment once `TesseraFFI.swift` carries `offlineCoverage`, `offlineCandidates`,
-// `ensureSmartPreview`, `pendingSyncSmartPreviews` and `smartPreviewStorage` (SPEC "OF-1: engine
-// contract"). Nothing else changes: `live(engine:)` finds the conformance at runtime.
-//
-// extension Engine: OfflineEngineMethods {
-//     public func offlineCoverageRecord(folder: String) throws -> OfflineCoverage { OfflineCoverage(try offlineCoverage(folder: folder)) }
-//     public func offlineCandidateIDs(folder: String, limit: UInt32) throws -> [String] { try offlineCandidates(folder: folder, limit: limit) }
-//     public func ensureSmartPreviewSnapshot(imageID: String) throws -> SmartPreviewSnapshot { SmartPreviewSnapshot(try ensureSmartPreview(imageId: imageID)) }
-//     public func pendingSyncSmartPreviewIDs() throws -> [String] { try pendingSyncSmartPreviews() }
-//     public func smartPreviewStorageBytes() throws -> UInt64 { try smartPreviewStorage() }
-// }
-//
-// extension OfflineCoverage {
-//     init(_ record: TesseraFFI.OfflineCoverage) {
-//         self.init(folder: record.folder, raws: record.raws, ready: record.ready,
-//                   pendingSync: record.pendingSync, needsAttention: record.needsAttention, bytes: record.bytes)
-//     }
-// }
+// OF-1 wiring (SPEC "OF-1: engine contract"): the engine's five offline calls behind the
+// app-side names. `offlineCandidates` already leaves out conflict, failed and stale previews
+// (they count in `needsAttention`), and `ensureSmartPreview` is the per-photo authority.
+extension Engine: OfflineEngineMethods {
+    public func offlineCoverageRecord(folder: String) throws -> OfflineCoverage { OfflineCoverage(try offlineCoverage(folder: folder)) }
+    public func offlineCandidateIDs(folder: String, limit: UInt32) throws -> [String] { try offlineCandidates(folder: folder, limit: limit) }
+    public func ensureSmartPreviewSnapshot(imageID: String) throws -> SmartPreviewSnapshot { SmartPreviewSnapshot(try ensureSmartPreview(imageId: imageID)) }
+    public func pendingSyncSmartPreviewIDs() throws -> [String] { try pendingSyncSmartPreviews() }
+    public func smartPreviewStorageBytes() throws -> UInt64 { try smartPreviewStorage() }
+}
+
+extension OfflineCoverage {
+    init(_ record: TesseraFFI.OfflineCoverage) {
+        self.init(folder: record.folder, raws: record.raws, ready: record.ready,
+                  pendingSync: record.pendingSync, needsAttention: record.needsAttention, bytes: record.bytes)
+    }
+}
 
 extension SmartPreviewSnapshot {
     init(_ info: TesseraFFI.SmartPreviewInfo) {
