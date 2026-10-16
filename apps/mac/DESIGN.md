@@ -164,19 +164,48 @@ Widths: sidebar 200–300 (ideal 220), inspector 288–380 (ideal 296), label co
 
 ### 3.4 Window structure
 
-One toolbar (real `NSToolbar` via SwiftUI `.toolbar`, flat — no per-item glass on macOS 26), the
-only bar (redesign SPEC §1, WP UX-11): Open Folder and the folder name (leading; the name opens
-the source sidebar's content — folders, albums, people, culling lists — as a popover) ·
-**Cull · Edit · Deliver** segmented (centre; ⌘1 ⌘2 ⌘3) · the search field (trailing; widens while
-it has the keyboard, the facet menus hang off its filter button as a popover), thumbnail size
-(Grid only), the panel toggle (Tab) and Export. Review stays reachable from the View and Develop
-menus. Below: content (canvas) with the agent field bottom centre (`Shell/AgentField.swift`:
-560 × 48, sparkle mark, the mode's placeholder, mic, ⌘K; in Edit the Masks / Crop / Heal strip
-beside it) · progress strips · status bar · filmstrip. The source sidebar is hidden by default
-(View ▸ Show Library Sidebar, persisted); the inspector is the one panel, hidden and shown by Tab
-with the state remembered per mode (`Shell.panel.<mode>` in user defaults). With the panel hidden
-in Edit the photo fills the window. In Deliver the panel is the What · How · Where column on the
-left (§15); the right inspector stays for the loupe, Compare, Edit, Review and documents.
+One toolbar (real `NSToolbar` via SwiftUI `.toolbar`; no per-item glass on macOS 26, no toolbar
+material, no title: the bar is the canvas ground with a hairline under it, the prototype's 52 pt
+bar), the only bar (redesign SPEC §1, WP UX-11, UX-16). Leading: the **folder button** (folder
+icon, "World Cup final + NYC · 226", chevron; in Edit a thin "3 of 226" line under the name, where
+← → move). It opens the source sidebar's content — folders, albums, people, culling lists — as a
+popover with an **Open Folder…** row at the bottom (⌘O stays in the File menu). Centre:
+**Cull · Edit · Deliver** (`SegmentedPicker(prominent:)`: 13 pt titles on the panel ground, the
+chosen one ink-filled; ⌘1 ⌘2 ⌘3). Trailing: 32 × 32 icon buttons — **Before** (Edit only, held),
+**info** (loupe; the display-info popover) and **Panel** (Tab) — and **Export**, the bar's one
+amber button (`ToolbarPrimaryButtonStyle`: accent fill, radius 8, 13/600 on `textOnAccent`).
+Nothing else lives in the toolbar: search is View ▸ Search (⌘F), a 40 pt bar that drops under the
+toolbar in Cull with the search field (`SearchBar`; the facet menus still hang off its filter
+button); thumbnail size is View ▸ Thumbnail Size (⌘= ⌘-) and a pinch on the grid; Merge Selected
+People is in the Library menu; the automatic sidebar toggle is removed (View ▸ Show Library
+Sidebar). Review stays reachable from the View and Develop menus.
+
+Below the bar: the canvas with the agent field bottom centre (`Shell/AgentField.swift`: 560 × 48,
+sparkle mark, the mode's placeholder, mic, ⌘K; in Edit the Masks / Crop / Heal strip beside it),
+drawn over the whole width of the window like the prototype's bottom row, then the progress
+strips. **There is no status bar** (UX-16): the decision counts are the Cull column's Your
+decisions, the position is the Cull header's "· 3 of 226" and Edit's folder button line, the
+person filter chip is in the Cull header, a new `AppModel.statusMessage` shows as the toast for
+3 s (bottom centre, above the agent row; `showToast` keeps an undoable toast over a plain status),
+and the engine readouts float top right of the canvas only while Debug ▸ Show Engine Readouts is
+on. **The filmstrip is off by default** (View ▸ Filmstrip, ⌥⌘F, remembered as `ShowFilmstrip`),
+never under the burst view (its strip is Cull's strip) or Deliver.
+
+The source sidebar is hidden by default (View ▸ Show Library Sidebar, persisted). The one panel
+per mode is hidden and shown by Tab with the state remembered per mode (`Shell.panel.<mode>` in
+user defaults): in Cull the triage column on the left, in Deliver the What · How · Where column on
+the left (§15), in Edit a plain 320 pt column beside the photo (`Theme.Width.editPanel`, §13; not
+the system inspector, whose macOS 26 column covers the toolbar's right and adds a band of its
+own). Every column is the canvas ground with a hairline on its photo-side edge and 20 pt inner
+padding (`Theme.Space.panelInset`); the photo fits inside a 20 pt inset of its area
+(`LoupePlacement.fit`). With the panel hidden in Edit the photo fills the window. The system
+inspector remains for the library loupe, Compare, Review and documents.
+
+**Evidence:** `UIParityEvidenceTests` (opt-in: `TESSERA_PARITY_EVIDENCE=<dir>`,
+`TESSERA_PARITY_SHOOT=<folder of RAWs>`) captures Cull, Edit (panel shown, hidden) and Deliver
+at 1440 × 900 from the real shell beside the same screens of the prototype
+(`docs/design/redesign-2026-10/demo`, a headless WKWebView), as `NN-<screen>.png` /
+`NN-<screen>-prototype.png` under `docs/design/redesign-2026-10/evidence/UX-16/`.
 
 **Cull** (SPEC §4, WP UX-14; `Cull/TriageColumn.swift`, `Cull/BurstReviewView.swift`): the panel
 is the 260 pt triage column on the *left* (`Theme.Width.triageColumn`; Tab hides it; the right
@@ -395,7 +424,7 @@ disabled-with-`StatusLine` rule above.
 
 Pro density: 11 pt as the working size in panels; 32 pt slider rows; 24 pt list rows; chrome on
 thumbnails only when a fact is set (decision, mark, basket, derived status) or the frame is the
-group's suggested best; the filmstrip at 72 pt; a one-line status bar in three groups.
+group's suggested best; the filmstrip at 72 pt when View ▸ Filmstrip is on; no status bar (messages are the toast, UX-16).
 
 ## 8. Do and don't
 
@@ -425,7 +454,7 @@ group's suggested best; the filmstrip at 72 pt; a one-line status bar in three g
   the ground (`Ground`) in user defaults and rebuilds its `tokens` on every change; the
   ground- and accent-dependent `Theme.Palette` tokens are computed properties over it (§2.5).
 * Engine readouts (render timing, the open summary's RAW / group counts and scan time) appear in
-  the status bar only with Debug ▸ Show Engine Readouts (`ShowRenderReadout`), SPEC §7.
+  a floating overlay top right of the canvas only with Debug ▸ Show Engine Readouts (`ShowRenderReadout`), SPEC §7.
 * Menu titles never carry a shortcut in parentheses; single keys route through `KeyRouter` and
   are listed in docs/shortcuts.md (`tools/orchestrate/shortcut-audit.py --write-doc`).
 * Tooltips appear after 250 ms: `NSInitialToolTipDelay` is registered at launch.
@@ -585,13 +614,18 @@ scope are preserved under `docs/design/workspace-redesign/` at the repository ro
 
 Library contains Grid, Loupe and Compare arrangements, library sources/filters and
 selection/metadata properties. E/Return remains Library Loupe inspection. **Edit
-photo** / D enters editing; the header names the focused photo and explicitly says
-**Editing 1 photo**. Selection-based Library actions show their actual affected
-count independently. Synthetic fixtures say **Preview only · STUB**.
+photo** / D / ⌘2 enters editing; the folder button says where the photo is ("3 of 226"),
+`workspaceScope` still reads **Editing 1 photo** for accessibility. Selection-based Library
+actions show their actual affected count independently. Synthetic fixtures say **Preview only ·
+STUB**.
 
-Photo Edit keeps the native loupe and uses fixed Develop/Masks inspector tabs with
-existing controls (the Develop tab's groups: §13). Global parameters target **Whole photo**; mask parameters name
-the selected mask. The source sidebar and filter controls yield to the canvas.
+Photo Edit keeps the native loupe. Nothing is drawn on the photo but the dial, the mask ring and
+chips, the crop overlay, the heal spots and the Try cards / agent row (UX-16; the former Display
+info, Masks and Shortcuts pills are gone: display info is the toolbar's info button, the Masks
+tool is the strip's and M, the keys are docs/shortcuts.md). The panel is one column (§13), no
+tab switcher: the histogram, the sections, the Edits stack, and the mask list as a card at the
+top while the Masks tool is active. Global parameters target **Whole photo**; mask parameters
+name the selected mask. The source sidebar and filter controls yield to the canvas.
 Back to Library restores the prior arrangement, stable photo selection/focus and
 browser anchor; G explicitly chooses Grid on return. A source/filter/folder change
 leaves editing rather than silently changing its return scope. Normal context
@@ -648,8 +682,8 @@ recipe history. Accept's learned feedback is not advertised as undoable.
 
 ## 13. Edit panel (redesign SPEC §3, WP UX-12)
 
-`Inspector/PhotoEditInspectorView.swift`. The Develop tab of the one panel in Edit, top to
-bottom (the Masks tab is unchanged; M and the loupe mask tools switch to it):
+`Inspector/PhotoEditInspectorView.swift`. The one panel in Edit (a 320 pt column, no tab switcher since UX-16), top to
+bottom (the mask list sits above the histogram as a card, `MasksSheet`, while the Masks tool is active: the strip's button or M, `photoInspectorTab == .masks`; Done or Esc closes it):
 
 * **Histogram strip** (`HistogramView`, 40 pt): the luminance histogram as one quiet fill in a
   plot well; the shadow / highlight clipping marks (`warning`) are its only colour. No title.
@@ -731,7 +765,7 @@ the hit-test and outline are `MaskRaster` in TesseraCore.
 **Masks tool (strip).** Shows the Subject · Sky · Background · Whole photo chips top centre
 (a 999-radius pill of chips, the selected one filled with the accent) and the ring; a chip
 targets that mask for the dial and selects its group in the Masks panel. M still opens the
-brush / gradient / range toolbar; the chips move under it while it is up.
+brush / gradient / range toolbar on ⇧M (M alone closes it); the chips move under it while it is up.
 
 **Crop tool.** The existing crop overlay (rule-of-thirds guides by default) with an aspect pill
 at the top: 3:2 · 4:5 · 1:1 · 16:9 · Free, the same `CropAspect` values as the panel.
