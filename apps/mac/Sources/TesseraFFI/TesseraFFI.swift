@@ -2748,7 +2748,8 @@ public protocol DevelopSessionProtocol: AnyObject, Sendable {
     func resetMaskParams(groupId: UInt32) throws 
     
     /**
-     * Re-runs segmentation for a failed (or stale) AI component.
+     * Re-runs segmentation for a failed (or stale) AI component. The stored
+     * raster, if any, is forgotten first: a retry means a fresh result.
      */
     func retryAiMask(key: String) throws 
     
@@ -3548,7 +3549,8 @@ open func resetMaskParams(groupId: UInt32)throws   {try rustCallWithError(FfiCon
 }
     
     /**
-     * Re-runs segmentation for a failed (or stale) AI component.
+     * Re-runs segmentation for a failed (or stale) AI component. The stored
+     * raster, if any, is forgotten first: a retry means a fresh result.
      */
 open func retryAiMask(key: String)throws   {try rustCallWithError(FfiConverterTypeBridgeError_lift) {
         uniffiCallStatus in
@@ -8735,6 +8737,12 @@ public protocol EngineProtocol: AnyObject, Sendable {
     func openLrcat(path: String) throws  -> LrcatImport
     
     /**
+     * The engine's memory table (see `mem_trace`): the process footprint and
+     * every cache it holds with its resident bytes, one per line.
+     */
+    func memoryReport()  -> String
+    
+    /**
      * Synchronous preview command, run off the main actor. Does not write files.
      */
     func mergePreview(imageIds: [String], options: MergeOptions) throws  -> MergePreview
@@ -9546,6 +9554,19 @@ open func openLrcat(path: String)throws  -> LrcatImport  {
     uniffi_tessera_ffi_fn_method_engine_open_lrcat(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(path),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The engine's memory table (see `mem_trace`): the process footprint and
+     * every cache it holds with its resident bytes, one per line.
+     */
+open func memoryReport() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_tessera_ffi_fn_method_engine_memory_report(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -37961,6 +37982,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_open_lrcat() != 51145) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_tessera_ffi_checksum_method_engine_memory_report() != 4431) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_tessera_ffi_checksum_method_engine_merge_preview() != 31761) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -38321,7 +38345,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_developsession_reset_mask_params() != 52944) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_developsession_retry_ai_mask() != 3991) {
+    if (uniffi_tessera_ffi_checksum_method_developsession_retry_ai_mask() != 30537) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_developsession_set_mask_component() != 27226) {

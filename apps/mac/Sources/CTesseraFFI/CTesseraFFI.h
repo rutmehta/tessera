@@ -729,6 +729,11 @@ void uniffi_tessera_ffi_fn_method_engine_save_export_preset(uint64_t ptr, RustBu
 uint64_t uniffi_tessera_ffi_fn_method_engine_open_lrcat(uint64_t ptr, RustBuffer path, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_MEMORY_REPORT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_MEMORY_REPORT
+RustBuffer uniffi_tessera_ffi_fn_method_engine_memory_report(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_MERGE_PREVIEW
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_FN_METHOD_ENGINE_MERGE_PREVIEW
 RustBuffer uniffi_tessera_ffi_fn_method_engine_merge_preview(uint64_t ptr, RustBuffer image_ids, RustBuffer options, RustCallStatus *_Nonnull out_status
@@ -3906,6 +3911,12 @@ uint16_t uniffi_tessera_ffi_checksum_method_engine_save_export_preset(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_LRCAT
 #define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_OPEN_LRCAT
 uint16_t uniffi_tessera_ffi_checksum_method_engine_open_lrcat(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_MEMORY_REPORT
+#define UNIFFI_FFIDEF_UNIFFI_TESSERA_FFI_CHECKSUM_METHOD_ENGINE_MEMORY_REPORT
+uint16_t uniffi_tessera_ffi_checksum_method_engine_memory_report(void
     
 );
 #endif

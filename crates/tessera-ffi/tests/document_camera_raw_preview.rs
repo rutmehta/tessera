@@ -5,55 +5,12 @@
 //! peak heap allocation (a counting global allocator), never by timing.
 #![cfg(target_os = "macos")]
 
-use std::alloc::{GlobalAlloc, Layout, System};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use tessera_ffi::*;
 
-// ───────────────────────────── allocation meter ─────────────────────────────
-
-struct Counting;
-static CURRENT: AtomicUsize = AtomicUsize::new(0);
-static PEAK: AtomicUsize = AtomicUsize::new(0);
-
-unsafe impl GlobalAlloc for Counting {
-    unsafe fn alloc(&self, l: Layout) -> *mut u8 {
-        let p = unsafe { System.alloc(l) };
-        if !p.is_null() {
-            let now = CURRENT.fetch_add(l.size(), Ordering::Relaxed) + l.size();
-            PEAK.fetch_max(now, Ordering::Relaxed);
-        }
-        p
-    }
-    unsafe fn dealloc(&self, p: *mut u8, l: Layout) {
-        unsafe { System.dealloc(p, l) };
-        CURRENT.fetch_sub(l.size(), Ordering::Relaxed);
-    }
-    unsafe fn realloc(&self, p: *mut u8, l: Layout, new: usize) -> *mut u8 {
-        let q = unsafe { System.realloc(p, l, new) };
-        if !q.is_null() {
-            if new >= l.size() {
-                let now = CURRENT.fetch_add(new - l.size(), Ordering::Relaxed) + new - l.size();
-                PEAK.fetch_max(now, Ordering::Relaxed);
-            } else {
-                CURRENT.fetch_sub(l.size() - new, Ordering::Relaxed);
-            }
-        }
-        q
-    }
-}
-
-#[global_allocator]
-static ALLOC: Counting = Counting;
-
-/// Peak heap growth (bytes) while `f` runs.
-fn peak_during<T>(f: impl FnOnce() -> T) -> (T, usize) {
-    let base = CURRENT.load(Ordering::Relaxed);
-    PEAK.store(base, Ordering::Relaxed);
-    let out = f();
-    (out, PEAK.load(Ordering::Relaxed).saturating_sub(base))
-}
+// The allocation meter is the engine allocator's (`tessera_ffi::alloc::peak_during`).
+use tessera_ffi::alloc::peak_during;
 
 /// The meter is process-wide: tests in this file run one at a time.
 fn serial() -> MutexGuard<'static, ()> {

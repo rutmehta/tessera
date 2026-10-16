@@ -1,54 +1,14 @@
 //! Isolated allocator test: no other tests allocate concurrently in this binary.
 #[path = "../../import-lrcat/tests/common/mod.rs"]
 mod common;
-use std::{
-    alloc::{GlobalAlloc, Layout, System},
-    sync::atomic::{AtomicUsize, Ordering::Relaxed},
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-struct Counting;
-static LIVE: AtomicUsize = AtomicUsize::new(0);
-static PEAK: AtomicUsize = AtomicUsize::new(0);
-
-unsafe impl GlobalAlloc for Counting {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let p = unsafe { System.alloc(layout) };
-        if !p.is_null() {
-            let now = LIVE.fetch_add(layout.size(), Relaxed) + layout.size();
-            PEAK.fetch_max(now, Relaxed);
-        }
-        p
-    }
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        unsafe { System.dealloc(ptr, layout) };
-        LIVE.fetch_sub(layout.size(), Relaxed);
-    }
-    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let p = unsafe { System.realloc(ptr, layout, new_size) };
-        if !p.is_null() {
-            if new_size >= layout.size() {
-                let now =
-                    LIVE.fetch_add(new_size - layout.size(), Relaxed) + new_size - layout.size();
-                PEAK.fetch_max(now, Relaxed);
-            } else {
-                LIVE.fetch_sub(layout.size() - new_size, Relaxed);
-            }
-        }
-        p
-    }
-}
-
-#[global_allocator]
-static ALLOCATOR: Counting = Counting;
-
-/// Peak heap above the starting level while `f` runs, and its wall time.
+/// Peak heap above the starting level while `f` runs (the engine allocator
+/// counts; see `tessera_ffi::alloc`), and its wall time.
 fn measure<T>(f: impl FnOnce() -> T) -> (T, usize, Duration) {
-    let base = LIVE.load(Relaxed);
-    PEAK.store(base, Relaxed);
     let start = Instant::now();
-    let out = f();
-    (out, PEAK.load(Relaxed) - base, start.elapsed())
+    let (out, peak) = tessera_ffi::alloc::peak_during(f);
+    (out, peak, start.elapsed())
 }
 
 use tessera_ffi::{Engine, inspect_lrcat};
