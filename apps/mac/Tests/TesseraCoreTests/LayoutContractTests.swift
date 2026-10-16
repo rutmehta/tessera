@@ -24,15 +24,15 @@ final class LayoutContractTests: XCTestCase {
             for width in [80.0, 82.67, 110.67, 110] as [CGFloat] {
                 let r = ValueSlider.textRects(width: width, valueWidth: valueWidth)
                 XCTAssertEqual(r.value.width, valueWidth, "\(value) @\(width): the value is never cut")
-                XCTAssertEqual(r.value.maxX, width, accuracy: 0.001)
+                XCTAssertEqual(r.value.maxX, width - ValueSlider.edgeInset, accuracy: 0.001, "the value sits inside the ring")
                 XCTAssertGreaterThanOrEqual(r.value.minX - r.title.maxX, ValueSlider.labelValueGap - 0.001, "\(value) @\(width)")
-                XCTAssertGreaterThanOrEqual(r.title.minX, 0)
+                XCTAssertGreaterThanOrEqual(r.title.minX, ValueSlider.edgeInset, "the title sits inside the ring")
                 if width >= 110 { XCTAssertGreaterThanOrEqual(r.title.width, titleWidth, "\(value) @\(width): title fits whole") }
             }
         }
         // The audit's measured case: 53.02 pt title + 27 pt value in 80 pt had a −0.02 pt gap.
         let r = ValueSlider.textRects(width: 80, valueWidth: 27)
-        XCTAssertEqual(r.title.width, 80 - 27 - ValueSlider.labelValueGap, accuracy: 0.001)
+        XCTAssertEqual(r.title.width, 80 - 2 * ValueSlider.edgeInset - 27 - ValueSlider.labelValueGap, accuracy: 0.001)
         XCTAssertLessThan(r.title.width, titleWidth, "at 80 pt the title truncates rather than touching −100")
     }
 

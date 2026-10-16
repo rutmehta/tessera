@@ -118,10 +118,17 @@ final class ValueSlider: NSControl, KeyOwningControl {
 
     /// Title and value rectangles for a control `width` wide whose value is `valueWidth` wide:
     /// the value keeps its full width at the trailing edge, the title gets what is left after the gap.
+    /// Title, value and track sit this far inside the control's edges, so the dial ring and the
+    /// focus ring (drawn at the edges) never cross the first glyph of the title or the last of the
+    /// value. `ControlSlider` pulls the frame back out by the same amount so titles still align
+    /// with the section headers.
+    static let edgeInset: CGFloat = Theme.Space.xs
+
     static func textRects(width: CGFloat, valueWidth: CGFloat) -> (title: NSRect, value: NSRect) {
-        let valueW = min(valueWidth, max(width, 0))
-        let value = NSRect(x: max(width, 0) - valueW, y: 0, width: valueW, height: textLineHeight)
-        let title = NSRect(x: 0, y: 0, width: max(0, value.minX - labelValueGap), height: textLineHeight)
+        let inner = max(width - 2 * edgeInset, 0)
+        let valueW = min(valueWidth, inner)
+        let value = NSRect(x: edgeInset + inner - valueW, y: 0, width: valueW, height: textLineHeight)
+        let title = NSRect(x: edgeInset, y: 0, width: max(0, value.minX - labelValueGap - edgeInset), height: textLineHeight)
         return (title, value)
     }
 
@@ -133,7 +140,7 @@ final class ValueSlider: NSControl, KeyOwningControl {
     }
     /// Track: full width minus half a thumb each side, centred on the track row under the text line.
     private var trackRect: NSRect {
-        let inset = Self.thumb / 2
+        let inset = Self.thumb / 2 + Self.edgeInset
         let midY = Self.textLineHeight + (bounds.height - Self.textLineHeight) / 2
         return NSRect(x: inset, y: midY - Theme.Height.track / 2, width: max(bounds.width - 2 * inset, 1),
                       height: Theme.Height.track)

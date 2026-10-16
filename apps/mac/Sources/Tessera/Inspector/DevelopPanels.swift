@@ -8,7 +8,24 @@ import TesseraFFI
 /// A develop slider bound to a `DevelopControl`. Like the Basic sliders, a drag calls straight into
 /// the session (coalesced per display frame) and SwiftUI only refreshes the value when the
 /// develop revision changes (open, undo, preset, history) or a linked control posts a change.
-struct ControlSlider: NSViewRepresentable {
+struct ControlSlider: View {
+    let control: DevelopControl
+    var title: String?
+    var trackColors: [NSColor]?
+    var onDragBegan: ((NSEvent.ModifierFlags) -> Void)?
+    var onDragEnded: (() -> Void)?
+
+    /// The slider keeps its text and track `ValueSlider.edgeInset` inside its frame so the dial
+    /// and focus rings never cross a glyph; the row widens the frame by the same amount so the
+    /// title still sits on the section header's left edge and the value on its right.
+    var body: some View {
+        ControlSliderView(control: control, title: title, trackColors: trackColors,
+                          onDragBegan: onDragBegan, onDragEnded: onDragEnded)
+            .padding(.horizontal, -ValueSlider.edgeInset)
+    }
+}
+
+struct ControlSliderView: NSViewRepresentable {
     let control: DevelopControl
     var title: String?
     var trackColors: [NSColor]?
