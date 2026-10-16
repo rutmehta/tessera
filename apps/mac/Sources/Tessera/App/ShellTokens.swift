@@ -11,6 +11,14 @@ extension Theme.Space {
 extension Theme.Height {
     /// UX-16: the search bar ⌘F drops under the toolbar.
     static let searchBar: CGFloat = 40
+    /// UX-16: what the bottom row (Try cards and the agent row) reserves at the bottom of the
+    /// Edit panel, so no control hides under it (the prototype's 150 px).
+    static let bottomRow: CGFloat = 150
+}
+
+extension Theme.Width {
+    /// UX-16: the Edit panel, a plain column beside the photo (the prototype's 320 px).
+    static let editPanel: CGFloat = 320
 }
 
 extension Theme.Width {

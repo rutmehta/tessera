@@ -26,6 +26,8 @@ struct PhotoEditInspectorView: View {
                 PhotoDevelopPanels(model: model)
             }
             .animation(Theme.Motion.appear, value: model.photoInspectorTab)
+            // The Try cards and the agent row cross the panel's bottom (as in the prototype).
+            .padding(.bottom, Theme.Height.bottomRow)
         }
         .scrollIndicators(.never)
         // The prototype's panel: the canvas ground with a hairline on its left, no fill.

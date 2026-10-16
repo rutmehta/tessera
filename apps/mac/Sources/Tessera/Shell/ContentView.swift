@@ -35,7 +35,9 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView(model: model)
-                .toolbar(removing: model.viewMode == .document ? .sidebarToggle : nil)
+                // UX-16: no automatic sidebar toggle (View ▸ Show Library Sidebar; the folder
+                // button is the sidebar's content); document mode keeps its labelled one below.
+                .toolbar(removing: .sidebarToggle)
                 .toolbar {
                     if model.viewMode == .document {
                         // SwiftUI's automatic item has no hook for AX metadata. Keep its native
@@ -86,6 +88,8 @@ struct ContentView: View {
                 }
                 GeometryReader { area in
                     ZStack {
+                    HStack(spacing: 0) {
+                    ZStack {
                         // Both stay alive so grid scroll position and loupe texture survive mode switches.
                         // UX-14: in Cull the grid shows through the burst workspace's centre (grouped by
                         // burst) and hides under the burst view.
@@ -135,21 +139,6 @@ struct ContentView: View {
                         } else if model.isCullWorkspace {
                             CullWorkspace(model: model)
                         }
-                        // UX-11: the agent field sits bottom centre of every mode (Review keeps its own
-                        // instruction field in the inspector); the toast moves up above it.
-                        VStack {
-                            Spacer()
-                            if let toast = model.toast {
-                                ToastView(model: model, toast: toast)
-                                    .padding(.bottom, Theme.Space.l)
-                                    .transition(Theme.Motion.transition(from: .bottom))
-                            }
-                            if model.viewMode != .document, !model.isReviewing {
-                                AgentRow(model: model)
-                                    .padding(.bottom, Theme.Space.l)
-                            }
-                        }
-                        .animation(Theme.Motion.appear, value: model.toast)
                         // Debug ▸ Show Engine Readouts: the render timing floats top right of the canvas.
                         if model.showRenderReadout, model.viewMode != .document, let readout = model.renderReadout {
                             VStack {
@@ -168,6 +157,34 @@ struct ContentView: View {
                             .padding(Theme.Space.panelInset)
                             .allowsHitTesting(false)
                         }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    // UX-16: Edit's panel is a plain 320 pt column beside the photo (the prototype's),
+                    // not the system inspector, whose macOS 26 column covers the toolbar's right.
+                    if model.isPhotoEditing, model.showInspector {
+                        PhotoEditInspectorView(model: model)
+                            .frame(width: Theme.Width.editPanel)
+                            .transition(Theme.Motion.transition(from: .trailing))
+                    }
+                    }
+                    .animation(Theme.Motion.appear, value: model.showInspector)
+                    // UX-11: the agent field sits bottom centre of every mode (Review keeps its own
+                    // instruction field in the inspector), over the whole width like the prototype's;
+                    // the toast moves up above it.
+                    VStack {
+                        Spacer()
+                        if let toast = model.toast {
+                            ToastView(model: model, toast: toast)
+                                .padding(.bottom, Theme.Space.l)
+                                .transition(Theme.Motion.transition(from: .bottom))
+                        }
+                        if model.viewMode != .document, !model.isReviewing {
+                            AgentRow(model: model)
+                                .padding(.bottom, Theme.Space.l)
+                        }
+                    }
+                    .animation(Theme.Motion.appear, value: model.toast)
                     }
                     .frame(width: area.size.width, height: area.size.height)
                     .clipped()
@@ -248,12 +265,12 @@ struct ContentView: View {
                                     set: { if !$0 { model.collections.editor = nil } })) {
             SmartAlbumSheet(library: model.collections)
         }
-        // UX-14 / UX-15: in Cull the panel is the triage column on the left, in Deliver the
-        // What · How · Where column; the inspector stays for the loupe, Compare, Edit, Review and
-        // documents.
-        .inspector(isPresented: Binding(get: { model.showInspector && !model.isCullWorkspace && !model.deliverMode },
+        // UX-14 / UX-15 / UX-16: in Cull the panel is the triage column on the left, in Deliver the
+        // What · How · Where column, in Edit the 320 pt column beside the photo; the inspector
+        // stays for the library loupe, Compare, Review and documents.
+        .inspector(isPresented: Binding(get: { model.showInspector && !model.isCullWorkspace && !model.deliverMode && !model.isPhotoEditing },
                                         set: { shown in
-                                            if !model.isCullWorkspace, !model.deliverMode, shown != model.showInspector { model.toggleInspectorPanel() }
+                                            if !model.isCullWorkspace, !model.deliverMode, !model.isPhotoEditing, shown != model.showInspector { model.toggleInspectorPanel() }
                                         })) {
             Group {
                 if model.viewMode == .document {
@@ -261,8 +278,6 @@ struct ContentView: View {
                 } else if model.isReviewing {
                     AgentReviewInspector(model: model, busy: model.agent.isRunning || !model.agent.busy.isEmpty,
                                          canEdit: model.canEnterPhotoEdit)
-                } else if model.isPhotoEditing {
-                    PhotoEditInspectorView(model: model)
                 } else {
                     InspectorView(model: model)
                 }
@@ -274,6 +289,11 @@ struct ContentView: View {
                                       max: inspectorFit)
         }
         .toolbar { toolbar }
+        // UX-16: the folder button is the title (none inline either, as happens with the sidebar
+        // collapsed), and the bar is the canvas ground with a hairline under it, not the toolbar
+        // material.
+        .toolbar(removing: .title)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .environment(\.toolbarCompact, windowSize.width > 0 && windowSize.width < ShellBudget.compactToolbarWidth)
         .tint(Theme.accent)
         .background(WindowToolbarConfigurator())
@@ -383,11 +403,12 @@ struct ContentView: View {
                     .help("Return to Library; open documents stay available")
                     .accessibilityIdentifier("document.toolbar.library")
             } else {
+                // The prototype's modes: titles only, the chosen one ink-filled.
                 SegmentedPicker(selection: Binding(get: { model.shellMode }, set: { model.selectShellMode($0) }),
                                 segments: ShellMode.allCases.map { mode in
-                    .init(value: mode, title: mode.title, symbol: mode.symbol,
+                    .init(value: mode, title: mode.title,
                           help: "\(mode.title) (⌘\(ShellMode.allCases.firstIndex(of: mode)! + 1))")
-                }, height: Theme.Height.large, fill: false, accessibilityPrefix: "\(axMode).toolbar.workspace")
+                }, height: Theme.Height.sectionHeader, fill: false, prominent: true, accessibilityPrefix: "\(axMode).toolbar.workspace")
                 .accessibilityLabel("Mode")
             }
         }
@@ -412,20 +433,19 @@ struct ContentView: View {
             Toggle(isOn: Binding(get: { model.showInspector }, set: { _ in model.toggleInspectorPanel() })) {
                 Label("Panel", systemImage: "sidebar.right")
             }
-            .toggleStyle(ToolbarToggleStyle())
+            .toggleStyle(ToolbarToggleStyle(iconOnly: true))
             .help(model.viewMode == .document ? "Show or hide the inspector (⌥⌘I)" : "Show or hide the panel (Tab)")
             .accessibilityIdentifier(model.viewMode == .document ? "document.toolbar.inspector" : "\(axMode).toolbar.inspector")
         }
         .flatToolbarItem()
         ToolbarItem(id: "export", placement: .primaryAction) {
+            // The prototype's one filled button: the accent, 32 pt, radius 8.
             if model.viewMode != .document {
-                Button { model.presentExport() } label: {
-                    Label("Export", systemImage: "square.and.arrow.up")
-                }
-                .buttonStyle(ToolbarButtonStyle())
-                .disabled(!model.isEngineBacked || model.exporter.isRunning)
-                .help("Export the selection or the view (⇧⌘E)")
-                .accessibilityIdentifier("\(axMode).toolbar.export")
+                Button("Export") { model.presentExport() }
+                    .buttonStyle(ToolbarPrimaryButtonStyle())
+                    .disabled(!model.isEngineBacked || model.exporter.isRunning)
+                    .help("Export the selection or the view (⇧⌘E)")
+                    .accessibilityIdentifier("\(axMode).toolbar.export")
             }
         }
         .flatToolbarItem()
@@ -519,45 +539,65 @@ extension ToolbarContent {
 /// Toolbar toggle: icon + label, flat. On = a neutral pressed fill and primary text (the accent
 /// stays reserved for content selection, focus and primary actions).
 struct ToolbarToggleStyle: ToggleStyle {
+    var iconOnly = false
     func makeBody(configuration: Configuration) -> some View {
         Button { configuration.isOn.toggle() } label: {
             configuration.label
         }
-        .buttonStyle(ToolbarButtonStyle(on: configuration.isOn))
+        .buttonStyle(ToolbarButtonStyle(on: configuration.isOn, iconOnly: iconOnly))
         .accessibilityAddTraits(configuration.isOn ? .isSelected : [])
     }
 }
 
-/// Flat toolbar button: 28 pt, radius 6, hover and pressed fills only.
+/// Flat toolbar button: 32 pt, radius 6, hover and pressed fills only. `iconOnly` is the
+/// prototype's 32 × 32 icon button (Before, the info button, Panel).
 struct ToolbarButtonStyle: ButtonStyle {
     var on = false
+    var iconOnly = false
     func makeBody(configuration: Configuration) -> some View {
-        ToolbarButtonBody(configuration: configuration, on: on)
+        ToolbarButtonBody(configuration: configuration, on: on, iconOnly: iconOnly)
     }
 }
 
 private struct ToolbarButtonBody: View {
     let configuration: ButtonStyle.Configuration
     let on: Bool
+    let iconOnly: Bool
     @State private var hovering = false
     /// M2-56: icons only in a narrow window (the title stays the help / accessibility label).
     @Environment(\.toolbarCompact) private var compact
     var body: some View {
         Group {
-            if compact {
-                configuration.label.labelStyle(.iconOnly)
+            if compact || iconOnly {
+                configuration.label.labelStyle(.iconOnly).font(Theme.Fonts.icon)
+                    .frame(width: iconOnly ? Theme.Height.sectionHeader : nil)
             } else {
-                configuration.label.labelStyle(.titleAndIcon)
+                configuration.label.labelStyle(.titleAndIcon).font(Theme.Fonts.bodyMedium)
+                    .padding(.horizontal, Theme.Space.s)
             }
         }
-            .font(Theme.Fonts.label)
             .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
-            .padding(.horizontal, Theme.Space.s)
-            .frame(height: Theme.Height.large)
+            .frame(height: Theme.Height.sectionHeader)
             .background(RoundedRectangle(cornerRadius: Theme.Radius.control)
                 .fill(configuration.isPressed || on ? Theme.pressed : hovering ? Theme.hover : Theme.clear))
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
+    }
+}
+
+/// The toolbar's one filled button (Export): the accent, 32 pt, radius 8, 13/600 on `textOnAccent`.
+struct ToolbarPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Theme.Fonts.bodySemibold)
+            .foregroundStyle(Theme.textOnAccent)
+            .padding(.horizontal, Theme.Space.m + Theme.Space.xxs)
+            .frame(height: Theme.Height.sectionHeader)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.card)
+                .fill(Theme.accent.opacity(configuration.isPressed ? 0.85 : 1)))
+            .opacity(enabled ? 1 : Theme.Opacity.disabled)
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 }
 
@@ -566,21 +606,14 @@ private struct ToolbarButtonBody: View {
 struct BeforeAfterButton: View {
     let model: AppModel
     @State private var hovering = false
-    @Environment(\.toolbarCompact) private var compact
 
     var body: some View {
         let on = model.showingBefore
-        Group {
-            if compact {
-                Label("Before", systemImage: "rectangle.split.2x1").labelStyle(.iconOnly)
-            } else {
-                Label("Before", systemImage: "rectangle.split.2x1").labelStyle(.titleAndIcon)
-            }
-        }
-        .font(Theme.Fonts.label)
+        // The prototype's 32 × 32 icon button; the title is the help and accessibility label.
+        Label("Before", systemImage: "rectangle.split.2x1").labelStyle(.iconOnly)
+        .font(Theme.Fonts.icon)
         .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
-        .padding(.horizontal, Theme.Space.s)
-        .frame(height: Theme.Height.large)
+        .frame(width: Theme.Height.sectionHeader, height: Theme.Height.sectionHeader)
         .background(RoundedRectangle(cornerRadius: Theme.Radius.control)
             .fill(on ? Theme.pressed : hovering ? Theme.hover : Theme.clear))
         .contentShape(Rectangle())

@@ -201,6 +201,9 @@ struct SegmentedPicker<Value: Hashable>: View {
     var height: CGFloat = Theme.Height.regular
     /// Stretch segments to fill the width (inspector) or hug the titles (toolbars, sheets).
     var fill = true
+    /// UX-16: the mode control of the toolbar: 13 pt titles, the chosen segment filled with ink
+    /// (`textPrimary`) and its title in the canvas colour, semibold, on the panel ground.
+    var prominent = false
     var accessibilityPrefix: String? = nil
     @Environment(\.isEnabled) private var enabled
 
@@ -214,16 +217,16 @@ struct SegmentedPicker<Value: Hashable>: View {
                         if let symbol = s.symbol { Image(systemName: symbol).font(Theme.Fonts.iconSmall) }
                         if !s.title.isEmpty { Text(s.title) }
                     }
-                    .font(height <= Theme.Height.small ? Theme.Fonts.caption : Theme.Fonts.label)
-                    .fontWeight(on ? .medium : .regular)
+                    .font(prominent ? Theme.Fonts.body : height <= Theme.Height.small ? Theme.Fonts.caption : Theme.Fonts.label)
+                    .fontWeight(on ? (prominent ? .semibold : .medium) : .regular)
                     .lineLimit(1)
-                    .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
-                    .padding(.horizontal, Theme.Space.s)
+                    .foregroundStyle(on ? (prominent ? Theme.canvas : Theme.textPrimary) : prominent ? Theme.textTertiary : Theme.textSecondary)
+                    .padding(.horizontal, prominent ? Theme.Space.l : Theme.Space.s)
                     .frame(maxWidth: fill ? .infinity : nil)
                     .frame(height: height - Theme.Space.xs)
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.chip)
-                        .fill(on ? Theme.raised : Theme.clear)
-                        .shadow(color: on ? Theme.shadow.opacity(0.4) : Theme.clear, radius: 1, y: 0.5))
+                    .background(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.control : Theme.Radius.chip)
+                        .fill(on ? (prominent ? Theme.textPrimary : Theme.raised) : Theme.clear)
+                        .shadow(color: on && !prominent ? Theme.shadow.opacity(0.4) : Theme.clear, radius: 1, y: 0.5))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -233,10 +236,11 @@ struct SegmentedPicker<Value: Hashable>: View {
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
-        .padding(Theme.Space.xxs)
+        .padding(prominent ? Theme.Space.xs - Theme.Space.hairline : Theme.Space.xxs)
         .frame(height: height)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.control).fill(Theme.well))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(Theme.hairline, lineWidth: Theme.Space.hairline))
+        .background(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.card : Theme.Radius.control).fill(prominent ? Theme.panel : Theme.well))
+        .overlay(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.card : Theme.Radius.control)
+            .strokeBorder(prominent ? Theme.clear : Theme.hairline, lineWidth: Theme.Space.hairline))
         .opacity(enabled ? 1 : Theme.Opacity.disabled)
         .accessibilityElement(children: .contain)
     }
