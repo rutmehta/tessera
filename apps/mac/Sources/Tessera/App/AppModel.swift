@@ -460,7 +460,12 @@ final class AppModel {
     }
     var autoAdvance = true
     var showInspector = true
-    var showFilmstrip = true
+    /// UX-16: the filmstrip is off by default (View ▸ Filmstrip, remembered); in Cull the burst
+    /// strip is the only strip, and Edit moves with ← → (the folder button says "n of 226").
+    var showFilmstrip = UserDefaults.standard.bool(forKey: AppModel.filmstripKey) {
+        didSet { UserDefaults.standard.set(showFilmstrip, forKey: Self.filmstripKey) }
+    }
+    static let filmstripKey = "ShowFilmstrip"
     /// UX-11 / UX-15: the Deliver workspace (What · How · Where over the Library canvas; see
     /// AppModel+Deliver.swift). Cleared by every Library / Edit / Review navigation.
     var deliverMode = false {

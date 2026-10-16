@@ -36,7 +36,7 @@ commands may not claim the reserved combinations listed below.
 | Document | ⌘0 | AppCommands / Fit on Screen |
 | Document | ⌘1 | AppCommands / 100 % |
 | Document / Library | ⌥⌘I | AppCommands / Hide Inspector / Show Inspector |
-| Document / Library | ⌥⌘F | AppCommands / Hide Filmstrip / Show Filmstrip |
+| Document / Library | ⌥⌘F | AppCommands / Filmstrip |
 | Library | ⌘F | AppCommands / Hide Search / Search |
 | Library | ⌘= | AppCommands / Larger |
 | Library | ⌘- | AppCommands / Smaller |

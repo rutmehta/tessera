@@ -124,7 +124,8 @@ struct AppCommands: Commands {
             // UX-11: the source sidebar is hidden by default (its content is the toolbar's folder popover).
             Button(model.librarySidebarShown ? "Hide Library Sidebar" : "Show Library Sidebar") { model.toggleLibrarySidebar() }
                 .disabled(docMode || model.isPhotoEditing || model.isReviewing)
-            Button(model.showFilmstrip ? "Hide Filmstrip" : "Show Filmstrip") { model.showFilmstrip.toggle() }
+            // UX-16: off by default; the burst strip is Cull's strip and Edit moves with ← →.
+            Toggle("Filmstrip", isOn: Binding(get: { model.showFilmstrip }, set: { model.showFilmstrip = $0 }))
                 .keyboardShortcut("f", modifiers: [.command, .option])
             // UX-16: search left the toolbar (⌘F drops it under the toolbar in Cull) and so did the
             // thumbnail size slider (this submenu and a pinch on the grid).

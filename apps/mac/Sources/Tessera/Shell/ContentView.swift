@@ -327,8 +327,11 @@ struct ContentView: View {
 
     /// M2-56 yield order, step 3: the filmstrip hides when the canvas above it would be shorter than
     /// `ShellBudget.canvasMinHeight`. Decided from the height without the strip, so it cannot flicker.
+    /// UX-16: only with View ▸ Filmstrip on, and never under the burst view (its strip is the only
+    /// strip) or Deliver.
     private var showsFilmstrip: Bool {
-        guard model.showFilmstrip, !model.isReviewing, !model.isReviewEditing, !model.library.items.isEmpty, model.viewMode != .document else { return false }
+        guard model.showFilmstrip, !model.isReviewing, !model.isReviewEditing, !model.library.items.isEmpty, model.viewMode != .document,
+              !model.isBurstViewShown, !model.deliverMode else { return false }
         guard canvasBase > 0 else { return true }
         return ShellBudget.filmstripFits(detailHeight: canvasBase, chrome: 0)
     }
