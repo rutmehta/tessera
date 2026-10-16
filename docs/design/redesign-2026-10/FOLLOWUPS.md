@@ -37,3 +37,12 @@ much they would annoy Rut.
     (`DeliverEvidenceTests`, `TESSERA_DELIVER_EVIDENCE` + `TESSERA_DELIVER_SHOOT`) because the
     automation shell had no screen-recording permission; a SwiftUI `ScrollView` draws a white
     ground in those renders, so the grid scrolls only when the cells do not fit.
+
+## After ST-1 / ST-2 (2026-10-16)
+
+12. **Engine memory.** On the 8-RAW sample the footprint sits at 2.3–3.5 GB after closing everything (0.7 GB after the scan alone; ~64 MB per opened photo stays behind). Nothing on the Swift side references it (`EngineSessionMemoryTests`); it is the engine's shared renderer/memo cache and per-image residue in `crates/`. Needs a cap and release-on-close in image-core.
+13. **`index_folder` scans under the catalog lock** (183–686 ms holds under load): the index crate's scan is one `&mut self` pass (stat → EXIF → write). The UI no longer queues behind it for lookups (separate reader), but `list_images`/`roots` answer Busy during it. Split the scan into read-outside / write-inside passes.
+14. **AI masks re-segment on session open** for recipes that already carry AI masks (seen as a 2.5 s `AiMaskJob` on the owner's folder). Load the saved rasters instead.
+15. **`getHistogram` per frame and the `DevelopSession` per-tick calls stay on the main actor** by design; measure them under the watchdog on a 61 MP file.
+16. **`cargo test -p tessera-ffi` alone fails two understanding tests** (`suggestion_jobs_report_progress…`, `accept_is_catalog_only…`: "blue" no longer maps onto an existing Colors > Blue). They pass when the engine crates are tested together, so it is feature unification in the test build; pin the feature in `tessera-ffi`'s dev-dependencies so the single-crate run matches.
+17. **UI collisions reported by the owner on the work Mac** are still unlocated: needs a screenshot and the window size; the layout audit passes at 1440×900 and up.
