@@ -3,17 +3,18 @@ import TesseraCore
 
 /// The breadcrumb header is gone (UX-11: the toolbar is the only bar; the status bar names the
 /// position and the window title the folder). What remains is the one notice that changes what
-/// the person can do: a cached Smart Preview library is read-only until it is reopened.
+/// the person can do: the drive is not attached, so the folder is open on its offline previews
+/// and culling waits (OF-2 copy: `OfflineCopy.banner`).
 struct CachedPreviewNotice: View {
     let model: AppModel
 
     var body: some View {
         HStack(spacing: Theme.Space.m) {
-            Text("Cached Smart Preview Library · Catalog read-only · Subfolders unavailable")
+            Text(model.offlineBanner)
                 .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
                 .lineLimit(1).truncationMode(.tail)
                 .accessibilityIdentifier("cached-preview-library-mode")
-                .help("Cached declarations only; assets validate when checked or opened. Use Smart Preview explicitly to edit. Reopen to refresh membership or return to originals.")
+                .help(OfflineCopy.bannerHelp)
             Spacer(minLength: Theme.Space.m)
             Button("Reopen Library") { model.reopenCachedPreviewLibrary() }
                 .buttonStyle(.theme(.bordered, height: Theme.Height.regular))

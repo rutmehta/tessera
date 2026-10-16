@@ -31,8 +31,11 @@ final class OfflineLibraryRoutingTests: XCTestCase {
         let result: [String] = try LibraryOpenRouter.open(folder: folder, availability: { _ in false },
             original: { _ in XCTFail("No original scan"); return ["unexpected"] }, cached: { _ in [] })
         XCTAssertTrue(result.isEmpty)
-        XCTAssertTrue(LibraryAccessMode.cachedSmartPreviews.emptyMessage.contains("Reconnect"))
-        XCTAssertTrue(LibraryAccessMode.cachedSmartPreviews.emptyMessage.contains("build"))
+        // OF-2 copy: attach the drive and the previews are made in the background.
+        XCTAssertTrue(LibraryAccessMode.cachedSmartPreviews.emptyMessage.contains("Attach"))
+        XCTAssertTrue(LibraryAccessMode.cachedSmartPreviews.emptyMessage.contains("background"))
+        XCTAssertEqual(LibraryAccessMode.cachedSmartPreviews.emptyMessage(volume: "Rut photo"),
+                       "No offline previews for this folder yet. Attach “Rut photo” and Tessera makes them in the background.")
     }
 
     func testOrdinaryOnlineErrorDoesNotFallBackToCache() {

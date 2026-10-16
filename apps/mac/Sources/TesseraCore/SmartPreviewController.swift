@@ -59,18 +59,19 @@ public enum SmartPreviewUIError: LocalizedError {
 
 /// A missing, clean preview may use the original. Failed opens never silently retry a
 /// different source, and an explicit Original choice cannot bypass a pending journal.
+/// With the original offline a usable preview opens on its own (OF-2): no menu trip.
 @MainActor
 public enum SmartPreviewRouting {
-    public static func route(_ info: SmartPreviewSnapshot, preferPreview: Bool) throws -> DevelopSourceRoute {
+    /// `volumeName`: the detached drive, for the missing-preview message.
+    public static func route(_ info: SmartPreviewSnapshot, preferPreview: Bool,
+                             volumeName: String? = nil) throws -> DevelopSourceRoute {
         guard !info.needsAttention else {
             throw SmartPreviewUIError.unavailable(info.message.isEmpty ? info.badge : info.message)
         }
         if preferPreview, info.state != .missing { return .smartPreview }
         guard info.originalAvailable else {
-            if info.state != .missing {
-                throw SmartPreviewUIError.unavailable("Original offline. Choose Library → Smart Previews → Use Smart Preview to edit the existing preview.")
-            }
-            throw SmartPreviewUIError.unavailable("Original offline and no Smart Preview is available. Reconnect the original to build one.")
+            if info.state != .missing { return .smartPreview }
+            throw SmartPreviewUIError.unavailable(OfflineCopy.missingPreview(volume: volumeName))
         }
         guard !info.hasPendingEdits else {
             throw SmartPreviewUIError.unavailable("Synchronize pending Smart Preview edits before using Original")
@@ -78,25 +79,48 @@ public enum SmartPreviewRouting {
         return .original
     }
 
-    public static func open<T>(_ info: SmartPreviewSnapshot, preferPreview: Bool,
+    public static func open<T>(_ info: SmartPreviewSnapshot, preferPreview: Bool, volumeName: String? = nil,
                                using opener: @MainActor (DevelopSourceRoute) async throws -> T) async throws -> T {
-        try await opener(route(info, preferPreview: preferPreview))
+        try await opener(route(info, preferPreview: preferPreview, volumeName: volumeName))
     }
 }
 
 /// Injectable actor-isolated boundary. Live implementations MUST dispatch blocking
 /// native work off MainActor; deterministic tests may suspend with continuations.
+/// The offline half (OF-2: coverage, candidates, ensure, pending sync, storage) defaults to
+/// "not available", so a fake built for the Smart Preview batch alone still fails softly.
 @MainActor
 public struct SmartPreviewAPI {
     public var info: @MainActor (String) async throws -> SmartPreviewSnapshot
     public var build: @MainActor (String) async throws -> SmartPreviewSnapshot
     public var discard: @MainActor (String) async throws -> Void
     public var synchronize: @MainActor (String) async throws -> SmartPreviewSnapshot
+    /// Coverage of one folder (cheap; no catalog lock held across file reads).
+    public var coverage: @MainActor (String) async throws -> OfflineCoverage
+    /// RAW ids under the folder without a usable preview: keeps first, then newest. `limit` 0 means all.
+    public var candidates: @MainActor (String, UInt32) async throws -> [String]
+    /// The existing preview when usable, otherwise a build (idempotent).
+    public var ensure: @MainActor (String) async throws -> SmartPreviewSnapshot
+    /// Ids whose journal has edits not yet written to the sidecars.
+    public var pendingSync: @MainActor () async throws -> [String]
+    /// Bytes under `smart-previews/`.
+    public var storage: @MainActor () async throws -> UInt64
+
+    public static let offlineUnavailable = "Offline previews need the engine update"
+    public static func unavailable<T>() throws -> T { throw SmartPreviewUIError.unavailable(offlineUnavailable) }
+
     public init(info: @escaping @MainActor (String) async throws -> SmartPreviewSnapshot,
                 build: @escaping @MainActor (String) async throws -> SmartPreviewSnapshot,
                 discard: @escaping @MainActor (String) async throws -> Void,
-                synchronize: @escaping @MainActor (String) async throws -> SmartPreviewSnapshot) {
+                synchronize: @escaping @MainActor (String) async throws -> SmartPreviewSnapshot,
+                coverage: @escaping @MainActor (String) async throws -> OfflineCoverage = { _ in try unavailable() },
+                candidates: @escaping @MainActor (String, UInt32) async throws -> [String] = { _, _ in try unavailable() },
+                ensure: @escaping @MainActor (String) async throws -> SmartPreviewSnapshot = { _ in try unavailable() },
+                pendingSync: @escaping @MainActor () async throws -> [String] = { try unavailable() },
+                storage: @escaping @MainActor () async throws -> UInt64 = { try unavailable() }) {
         self.info = info; self.build = build; self.discard = discard; self.synchronize = synchronize
+        self.coverage = coverage; self.candidates = candidates; self.ensure = ensure
+        self.pendingSync = pendingSync; self.storage = storage
     }
 }
 

@@ -97,8 +97,9 @@ final class SmartPreviewNativeWorkflowTests: XCTestCase {
         let snapshot = try await SmartPreviewAPI.live(engine: library.engine).info(imageID)
         XCTAssertEqual(snapshot.state, .originalOffline)
         XCTAssertFalse(snapshot.originalAvailable)
-        XCTAssertThrowsError(try SmartPreviewRouting.route(snapshot, preferPreview: false))
-        let controller = try await SmartPreviewRouting.open(snapshot, preferPreview: true) { source in
+        // OF-2: with the original offline the existing preview opens without the menu toggle.
+        XCTAssertEqual(try SmartPreviewRouting.route(snapshot, preferPreview: false), .smartPreview)
+        let controller = try await SmartPreviewRouting.open(snapshot, preferPreview: false) { source in
             try await DevelopController.open(reference, itemID: item.id, source: source)
         }
         do {

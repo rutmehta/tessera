@@ -460,15 +460,18 @@ struct ContentView: View {
 
     /// "World Cup final + NYC · 226": the folder (or album / person) and how many photos are in view.
     private var folderTitle: String {
-        guard !model.library.items.isEmpty else { return "No folder" }
+        // OF-2: an offline folder with no previews yet is still that folder, not "No folder".
+        guard !model.library.items.isEmpty else { return model.library.folder == nil ? "No folder" : model.library.title }
         let n = model.visibleCount
         return n > 0 ? "\(model.library.title) · \(n.formatted())" : model.library.title
     }
 
-    /// Edit's thin position line under the folder name ("3 of 226"), where ← → move.
+    /// Edit's thin position line under the folder name ("3 of 226"), where ← → move; with the
+    /// original offline it adds "Editing offline preview" (OF-2).
     private var folderPosition: String? {
         guard model.isPhotoEditing, let p = model.focusedPosition, model.visibleCount > 0 else { return nil }
         return "\((p + 1).formatted()) of \(model.visibleCount.formatted())"
+            + (model.editingOfflinePreviewLabel.map { " · " + $0 } ?? "")
     }
 }
 
@@ -669,8 +672,9 @@ struct EmptyStateView: View {
     let model: AppModel
     var body: some View {
         EmptyStateContent(symbol: "photo.on.rectangle.angled",
-                          title: model.isLoading ? "Reading folder…" : (model.isCachedPreviewLibrary ? "No cached Smart Previews" : "No images"),
-                          message: model.isCachedPreviewLibrary ? LibraryAccessMode.cachedSmartPreviews.emptyMessage
+                          // OF-2 copy for an offline folder without previews.
+                          title: model.isLoading ? "Reading folder…" : (model.isCachedPreviewLibrary ? OfflineCopy.emptyTitle : "No images"),
+                          message: model.isCachedPreviewLibrary ? model.offlineEmptyMessage
                             : "Open a folder of JPEG or RAW files to start culling.") {
             Button("Open Folder…") { model.presentOpenPanel() }.accessibilityIdentifier("library.empty.openFolder")
                 .buttonStyle(.theme(.primary, height: Theme.Height.large))

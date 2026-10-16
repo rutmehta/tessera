@@ -650,7 +650,11 @@ final class AppModel {
         Task.detached(priority: .utility) {
             let roots = (try? engine.map { engine in try EngineBusy.waiting { try engine.roots() }.map(LibraryRoot.init) }
                          ?? LibraryRoot.list()) ?? []
-            await MainActor.run { self.libraryRoots = roots; self.openPendingRootIfAttached() }
+            await MainActor.run {
+                self.libraryRoots = roots
+                self.openPendingRootIfAttached()
+                self.offlinePreviews.refreshRootCoverage(paths: roots.filter { !$0.attached }.map(\.path)) // OF-2
+            }
         }
     }
 
@@ -668,6 +672,7 @@ final class AppModel {
 
     private func volumesDidChange() {
         refreshLibraryRoots()
+        offlineVolumesDidChange() // OF-2: reopen an offline library whose drive is back; write journals
     }
 
     private func openPendingRootIfAttached() {
@@ -792,7 +797,8 @@ final class AppModel {
                     self.assist.libraryDidLoad(seedFaces: seedFaces)
                     self.openPeople()
                     if self.isCachedPreviewLibrary {
-                        self.statusMessage = "Cached Smart Preview Library: \(lib.items.count.formatted()) declarations; original folder unavailable. Catalog read-only."
+                        // OF-2 copy: the drive and its previews, nothing about caches or catalogs.
+                        self.statusMessage = OfflineCopy.openedOffline(volume: self.libraryVolumeName, previews: lib.items.count)
                         self.finishFolderRequest(requestID, loaded: true)
                         return
                     }
@@ -905,9 +911,11 @@ final class AppModel {
         smartPreviews.cancel() // any captured old native operation still drains on its owner
         smartPreviews.select(imageID: nil)
         library = lib
-        let previews = SmartPreviewController(api: (lib as? EngineLibrary).map { .live(engine: $0.engine) },
+        let previewAPI = (lib as? EngineLibrary).map { SmartPreviewAPI.live(engine: $0.engine) }
+        let previews = SmartPreviewController(api: previewAPI,
                                               thumbnailSource: (lib as? EngineLibrary)?.isReadOnly == true ? .smartPreview : .original)
         smartPreviews = previews
+        installOfflinePreviews(lib, api: previewAPI) // OF-2
         previews.onChange = { [weak self, weak previews] imageID in
             guard let self, let previews, self.smartPreviews === previews,
                   let id = self.engineLibrary?.itemOfImage[imageID] else { return }
@@ -1210,7 +1218,7 @@ final class AppModel {
                         self.install(replacement)
                         self.assist.libraryDidLoad(seedFaces: false)
                         self.statusMessage = replacement.isReadOnly
-                            ? "Original folder unavailable; showing cached Smart Preview declarations. Catalog read-only."
+                            ? OfflineCopy.openedOffline(volume: self.libraryVolumeName, previews: replacement.items.count) // OF-2
                             : "Opened \(replacement.title): \(replacement.items.count.formatted()) images"
                         then?(self, true)
                         return
@@ -2513,6 +2521,124 @@ final class AppModel {
         }
     }
 
+    // MARK: Offline previews (OF-2) — begin
+    // docs/design/offline/SPEC.md "OF-2: app contract". Everything offline-specific in this
+    // class lives between these markers; the other touches are one-liners marked `OF-2`.
+
+    /// The background builder for the open library (one per `install`, like `smartPreviews`).
+    private(set) var offlinePreviews = OfflinePreviews()
+    @ObservationIgnored private var offlineAPI: SmartPreviewAPI?
+    @ObservationIgnored private var offlineSyncTask: Task<Void, Never>?
+
+    /// The drive the open folder lives on, by name (the roots list, else the `/Volumes/<name>`
+    /// path), for the offline copy. Nil on the boot volume or with no folder.
+    var libraryVolumeName: String? {
+        guard let folder = library.folder else { return nil }
+        if let root = libraryRoots.first(where: { $0.path == folder.path }), let name = root.volumeName { return name }
+        let parts = folder.pathComponents
+        if parts.count > 2, parts[1] == "Volumes" { return parts[2] }
+        return nil
+    }
+
+    /// The Edit header's position line says the preview, not the original, is open.
+    var editingOfflinePreviewLabel: String? {
+        isPhotoEditing && develop != nil && developSourceRoute == .smartPreview ? OfflineCopy.editingOfflinePreview : nil
+    }
+
+    /// The empty state and banner copy for an offline library.
+    var offlineEmptyMessage: String { OfflineCopy.emptyMessage(volume: libraryVolumeName) }
+    var offlineBanner: String { OfflineCopy.banner(volume: libraryVolumeName) }
+
+    private func installOfflinePreviews(_ lib: any PhotoLibrary, api: SmartPreviewAPI?) {
+        offlinePreviews.cancel()
+        offlineSyncTask?.cancel()
+        offlineSyncTask = nil
+        offlineAPI = api
+        let engine = lib as? EngineLibrary
+        let controller = OfflinePreviews(
+            api: api, folder: engine?.folder?.path, originalAvailable: engine?.isReadOnly == false,
+            isKeeper: { [weak self] imageID in
+                guard let self, let itemID = self.engineLibrary?.itemOfImage[imageID],
+                      self.library.items.indices.contains(itemID) else { return false }
+                return self.cull[itemID].decision == .keep
+            },
+            gate: { [weak self] in
+                guard let self else { return "closed" }
+                if self.developStatus == .loading { return "a photo is opening" }
+                if self.developRecovery.hasActiveReservations { return "an export or print is running" }
+                if self.smartPreviewBatchActive { return "a Smart Preview batch is running" }
+                if self.assist.isRunning { return "the folder is being measured for culling" }
+                return nil
+            })
+        controller.onPhotoBuilt = { [weak self, weak controller] imageID in
+            guard let self, let controller, self.offlinePreviews === controller else { return }
+            self.offlinePhotoDidChange(imageID)
+        }
+        offlinePreviews = controller
+        controller.start()
+        controller.refreshRootCoverage(paths: libraryRoots.filter { !$0.attached }.map(\.path))
+        if engine != nil, engine?.isReadOnly == false { syncPendingOfflineEdits() }
+    }
+
+    /// A preview was made or synchronized: its status badge and thumbnail are stale.
+    private func offlinePhotoDidChange(_ imageID: String) {
+        smartPreviews.invalidateStatus(imageID: imageID)
+        guard let itemID = engineLibrary?.itemOfImage[imageID], library.items.indices.contains(itemID) else { return }
+        loader.invalidate(library.items[itemID])
+        libraryRevision += 1
+        let positions = IndexSet(positionOfID.indices.contains(itemID) && positionOfID[itemID] >= 0 ? [positionOfID[itemID]] : [])
+        liveObservers.forEach { $0.thumbnailsDidChange(positions) }
+    }
+
+    /// A Develop session for the photo is open or opening: its journal waits for the next reconnect.
+    private func isDevelopOpen(imageID: String, owner: EngineLibrary) -> Bool {
+        if develop?.imageID == imageID { return true }
+        if developRecovery.matchingSession(owner: owner, imageID: imageID) != nil { return true }
+        return activeDevelopOpen != nil && focusedItem?.engineImage?.imageID == imageID
+    }
+
+    /// Reconnect: journaled offline edits for photos in the open (online) library are written to
+    /// the sidecars one at a time off the main actor; one toast says how many.
+    func syncPendingOfflineEdits() {
+        guard let lib = engineLibrary, !lib.isReadOnly, let api = offlineAPI, offlineSyncTask == nil else { return }
+        let ids = Set(lib.imageIDs)
+        offlineSyncTask = Task { @MainActor [weak self] in
+            let outcome = await OfflineEditSync.run(
+                api: api, libraryIDs: ids,
+                isOpen: { id in self?.isDevelopOpen(imageID: id, owner: lib) ?? true },
+                shouldContinue: { self?.engineLibrary === lib },
+                didSynchronize: { id, _ in self?.offlinePhotoDidChange(id) })
+            guard let self else { return }
+            self.offlineSyncTask = nil
+            guard self.engineLibrary === lib else { return }
+            if let text = outcome.toast { self.showToast(text, undoable: false) }
+            if outcome.wrote + outcome.failed > 0 { self.offlinePreviews.refreshCoverage() }
+        }
+    }
+
+    /// A volume mounted or unmounted: an offline library whose drive is back reopens on the
+    /// originals (which runs the sync); an online one checks for journals to write.
+    private func offlineVolumesDidChange() {
+        guard let lib = engineLibrary, let folder = lib.folder else { return }
+        if lib.isReadOnly {
+            let generation = loadGeneration
+            Task.detached(priority: .utility) {
+                let available = (try? LibraryOpenRouter.originalFolderAvailable(folder)) ?? false
+                await MainActor.run {
+                    guard available, generation == self.loadGeneration, self.engineLibrary === lib, !self.isLoading else { return }
+                    self.openFolder(folder, message: "Opened \(lib.title) from “\(self.libraryVolumeName ?? lib.title)”")
+                }
+            }
+        } else {
+            syncPendingOfflineEdits()
+        }
+    }
+
+    /// Settings ▸ "Make this folder available offline now".
+    func makeFolderAvailableOffline() { offlinePreviews.buildNow() }
+
+    // MARK: Offline previews (OF-2) — end
+
     // MARK: Develop (Basic panel on the engine)
 
     /// Opens the session for an indexed photo. Called by the loupe when it shows an image.
@@ -2543,6 +2669,7 @@ final class AppModel {
         let opener = developControllerOpener
         let preferPreview = preferSmartPreviews
         let previews = smartPreviews
+        let volumeName = libraryVolumeName // OF-2: for the missing-preview message
         // Establish the explicit open target synchronously; an old async opener
         // may never change a newer selection while awaiting asset validation.
         previews.select(imageID: item.kind == .raw ? ref.imageID : nil)
@@ -2558,7 +2685,7 @@ final class AppModel {
                 if item.kind == .raw {
                     let snapshot = try await previews.statusForOpening(imageID: ref.imageID)
                     try Task.checkCancellation()
-                    controller = try await SmartPreviewRouting.open(snapshot, preferPreview: preferPreview) { route in
+                    controller = try await SmartPreviewRouting.open(snapshot, preferPreview: preferPreview, volumeName: volumeName) { route in
                         switch route {
                         case .original: try await opener(ref, item.id)
                         case .smartPreview: try await DevelopController.open(ref, itemID: item.id, source: .smartPreview)
@@ -2765,6 +2892,7 @@ final class AppModel {
     }
 
     private func developDidRender(_ frame: DevelopFrame, _ controller: DevelopController) {
+        offlinePreviews.noteLoupeFrame() // OF-2: the builder stays quiet for 2 s after a frame
         for o in liveObservers { o.developDidRender(frame, controller: controller) }
         selfTestFrames?.append(frame)
         guard showRenderReadout, frame.isFinal else { return }
