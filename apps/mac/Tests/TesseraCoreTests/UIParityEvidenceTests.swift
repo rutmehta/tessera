@@ -115,7 +115,8 @@ final class UIParityEvidenceTests: XCTestCase {
         shot.arguments = ["-l", String(window.windowNumber), "-x", "-o", url.path]
         try shot.run()
         shot.waitUntilExit()
-        XCTAssertEqual(shot.terminationStatus, 0, "Window capture failed: \(url.lastPathComponent)")
+        XCTAssertEqual(shot.terminationStatus, 0,
+                       "Window capture failed: \(url.lastPathComponent) (screencapture needs an unlocked, awake display)")
     }
 
     /// The demo in a WKWebView of the stage's size, in a background window (a web view only

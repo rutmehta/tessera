@@ -171,7 +171,11 @@ struct ContentView: View {
                     .animation(Theme.Motion.appear, value: model.showInspector)
                     // UX-11: the agent field sits bottom centre of every mode (Review keeps its own
                     // instruction field in the inspector), over the whole width like the prototype's;
-                    // the toast moves up above it.
+                    // the toast moves up above it. In a window too narrow to centre the field beside
+                    // Edit's panel it centres over the photo area instead, and the row goes compact.
+                    let panelInset = model.isPhotoEditing && model.showInspector
+                        && area.size.width < Theme.Width.editPanel * 2 + Theme.Width.agentField ? Theme.Width.editPanel : 0
+                    let rowWidth = area.size.width - panelInset - 2 * Theme.Space.l
                     VStack {
                         Spacer()
                         if let toast = model.toast {
@@ -180,10 +184,13 @@ struct ContentView: View {
                                 .transition(Theme.Motion.transition(from: .bottom))
                         }
                         if model.viewMode != .document, !model.isReviewing {
-                            AgentRow(model: model)
+                            AgentRow(model: model, compact: rowWidth < AgentRow.fullWidth)
+                                .frame(maxWidth: rowWidth)
                                 .padding(.bottom, Theme.Space.l)
                         }
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.trailing, panelInset)
                     .animation(Theme.Motion.appear, value: model.toast)
                     }
                     .frame(width: area.size.width, height: area.size.height)

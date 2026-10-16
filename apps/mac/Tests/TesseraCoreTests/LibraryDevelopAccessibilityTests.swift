@@ -416,7 +416,7 @@ final class LibraryDevelopAccessibilityTests: XCTestCase {
         XCTAssertTrue(slider.contains("if s.accessibilityLabel() != label"))
         XCTAssertTrue(thumbnail.contains("if v.accessibilityIdentifier() != identifier"))
         XCTAssertTrue(thumbnail.contains("if cellView.accessibilityLabel() != label"))
-        XCTAssertTrue(shell.contains(".toolbar(removing: model.viewMode == .document ? .sidebarToggle : nil)"))
+        XCTAssertTrue(shell.contains(".toolbar(removing: .sidebarToggle)"))
     }
 
     func testKeywordIdentifierPrivacy() async throws {
@@ -1142,7 +1142,6 @@ enum EstablishedAccessibilityIdentifiers {
         "ocr-detect",
         "ocr-find",
         "ocr-text",
-        "open",
         "people-analyze-faces",
         "people-approximate-note",
         "people-clear-filter",
@@ -1154,7 +1153,6 @@ enum EstablishedAccessibilityIdentifiers {
         "people-setting-person-keywords",
         "people-setting-write-regions",
         "people-view",
-        "peopleMerge",
         "person-confirm-all",
         "person-confirmed-",
         "person-detail-back",
@@ -1237,7 +1235,6 @@ enum EstablishedAccessibilityIdentifiers {
         "smart-preview-local-save-warning",
         "smart-preview-thumbnail-limitation",
         "smartAlbumMatchCount",
-        "softproof-badge",
         "softproof-status",
         "softproof-toggle",
         "src:people",

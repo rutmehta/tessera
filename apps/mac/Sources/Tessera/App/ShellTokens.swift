@@ -22,8 +22,10 @@ extension Theme.Width {
 }
 
 extension Theme.Width {
-    /// The agent field, bottom centre of every mode.
+    /// The agent field, bottom centre of every mode; it shrinks to the minimum only when the row
+    /// cannot hold it (UX-16).
     static let agentField: CGFloat = 560
+    static let agentFieldMin: CGFloat = 360
     /// The search field, collapsed and while it has the keyboard.
     static let search: CGFloat = 180
     static let searchExpanded: CGFloat = 360
