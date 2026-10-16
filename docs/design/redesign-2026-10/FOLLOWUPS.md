@@ -145,3 +145,31 @@ session screenshots described here. All on the 8-ARW sample shoot, window 1385 �
     raw-click report could not be reproduced in-process (there is no pointer in the harness);
     if it persists on the owner's Mac the next thing to check is the macOS 26 toolbar item's
     own hit testing of the principal item.
+
+## UX-16: owner's second pass on 0.7.0 (2026-10-16, screenshots on the sample shoot)
+
+26. **Burst strip badges do not update after a decision.** After "Kept DSC02693.ARW, rejected 1
+    in G3" both frames still show the red X badge and the kept one also shows "Pick"; the cell
+    badge must follow the decision at once (the toast and column counts did).
+27. **"Sharpness" pill in the loupe footer is a bare meter** (a short bar with no number); the
+    owner could not tell what it was. Show the value ("Sharpness 0.12") like Score, or the
+    word with a level ("Sharpness low"), and give every pill a `.help`.
+28. **Toasts overflow:** "…inal sidecars differ from the offline baseline; both copies reta…" is
+    cut at both ends. Toasts wrap to at most two lines inside a max width (`Theme.Width.toast`),
+    never clip; long detail goes behind a "Details" affordance.
+29. **That conflict should not have fired.** The offline preview for the photo was clean (no
+    journaled edits); the sidecars changed because the owner edited the original. Reconnect sync
+    must only report a conflict when the journal is dirty; a clean preview whose baseline moved is
+    refreshed (rebuilt or re-baselined) silently.
+30. **⇧⌘Z in Edit ran the agent's "redo" instead of the develop history:** "Redo finished for 0
+    photos; 1 failed · DSC02506.ARW: redo intent cannot be safely scoped; specify warmth, tint,
+    exposure or contrast". With a Develop session open, Edit ▸ Redo (and Undo) is the develop
+    history; the agent's re-run lives under its own command and never under ⇧⌘Z.
+31. **Crop overlay picker (Grid / Thirds) draws nothing** on the loupe while cropping.
+32. **Edits history after "Original":** clicking Original works, but no earlier step can be
+    clicked again to return; the readout says "0 steps · saved" while six steps are listed. The
+    list is a history: any row selects that state, the readout counts the steps in the list, and
+    the current row is marked.
+33. **Slider response (PL-1, engine):** the owner reports that apart from Exposure, ±100 on
+    Shadows, Highlights, Contrast and Vibrance feels like about ±20 in Lightroom. Calibrate the
+    native pipeline's response so ±100 spans a comparable range (see PL-1 brief).
