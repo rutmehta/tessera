@@ -178,6 +178,8 @@ final class AgentReviewNavigationTests: XCTestCase {
         let support = folder.deletingLastPathComponent().appendingPathComponent("support")
         let reopened = try EngineLibrary.scan(folder: folder, appSupport: support)
         model.install(reopened)
+        // ST-2: the manifest restore runs off the main actor.
+        try await settle { model.agent.reviewLibrary === reopened && model.agent.queue.count == 2 }
 
         XCTAssertTrue(model.agent.reviewLibrary === reopened)
         XCTAssertEqual(model.agent.queue.count, 2)

@@ -367,25 +367,31 @@ final class AccountSync {
     /// and picked up when the folder is next opened.
     private func applyShoots() {
         guard let store else { return }
-        var openIDs: Set<String> = []
-        if let app, let lib = app.engineLibrary, !lib.isReadOnly, let folder = lib.folder {
-            if let s = try? lib.engine.styleProfileStatus(libraryFolder: folder.path) { openIDs.insert(s.libraryId) }
-            if let s = try? app.cull.assistStatus() { openIDs.insert(s.libraryId) }
-        }
-        var files: [(URL, Data, Date)] = []
+        var candidates: [(String, URL, Data, Date)] = []
         if let rec = store.read(StyleProfileRecord.self) {
-            for shoot in rec.shoots.values where !openIDs.contains(shoot.libraryID) {
-                if let model = shoot.model { files.append((shootFile("style-profile", libraryID: shoot.libraryID), model, shoot.modified)) }
+            for shoot in rec.shoots.values {
+                if let model = shoot.model { candidates.append((shoot.libraryID, shootFile("style-profile", libraryID: shoot.libraryID), model, shoot.modified)) }
             }
         }
         if let rec = store.read(LearningRecord.self) {
-            for shoot in rec.shoots.values where !openIDs.contains(shoot.libraryID) {
-                if let model = shoot.model { files.append((shootFile("cull-learning", libraryID: shoot.libraryID), model, shoot.modified)) }
+            for shoot in rec.shoots.values {
+                if let model = shoot.model { candidates.append((shoot.libraryID, shootFile("cull-learning", libraryID: shoot.libraryID), model, shoot.modified)) }
             }
         }
-        guard !files.isEmpty else { return }
-        // ST-2: the files land on a worker; the engine picks them up when the folder is next opened.
+        guard !candidates.isEmpty else { return }
+        // ST-2: the open library's ids (two engine reads) and the files land on a worker; the
+        // engine picks the files up when the folder is next opened.
+        let open: (engine: Engine, folder: String, cull: CullController)? = {
+            guard let app, let lib = app.engineLibrary, !lib.isReadOnly, let folder = lib.folder else { return nil }
+            return (lib.engine, folder.path, app.cull)
+        }()
         Task.detached(priority: .utility) {
+            var openIDs: Set<String> = []
+            if let open {
+                if let s = try? open.engine.styleProfileStatus(libraryFolder: open.folder) { openIDs.insert(s.libraryId) }
+                if let s = try? open.cull.assistStatus() { openIDs.insert(s.libraryId) }
+            }
+            let files = candidates.filter { !openIDs.contains($0.0) }.map { ($0.1, $0.2, $0.3) }
             for (url, data, modified) in files {
                 let local = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
                 if let local, local >= modified { continue }

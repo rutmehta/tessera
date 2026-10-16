@@ -165,6 +165,7 @@ final class AgentController {
         // (the queue shows empty until they return); a folder switch meanwhile drops the result.
         clearReviewQueue()
         let generation = restoreGeneration.next()
+        let queueBefore = queueGeneration
         let store = resumeStore
         let itemOfImage = library.itemOfImage
         Task { [weak self] in
@@ -183,7 +184,12 @@ final class AgentController {
                 }
                 result = .success((record, entries))
             }
-            guard let self, self.restoreGeneration.accepts(generation), self.app?.engineLibrary === library else { return }
+            // A run that started or finished on this folder meanwhile owns the queue: the stale
+            // manifest read must not replace or clear its result.
+            guard let self, self.restoreGeneration.accepts(generation), self.app?.engineLibrary === library,
+                  self.queueGeneration == queueBefore,
+                  !(self.isRunning && self.runningLibrary?.folder.map(ReviewResumeStore.canonicalPath)
+                        == ReviewResumeStore.canonicalPath(folder)) else { return }
             switch result {
             case .success(nil):
                 self.clearReviewQueue()

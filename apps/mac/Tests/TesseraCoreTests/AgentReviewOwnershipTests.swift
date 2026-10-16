@@ -845,6 +845,8 @@ final class AgentReviewOwnershipTests: XCTestCase {
 
         hold.release()
         try await settle { !f.agent.isRunning }
+        // ST-2: the completion re-installs the current owner; its restore runs off the main actor.
+        try await settle { f.agent.reviewLibrary === reopened }
 
         XCTAssertTrue(f.agent.reviewLibrary === reopened, "completed work rebinds to the newly installed owner")
         XCTAssertEqual(try store.load(libraryFolder: try XCTUnwrap(f.a.folder))?.state, .completed)
