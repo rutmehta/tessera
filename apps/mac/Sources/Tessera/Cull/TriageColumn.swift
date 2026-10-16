@@ -36,7 +36,7 @@ struct TriageColumn: View {
                 .accessibilityIdentifier("library.cull.triage.summary")
             Hairline()
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text("Your decisions").font(Theme.Fonts.bodyMedium).foregroundStyle(Theme.textPrimary)
+                Text("Your decisions").font(Theme.Fonts.bodySemibold).foregroundStyle(Theme.textPrimary)
                 count("Keeps", model.counts.keep, Theme.keep)
                 count("Rejects", model.counts.reject, Theme.reject)
                 count("Undecided", model.counts.undecided, Theme.track)
@@ -67,7 +67,8 @@ struct TriageColumn: View {
         .padding(.bottom, Theme.Space.m)
         .frame(width: Theme.Width.triageColumn)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Theme.panel)
+        // UX-16: the prototype's column has no fill, only the hairline on its right.
+        .background(Theme.canvas)
         .overlay(alignment: .trailing) { Hairline(vertical: true) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Triage")
@@ -115,9 +116,10 @@ struct TriageColumn: View {
         .accessibilityIdentifier("library.cull.triage.\(bucket.rawValue)")
     }
 
+    /// One "step" row of Your decisions: a 12 pt square swatch (the prototype's), the label, the count.
     private func count(_ title: String, _ n: Int, _ color: Color) -> some View {
-        HStack(spacing: Theme.Space.s + Theme.Space.xxs) {
-            Circle().fill(color).frame(width: Theme.Space.s, height: Theme.Space.s)
+        HStack(spacing: Theme.Space.s) {
+            RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(color).frame(width: Theme.Space.m, height: Theme.Space.m)
             Text(title).font(Theme.Fonts.label).foregroundStyle(Theme.textSecondary)
             Spacer()
             Text(n.formatted()).font(Theme.Fonts.labelNumeric).foregroundStyle(Theme.textTertiary)

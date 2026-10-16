@@ -81,7 +81,8 @@ private struct DeliverColumn: View {
         .padding(.bottom, Theme.Space.m)
         .frame(width: Theme.Width.deliverColumn)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Theme.panel)
+        // UX-16: the prototype's column has no fill, only the hairline on its right.
+        .background(Theme.canvas)
         .overlay(alignment: .trailing) { Hairline(vertical: true) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Deliver")
