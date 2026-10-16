@@ -521,6 +521,37 @@ fn cpu_fallback(op: &Op<'_>) -> bool {
     )
 }
 impl StageOp for GpuStageOp {
+    fn memory_report(&self) -> Vec<(String, usize)> {
+        let recycled: u64 = self
+            .recycled
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .map(wgpu::Buffer::size)
+            .sum();
+        let mut report = vec![
+            ("gpu resident memo".into(), self.cache_bytes()),
+            ("gpu recycled buffers".into(), recycled as usize),
+        ];
+        if let Some(total) = self.context.device_allocated_bytes() {
+            report.push(("gpu device allocated (total)".into(), total as usize));
+        }
+        report
+    }
+
+    fn release_image(&self, image: engine_api::id::ImageId) {
+        self.resident_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove_image(image);
+        // Idle transient buffers are not keyed by image; the last session
+        // closing is the moment to give them back to the device.
+        self.recycled
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+    }
+
     fn blend_local(
         &self,
         base: &pipeline_cpu::Image,

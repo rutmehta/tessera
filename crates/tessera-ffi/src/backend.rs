@@ -140,6 +140,17 @@ impl Backend {
         }
     }
 
+    /// Sizes of the shared memo cache (with its budget) and whatever the
+    /// backend keeps on the device, for the memory trace.
+    pub(crate) fn memory_report(&self) -> Vec<(String, usize)> {
+        let mut report = vec![
+            ("tile memo (shared)".to_string(), self.cache.bytes()),
+            ("tile memo budget".to_string(), self.cache.budget()),
+        ];
+        report.extend(self.ops.memory_report());
+        report
+    }
+
     /// A renderer over the shared operators and memo cache.
     pub(crate) fn renderer(&self) -> Renderer {
         // Drawn settings keep imported Adobe identities; Native lists the ones it

@@ -749,6 +749,46 @@ impl MaskShared {
         })
     }
 
+    /// Named byte counts of the rasters this session keeps (memory trace).
+    pub(crate) fn memory_report(&self) -> Vec<(String, usize)> {
+        let ai: usize = self
+            .ai
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values()
+            .map(|e| match e {
+                AiEntry::Ready(p) => p.data.len() * 4,
+                _ => 0,
+            })
+            .sum();
+        let resampled: usize = self
+            .resampled
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .map(|(_, _, _, p)| p.len() * 4)
+            .sum();
+        let observed: usize = self
+            .observed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values()
+            .map(|o| o.raster.len() * 4)
+            .sum();
+        let segment_input = self
+            .segment_input
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map_or(0, |i| i.as_raw().len());
+        vec![
+            ("AI mask planes".into(), ai),
+            ("AI planes resampled".into(), resampled),
+            ("observed group rasters".into(), observed),
+            ("segmentation input".into(), segment_input),
+        ]
+    }
+
     pub(crate) fn unavailable(&self, settings: &DevelopSettings) -> bool {
         let entries = self.ai.lock().unwrap_or_else(|e| e.into_inner());
         settings
@@ -1000,6 +1040,13 @@ impl MaskHooks for Hooks {
 /// pinned weights into the app's model cache).
 #[derive(Default)]
 pub(crate) struct SegmenterSlot(Mutex<Option<Box<dyn MaskSegmenter>>>);
+
+impl SegmenterSlot {
+    /// Whether the segmenter's weights are loaded (memory trace).
+    pub(crate) fn is_loaded(&self) -> bool {
+        self.0.lock().is_ok_and(|s| s.is_some())
+    }
+}
 
 impl Engine {
     /// Replaces the segmentation backend (tests, alternative models).
