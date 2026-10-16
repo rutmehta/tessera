@@ -640,6 +640,45 @@ pub(crate) struct Shared {
 }
 
 impl Shared {
+    /// Named byte counts of what this session keeps resident: the decoded
+    /// source, its renderer's memos (and the shared ones), mask rasters.
+    pub(crate) fn memory_report(&self) -> Vec<(String, usize)> {
+        let mut report = vec![("decoded source".to_string(), self.image.resident_bytes())];
+        report.extend(self.renderer.memory_report());
+        report.extend(self.masks.memory_report());
+        report
+    }
+
+    /// Gives back what this closed session kept beyond its own `Arc`: its
+    /// image's pages in the shared memo caches (unless another session still
+    /// renders the same image) and its mask rasters. The decode buffers leave
+    /// with the `Arc` (see `alloc`). Idempotent; called on close and drop.
+    pub(crate) fn release_resources(&self) {
+        let image = self.image.id();
+        let still_rendered = self.engine.upgrade().is_some_and(|engine| {
+            engine
+                .open_sessions()
+                .iter()
+                .any(|s| !std::ptr::eq(&**s, self) && s.image.id() == image)
+        });
+        if !still_rendered {
+            self.renderer.release_image(image);
+        }
+        self.masks.release();
+    }
+
+    /// Short identity for trace lines: the image id and its file name.
+    pub(crate) fn trace_name(&self) -> String {
+        format!(
+            "{} ({})",
+            &self.image_id[..8],
+            self.path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default()
+        )
+    }
+
     /// Proxy settings this session cannot draw, judged with the resources its
     /// renders actually use (including the session depth provider, which every
     /// render snapshot installs), so notices match what the frame shows.
@@ -1187,6 +1226,8 @@ impl Engine {
         self.develop_writer_constructions
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let writer_thread = writer.thread().id();
+        self.register_session(&shared);
+        self.trace_memory(&format!("session open {}", shared.trace_name()));
         Ok(Arc::new(DevelopSession {
             shared,
             lease: Mutex::new(snapshot.lease),
@@ -2395,6 +2436,8 @@ impl Drop for DevelopSession {
     fn drop(&mut self) {
         self.shared.close();
         self.stop_writer();
+        // A host that drops without closing still gets the caches back.
+        self.shared.release_resources();
     }
 }
 
@@ -3278,6 +3321,10 @@ impl DevelopSession {
             let released = self.lease.lock().map_err(failure)?.take();
             drop(released);
             drop(self.image_lease.lock().map_err(failure)?.take());
+            self.shared.release_resources();
+            if let Some(engine) = self.shared.engine.upgrade() {
+                engine.trace_memory(&format!("session close {}", self.shared.trace_name()));
+            }
             Ok(())
         })();
         if result.is_err()

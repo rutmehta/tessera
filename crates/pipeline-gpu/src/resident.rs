@@ -179,6 +179,21 @@ impl Cache {
     pub fn bytes(&self) -> usize {
         self.bytes
     }
+    /// Drops every page of one image (its last session closed).
+    pub fn remove_image(&mut self, image: engine_api::id::ImageId) {
+        let keys: Vec<_> = self
+            .entries
+            .keys()
+            .filter(|k| k.image_id == image)
+            .copied()
+            .collect();
+        for key in keys {
+            if let Some(e) = self.entries.remove(&key) {
+                self.bytes -= e.bytes;
+                self.order.remove(&e.tick);
+            }
+        }
+    }
     fn get(&mut self, key: &MemoKey) -> Option<ResidentTile> {
         let e = self.entries.get_mut(key)?;
         self.order.remove(&e.tick);
@@ -316,7 +331,9 @@ impl<'a> Batch<'a> {
                 cap: if gpu.export_float {
                     gpu.export_scratch
                 } else {
-                    u64::MAX
+                    // Idle interactive buffers keep at most a quarter of the
+                    // memo budget (they are released with the last session).
+                    (gpu.resident_cache.lock().unwrap().budget() as u64 / 4).max(64 << 20)
                 },
             },
             metrics_only: false,

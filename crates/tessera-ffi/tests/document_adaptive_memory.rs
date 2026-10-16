@@ -6,37 +6,9 @@
 //! `cargo test --release -p tessera-ffi --test document_adaptive_memory -- --ignored --nocapture --test-threads=1`.
 #![cfg(target_os = "macos")]
 
-use std::{
-    alloc::{GlobalAlloc, Layout, System},
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-};
+use std::sync::Arc;
 use tessera_ffi::*;
 use transform::adaptive::{Adaptive, CameraModel, LineConstraint, LineOrientation, Projection};
-
-struct Counting;
-static CURRENT: AtomicUsize = AtomicUsize::new(0);
-static PEAK: AtomicUsize = AtomicUsize::new(0);
-
-unsafe impl GlobalAlloc for Counting {
-    unsafe fn alloc(&self, l: Layout) -> *mut u8 {
-        let p = unsafe { System.alloc(l) };
-        if !p.is_null() {
-            let now = CURRENT.fetch_add(l.size(), Ordering::SeqCst) + l.size();
-            PEAK.fetch_max(now, Ordering::SeqCst);
-        }
-        p
-    }
-    unsafe fn dealloc(&self, p: *mut u8, l: Layout) {
-        unsafe { System.dealloc(p, l) };
-        CURRENT.fetch_sub(l.size(), Ordering::SeqCst);
-    }
-}
-
-#[global_allocator]
-static A: Counting = Counting;
 
 /// 12240 × 8160 (the largest 3:2 layer under the limit) unless
 /// `AWA_MEMORY_SIZE=WxH` overrides it.
@@ -104,11 +76,10 @@ fn recipe(recipe_json: &str) -> String {
 
 /// Peak over `f`, absolute and above the allocation level before it.
 fn measure(label: &str, f: impl FnOnce()) {
-    let base = CURRENT.load(Ordering::SeqCst);
-    PEAK.store(base, Ordering::SeqCst);
+    let base = tessera_ffi::alloc::live_bytes();
     let t = std::time::Instant::now();
-    f();
-    let peak = PEAK.load(Ordering::SeqCst);
+    let ((), above) = tessera_ffi::alloc::peak_during(f);
+    let peak = base + above;
     eprintln!(
         "{label}: peak {:.2} GB absolute, {:.2} GB above the {:.2} GB before it ({:.1} s)",
         gb(peak),
@@ -119,11 +90,11 @@ fn measure(label: &str, f: impl FnOnce()) {
 }
 
 fn pixel_apply(depth: DocDepth, label: &str) {
-    let base = CURRENT.load(Ordering::SeqCst);
+    let base = tessera_ffi::alloc::live_bytes();
     let (_dir, _engine, s, layer) = document(depth);
     eprintln!(
         "{label}: document {:.2} GB",
-        gb(CURRENT.load(Ordering::SeqCst) - base)
+        gb(tessera_ffi::alloc::live_bytes() - base)
     );
     measure(&format!("{label} pixel begin + apply"), || {
         let info = s.begin_adaptive_wide_angle(layer, None).unwrap();

@@ -627,6 +627,43 @@ impl Renderer {
         &self.config
     }
 
+    /// Named byte counts of everything this renderer (and the backend and
+    /// memo cache it shares) keeps resident between renders, for memory
+    /// tracing: the shared tile memo, this renderer's mask rasters, RGB
+    /// checkpoints and packed CFA inference memo, then the backend's own.
+    pub fn memory_report(&self) -> Vec<(String, usize)> {
+        let cfa_memo = self
+            .cfa_memo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map_or(0, |(_, packed)| packed.bytes());
+        let mut report = vec![
+            ("tile memo (shared)".to_string(), self.cache.bytes()),
+            ("mask rasters".to_string(), self.mask_cache.bytes()),
+            ("rgb checkpoints".to_string(), self.rgb_cache_stats().bytes),
+            ("packed CFA memo".to_string(), cfa_memo),
+        ];
+        report.extend(self.ops.memory_report());
+        report
+    }
+
+    /// Drops what the shared memo cache, the backend and this renderer's
+    /// memos retain for `image`: the image's last session closed, so the
+    /// tiles would only age out of the LRU under later renders.
+    pub fn release_image(&self, image: engine_api::id::ImageId) {
+        self.cache.remove_image(image);
+        self.ops.release_image(image);
+        {
+            let mut memo = self.cfa_memo.lock().unwrap_or_else(|e| e.into_inner());
+            if memo.as_ref().is_some_and(|(key, _)| key.image_id == image) {
+                *memo = None;
+            }
+        }
+        *self.rgb_memo.lock().unwrap_or_else(|e| e.into_inner()) = Default::default();
+        self.mask_cache.clear();
+    }
+
     /// Output tiles at `level` intersecting `rect` (pixels of that level),
     /// in raster order.
     pub fn tiles_for(image: &RawImage, level: u8, rect: PixelRect) -> Vec<TileCoord> {

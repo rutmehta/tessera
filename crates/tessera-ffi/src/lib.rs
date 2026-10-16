@@ -1,5 +1,6 @@
 //! Narrow, synchronous commands. Swift dispatches blocking work off its main actor.
 mod agent_runs;
+pub mod alloc;
 mod assist;
 mod backend;
 mod catalog;
@@ -19,6 +20,7 @@ mod lock;
 mod lrcat;
 mod lrcat_fidelity;
 mod lrcat_masks;
+mod mem_trace;
 mod merge;
 mod metadata;
 mod models;
@@ -264,6 +266,9 @@ pub struct Engine {
     /// Develop renderer and memo cache shared by every session (lazy: the
     /// Metal context is created on the first develop session).
     renderer: std::sync::OnceLock<backend::Backend>,
+    /// Open develop sessions, for the memory trace (`mem_trace`) and for
+    /// release-on-close decisions. Weak: a session's lifetime is the host's.
+    sessions: Mutex<Vec<std::sync::Weak<develop::Shared>>>,
     /// AI mask segmentation (loaded on first use; see `develop::masks`).
     segmenter: develop::SegmenterSlot,
     /// Face detector + recognizer (downloaded and loaded on first face analysis).
@@ -514,6 +519,7 @@ impl Engine {
             previews,
             jobs: jobs::ThreadPoolScheduler::with_interactive_reservation(3),
             renderer: std::sync::OnceLock::new(),
+            sessions: Mutex::new(Vec::new()),
             segmenter: Default::default(),
             faces: Mutex::new(None),
             smart_thumbnail_states: Mutex::new(Default::default()),
@@ -595,6 +601,7 @@ impl Engine {
             finished: true,
         });
         self.notify_changes();
+        self.trace_memory("after scan");
         Ok(FolderHandle {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,

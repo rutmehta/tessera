@@ -327,6 +327,22 @@ impl RawImage {
     pub fn level_extent(&self, level: u8) -> Extent {
         self.active_extent().at_level(level)
     }
+
+    /// Bytes of decoded pixels this source keeps resident (the CFA plane, the
+    /// RGB planes or the camera-linear proxy), for memory tracing.
+    pub fn resident_bytes(&self) -> usize {
+        let cfa = self
+            .cfa
+            .as_ref()
+            .map_or(0, |c| c.pyramid().pixels().len() * 4);
+        let rgb = self.rgb.as_ref().map_or(0, |r| {
+            r.pixels().planes().iter().map(Vec::len).sum::<usize>() * 4
+        });
+        let proxy = self.camera_linear_proxy.as_ref().map_or(0, |p| {
+            p.pixels().planes().iter().map(Vec::len).sum::<usize>() * 4
+        });
+        cfa + rgb + proxy
+    }
 }
 
 impl std::fmt::Debug for RawImage {

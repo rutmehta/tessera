@@ -107,6 +107,17 @@ pub trait StageOp: Send + Sync {
         None
     }
 
+    /// Named byte counts of what the backend keeps resident between renders
+    /// (device memo pages, recycled buffers), for memory tracing. Empty for
+    /// backends that keep nothing.
+    fn memory_report(&self) -> Vec<(String, usize)> {
+        Vec::new()
+    }
+
+    /// Drops everything the backend retained for `image` (its memo pages):
+    /// called when the image's last session closes.
+    fn release_image(&self, _image: engine_api::id::ImageId) {}
+
     /// Runs `op`, which belongs to `stage`, on `input`.
     fn run(&self, stage: StageId, op: &Op<'_>, input: Tile) -> EngineResult<Tile>;
 
