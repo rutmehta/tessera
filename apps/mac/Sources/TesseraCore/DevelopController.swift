@@ -134,6 +134,9 @@ public final class DevelopController {
     private var settings: [String: Any] = [:]
     private var pending: [String: Any] = [:]
     private var pendingInteractive = false
+    /// A slider is being dragged: the last patch was interactive and no final value followed
+    /// (ST-2: background work such as the Try cards waits for the drag to end).
+    public private(set) var isInteracting = false
     private var settingsFlushInFlight = false
     private var settingsFlushRequested = false
     private var deferredSettingsFlushID = UUID()
@@ -467,6 +470,7 @@ public final class DevelopController {
         pending = Self.merge(pending, patch, keepNulls: true)
         settings = Self.merge(settings, patch, keepNulls: false)
         pendingInteractive = interactive
+        isInteracting = interactive
         if interactive, let onNeedsFlush { onNeedsFlush() } else { _ = flushPending() }
         if patch["output"] != nil { syncPresentation() }
     }
@@ -812,13 +816,24 @@ extension DevelopController {
     /// surface ring is detached for the pass (the engine renders one ring at a time) and re-planned
     /// after it, which repaints the loupe. Nil where a render failed or timed out. The pass uses the
     /// ring's format (RGBA8 or, on an EDR screen, RGBA16F linear, encoded to sRGB here).
-    public func renderLooks(_ looks: [[String: Any]], maxPixels: Int) async -> [CGImage?] {
+    ///
+    /// `minLevel` (ST-2) keeps the pass on a coarse pyramid level: the request shrinks until the
+    /// engine plans level `minLevel` or coarser (or the long edge reaches 96 px), so a card never
+    /// costs a loupe-sized render. Cancelling the task ends the pass after the current look; the
+    /// live state and the loupe ring are restored either way.
+    public func renderLooks(_ looks: [[String: Any]], maxPixels: Int, minLevel: Int = 0) async -> [CGImage?] {
         let none = looks.map { _ in CGImage?.none }
         guard admitsMutation(), !looks.isEmpty, maxPixels > 8 else { return none }
         let base = freshSettings()
-        let k = Double(maxPixels) / Double(max(info.width, info.height, 1))
-        let wanted = session.planSurface(width: UInt32(max(Double(info.width) * k, 1).rounded(.up)),
-                                         height: UInt32(max(Double(info.height) * k, 1).rounded(.up)))
+        let longEdge = Double(max(info.width, info.height, 1))
+        var pixels = Double(maxPixels)
+        var wanted = session.planSurface(width: UInt32(max(Double(info.width) * pixels / longEdge, 1).rounded(.up)),
+                                         height: UInt32(max(Double(info.height) * pixels / longEdge, 1).rounded(.up)))
+        while Int(wanted.level) < minLevel, pixels > 96 {
+            pixels = max(pixels / 2, 96)
+            wanted = session.planSurface(width: UInt32(max(Double(info.width) * pixels / longEdge, 1).rounded(.up)),
+                                         height: UInt32(max(Double(info.height) * pixels / longEdge, 1).rounded(.up)))
+        }
         let float = presentation.floatSurfaces
         guard let tiny = float
             ? Self.makeSurface(width: Int(wanted.width), height: Int(wanted.height), bytesPerElement: 8, pixelFormat: Self.floatSurfacePixelFormat)
@@ -834,9 +849,12 @@ extension DevelopController {
         log("attached \(wanted.width)x\(wanted.height) L\(wanted.level) float=\(float)")
         plan = nil   // the loupe ring is gone: `attachSurfaces` must re-plan afterwards
         var out: [CGImage?] = []
+        var applied: [String: Any]?
         for (i, look) in looks.enumerated() {
+            if Task.isCancelled { break }
             // One flush per look: undo the previous look and apply this one together.
-            let patch = i == 0 ? look : Self.merge(Self.inverse(of: looks[i - 1], in: base), look, keepNulls: true)
+            let patch = applied.map { Self.merge(Self.inverse(of: $0, in: base), look, keepNulls: true) } ?? look
+            applied = look
             let before = frameSerial
             apply(patch: patch, interactive: true)
             _ = flushPending()
@@ -844,20 +862,23 @@ extension DevelopController {
             log("look \(i): frame=\(frame.map { "s\($0.surfaceID) L\($0.level) \($0.width)x\($0.height) final=\($0.isFinal)" } ?? "none") last=\(lastFrame.map { "s\($0.surfaceID) L\($0.level) final=\($0.isFinal) overlay=\($0.isOverlay)" } ?? "none") serial=\(frameSerial)/\(before)")
             out.append(frame.flatMap { Self.image(of: tiny, frame: $0, orientation: Int(info.orientation)) })
         }
-        if let last = looks.last {
-            apply(patch: Self.inverse(of: last, in: base), interactive: true)
+        while out.count < looks.count { out.append(nil) }   // cancelled before the rest
+        if let applied, !closed {
+            apply(patch: Self.inverse(of: applied, in: base), interactive: true)
             _ = flushPending()
         }
+        isInteracting = false
         surfaces = [:]
-        if let v = lastView { _ = try? attachSurfaces(viewWidth: v.width, viewHeight: v.height) }
+        if let v = lastView, !closed { _ = try? attachSurfaces(viewWidth: v.width, viewHeight: v.height) }
         return out
     }
 
-    /// The first final frame rendered into `surface` after serial `after`, or nil after 3 s.
+    /// The first final frame rendered into `surface` after serial `after`, or nil after 3 s (or
+    /// when the task is cancelled, or the session closed).
     private func waitForFrame(surface: UInt32, after: Int) async -> DevelopFrame? {
         for _ in 0..<180 {
             if frameSerial > after, let f = lastFrame, f.surfaceID == surface, f.isFinal, !f.isOverlay { return f }
-            if closed { return nil }
+            if closed || Task.isCancelled { return nil }
             try? await Task.sleep(for: .milliseconds(16))
         }
         return nil
