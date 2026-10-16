@@ -267,6 +267,13 @@ public final class DevelopController {
         }
         closed = true
         isSaving = false
+        // ST-2: the viewport ring, the mask overlay planes and the last frame go now, not when
+        // the last reference to this controller (the loupe, a panel) lets go.
+        surfaces = [:]
+        maskOverlaySurfaces = [:]
+        plan = nil
+        lastFrame = nil
+        histogram = nil
         session.setListener(listener: nil)
         session.setMaskListener(listener: nil)
         onFrame = nil
