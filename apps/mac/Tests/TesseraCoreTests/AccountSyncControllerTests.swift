@@ -6,7 +6,8 @@ import XCTest
 /// CS-2 wiring over a temp directory standing in for the container: a record written on another
 /// Mac applies to the models when the store is installed, a local change pushes a record, drives
 /// the account knows that are not mounted reach the folder popover's snapshot, the switch
-/// persists and stops pushes, and an unavailable or isolated store leaves the app alone.
+/// persists and stops pushes, an unavailable or isolated store leaves the app alone, and
+/// Settings ▸ Sync ▸ Where re-points the store live (CS-2b).
 @MainActor
 final class AccountSyncControllerTests: XCTestCase {
     private var base: URL!
@@ -119,5 +120,55 @@ final class AccountSyncControllerTests: XCTestCase {
         isolated.start(arguments: ["--nonactivating"])
         XCTAssertEqual(isolated.status, .unavailable(.isolatedRun))
         XCTAssertEqual(isolated.store?.availability, .unavailable(.isolatedRun))
+    }
+
+    // MARK: Where (CS-2b)
+
+    func testChoosingASyncedFolderRePointsTheStoreLiveAndPersists() async throws {
+        let (model, sync, _) = makeModel()
+        XCTAssertFalse(sync.usesFolder, "iCloud Drive by default")
+        XCTAssertEqual(sync.location, .iCloudDrive)
+        // The friend's Nextcloud folder, with a record another Mac already put there.
+        let nextcloud = base.deletingLastPathComponent().appendingPathComponent("Nextcloud", isDirectory: true)
+        try FileManager.default.createDirectory(at: nextcloud, withIntermediateDirectories: true)
+        let remote = AccountStore(folder: nextcloud, defaults: defaults)
+        var prefs = AIPreferences()
+        prefs.maxIterations = 11
+        XCTAssertNotNil(remote.write(PreferencesRecord(ai: prefs, accent: nil, ground: nil, modified: Date(), machine: "mac-b")))
+
+        sync.setFolder(nextcloud)
+        XCTAssertTrue(sync.usesFolder)
+        XCTAssertEqual(sync.folder, nextcloud)
+        await eventually("the folder store is installed") { sync.status == .available }
+        XCTAssertEqual(sync.store?.location, .folder(nextcloud))
+        XCTAssertEqual(model.agent.preferences.maxIterations, 11, "the folder's records apply")
+        // The choice and the folder persist (as a bookmark) for the next launch.
+        XCTAssertEqual(defaults.string(forKey: SyncLocation.kindKey), "folder")
+        let again = AccountSync(supportDirectory: support, defaults: defaults)
+        XCTAssertTrue(again.usesFolder)
+        XCTAssertEqual(again.folder?.standardizedFileURL.resolvingSymlinksInPath(), nextcloud.standardizedFileURL.resolvingSymlinksInPath())
+
+        // A local change now lands in the folder.
+        model.agent.preferences.maxIterations = 12
+        model.agent.savePreferences()
+        await eventually("pushed to the folder") { remote.read(PreferencesRecord.self)?.ai.maxIterations == 12 }
+
+        // Back to iCloud Drive: the folder is remembered, the store re-points (no entitlement
+        // under swift test, so it is unavailable with that reason), nothing more is written.
+        sync.setUsesFolder(false)
+        XCTAssertFalse(sync.usesFolder)
+        XCTAssertEqual(sync.folder, nextcloud)
+        await eventually("the iCloud store is installed") { sync.status != .resolving }
+        XCTAssertEqual(sync.status, .unavailable(.noEntitlement))
+        XCTAssertEqual(defaults.string(forKey: SyncLocation.kindKey), "icloud")
+        model.agent.preferences.maxIterations = 13
+        model.agent.savePreferences()
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertEqual(remote.read(PreferencesRecord.self)?.ai.maxIterations, 12)
+
+        // "A synced folder" chosen but the folder gone: the reason says so.
+        try FileManager.default.removeItem(at: nextcloud)
+        sync.setUsesFolder(true)
+        await eventually("the missing folder is reported") { sync.status == .unavailable(.folderMissing) }
     }
 }
