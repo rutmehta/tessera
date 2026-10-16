@@ -56,7 +56,7 @@ public final class CullShutdownQueue {
                 try await self.drain()
                 sink.yield(.joined)
             } catch {
-                sink.yield(.failed(String(describing: error)))
+                sink.yield(.failed(error.localizedDescription))
             }
         }
         let timer = Task {

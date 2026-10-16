@@ -186,7 +186,9 @@ drawn over the whole width of the window like the prototype's bottom row, then t
 strips. **There is no status bar** (UX-16): the decision counts are the Cull column's Your
 decisions, the position is the Cull header's "· 3 of 226" and Edit's folder button line, the
 person filter chip is in the Cull header, a new `AppModel.statusMessage` shows as the toast for
-3 s (bottom centre, above the agent row; `showToast` keeps an undoable toast over a plain status),
+3 s (bottom centre, one row above the agent row in a band every mode keeps clear,
+`Theme.Height.toastBand`, so it never sits on the quick-action chips, the burst view's actions or
+Deliver's status line; `showToast` keeps an undoable toast over a plain status),
 and the engine readouts float top right of the canvas only while Debug ▸ Show Engine Readouts is
 on. **The filmstrip is off by default** (View ▸ Filmstrip, ⌥⌘F, remembered as `ShowFilmstrip`),
 never under the burst view (its strip is Cull's strip) or Deliver.
@@ -219,7 +221,9 @@ the score in the accent. The strip below is 172 × 116 cells (`Theme.Width.burst
 (`Theme.Height.burstAction`) with the key cap inside the button: the primary one is the K action.
 The quick-action chips above the agent field are capsules (`panel` fill, `hairline` outline, 28 pt).
 The grouped grid keeps the Library grid's cells; each burst's row block has a 28 pt header in
-`labelMedium` secondary ink, tabular detail in tertiary ink and an accent "review" link.
+`labelMedium` secondary ink, tabular detail in tertiary ink and a secondary **Review** button
+(`SecondaryHeaderButton`, 24 pt). A photo's Smart Preview state is one chip-sized glyph in the
+image's bottom-right corner with the text as its tooltip, not a text label in the cell.
 
 ### 3.5 Layout contracts (WP M2-56)
 
@@ -320,7 +324,8 @@ trailing accessory), hairline, content, hairline, footer (secondary text left, a
 primary rightmost). 16 pt edges, `panel` background, accent tint for native controls.
 
 **Toast** (`ToastView`): HUD material, radius 8, 12 pt message, borderless "Undo" in the accent
-with the ⌘Z key cap in tertiary. Enters from and exits to the bottom.
+with the ⌘Z key cap in tertiary, 36 pt (`Theme.Height.toast`). Enters from and exits to the
+bottom; `ToastLayoutTests` measures it against the rows beneath it.
 
 **Progress strips** (`ProgressStrip`): 32 pt, hairline above, title · bar · counts · current
 file · Cancel.
@@ -687,6 +692,9 @@ bottom (the mask list sits above the histogram as a card, `MasksSheet`, while th
 
 * **Histogram strip** (`HistogramView`, 40 pt): the luminance histogram as one quiet fill in a
   plot well; the shadow / highlight clipping marks (`warning`) are its only colour. No title.
+  While the session opens the well is empty: the loupe shows the embedded preview scaled to fit
+  at once and the **Edits** readout says "Rendering…", then after 2 s why, counted each second
+  ("Rendering… · Waiting for the engine · 12 s", `DevelopLoadingReadout`; UX-15 item 19).
 * **Sections** (`EditSection`): a 15/600 title with an optional readout at the right in 12 pt
   tertiary tabular (Light: the target, "Whole photo" · Color: the colour temperature · Detail:
   "Sharpen 40"), the everyday controls, then a borderless **More / Less** disclosure

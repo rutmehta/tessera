@@ -17,11 +17,13 @@ struct LoupePlacement {
     var keep: CGRect?
 
     /// Aspect fit inside a 20 pt inset (`Theme.Space.panelInset`, the prototype's photo padding;
-    /// `scale` is the layer's contents scale), never upscaling past 1:1 of `display` texels.
-    static func fit(display: (width: Int, height: Int), drawable: CGSize, scale: Double = 1) -> LoupePlacement {
+    /// `scale` is the layer's contents scale), never upscaling past 1:1 of `display` texels unless
+    /// `magnify`: a preview shown before the engine's first frame (UX-15 item 19) fills the loupe
+    /// at once rather than sitting at its thumbnail size in the middle.
+    static func fit(display: (width: Int, height: Int), drawable: CGSize, scale: Double = 1, magnify: Bool = false) -> LoupePlacement {
         let inset = Theme.Space.panelInset * scale
         let room = CGSize(width: max(drawable.width - 2 * inset, 1), height: max(drawable.height - 2 * inset, 1))
-        let fit = min(room.width / Double(display.width), room.height / Double(display.height), 1.0)
+        let fit = min(room.width / Double(display.width), room.height / Double(display.height), magnify ? .infinity : 1.0)
         let dw = Double(display.width) * fit, dh = Double(display.height) * fit
         let ox = (drawable.width - dw) / 2, oy = (drawable.height - dh) / 2
         return LoupePlacement(row0: SIMD3(1 / dw, 0, -ox / dw), row1: SIMD3(0, 1 / dh, -oy / dh),
@@ -243,7 +245,7 @@ final class LoupeRenderer: @unchecked Sendable {
         pass.colorAttachments[0].clearColor = MTLClearColor(red: bg, green: bg, blue: bg, alpha: 1)
         guard let enc = cmd.makeRenderCommandEncoder(descriptor: pass) else { return 0 }
         if let texture, let frame {
-            let place = placement ?? .fit(display: frame.displaySize, drawable: size, scale: layer.contentsScale)
+            let place = placement ?? .fit(display: frame.displaySize, drawable: size, scale: layer.contentsScale, magnify: !frame.isEngineFrame)
             let contentOnScreen = Double(frame.orientation >= 5 ? frame.contentHeight : frame.contentWidth)
             let keep = place.keep ?? .zero
             var u = Uniforms(row0: SIMD4(Float(place.row0.x), Float(place.row0.y), Float(place.row0.z), 0),

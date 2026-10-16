@@ -29075,7 +29075,7 @@ public func FfiConverterTypeAssistMode_lower(_ value: AssistMode) -> RustBuffer 
 
 
 public 
-enum BridgeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+enum BridgeError: Swift.Error, Equatable, Hashable {
 
     
     
@@ -29092,10 +29092,6 @@ enum BridgeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
 
-    
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
     
 }
 

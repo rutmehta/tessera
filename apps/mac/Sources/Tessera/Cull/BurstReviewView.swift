@@ -38,6 +38,7 @@ struct CullWorkspace: View {
     /// column, above the quick actions and the agent field.
     static let gridTopInset: CGFloat = Theme.Space.m + Theme.Height.large + Theme.Space.m
     static let gridBottomInset: CGFloat = Theme.Height.agentField + Theme.Height.large + Theme.Space.l + Theme.Space.s + Theme.Space.xxs
+        + Theme.Height.toastBand
 }
 
 /// "Burst n · k frames · time · exposure" · "Pick: name · sharpest of k, eyes open" · Burst / Grid.
@@ -161,6 +162,7 @@ struct BurstReviewView: View {
                 .frame(height: Theme.Height.burstCell + Theme.Space.xs)
                 .accessibilityIdentifier("library.cull.burst.strip")
                 BurstActions(model: model, single: burst.frames.count == 1)
+                    .shellProbe("burstActions")
             } else {
                 EmptyStateContent(symbol: "square.stack", title: "Nothing in view",
                                   message: "No frame matches this filter.") {
@@ -171,7 +173,8 @@ struct BurstReviewView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding(.bottom, Theme.Height.agentField + Theme.Height.large * 2 + Theme.Space.xl)
+        // Clear of the agent field, the chips and the toast band above them (UX-15 item 20).
+        .padding(.bottom, Theme.Height.agentField + Theme.Height.large * 2 + Theme.Space.xl + Theme.Height.toastBand)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("library.cull.burst")
     }

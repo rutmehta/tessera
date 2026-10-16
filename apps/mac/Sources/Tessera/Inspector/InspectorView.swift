@@ -11,19 +11,15 @@ struct InspectorView: View {
             VStack(alignment: .leading, spacing: 0) {
                 PanelSection("Image", headerIdentifier: "library.panel.Image") { ImageInfoPanel(model: model) }
                 PanelSection("Selection", headerIdentifier: "library.panel.Selection") { SelectionPanel(model: model).disabled(model.isCachedPreviewLibrary) }
+                // UX-15 (item 22): one short line per section at most, the rest in tooltips;
+                // Keywords and Metadata start collapsed in Cull (the person's choice is
+                // remembered); Edit is a mode, so there is no "Photo Edit" section.
                 if model.isEngineBacked && !model.isCachedPreviewLibrary {
                     PanelSection("Assist", headerIdentifier: "library.panel.Assist") { AssistPanel(model: model) }
                     PanelSection("People", expanded: false, headerIdentifier: "library.panel.People") { PeoplePanel(model: model) }
                     PanelSection("Agent Edit", headerIdentifier: "library.panel.AgentEdit") { AgentEditPanel(model: model) }
-                    PanelSection("Keywords", headerIdentifier: "library.panel.Keywords") { KeywordsPanel(model: model, library: model.collections) }
-                    PanelSection("Metadata", headerIdentifier: "library.panel.Metadata") { MetadataPanel(model: model, library: model.collections) }
-                }
-                PanelSection("Photo Edit", headerIdentifier: "library.panel.PhotoEdit") {
-                    Button("Edit photo") { model.enterPhotoEdit() }
-                        .accessibilityIdentifier("library.inspector.editPhoto")
-                        .buttonStyle(.theme(.bordered, height: Theme.Height.small))
-                        .disabled(!model.canEnterPhotoEdit)
-                    Hint("Develop and masks edit the focused photo. Library selection actions show their own scope.")
+                    PanelSection("Keywords", expanded: false, headerIdentifier: "library.panel.Keywords") { KeywordsPanel(model: model, library: model.collections) }
+                    PanelSection("Metadata", expanded: false, headerIdentifier: "library.panel.Metadata") { MetadataPanel(model: model, library: model.collections) }
                 }
             }
         }

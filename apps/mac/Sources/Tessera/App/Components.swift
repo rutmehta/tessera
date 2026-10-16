@@ -207,42 +207,66 @@ struct SegmentedPicker<Value: Hashable>: View {
     var accessibilityPrefix: String? = nil
     @Environment(\.isEnabled) private var enabled
 
+    /// The track's inset; a segment fills the row inside it, so its hit target is the whole row
+    /// (UX-15 item 25).
+    private var inset: CGFloat { prominent ? Theme.Space.xs - Theme.Space.hairline : Theme.Space.xxs }
+
     var body: some View {
         HStack(spacing: Theme.Space.xxs) {
             ForEach(segments.indices, id: \.self) { i in
                 let s = segments[i]
-                let on = s.value == selection
-                Button { selection = s.value } label: {
-                    HStack(spacing: Theme.Space.xs) {
-                        if let symbol = s.symbol { Image(systemName: symbol).font(Theme.Fonts.iconSmall) }
-                        if !s.title.isEmpty { Text(s.title) }
-                    }
-                    .font(prominent ? Theme.Fonts.body : height <= Theme.Height.small ? Theme.Fonts.caption : Theme.Fonts.label)
-                    .fontWeight(on ? (prominent ? .semibold : .medium) : .regular)
-                    .lineLimit(1)
-                    .foregroundStyle(on ? (prominent ? Theme.canvas : Theme.textPrimary) : prominent ? Theme.textTertiary : Theme.textSecondary)
-                    .padding(.horizontal, prominent ? Theme.Space.l : Theme.Space.s)
-                    .frame(maxWidth: fill ? .infinity : nil)
-                    .frame(height: height - Theme.Space.xs)
-                    .background(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.control : Theme.Radius.chip)
-                        .fill(on ? (prominent ? Theme.textPrimary : Theme.raised) : Theme.clear)
-                        .shadow(color: on && !prominent ? Theme.shadow.opacity(0.4) : Theme.clear, radius: 1, y: 0.5))
-                    .contentShape(Rectangle())
+                SegmentButton(segment: s, on: s.value == selection, height: height - 2 * inset, fill: fill, prominent: prominent) {
+                    selection = s.value
                 }
-                .buttonStyle(.plain)
-                .help(s.help ?? s.title)
-                .accessibilityLabel(s.title.isEmpty ? (s.help ?? "") : s.title)
                 .accessibilityIdentifierIfPresent(accessibilityPrefix.map { "\($0).\(i)" })
-                .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
-        .padding(prominent ? Theme.Space.xs - Theme.Space.hairline : Theme.Space.xxs)
+        .padding(inset)
         .frame(height: height)
         .background(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.card : Theme.Radius.control).fill(prominent ? Theme.panel : Theme.well))
         .overlay(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.card : Theme.Radius.control)
             .strokeBorder(prominent ? Theme.clear : Theme.hairline, lineWidth: Theme.Space.hairline))
         .opacity(enabled ? 1 : Theme.Opacity.disabled)
         .accessibilityElement(children: .contain)
+    }
+
+    /// One segment: the full row height is its hit target and its fill; hovering an unchosen
+    /// segment shows the hover fill (UX-15 item 25: the mode control took AX presses but not
+    /// every click, and gave no hover).
+    private struct SegmentButton: View {
+        let segment: Segment
+        let on: Bool
+        let height: CGFloat
+        let fill: Bool
+        let prominent: Bool
+        let action: () -> Void
+        @State private var hovering = false
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: Theme.Space.xs) {
+                    if let symbol = segment.symbol { Image(systemName: symbol).font(Theme.Fonts.iconSmall) }
+                    if !segment.title.isEmpty { Text(segment.title) }
+                }
+                .font(prominent ? Theme.Fonts.body : height <= Theme.Height.small ? Theme.Fonts.caption : Theme.Fonts.label)
+                .fontWeight(on ? (prominent ? .semibold : .medium) : .regular)
+                .lineLimit(1)
+                .foregroundStyle(on ? (prominent ? Theme.canvas : Theme.textPrimary)
+                                 : hovering ? Theme.textPrimary : prominent ? Theme.textTertiary : Theme.textSecondary)
+                .padding(.horizontal, prominent ? Theme.Space.l : Theme.Space.s)
+                .frame(maxWidth: fill ? .infinity : nil)
+                .frame(height: height)
+                .background(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.control : Theme.Radius.chip)
+                    .fill(on ? (prominent ? Theme.textPrimary : Theme.raised) : hovering ? Theme.hover : Theme.clear)
+                    .shadow(color: on && !prominent ? Theme.shadow.opacity(0.4) : Theme.clear, radius: 1, y: 0.5))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .help(segment.help ?? segment.title)
+            .accessibilityLabel(segment.title.isEmpty ? (segment.help ?? "") : segment.title)
+            .accessibilityAddTraits(on ? .isSelected : [])
+        }
     }
 }
 

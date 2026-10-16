@@ -59,8 +59,9 @@ extension AppModel {
             guard canEnterPhotoEdit else { statusMessage = "Choose a photo to edit"; return }
             enterPhotoEdit()
         case .deliver:
-            if isPhotoEditing || isReviewing { returnToLibrary() }
-            enterDeliver()
+            // UX-15 (item 18): with a photo open, Deliver follows the save-and-close; it never
+            // draws while the Edit chrome is still up.
+            if isPhotoEditing || isReviewing { returnToLibraryThenDeliver() } else { enterDeliver() }
         }
     }
 

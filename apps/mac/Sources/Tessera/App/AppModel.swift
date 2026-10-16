@@ -539,7 +539,16 @@ final class AppModel {
     /// A Loupe disclosure owns workspace keys while open; Escape dismisses the active disclosure.
     @ObservationIgnored var loupeDisclosurePresented = false
     @ObservationIgnored var dismissLoupeDisclosure: (@MainActor () -> Void)?
-    private(set) var developStatus: DevelopStatus = .none
+    private(set) var developStatus: DevelopStatus = .none {
+        didSet {
+            // UX-15 (item 19): when the open started, for the Edits readout's "Waiting for the
+            // engine · 12 s" after two seconds.
+            if developStatus == .loading { if oldValue != .loading { developLoadingSince = Date() } }
+            else if developLoadingSince != nil { developLoadingSince = nil }
+        }
+    }
+    /// When the current develop open began; nil unless `developStatus == .loading`.
+    private(set) var developLoadingSince: Date?
     /// ST-2: the open photo's recipe is waiting for the engine's writer thread ("saving…"), and
     /// when it last landed ("saved"). The UI never waits for either.
     private(set) var developSaving = false
@@ -1578,6 +1587,20 @@ final class AppModel {
         guard isPhotoEditing || isReviewing, libraryReturnState != nil else { return }
         supersedePendingLayeredCopyForNavigation()
         navigateAfterDevelopSave { [weak self] in self?.commitReturnToLibrary(grid: grid) }
+    }
+
+    /// UX-15 (item 18): Deliver chosen with a photo open. The session saves and closes through the
+    /// navigation path first, like leaving for the Library does; Deliver is entered only once the
+    /// Edit workspace has been left, so nothing of Edit draws under or over Deliver's columns.
+    /// A save that cannot finish keeps Edit on screen and says so (`statusMessage`).
+    func returnToLibraryThenDeliver() {
+        guard isPhotoEditing || isReviewing, libraryReturnState != nil else { enterDeliver(); return }
+        supersedePendingLayeredCopyForNavigation()
+        navigateAfterDevelopSave { [weak self] in
+            guard let self else { return }
+            self.commitReturnToLibrary(grid: false)
+            self.enterDeliver()
+        }
     }
 
     private func commitReturnToLibrary(grid: Bool) {

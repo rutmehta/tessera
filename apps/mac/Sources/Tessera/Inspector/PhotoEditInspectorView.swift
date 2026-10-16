@@ -350,8 +350,19 @@ struct EditsSection: View {
                 .help("Back to the unedited photo (one undo step)")
                 .accessibilityIdentifier("develop.basic.reset"))
         let readout = ready ? ["\(steps) step\(steps == 1 ? "" : "s")", model.developSaveLabel].compactMap { $0 }.joined(separator: " · ") : nil
-        EditSection("Edits", readout: readout, compact: true, accessory: reset) {
-            HistoryPanel(model: model, tools: tools)
+        if model.developStatus == .loading, let since = model.developLoadingSince {
+            // UX-15 (item 19): the opening session reports here, not in a floating capsule:
+            // "Rendering…", and after 2 s why, counted up each second.
+            TimelineView(.periodic(from: since, by: 1)) { context in
+                EditSection("Edits", readout: DevelopLoadingReadout.text(since: since, now: context.date),
+                            identifier: "develop.edits.readout", compact: true, accessory: reset) {
+                    HistoryPanel(model: model, tools: tools)
+                }
+            }
+        } else {
+            EditSection("Edits", readout: readout, identifier: "develop.edits.readout", compact: true, accessory: reset) {
+                HistoryPanel(model: model, tools: tools)
+            }
         }
     }
 }

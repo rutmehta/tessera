@@ -39,6 +39,7 @@ struct KeywordsPanel: View {
             SuggestedKeywordsSection(model: model, understanding: library.understanding)
             HStack {
                 SubHeader("Keyword List")
+                    .help("Keywords you add appear here as a hierarchy; searching a parent finds its children")
                 Spacer()
                 Button("New…") { library.newKeyword(parent: nil) }
                     .accessibilityIdentifier("library.keywords.new")
@@ -46,7 +47,8 @@ struct KeywordsPanel: View {
                     .padding(.top, Theme.Space.s)
             }
             if library.keywords.isEmpty {
-                Hint("Keywords you add appear here as a hierarchy. Searching a parent finds its children.")
+                // UX-15 (item 22): one line; the explanation is the heading's tooltip.
+                Hint("No keywords in the list yet.")
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
@@ -213,11 +215,11 @@ struct MetadataPanel: View {
                 field("Creator", .creator, key: "creator", prompt: "Name; Name")
                 field("Copyright", .copyright, key: "copyright", prompt: "© 2026 Name")
                 field("Keywords", .keywords, key: "keywords", prompt: "comma separated")
-                Text(model.selectionCount > 1
-                     ? "Edits apply to \(model.selectionCount) selected photos (XMP sidecars)."
-                     : "Saved to the photo's XMP sidecar when you press Return or leave the field.")
-                    .font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                // UX-15 (item 22): only the scope line when it matters; where edits go is the
+                // fields' tooltip.
+                if model.selectionCount > 1 {
+                    Hint("Edits apply to \(model.selectionCount) selected photos.")
+                }
                 Hairline().padding(.top, Theme.Space.s)
                 TextInImageBlock(model: model, understanding: library.understanding, library: library)
                 if let fields = library.metadata?.fields, !fields.isEmpty {
@@ -257,6 +259,7 @@ struct MetadataPanel: View {
                 .controlSize(.small)
                 .focused($focus, equals: f)
                 .onSubmit { commit(f) }
+                .help("Saved to the photo's XMP sidecar when you press Return or leave the field")
                 .accessibilityIdentifier("iptc-\(key)")
                 .accessibilityLabel(label)
         }

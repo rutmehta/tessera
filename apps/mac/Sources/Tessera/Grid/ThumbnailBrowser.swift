@@ -529,14 +529,15 @@ final class BrowserController: NSObject, NSCollectionViewDataSource, NSCollectio
     }
 }
 
-/// The row header of the grouped grid (UX-14): "Burst n · k frames · pick NAME · review", or
-/// "Single frames · n photos · no burst to compare".
+/// The row header of the grouped grid (UX-14): "Burst n · k frames · pick NAME" and a Review
+/// button (UX-15 item 23: a secondary button, not a bare lowercase link), or "Single frames · n
+/// photos · no burst to compare".
 @MainActor
 final class BurstRowHeaderView: NSView, NSCollectionViewElement {
     static let identifier = NSUserInterfaceItemIdentifier("BurstRowHeader")
     private let title = NSTextField(labelWithString: "")
     private let detail = NSTextField(labelWithString: "")
-    private let review = NSButton(title: "review", target: nil, action: nil)
+    private let review = SecondaryHeaderButton(title: "Review", target: nil, action: nil)
     private var onReview: (() -> Void)?
 
     override init(frame: NSRect) {
@@ -546,11 +547,9 @@ final class BurstRowHeaderView: NSView, NSCollectionViewElement {
         detail.font = Theme.NSFonts.labelNumeric
         detail.textColor = Theme.Palette.textTertiary
         detail.lineBreakMode = .byTruncatingMiddle
-        review.isBordered = false
-        review.font = Theme.NSFonts.label
-        review.contentTintColor = Theme.Palette.accent
         review.target = self
         review.action = #selector(reviewPressed)
+        review.toolTip = "Open this burst in the burst view"
         review.setAccessibilityIdentifier("library.cull.grid.review")
         addSubview(title)
         addSubview(detail)
@@ -568,27 +567,70 @@ final class BurstRowHeaderView: NSView, NSCollectionViewElement {
         detail.stringValue = d
         onReview = r
         review.isHidden = r == nil
-        review.attributedTitle = NSAttributedString(string: "review", attributes: [.font: Theme.NSFonts.label, .foregroundColor: Theme.Palette.accent])
         setAccessibilityLabel("\(t), \(d)")
         needsLayout = true
     }
 
-    override func layout() {
-        super.layout()
+    /// The title, the detail (truncated to what is left) and the Review button, each `gap` apart;
+    /// the button `Theme.Height.regular` tall, centred in the header row.
+    static func frames(width: CGFloat, height: CGFloat, title: CGSize, detail: CGFloat, review: CGFloat?) -> (title: NSRect, detail: NSRect, review: NSRect) {
         let gap = Theme.Space.s
         var x: CGFloat = 0
-        let tw = ceil(title.intrinsicContentSize.width)
-        let th = ceil(title.intrinsicContentSize.height)
-        let y = (bounds.height - th) / 2
-        title.frame = NSRect(x: x, y: y, width: tw, height: th)
-        x += tw + gap
-        let rw = review.isHidden ? 0 : ceil(review.intrinsicContentSize.width)
-        // The label's own intrinsic width honours its truncation mode; measure the string.
-        let dw = max(0, min(ceil(detail.attributedStringValue.size().width) + Theme.Space.xs, bounds.width - x - rw - gap))
-        detail.frame = NSRect(x: x, y: y, width: dw, height: th)
+        let y = (height - title.height) / 2
+        let titleFrame = NSRect(x: x, y: y, width: title.width, height: title.height)
+        x += title.width + gap
+        let rw = review ?? 0
+        let dw = max(0, min(detail + Theme.Space.xs, width - x - (review == nil ? 0 : rw + gap)))
+        let detailFrame = NSRect(x: x, y: y, width: dw, height: title.height)
         x += dw + gap
-        review.frame = NSRect(x: x, y: (bounds.height - review.intrinsicContentSize.height) / 2, width: rw, height: review.intrinsicContentSize.height)
+        let reviewFrame = NSRect(x: x, y: (height - Theme.Height.regular) / 2, width: rw, height: Theme.Height.regular)
+        return (titleFrame, detailFrame, reviewFrame)
+    }
+
+    override func layout() {
+        super.layout()
+        // The label's own intrinsic width honours its truncation mode; measure the string.
+        let f = Self.frames(width: bounds.width, height: bounds.height,
+                            title: CGSize(width: ceil(title.intrinsicContentSize.width), height: ceil(title.intrinsicContentSize.height)),
+                            detail: ceil(detail.attributedStringValue.size().width),
+                            review: review.isHidden ? nil : review.fittingWidth)
+        title.frame = f.title
+        detail.frame = f.detail
+        review.frame = f.review
     }
 
     @objc private func reviewPressed() { onReview?() }
+}
+
+/// A secondary button in an AppKit header (the design's `.theme(.bordered)`): the label font in
+/// `textPrimary` on `raised` with a strong hairline, radius 6, `Theme.Height.regular` tall.
+@MainActor
+final class SecondaryHeaderButton: NSButton {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        isBordered = false
+        wantsLayer = true
+        layer?.cornerRadius = Theme.Radius.control
+        layer?.borderWidth = Theme.Space.hairline
+        setButtonType(.momentaryChange)
+    }
+
+    convenience init(title: String, target: AnyObject?, action: Selector?) {
+        self.init(frame: .zero)
+        self.target = target
+        self.action = action
+        attributedTitle = NSAttributedString(string: title, attributes: [.font: Theme.NSFonts.label, .foregroundColor: Theme.Palette.textPrimary])
+        setAccessibilityLabel(title)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    /// The title plus the control's horizontal padding.
+    var fittingWidth: CGFloat { ceil(attributedTitle.size().width) + 2 * Theme.Space.s }
+
+    override var wantsUpdateLayer: Bool { true }
+    override func updateLayer() {
+        layer?.backgroundColor = Theme.Palette.raised.cgColor(for: self)
+        layer?.borderColor = Theme.Palette.hairlineStrong.cgColor(for: self)
+    }
 }

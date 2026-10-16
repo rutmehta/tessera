@@ -1,4 +1,5 @@
 import Foundation
+import TesseraFFI
 
 /// Engine calls from the UI (ST-2). An FFI call takes the engine's catalog mutex, so a call made
 /// on the main actor stalls the UI for as long as a worker holds that lock (a render, an index
@@ -15,6 +16,7 @@ public enum EngineCall {
     /// Whether `error` is the engine's "come back later" refusal (ST-1's UI-safe methods). The
     /// bindings describe their errors by case name, so the check reads the description.
     public static func isBusy(_ error: Error) -> Bool {
+        if case BridgeError.Busy = error { return true }
         let text = String(reflecting: error).lowercased()
         return text.contains("busy") || text.contains("would block") || text.contains("try again")
     }
