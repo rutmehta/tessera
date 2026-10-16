@@ -46,3 +46,44 @@ much they would annoy Rut.
 15. **`getHistogram` per frame and the `DevelopSession` per-tick calls stay on the main actor** by design; measure them under the watchdog on a 61 MP file.
 16. **`cargo test -p tessera-ffi` alone fails two understanding tests** (`suggestion_jobs_report_progress…`, `accept_is_catalog_only…`: "blue" no longer maps onto an existing Colors > Blue). They pass when the engine crates are tested together, so it is feature unification in the test build; pin the feature in `tessera-ffi`'s dev-dependencies so the single-crate run matches.
 17. **UI collisions reported by the owner on the work Mac** are still unlocated: needs a screenshot and the window size; the layout audit passes at 1440×900 and up.
+
+## UX-15: collisions located (2026-10-16, screenshots on the sample shoot at 1385 × 868 pt)
+
+Item 17 is located. Evidence: `docs/design/evidence/UX-15/` (to be added by the WP) and the
+session screenshots described here. All on the 8-ARW sample shoot, window 1385 × 868.
+
+18. **Deliver drawn over an open Develop session.** Switching Cull → Edit → Deliver with a photo
+    open leaves the Edit panel (Light/Color/Detail/Optics/Effects/Edits), the six Try cards, the
+    develop tool strip and the "Rendering…" capsule on screen *under and over* Deliver's own
+    columns; Deliver's "Finish saving the photo before leaving this workspace" and "Ready. The
+    agent can also do this…" lines print across the Try cards. A mode switch must close or
+    suspend the develop chrome first (save-and-close like navigation does), and Deliver shows
+    only its columns, its grid and the agent field.
+19. **Edit never leaves "Rendering…".** The loupe showed the photo at thumbnail size (about
+    120 × 80 pt, centred, not scaled to the loupe) with a loose "Rendering…" capsule at the top
+    of the panel for over a minute. Cause: the develop open waited on the catalog lock held by
+    `flush_drive → Index::roots()` (PF-1, fixed on main). The shell side still needs: the
+    embedded preview scaled to fit the loupe immediately, the capsule inside the Edits readout
+    line rather than floating, and after 2 s a reason ("Waiting for the engine · 12 s").
+20. **Toast over the quick-action chips.** In Cull the "Opened sample-shoot: 8 images" toast
+    sits exactly on the "Keep the pick in every burst · Reject the blurry ones · Find closed
+    eyes" chip row above the agent field. The toast belongs above the chips (one row up), or
+    the chips hide while a toast shows.
+21. **Bottom progress bar in Cull.** "Measuring sharpness and exposure for culling · 0 / 8 ·
+    DSC02497.ARW · Stop" is a full-width bar at the bottom while the Cull column already says
+    "Sorting the shoot while it loads: 0 of 8 measured". One place: the column line gets the
+    Stop control; the bar goes.
+22. **Inspector in Cull is a wall of prose.** With the panel open: Image, Selection (three rows
+    of chips), Assist (two-line paragraph), People, Agent Edit (paragraph + button), Keywords
+    (field + "Suggested" + paragraph + "Keyword List" + paragraph), Metadata (eight fields +
+    paragraph), Photo Edit (button + paragraph). Keep one short line per section at most and
+    move the rest to `.help`; Keywords and Metadata collapsed by default in Cull; drop the
+    "Photo Edit" section (Edit is a mode).
+23. **Grid view.** Burst 3's two thumbnails stayed blank while bursts 1–2 drew (the strip in
+    Burst view had drawn them). The built-preview thumbnails carry a "Smart Preview" text label
+    inside the cell; a small glyph in the corner, not text. "review" is a bare lowercase link.
+24. **Raw error text in menus.** Library ▸ Smart Previews shows
+    `TesseraFFI.BridgeError.Failure(message: "…")`: `BridgeError` needs `LocalizedError`
+    (`errorDescription` = the message) and every surface shows `localizedDescription`.
+25. **Mode segmented control ignores raw clicks** (AX press works): the Cull · Edit · Deliver
+    control needs a hit target the size of its label row, and a hover state.
