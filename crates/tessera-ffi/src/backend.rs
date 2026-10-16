@@ -199,7 +199,12 @@ fn select_at(
     level: u8,
     gpu: impl FnOnce() -> Option<gpu_core::GpuDevice>,
 ) -> Backend {
-    let config = RendererConfig::default();
+    // One budget for the shared memos: the CPU tile memo and, when Metal is
+    // selected, the GPU resident memo (each half; see `mem_trace::cache_budget`).
+    let config = RendererConfig {
+        cache_budget_bytes: (crate::mem_trace::cache_budget() / 2) as usize,
+        ..RendererConfig::default()
+    };
     let cpu = Backend::new(
         Arc::new(CpuStageOp),
         config.clone(),

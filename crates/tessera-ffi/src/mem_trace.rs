@@ -102,6 +102,34 @@ pub fn physical_memory() -> Option<u64> {
     None
 }
 
+/// Share of physical RAM the shared memo caches may hold between them.
+const CACHE_RAM_FRACTION: f64 = 0.15;
+/// Budget when RAM cannot be read (the pre-ST-3 fixed 512 MB per memo).
+const CACHE_FALLBACK: u64 = 1 << 30;
+
+/// The develop memo budget in bytes, shared by the CPU tile memo and the
+/// GPU resident memo (each gets half): `TESSERA_CACHE_BUDGET_MB` when set,
+/// else [`CACHE_RAM_FRACTION`] of physical RAM. Images with no open session
+/// leave the memos on close (`Shared::release_resources`), so the budget
+/// bounds the open sessions' working set, not everything ever rendered.
+pub(crate) fn cache_budget() -> u64 {
+    static BUDGET: OnceLock<u64> = OnceLock::new();
+    *BUDGET.get_or_init(|| {
+        let configured = std::env::var("TESSERA_CACHE_BUDGET_MB")
+            .ok()
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .filter(|mb| *mb > 0)
+            .map(|mb| mb << 20);
+        let budget = configured.unwrap_or_else(|| {
+            physical_memory().map_or(CACHE_FALLBACK, |ram| {
+                (ram as f64 * CACHE_RAM_FRACTION) as u64
+            })
+        });
+        // Below this a single 61 MP render thrashes; the memo is still a cache.
+        budget.max(256 << 20)
+    })
+}
+
 fn mb(bytes: u64) -> String {
     format!("{:.0} MB", bytes as f64 / 1_048_576.)
 }

@@ -1,5 +1,6 @@
 //! Narrow, synchronous commands. Swift dispatches blocking work off its main actor.
 mod agent_runs;
+mod alloc;
 mod assist;
 mod backend;
 mod catalog;

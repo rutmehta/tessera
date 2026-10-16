@@ -789,6 +789,24 @@ impl MaskShared {
         ]
     }
 
+    /// Drops every raster the closed session kept: AI planes and their
+    /// resampled copies, the observed group rasters and the segmentation
+    /// input. A job finishing late finds nothing to update.
+    pub(crate) fn release(&self) {
+        self.ai.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.resampled
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        self.observed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        *self.segment_input.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *self.prelocal.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        self.revision.fetch_add(1, Ordering::SeqCst);
+    }
+
     pub(crate) fn unavailable(&self, settings: &DevelopSettings) -> bool {
         let entries = self.ai.lock().unwrap_or_else(|e| e.into_inner());
         settings

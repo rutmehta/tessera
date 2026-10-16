@@ -331,7 +331,9 @@ impl<'a> Batch<'a> {
                 cap: if gpu.export_float {
                     gpu.export_scratch
                 } else {
-                    u64::MAX
+                    // Idle interactive buffers keep at most a quarter of the
+                    // memo budget (they are released with the last session).
+                    (gpu.resident_cache.lock().unwrap().budget() as u64 / 4).max(64 << 20)
                 },
             },
             metrics_only: false,
