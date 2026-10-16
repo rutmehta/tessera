@@ -7,18 +7,21 @@ mod predicate;
 pub use people::{FaceAssignment, FaceKey, Person};
 mod rekey;
 mod roots;
+mod scan;
 mod semantic;
 mod understanding;
 mod volume;
 pub use api::{FaceRecord, ImageInfo, Index, PruneCounts, Scanner, Score};
 pub use changes::{ChangeBatch, ChangeFields, ChangeKind, ImageChange};
 pub use drive::{
-    AnalysisRecord, FaceAssignmentRecord, FaceDetectionRecord, ImportCounts, PeopleDocument,
-    PersonRecord, ScoreRecord, TESSERA_DIR, TesseraDir, atomic_write, now_ms, write_if_changed,
+    AnalysisRecord, DriveState, FaceAssignmentRecord, FaceDetectionRecord, ImportCounts,
+    PeopleDocument, PersonRecord, ScoreRecord, TESSERA_DIR, TesseraDir, atomic_write, now_ms,
+    write_if_changed,
 };
 pub use predicate::{Comparison, Predicate};
 pub use rekey::{LegacyImage, image_id_for};
 pub use roots::RootRecord;
+pub use scan::{PendingEntry, SCAN_BATCH, ScanEntry, ScanRecord, ScanScope, ScanWalk};
 pub use semantic::SemanticSearch;
 use std::{path::Path, time::UNIX_EPOCH};
 pub use understanding::{KeywordSuggestion, OcrRegion, Understanding};
@@ -274,158 +277,6 @@ impl Core {
             engine_api::error::EngineError::invalid("path", "image has no folder")
         })?;
         self.scan_scope(parent, Some(&path), sidecars, metadata)
-    }
-
-    fn scan_scope(
-        &mut self,
-        root: &Path,
-        only_file: Option<&Path>,
-        sidecars: &dyn SidecarReader,
-        metadata: &dyn MetadataProvider,
-    ) -> Result<usize> {
-        let root_path = root.canonicalize()?;
-        let root = root_path.as_path();
-        if !root.is_dir() {
-            return Err(
-                engine_api::error::EngineError::invalid("root", "expected a directory").into(),
-            );
-        }
-        let root_id = self.register_root(root)?;
-        // Every file under the root shares its volume (nested mounts aside).
-        let volume = self.volumes.volume_of(root)?;
-        let mut changed = 0;
-        for entry in WalkDir::new(only_file.unwrap_or(root))
-            .follow_links(false)
-            .into_iter()
-            // Drive-resident state (CS-1) is never an original.
-            .filter_entry(|e| e.depth() == 0 || e.file_name() != ".tessera")
-        {
-            let entry = entry?;
-            // A catalog may explicitly reference a generic .raw original.
-            // Preserve ordinary folder discovery's existing extension policy.
-            let explicit_raw = only_file.is_some()
-                && entry
-                    .path()
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("raw"));
-            if !entry.file_type().is_file() || !(is_image(entry.path()) || explicit_raw) {
-                continue;
-            }
-            let path = entry.path();
-            let path_s = path.to_string_lossy().into_owned();
-            let md = entry.metadata()?;
-            let size = md.len() as i64;
-            let mtime = md
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                .map_or(0, |d| d.as_nanos() as i64);
-            let stamp = sidecar_stamp(path, sidecars.additional_stamp_paths(path))?;
-            let old: Option<(i64, i64, String, Option<String>)> = self
-                .conn
-                .query_row(
-                    "SELECT f.size,f.mtime,f.sidecar_stamp,i.id FROM file f LEFT JOIN image i ON i.file_id=f.id WHERE f.path=?",
-                    [&path_s],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-                )
-                .optional()?;
-            // An indexed original keeps its id (a relocated drive derives the
-            // same one anyway); a legacy path id on a volume is re-keyed in
-            // place, even when the file itself is unchanged.
-            let derived = rekey::image_id_on(volume.as_ref(), path);
-            let mut existing = old.as_ref().and_then(|o| o.3.clone());
-            if let Some(stored) = existing.as_deref().map(parse_id).transpose()?
-                && stored != derived
-                && stored == ImageId::for_path(&path_s)
-            {
-                self.rekey_images(&[(stored, derived)])?;
-                self.rekeyed.push((stored, derived));
-                existing = Some(derived.to_string());
-            }
-            if old.is_some_and(|(s, m, st, _)| (s, m, st) == (size, mtime, stamp.clone())) {
-                continue;
-            }
-            let folder_s = path.parent().unwrap_or(root).to_string_lossy().into_owned();
-            self.conn.execute(
-                "INSERT OR IGNORE INTO folder(root_id,path) VALUES(?,?)",
-                params![root_id, folder_s],
-            )?;
-            let folder_id: i64 =
-                self.conn
-                    .query_row("SELECT id FROM folder WHERE path=?", [&folder_s], |r| {
-                        r.get(0)
-                    })?;
-            let name = path
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .into_owned();
-            let id = existing.unwrap_or_else(|| derived.to_string());
-            let mut data = basic_metadata(path)?;
-            let supplied = metadata.read(path)?;
-            data.values.extend(supplied.values);
-            data.capture_time = supplied.capture_time.or(data.capture_time);
-            data.camera = supplied.camera.or(data.camera);
-            data.lens = supplied.lens.or(data.lens);
-            data.latitude = supplied.latitude.or(data.latitude);
-            data.longitude = supplied.longitude.or(data.longitude);
-            let side = sidecars.read(path)?;
-            let tx = self.conn.transaction()?;
-            tx.execute("INSERT INTO file(folder_id,path,name,size,mtime) VALUES(?,?,?,?,?) ON CONFLICT(path) DO UPDATE SET folder_id=excluded.folder_id,name=excluded.name,size=excluded.size,mtime=excluded.mtime", params![folder_id,path_s,name,size,mtime])?;
-            tx.execute(
-                "UPDATE file SET sidecar_stamp=? WHERE path=?",
-                params![stamp, path_s],
-            )?;
-            let file_id: i64 =
-                tx.query_row("SELECT id FROM file WHERE path=?", [&path_s], |r| r.get(0))?;
-            tx.execute(
-                "INSERT OR IGNORE INTO image(id,file_id) VALUES(?,?)",
-                params![id, file_id],
-            )?;
-            tx.execute("INSERT INTO image(id,file_id,capture_time,camera,lens,caption,latitude,longitude) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET file_id=excluded.file_id,capture_time=excluded.capture_time,camera=excluded.camera,lens=excluded.lens,caption=excluded.caption,latitude=excluded.latitude,longitude=excluded.longitude", params![id,file_id,data.capture_time,data.camera,data.lens,side.caption,data.latitude,data.longitude])?;
-            tx.execute("DELETE FROM metadata WHERE image_id=?", [&id])?;
-            for (key, value) in data.values.into_iter().chain(side.values) {
-                tx.execute(
-                    "INSERT OR REPLACE INTO metadata(image_id,key,value) VALUES(?,?,?)",
-                    params![id, key, value],
-                )?;
-            }
-            tx.execute("INSERT OR IGNORE INTO selection(image_id) VALUES(?)", [&id])?;
-            if let Some(selection) = side.selection {
-                let s = selection.normalized();
-                tx.execute(
-                    "UPDATE selection SET decision=?,grade=?,mark=? WHERE image_id=?",
-                    params![
-                        decision_str(s.decision),
-                        s.grade.map(u8::from),
-                        s.mark.map(|m| m.0),
-                        id
-                    ],
-                )?;
-            }
-            tx.execute("DELETE FROM image_keyword WHERE image_id=?", [&id])?;
-            tx.execute("INSERT INTO image_keyword SELECT image_id,keyword_id FROM accepted_keyword WHERE image_id=?", [&id])?;
-            for keyword in &side.keywords {
-                tx.execute("INSERT OR IGNORE INTO keyword(name) VALUES(?)", [keyword])?;
-                tx.execute("INSERT OR IGNORE INTO keyword_closure SELECT id,id,0 FROM keyword WHERE name=?", [keyword])?;
-                tx.execute("INSERT INTO image_keyword SELECT ?,id FROM keyword WHERE name=? ON CONFLICT DO NOTHING", params![id,keyword])?;
-            }
-            if let Some(hash) = side.recipe_hash {
-                tx.execute(
-                    "INSERT OR REPLACE INTO recipe_hash VALUES(?,?)",
-                    params![id, hash.to_string()],
-                )?;
-            } else {
-                tx.execute("DELETE FROM recipe_hash WHERE image_id=?", [&id])?;
-            }
-            understanding::refresh_fts(&tx, &id)?;
-            tx.commit()?;
-            changed += 1;
-        }
-        if changed > 0 {
-            self.trim_changes()?;
-        }
-        Ok(changed)
     }
 
     /// Search matching images, ordered by capture time then stable id.

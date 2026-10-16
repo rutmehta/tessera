@@ -221,6 +221,23 @@ impl MaskStore {
         for value in &raster.data {
             bytes.extend(value.to_le_bytes());
         }
+        self.write_entry(key, bytes)
+    }
+
+    /// `put` with the quantized u16 payload (`TSMASK02`, half the bytes of
+    /// f32): for rasters whose consumers accept 1/65535 steps, such as
+    /// segmentation alphas that are resampled on use. Read back by `get`.
+    pub fn put_compact(&self, key: &[u8; 32], raster: &MaskRaster) -> io::Result<()> {
+        let _lock = self.io.lock().unwrap_or_else(|e| e.into_inner());
+        if raster.data.len() as u64 * 2 + 48 > self.cap {
+            return Ok(());
+        }
+        self.write_entry(key, raster.compact_payload())
+    }
+
+    /// Checksums and atomically publishes one entry, then evicts the oldest
+    /// entries over the cap. The caller holds `io`.
+    fn write_entry(&self, key: &[u8; 32], mut bytes: Vec<u8>) -> io::Result<()> {
         bytes.extend(*blake3::hash(&bytes).as_bytes());
         let mut temp = tempfile::NamedTempFile::new_in(&self.root)?;
         temp.write_all(&bytes)?;

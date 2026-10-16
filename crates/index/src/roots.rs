@@ -105,13 +105,19 @@ impl Index {
     }
 
     /// Every indexed root, in path order, with its volume identity and image count.
+    ///
+    /// The count is two index range probes per root (`path > root/` and `path < root0`:
+    /// `0` is the byte after `/`), so the whole listing is milliseconds. The previous
+    /// `substr(f.path, …) = r.path || '/'` form scanned every file row for every root:
+    /// 54 s for 17 k roots × 20 k files, held under the catalog lock on every drive flush.
     pub fn roots(&self) -> EngineResult<Vec<RootRecord>> {
         let mut stmt = self
             .0
             .conn
             .prepare(
                 "SELECT r.id,r.path,r.volume_uuid,r.relative_path,
-                 (SELECT count(*) FROM file f WHERE f.path=r.path OR substr(f.path,1,length(r.path)+1)=r.path || '/')
+                 (SELECT count(*) FROM file f WHERE f.path > r.path || '/' AND f.path < r.path || '0')
+                 + (SELECT count(*) FROM file f WHERE f.path = r.path)
                  FROM root r ORDER BY r.path",
             )
             .map_err(sql)?;

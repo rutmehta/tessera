@@ -1,5 +1,6 @@
 //! Narrow, synchronous commands. Swift dispatches blocking work off its main actor.
 mod agent_runs;
+pub mod alloc;
 mod assist;
 mod backend;
 mod catalog;
@@ -19,15 +20,18 @@ mod lock;
 mod lrcat;
 mod lrcat_fidelity;
 mod lrcat_masks;
+mod mem_trace;
 mod merge;
 mod metadata;
 mod models;
+mod offline;
 mod original_write;
 mod preview;
 mod proof;
 mod recipe_write;
 #[cfg(test)]
 mod recipe_write_tests;
+mod scan;
 mod session;
 mod smart_preview;
 #[allow(
@@ -36,6 +40,7 @@ mod smart_preview;
 )]
 mod smart_preview_store;
 mod smart_preview_thumbnail;
+pub use offline::OfflineCoverage;
 pub use smart_preview::{SmartPreviewInfo, SmartPreviewState};
 #[doc(hidden)]
 pub mod surface;
@@ -264,6 +269,9 @@ pub struct Engine {
     /// Develop renderer and memo cache shared by every session (lazy: the
     /// Metal context is created on the first develop session).
     renderer: std::sync::OnceLock<backend::Backend>,
+    /// Open develop sessions, for the memory trace (`mem_trace`) and for
+    /// release-on-close decisions. Weak: a session's lifetime is the host's.
+    sessions: Mutex<Vec<std::sync::Weak<develop::Shared>>>,
     /// AI mask segmentation (loaded on first use; see `develop::masks`).
     segmenter: develop::SegmenterSlot,
     /// Face detector + recognizer (downloaded and loaded on first face analysis).
@@ -298,6 +306,9 @@ pub struct Engine {
     /// do not construct a temporary Develop session.
     #[cfg(test)]
     develop_writer_constructions: std::sync::atomic::AtomicUsize,
+    /// Milliseconds a test adds to each scan batch's read phase (see `scan`).
+    #[cfg(test)]
+    scan_read_delay_ms: AtomicU64,
 }
 impl Engine {
     fn emit(&self, event: EngineEvent) {
@@ -514,6 +525,7 @@ impl Engine {
             previews,
             jobs: jobs::ThreadPoolScheduler::with_interactive_reservation(3),
             renderer: std::sync::OnceLock::new(),
+            sessions: Mutex::new(Vec::new()),
             segmenter: Default::default(),
             faces: Mutex::new(None),
             smart_thumbnail_states: Mutex::new(Default::default()),
@@ -531,6 +543,8 @@ impl Engine {
             this: this.clone(),
             #[cfg(test)]
             develop_writer_constructions: std::sync::atomic::AtomicUsize::new(0),
+            #[cfg(test)]
+            scan_read_delay_ms: AtomicU64::new(0),
         });
         engine.start_drive_writer();
         Ok(engine)
@@ -560,31 +574,34 @@ impl Engine {
             updated: 0,
             finished: false,
         });
-        let (updated, rekeyed) = {
+        // What the drive carries (people, scores, albums) is there before
+        // the scan; the scan fills the gaps (CS-1). The files are parsed
+        // with the catalog free and applied under it.
+        let drive = index::DriveState::read(&path)?;
+        let volume = self.volumes.volume_of(&path)?;
+        let imported = self
+            .lock()?
+            .index
+            .apply_drive_state(&path, volume.as_ref(), &drive)?;
+        if imported != index::ImportCounts::default() {
+            eprintln!(
+                "drive state: {} analysis records, {} people, {} assignments from {}",
+                imported.analysis,
+                imported.persons,
+                imported.assignments,
+                path.display()
+            );
+        }
+        let updated = self.scan_folder(&path)?;
+        // A root the drive has not seen yet gets its existing analysis and
+        // people written out (a catalog older than CS-1).
+        let unseen = !index::TesseraDir::of_root(&path).analysis_dir().exists();
+        let rekeyed = {
             let mut c = self.lock()?;
-            // What the drive carries (people, scores, albums) is there before
-            // the scan; the scan fills the gaps (CS-1).
-            let volume = c.index.volumes().volume_of(&path)?;
-            let imported = c.index.import_drive_state(&path, volume.as_ref())?;
-            if imported != index::ImportCounts::default() {
-                eprintln!(
-                    "drive state: {} analysis records, {} people, {} assignments from {}",
-                    imported.analysis,
-                    imported.persons,
-                    imported.assignments,
-                    path.display()
-                );
-            }
-            let updated = c
-                .index
-                .scan(&path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
-            // A root the drive has not seen yet gets its existing analysis and
-            // people written out (a catalog older than CS-1).
-            let tessera = index::TesseraDir::of_root(&path);
-            if !tessera.analysis_dir().exists() {
+            if unseen {
                 c.index.mark_root_dirty(&path)?;
             }
-            (updated, c.index.take_rekeyed())
+            c.index.take_rekeyed()
         };
         // Legacy ids found on a drive were re-keyed in place: follow in the albums.
         Self::rekey_library(&path, &rekeyed)?;
@@ -595,6 +612,7 @@ impl Engine {
             finished: true,
         });
         self.notify_changes();
+        self.trace_memory("after scan");
         Ok(FolderHandle {
             path: path.to_string_lossy().into_owned(),
             updated: updated as u64,

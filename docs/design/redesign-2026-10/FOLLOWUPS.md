@@ -40,9 +40,50 @@ much they would annoy Rut.
 
 ## After ST-1 / ST-2 (2026-10-16)
 
-12. **Engine memory.** On the 8-RAW sample the footprint sits at 2.3–3.5 GB after closing everything (0.7 GB after the scan alone; ~64 MB per opened photo stays behind). Nothing on the Swift side references it (`EngineSessionMemoryTests`); it is the engine's shared renderer/memo cache and per-image residue in `crates/`. Needs a cap and release-on-close in image-core.
+12. **Engine memory.** ~~On the 8-RAW sample the footprint sits at 2.3–3.5 GB after closing everything (0.7 GB after the scan alone; ~64 MB per opened photo stays behind). Nothing on the Swift side references it (`EngineSessionMemoryTests`); it is the engine's shared renderer/memo cache and per-image residue in `crates/`. Needs a cap and release-on-close in image-core.~~ Done (ST-3). `TESSERA_MEM_TRACE=1` prints the engine's cache table at scan/open/close (`Engine::memory_report()` over FFI); `sample_shoot_memory_table` (`TESSERA_SAMPLE_SHOOT=<dir>`) is the evidence. The holders were the GPU resident memo (511 MB, never released on close), the recycled device buffers (up to 1 GB) and macOS 26 malloc keeping freed large blocks resident (~650 MB; `malloc_zone_pressure_relief` returns 0). Fix: release the image's memo pages and the session's rasters on close, a memo budget of 15 % of RAM (`TESSERA_CACHE_BUDGET_MB`) in place of 512 MB each, and a global allocator that `mmap`s blocks ≥ 128 KiB so they leave the footprint on free. Engine-only, 8-ARW sample: after closing everything 1.70 GB → 0.31 GB; peak with one session open 1.75 → 1.18 GB; no growth across reopening the same photos. With the shell (`EngineSessionMemoryTests`, five fixture RAWs): 304 MB after closing everything, 1.52 GB peak. The engine-side scan retains nothing (9 MB); the 650 MB the Swift test shows after the scan is the shell's own (the test process and its previews).
 13. **`index_folder` scans under the catalog lock** (183–686 ms holds under load): the index crate's scan is one `&mut self` pass (stat → EXIF → write). The UI no longer queues behind it for lookups (separate reader), but `list_images`/`roots` answer Busy during it. Split the scan into read-outside / write-inside passes.
-14. **AI masks re-segment on session open** for recipes that already carry AI masks (seen as a 2.5 s `AiMaskJob` on the owner's folder). Load the saved rasters instead.
+14. **AI masks re-segment on session open** ~~for recipes that already carry AI masks (seen as a 2.5 s `AiMaskJob` on the owner's folder). Load the saved rasters instead.~~ Done (ST-3): computed rasters are stored per image under `mask-cache/<image id>/` when segmentation finishes and loaded (off the session lock, "Loaded" in the panel) on the first render that uses them; only a missing raster segments. Rasters created before ST-3 were never stored, so those recipes segment once more and are stored then. Thumbnails (item 1) could load from the same store.
 15. **`getHistogram` per frame and the `DevelopSession` per-tick calls stay on the main actor** by design; measure them under the watchdog on a 61 MP file.
 16. **`cargo test -p tessera-ffi` alone fails two understanding tests** (`suggestion_jobs_report_progress…`, `accept_is_catalog_only…`: "blue" no longer maps onto an existing Colors > Blue). They pass when the engine crates are tested together, so it is feature unification in the test build; pin the feature in `tessera-ffi`'s dev-dependencies so the single-crate run matches.
 17. **UI collisions reported by the owner on the work Mac** are still unlocated: needs a screenshot and the window size; the layout audit passes at 1440×900 and up.
+
+## UX-15: collisions located (2026-10-16, screenshots on the sample shoot at 1385 × 868 pt)
+
+Item 17 is located. Evidence: `docs/design/evidence/UX-15/` (to be added by the WP) and the
+session screenshots described here. All on the 8-ARW sample shoot, window 1385 × 868.
+
+18. **Deliver drawn over an open Develop session.** Switching Cull → Edit → Deliver with a photo
+    open leaves the Edit panel (Light/Color/Detail/Optics/Effects/Edits), the six Try cards, the
+    develop tool strip and the "Rendering…" capsule on screen *under and over* Deliver's own
+    columns; Deliver's "Finish saving the photo before leaving this workspace" and "Ready. The
+    agent can also do this…" lines print across the Try cards. A mode switch must close or
+    suspend the develop chrome first (save-and-close like navigation does), and Deliver shows
+    only its columns, its grid and the agent field.
+19. **Edit never leaves "Rendering…".** The loupe showed the photo at thumbnail size (about
+    120 × 80 pt, centred, not scaled to the loupe) with a loose "Rendering…" capsule at the top
+    of the panel for over a minute. Cause: the develop open waited on the catalog lock held by
+    `flush_drive → Index::roots()` (PF-1, fixed on main). The shell side still needs: the
+    embedded preview scaled to fit the loupe immediately, the capsule inside the Edits readout
+    line rather than floating, and after 2 s a reason ("Waiting for the engine · 12 s").
+20. **Toast over the quick-action chips.** In Cull the "Opened sample-shoot: 8 images" toast
+    sits exactly on the "Keep the pick in every burst · Reject the blurry ones · Find closed
+    eyes" chip row above the agent field. The toast belongs above the chips (one row up), or
+    the chips hide while a toast shows.
+21. **Bottom progress bar in Cull.** "Measuring sharpness and exposure for culling · 0 / 8 ·
+    DSC02497.ARW · Stop" is a full-width bar at the bottom while the Cull column already says
+    "Sorting the shoot while it loads: 0 of 8 measured". One place: the column line gets the
+    Stop control; the bar goes.
+22. **Inspector in Cull is a wall of prose.** With the panel open: Image, Selection (three rows
+    of chips), Assist (two-line paragraph), People, Agent Edit (paragraph + button), Keywords
+    (field + "Suggested" + paragraph + "Keyword List" + paragraph), Metadata (eight fields +
+    paragraph), Photo Edit (button + paragraph). Keep one short line per section at most and
+    move the rest to `.help`; Keywords and Metadata collapsed by default in Cull; drop the
+    "Photo Edit" section (Edit is a mode).
+23. **Grid view.** Burst 3's two thumbnails stayed blank while bursts 1–2 drew (the strip in
+    Burst view had drawn them). The built-preview thumbnails carry a "Smart Preview" text label
+    inside the cell; a small glyph in the corner, not text. "review" is a bare lowercase link.
+24. **Raw error text in menus.** Library ▸ Smart Previews shows
+    `TesseraFFI.BridgeError.Failure(message: "…")`: `BridgeError` needs `LocalizedError`
+    (`errorDescription` = the message) and every surface shows `localizedDescription`.
+25. **Mode segmented control ignores raw clicks** (AX press works): the Cull · Edit · Deliver
+    control needs a hit target the size of its label row, and a hover state.
