@@ -1,15 +1,16 @@
 import Foundation
 import Darwin
 
+/// `cachedSmartPreviews`: the drive is not attached; the folder opens on its offline previews
+/// (OF-2 copy: the person reads about the drive and the previews, never about caches or catalogs).
 public enum LibraryAccessMode: Sendable, Equatable {
     case originalFolder, cachedSmartPreviews
     public var isReadOnly: Bool { self == .cachedSmartPreviews }
-    public var label: String { isReadOnly ? "Cached Smart Preview Library · Catalog read-only" : "Original folder" }
-    public var emptyMessage: String {
-        "No cached Smart Preview declarations for this folder. Reconnect the original folder and build Smart Previews, then reopen it."
-    }
-    public func requireCatalogMutation() throws {
-        guard !isReadOnly else { throw CullError.unavailable("Cached Smart Preview Library is read-only for culling, basket, people and metadata. Reconnect and reopen the original folder.") }
+    public var label: String { isReadOnly ? "Offline previews · drive not attached" : "Original folder" }
+    public var emptyMessage: String { emptyMessage(volume: nil) }
+    public func emptyMessage(volume: String?) -> String { OfflineCopy.emptyMessage(volume: volume) }
+    public func requireCatalogMutation(volume: String? = nil) throws {
+        guard !isReadOnly else { throw CullError.unavailable(OfflineCopy.decisionsWait(volume: volume)) }
     }
 }
 

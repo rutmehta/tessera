@@ -41,6 +41,9 @@ struct TesseraApp: App {
                     .tabItem { Label("Appearance", systemImage: "paintpalette") }
                 SyncSettingsView(sync: model.sync)
                     .tabItem { Label("Sync", systemImage: "icloud") }
+                // Settings ▸ Offline (OF-2): previews that survive the drive being unplugged.
+                OfflineSettingsView(model: model)
+                    .tabItem { Label("Offline", systemImage: "externaldrive.badge.checkmark") }
             }
         }
     }

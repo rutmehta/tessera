@@ -38,8 +38,13 @@ struct SidebarSnapshot: Equatable {
     var reject: Int
     var source: LibrarySource
     var peopleCount: Int?
+    /// OF-2: "180 of 226 editable offline" for the current folder and for detached roots (by path).
+    var offlineCoverage: String?
+    var rootOfflineCoverage: [String: String]
 
     @MainActor init(model: AppModel) {
+        offlineCoverage = model.offlinePreviews.coverageText
+        rootOfflineCoverage = model.offlinePreviews.rootCoverage.mapValues(\.editableText)
         // The library object updates in place (M2-28): observe its revision for the counts.
         _ = model.libraryRevision
         engineBacked = model.isEngineBacked
@@ -261,6 +266,7 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         let current = SidebarRow(.currentFolder(s.folder), key: "folder:current",
                                  title: s.folder?.lastPathComponent ?? (s.hasItems ? s.title : "No folder open"))
         current.tooltip = s.folder?.path
+        current.detail = s.offlineCoverage // OF-2: "180 of 226 editable offline"
         folders.children = [current]
         for sub in s.subfolders {
             let r = SidebarRow(.folder(sub), key: "folder:\(sub.path)", title: sub.lastPathComponent)
@@ -280,7 +286,8 @@ final class SidebarController: NSObject, NSOutlineViewDataSource, NSOutlineViewD
         for root in s.detachedRoots {
             let r = SidebarRow(.detachedRoot(root), key: "root:\(root.id)", title: root.listTitle)
             r.count = root.images
-            r.detail = root.volumeName
+            // OF-2: how much of the root is editable while its drive is away, else the drive's name.
+            r.detail = s.rootOfflineCoverage[root.path] ?? root.volumeName
             r.badge = s.pendingRoot?.id == root.id ? "…" : nil
             r.tooltip = root.attachMessage
             folders.children.append(r)

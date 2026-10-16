@@ -53,18 +53,19 @@ final class SmartPreviewUITests: XCTestCase {
         XCTAssertFalse(SmartPreviewPreference.read(from: defaults))
     }
 
-    func testOfflineExistingPreviewOffersExplicitUseRatherThanRebuildOrSync() throws {
+    /// OF-2: with the original offline a usable preview opens on its own; a missing one names the
+    /// drive and where previews come from, never a rebuild or a sync.
+    func testOfflineExistingPreviewOpensWithoutAMenuTrip() throws {
         for dirty in [false, true] {
             let existing = info("raw", .originalOffline, dirty: dirty, online: false)
-            XCTAssertThrowsError(try SmartPreviewRouting.route(existing, preferPreview: false)) { error in
-                XCTAssertTrue(error.localizedDescription.contains("Use Smart Preview"))
-                XCTAssertFalse(error.localizedDescription.contains("build"))
-                XCTAssertFalse(error.localizedDescription.contains("Synchronize"))
-            }
+            XCTAssertEqual(try SmartPreviewRouting.route(existing, preferPreview: false), .smartPreview)
             XCTAssertEqual(try SmartPreviewRouting.route(existing, preferPreview: true), .smartPreview)
         }
-        XCTAssertThrowsError(try SmartPreviewRouting.route(info("raw", .missing, online: false), preferPreview: false)) { error in
-            XCTAssertTrue(error.localizedDescription.contains("Reconnect the original"))
+        XCTAssertThrowsError(try SmartPreviewRouting.route(info("raw", .missing, online: false), preferPreview: false, volumeName: "Rut photo")) { error in
+            XCTAssertTrue(error.localizedDescription.contains("“Rut photo” isn't attached"), error.localizedDescription)
+            XCTAssertTrue(error.localizedDescription.contains("Settings ▸ Offline"))
+            XCTAssertFalse(error.localizedDescription.contains("build"))
+            XCTAssertFalse(error.localizedDescription.contains("Synchronize"))
         }
     }
 
