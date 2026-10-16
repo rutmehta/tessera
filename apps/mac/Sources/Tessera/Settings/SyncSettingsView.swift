@@ -1,11 +1,15 @@
+import AppKit
 import SwiftUI
 import TesseraCore
 
-/// Settings ▸ Sync (SPEC §3–4, CS-2): the account the catalog follows, the switch, what syncs,
-/// when it last did and how much it takes. With no container the reason is shown with its
-/// one-line fix, and the switch is disabled; everything else in the app works as before.
+/// Settings ▸ Sync (SPEC §3–4, CS-2, CS-2b): where the account lives (iCloud Drive, or a folder
+/// another app syncs), the switch, what syncs, when it last did and how much it takes. With no
+/// container or folder the reason is shown with its one-line fix, and the switch is disabled;
+/// everything else in the app works as before.
 struct SyncSettingsView: View {
     let sync: AccountSync
+
+    private enum Where: Hashable { case iCloudDrive, folder }
 
     private static let items: [(String, String)] = [
         ("AI and appearance preferences", "Provider and model choices, guardrails, culling thresholds, accent and ground. API keys stay in the Keychain."),
@@ -17,18 +21,44 @@ struct SyncSettingsView: View {
 
     var body: some View {
         Form {
-            Section("iCloud") {
-                LabeledContent("Account") {
-                    Text("Synced as \(sync.accountDescription)")
-                        .foregroundStyle(Theme.textPrimary)
-                        .accessibilityIdentifier("sync-account")
+            Section("Where") {
+                Picker("Where", selection: Binding<Where>(get: { sync.usesFolder ? .folder : .iCloudDrive },
+                                                          set: { sync.setUsesFolder($0 == .folder) })) {
+                    Text("iCloud Drive").tag(Where.iCloudDrive)
+                    Text("A synced folder…").tag(Where.folder)
                 }
-                Toggle("Sync the catalog with iCloud", isOn: Binding(get: { sync.isEnabled }, set: { sync.setEnabled($0) }))
+                .accessibilityIdentifier("sync-where")
+                if sync.usesFolder {
+                    LabeledContent("Folder") {
+                        HStack(spacing: Theme.Space.s) {
+                            Text(sync.folder?.path ?? "None chosen")
+                                .font(Theme.Fonts.body)
+                                .foregroundStyle(sync.folder == nil ? Theme.textTertiary : Theme.textSecondary)
+                                .truncationMode(.middle)
+                                .lineLimit(1)
+                                .help(sync.folder?.path ?? "")
+                                .accessibilityIdentifier("sync-folder")
+                            Button("Choose…") { chooseFolder() }
+                                .accessibilityIdentifier("sync-choose-folder")
+                        }
+                    }
+                    Hint("Pick a folder inside Nextcloud, Dropbox, Google Drive or any app that syncs a folder between your computers.")
+                } else {
+                    LabeledContent("Account") {
+                        Text("Synced as \(sync.accountDescription)")
+                            .foregroundStyle(Theme.textPrimary)
+                            .accessibilityIdentifier("sync-account")
+                    }
+                }
+            }
+            Section(sync.usesFolder ? "Synced folder" : "iCloud") {
+                Toggle(sync.usesFolder ? "Sync the catalog through this folder" : "Sync the catalog with iCloud",
+                       isOn: Binding(get: { sync.isEnabled }, set: { sync.setEnabled($0) }))
                     .disabled(sync.status != .available)
                     .accessibilityIdentifier("sync-enabled")
                 switch sync.status {
                 case .resolving:
-                    Hint("Checking iCloud…")
+                    Hint(sync.usesFolder ? "Checking the folder…" : "Checking iCloud…")
                 case .unavailable(let reason):
                     StatusLine(text: reason.message, kind: .warning)
                         .accessibilityIdentifier("sync-unavailable")
@@ -58,9 +88,24 @@ struct SyncSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 520)
+        .frame(width: 520, height: 600)
         .tint(Theme.accent)
         .onAppear { sync.refreshStats() }
+    }
+
+    /// Folders only; the pick re-points the store live (`AccountSync.setFolder`).
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a Synced Folder"
+        panel.message = "Choose a folder that Nextcloud, Dropbox, Google Drive or another app keeps in sync between your Macs"
+        panel.prompt = "Choose"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = sync.folder
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        sync.setFolder(url)
     }
 
     private var lastSyncText: String {

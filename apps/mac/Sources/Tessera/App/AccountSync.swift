@@ -4,12 +4,13 @@ import TesseraCore
 import TesseraFFI
 
 /// "The catalog follows the account" (docs/design/cloud-sync/SPEC.md §3, CS-2): what belongs to
-/// the photographer rather than to a drive lives in the app's iCloud Drive container through
-/// `AccountStore`. Preferences (never API keys), the keyword hierarchy, the style profile and the
-/// culling learner (the per-shoot ones merged into one account record), people names and the
-/// drives list update the store when they change here, and a record written on another Mac is
-/// applied through the same model APIs the user's own edits go through. No container: `status`
-/// says why, Settings ▸ Sync shows the one-line fix, and nothing else changes.
+/// the photographer rather than to a drive lives in the app's iCloud Drive container, or in a
+/// folder another app syncs (CS-2b), through `AccountStore`. Preferences (never API keys), the
+/// keyword hierarchy, the style profile and the culling learner (the per-shoot ones merged into
+/// one account record), people names and the drives list update the store when they change here,
+/// and a record written on another Mac is applied through the same model APIs the user's own
+/// edits go through. No container: `status` says why, Settings ▸ Sync shows the one-line fix,
+/// and nothing else changes.
 @MainActor @Observable
 final class AccountSync {
     enum Status: Equatable {
@@ -23,8 +24,12 @@ final class AccountSync {
     @ObservationIgnored private(set) var store: AccountStore?
     @ObservationIgnored private var watcher: AccountStore.Watcher?
     @ObservationIgnored private let supportDirectory: URL
-    /// Read off the main actor once, to resolve the container (`UserDefaults` is not `Sendable`).
+    /// Read off the main actor to resolve the container (`UserDefaults` is not `Sendable`).
     @ObservationIgnored nonisolated(unsafe) private let defaults: UserDefaults
+    /// Bumped per `reload`, so a slow container resolve cannot install over a later choice.
+    @ObservationIgnored private var generation = 0
+    /// An isolated run never resolves a location, whatever Settings says.
+    @ObservationIgnored private var isIsolated = false
     /// A remote record is being applied: the model hooks it fires must not push it back.
     @ObservationIgnored private var applyingRemote = false
     /// Cluster ids merged into each person on this Mac (union-find for `PersonRecord.clusters`).
@@ -40,6 +45,10 @@ final class AccountSync {
     /// "<name> · not attached" (CS-1 opens them on mount).
     private(set) var detachedDrives: [DriveRecord] = []
     private(set) var isEnabled: Bool
+    /// Settings ▸ Sync ▸ Where: iCloud Drive (the default) or a synced folder.
+    private(set) var usesFolder: Bool
+    /// The last chosen folder, kept while iCloud Drive is in use so the row still shows it.
+    private(set) var folder: URL?
 
     /// No public API names the iCloud account on macOS without CloudKit discoverability, so this
     /// is the fallback the spec allows.
@@ -49,29 +58,71 @@ final class AccountSync {
         self.supportDirectory = supportDirectory
         self.defaults = defaults
         isEnabled = defaults.object(forKey: AccountStore.enabledKey) as? Bool ?? true
+        usesFolder = defaults.string(forKey: SyncLocation.kindKey) == "folder"
+        folder = SyncLocation.storedFolder(in: defaults)
     }
+
+    /// What the store is (or will be) over; nil while "a synced folder" has none chosen.
+    var location: SyncLocation? { usesFolder ? folder.map { .folder($0) } : .iCloudDrive }
 
     // MARK: Lifecycle
 
-    /// Resolves the container off the main actor (`url(forUbiquityContainerIdentifier:)` may
-    /// block while iCloud sets it up), then watches it. Isolated runs (`--app-dir`,
-    /// `TESSERA_APP_DIR`) and background audits never touch the real container.
+    /// Resolves the location off the main actor (`url(forUbiquityContainerIdentifier:)` may
+    /// block while iCloud sets the container up), then watches it. Isolated runs (`--app-dir`,
+    /// `TESSERA_APP_DIR`) and background audits never touch the real container or folder.
     func start(arguments: [String] = ProcessInfo.processInfo.arguments) {
         guard store == nil else { return }
         if AppDefaultsIsolation.current != nil || arguments.contains("--nonactivating") {
+            isIsolated = true
             install(AccountStore(baseURL: nil, reason: .isolatedRun, defaults: defaults))
             return
         }
+        reload()
+    }
+
+    /// Settings ▸ Sync ▸ Where. The choice persists; the store is re-pointed live and the new
+    /// location's records applied (what this Mac has is pushed too, so a fresh folder fills).
+    func setUsesFolder(_ on: Bool) {
+        guard usesFolder != on else { return }
+        usesFolder = on
+        if on, let folder { SyncLocation.folder(folder).save(in: defaults) }
+        else if on { SyncLocation.saveFolderPending(in: defaults) }
+        else { SyncLocation.iCloudDrive.save(in: defaults) }
+        reload(push: true)
+    }
+
+    /// Choose… picked a folder (it also selects "a synced folder").
+    func setFolder(_ url: URL) {
+        folder = url
+        usesFolder = true
+        SyncLocation.folder(url).save(in: defaults)
+        reload(push: true)
+    }
+
+    /// Resolves `location` and installs its store. `push`: a switch made in Settings also pushes
+    /// what this Mac has, so a fresh folder fills without waiting for the next edit.
+    private func reload(push: Bool = false) {
+        guard !isIsolated else { return }
+        generation += 1
+        let generation = generation
+        let location = location
+        status = .resolving
+        detachedDrives = []
         Task.detached(priority: .utility) {
-            let store = AccountStore.live(defaults: self.defaults)
-            await MainActor.run { self.install(store) }
+            let store = AccountStore.live(location: location, defaults: self.defaults)
+            await MainActor.run {
+                guard generation == self.generation else { return }
+                self.install(store)
+                if push, store.isActive { self.pushAll() }
+            }
         }
     }
 
-    /// Adopts a store (tests pass one over a temp directory; `watch` starts the metadata query,
-    /// which only makes sense on the real container).
+    /// Adopts a store (tests pass one over a temp directory; `watch` starts the metadata query or
+    /// FSEvents stream). Called again when Settings ▸ Sync changes where the account lives.
     func install(_ store: AccountStore, watch: Bool = true) {
         watcher?.stop()
+        watcher = nil
         self.store = store
         status = store.unavailableReason.map { .unavailable($0) } ?? .available
         guard store.isAvailable else { return }
