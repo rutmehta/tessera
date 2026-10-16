@@ -22,13 +22,30 @@ if [[ "$ARTIFACT" == *.app ]]; then
   trap 'rm -f "$UPLOAD"' EXIT
   ditto -c -k --sequesterRsrc --keepParent "$ARTIFACT" "$UPLOAD"
 fi
-# notarytool has crashed (bus error) mid-submission on this Mac; a second attempt goes through.
-submitted=0
+# notarytool crashes (SIGBUS, a stack overflow in its own progress formatting) while it waits
+# with `--wait` on this Mac, often after the upload already succeeded. So: submit without
+# waiting, take the submission id, and poll `notarytool info` until Apple answers.
+submission=""
 for attempt in 1 2 3; do
-  if xcrun notarytool submit "$UPLOAD" "${NOTARY_AUTH[@]}" --wait; then submitted=1; break; fi
-  echo "notarytool submit failed (attempt $attempt); retrying" >&2
+  out="$(xcrun notarytool submit "$UPLOAD" "${NOTARY_AUTH[@]}" --no-wait 2>&1 || true)"
+  echo "$out"
+  submission="$(printf '%s\n' "$out" | sed -n 's/^ *id: \([0-9a-f-]\{36\}\).*/\1/p' | head -1)"
+  [[ -n "$submission" ]] && break
+  echo "notarytool submit returned no submission id (attempt $attempt); retrying" >&2
   sleep 15
 done
-[[ "$submitted" == 1 ]] || { echo "notarization failed after 3 attempts" >&2; exit 1; }
+[[ -n "$submission" ]] || { echo "notarization: no submission id after 3 attempts" >&2; exit 1; }
+status=""
+for _ in $(seq 1 80); do
+  sleep 15
+  status="$(xcrun notarytool info "$submission" "${NOTARY_AUTH[@]}" 2>/dev/null | sed -n 's/^ *status: *//p' | head -1)"
+  echo "notarization $submission: ${status:-no answer yet}"
+  case "$status" in Accepted|Invalid|Rejected) break;; esac
+done
+if [[ "$status" != "Accepted" ]]; then
+  xcrun notarytool log "$submission" "${NOTARY_AUTH[@]}" 2>&1 | head -60 >&2 || true
+  echo "notarization failed: status '${status:-unknown}'" >&2
+  exit 1
+fi
 xcrun stapler staple "$ARTIFACT"
 xcrun stapler validate "$ARTIFACT"
