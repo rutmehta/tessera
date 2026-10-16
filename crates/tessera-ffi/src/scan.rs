@@ -3,8 +3,10 @@
 //! sidecar reads happen here with the catalog free, and each batch of
 //! `index::SCAN_BATCH` files is checked and written under the lock in one
 //! short hold, so `roots`, `list_images` and the UI's other lookups answer
-//! between batches instead of queueing behind the whole folder.
-use crate::{Engine, Result, catalog};
+//! between batches instead of queueing behind the whole folder. Each
+//! committed batch is announced (`ScanProgress`, `LibraryChanged`), so the
+//! grid fills as photos land rather than when the folder is done.
+use crate::{Engine, EngineEvent, Result, catalog};
 use std::path::Path;
 
 impl Engine {
@@ -27,7 +29,18 @@ impl Engine {
                 .collect::<engine_api::EngineResult<Vec<_>>>()?;
             #[cfg(test)]
             self.delay_scan_read();
-            updated += self.lock()?.index.scan_apply(&scope, &records)?;
+            let written = self.lock()?.index.scan_apply(&scope, &records)?;
+            if written > 0 {
+                updated += written;
+                // The batch is committed: the UI can list it now, and the
+                // change feed (M2-28) carries it to open sessions.
+                self.emit(EngineEvent::ScanProgress {
+                    path: root.to_string_lossy().into_owned(),
+                    updated: updated as u64,
+                    finished: false,
+                });
+                self.notify_changes();
+            }
         }
         self.lock()?.index.finish_scan(updated)?;
         Ok(updated)
@@ -47,11 +60,11 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BridgeError, Engine, ImageQuery};
+    use crate::{BridgeError, Engine, EngineEvent, EngineEventListener, ImageQuery};
     use std::{
         path::PathBuf,
         sync::{
-            Arc,
+            Arc, Mutex,
             atomic::{AtomicBool, Ordering},
         },
         time::{Duration, Instant},
@@ -157,6 +170,101 @@ mod tests {
         assert_eq!(
             engine.list_images(ImageQuery::default()).unwrap().len(),
             COUNT * folders
+        );
+    }
+
+    /// What the scan announced, in order: `Some(updated)` for a scan
+    /// progress event (`None` once finished), or a library change.
+    #[derive(Default)]
+    struct Announced(Mutex<Vec<Announcement>>);
+    #[derive(Debug, PartialEq, Eq)]
+    enum Announcement {
+        Progress(Option<u64>),
+        Changed(u64),
+    }
+    impl EngineEventListener for Announced {
+        fn on_event(&self, event: EngineEvent) {
+            let item = match event {
+                EngineEvent::ScanProgress {
+                    updated, finished, ..
+                } => Announcement::Progress((!finished).then_some(updated)),
+                EngineEvent::LibraryChanged { sequence } => Announcement::Changed(sequence),
+                _ => return,
+            };
+            self.0.lock().unwrap().push(item);
+        }
+    }
+
+    /// ST-4: photos land in the UI batch by batch. Every committed batch is
+    /// announced with the running count and a library change, and a listing
+    /// from another thread sees the batches committed so far.
+    #[test]
+    fn scan_progress_lands_per_batch() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = shoot(dir.path(), "photos");
+        let engine = Engine::open(dir.path().join("support").to_string_lossy().into()).unwrap();
+        let announced = Arc::new(Announced::default());
+        engine.set_event_listener(Some(announced.clone()));
+        engine.scan_read_delay_ms.store(40, Ordering::Relaxed);
+        let done = AtomicBool::new(false);
+        let seen = std::thread::scope(|s| {
+            let watcher = s.spawn(|| observe(&engine, &done));
+            engine
+                .index_folder(photos.to_string_lossy().into_owned())
+                .unwrap();
+            done.store(true, Ordering::Release);
+            watcher.join().unwrap()
+        });
+        let events = announced.0.lock().unwrap();
+        // Four batches (64, 64, 64, 8), each announced as it committed, then
+        // the finished event; the library changed after every batch.
+        let progress: Vec<_> = events
+            .iter()
+            .filter_map(|e| match e {
+                Announcement::Progress(p) => Some(*p),
+                Announcement::Changed(_) => None,
+            })
+            .collect();
+        assert_eq!(
+            progress,
+            [Some(0), Some(64), Some(128), Some(192), Some(200), None]
+        );
+        let changes: Vec<_> = events
+            .iter()
+            .filter_map(|e| match e {
+                Announcement::Changed(seq) => Some(*seq),
+                Announcement::Progress(_) => None,
+            })
+            .collect();
+        assert!(changes.len() >= 4, "{events:?}");
+        assert!(changes.windows(2).all(|w| w[0] < w[1]), "{changes:?}");
+        let last_progress = events
+            .iter()
+            .rposition(|e| matches!(e, Announcement::Progress(Some(_))))
+            .unwrap();
+        assert!(
+            events[..last_progress]
+                .iter()
+                .filter(|e| matches!(e, Announcement::Changed(_)))
+                .count()
+                >= 3,
+            "changes were announced only at the end: {events:?}"
+        );
+        // Listings mid-scan saw whole batches, never a partial one.
+        let partial: Vec<_> = seen
+            .counts
+            .iter()
+            .copied()
+            .filter(|n| *n > 0 && *n < COUNT)
+            .collect();
+        assert!(
+            !partial.is_empty(),
+            "no listing ran mid-scan: {:?}",
+            seen.counts
+        );
+        assert!(
+            partial.iter().all(|n| n % 64 == 0),
+            "a listing saw a batch half-written: {partial:?}"
         );
     }
 }
