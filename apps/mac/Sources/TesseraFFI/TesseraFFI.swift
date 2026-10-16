@@ -38215,7 +38215,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_tessera_ffi_checksum_method_engine_offline_coverage() != 27154) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_tessera_ffi_checksum_method_engine_pending_sync_smart_previews() != 46436) {
+    if (uniffi_tessera_ffi_checksum_method_engine_pending_sync_smart_previews() != 49103) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_tessera_ffi_checksum_method_engine_smart_preview_storage() != 43270) {
