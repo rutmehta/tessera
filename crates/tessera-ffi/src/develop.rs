@@ -1209,14 +1209,13 @@ impl Engine {
             let c = self.lock()?;
             PathBuf::from(Self::path(&c, image_id)?)
         };
+        // The sidecars are read under the destination gate; the catalog lock
+        // is held only to confirm the path.
         let (lease, (recipe, owner_baseline)) = {
             let gate = crate::recipe_write::gate_for(&path)?;
             if reserve_editor {
                 let (lease, snapshot) = gate.reserve_develop(&path, || {
-                    let c = self.lock()?;
-                    if Path::new(&Self::path(&c, image_id)?) != path {
-                        return Err(failure("image path changed before Develop open"));
-                    }
+                    self.check_path(image_id, &path, "Develop open")?;
                     let recipe = catalog::document(&path, id)?.recipe;
                     let baseline = OwnerBaseline::from_disk(&path, recipe.clone())?;
                     Ok((recipe, baseline))
@@ -1224,10 +1223,7 @@ impl Engine {
                 (Some(lease), snapshot)
             } else {
                 let _read = gate.begin_read()?;
-                let c = self.lock()?;
-                if Path::new(&Self::path(&c, image_id)?) != path {
-                    return Err(failure("image path changed before Develop open"));
-                }
+                self.check_path(image_id, &path, "Develop open")?;
                 let recipe = catalog::document(&path, id)?.recipe;
                 let baseline = OwnerBaseline::from_disk(&path, recipe.clone())?;
                 (None, (recipe, baseline))
@@ -1276,7 +1272,10 @@ impl Engine {
     /// Writes develop state into the image's recipe document without touching
     /// fields other writers own (selection, unknown members), then the XMP
     /// (crs: develop values + selection) and the index. Returns the new
-    /// recipe hash.
+    /// recipe hash. The sidecar reads and writes happen under the destination
+    /// gate only; the catalog lock is taken to confirm the path and, after
+    /// the writes, to refresh this one image's row (ST-1: it used to be held
+    /// across the writes and a scan of the whole folder).
     fn save_develop(
         &self,
         image_id: &str,
@@ -1290,12 +1289,8 @@ impl Engine {
         let _write = gate
             .begin_develop_write(authority, path)
             .map_err(SaveFailure::full)?;
-        let mut c = self.lock().map_err(SaveFailure::full)?;
-        if Path::new(&Self::path(&c, image_id).map_err(SaveFailure::full)?) != path {
-            return Err(SaveFailure::full(failure(
-                "image path changed before Develop save",
-            )));
-        }
+        self.check_path(image_id, path, "Develop save")
+            .map_err(SaveFailure::full)?;
         let mut doc = catalog::document(path, id).map_err(SaveFailure::full)?;
         let current =
             OwnerBaseline::from_disk(path, doc.recipe.clone()).map_err(SaveFailure::full)?;
@@ -1334,14 +1329,12 @@ impl Engine {
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
         sidecar::Sidecar::write_xmp(paths.xmp, &packet)
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
-        c.index
-            .scan(
-                path.parent().ok_or_else(|| {
-                    SaveFailure::after_recipe(failure("image has no folder"), &published)
-                })?,
-                &catalog::Sidecars,
-                &catalog::IndexedMetadata,
-            )
+        self.lock()
+            .and_then(|mut c| {
+                c.index
+                    .scan_file(path, &catalog::Sidecars, &catalog::IndexedMetadata)
+                    .map_err(Into::into)
+            })
             .map_err(|error| SaveFailure::after_recipe(error, &published))?;
         Ok((doc.recipe.recipe_hash().to_string(), published))
     }
@@ -1357,22 +1350,16 @@ impl Engine {
         let id = parse_id(image_id)?;
         let gate = crate::recipe_write::gate_for(path)?;
         let _write = gate.begin_develop_write(authority, path)?;
-        let mut c = self.lock()?;
-        if Path::new(&Self::path(&c, image_id)?) != path {
-            return Err(failure("image path changed before Develop repair"));
-        }
+        self.check_path(image_id, path, "Develop repair")?;
         let doc = catalog::document(path, id)?;
         let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
         #[cfg(test)]
         injected_post_recipe_failure(path)?;
         let paths = catalog::write_paths(path)?;
         sidecar::Sidecar::write_xmp(paths.xmp, &packet)?;
-        c.index.scan(
-            path.parent()
-                .ok_or_else(|| failure("image has no folder"))?,
-            &catalog::Sidecars,
-            &catalog::IndexedMetadata,
-        )?;
+        self.lock()?
+            .index
+            .scan_file(path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
         Ok(doc.recipe)
     }
 }

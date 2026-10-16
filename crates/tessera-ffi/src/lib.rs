@@ -198,6 +198,17 @@ struct Catalog {
     index: index::Index,
     reader: Connection,
 }
+/// The engine's resolver, handed to the index as well.
+#[derive(Debug)]
+struct SharedVolumes(Arc<dyn index::VolumeResolver>);
+impl index::VolumeResolver for SharedVolumes {
+    fn volume_of(&self, path: &Path) -> engine_api::EngineResult<Option<index::Volume>> {
+        self.0.volume_of(path)
+    }
+    fn mounted(&self) -> engine_api::EngineResult<Vec<index::Volume>> {
+        self.0.mounted()
+    }
+}
 #[derive(Clone, Debug, uniffi::Enum)]
 pub enum EngineEvent {
     ScanProgress {
@@ -261,6 +272,9 @@ pub struct Engine {
     watching: AtomicBool,
     /// Debounced `.tessera/` writer (CS-1, see `drive`).
     drive: drive::DriveWriter,
+    /// The index's volume resolver, shared so `roots` can list mounted
+    /// volumes before taking the catalog lock.
+    volumes: Arc<dyn index::VolumeResolver>,
     /// This engine, for background work that must not keep it alive.
     this: std::sync::Weak<Engine>,
     /// Test-only observation of writer creation, used to prove read-only Engine APIs
@@ -328,12 +342,26 @@ impl Engine {
             |r| r.get(0),
         )?)
     }
-    fn persist(c: &mut Catalog, path: &Path, doc: &sidecar::RecipeDocument) -> Result<()> {
+    /// The image still resolves to `path`: a relocated volume or a prune
+    /// since the caller looked it up fails the write instead of landing
+    /// sidecars beside the wrong file.
+    fn check_path(&self, image_id: &str, path: &Path, before: &str) -> Result<()> {
+        let current = Self::path(&*self.lock()?, image_id)?;
+        if Path::new(&current) != path {
+            return Err(failure(format!("image path changed before {before}")));
+        }
+        Ok(())
+    }
+    /// Writes the recipe and XMP sidecars, then refreshes the image's index
+    /// row. The caller holds the destination's recipe-write gate (which
+    /// serializes writers and readers of the sidecars); the catalog lock is
+    /// taken only for the index refresh, never across the writes (ST-1).
+    fn persist(&self, path: &Path, doc: &sidecar::RecipeDocument) -> Result<()> {
         let packet = catalog::selection_packet(path, doc)?;
-        Self::persist_with_packet(c, path, doc, &packet)
+        self.persist_with_packet(path, doc, &packet)
     }
     fn persist_with_packet(
-        c: &mut Catalog,
+        &self,
         path: &Path,
         doc: &sidecar::RecipeDocument,
         packet: &sidecar::XmpPacket,
@@ -342,7 +370,8 @@ impl Engine {
         let paths = catalog::write_paths(path)?;
         Sidecar::write_recipe(paths.recipe, doc)?;
         Sidecar::write_xmp(paths.xmp, packet)?;
-        c.index
+        self.lock()?
+            .index
             .scan_file(path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
         Ok(())
     }
@@ -408,9 +437,11 @@ impl Engine {
         std::fs::create_dir_all(&app_support_dir)?;
         let db = Path::new(&app_support_dir).join("index.sqlite");
         let mut index = index::Index::open(&db)?;
-        if let Some(volumes) = volumes {
-            index.set_volume_resolver(volumes);
-        }
+        let volumes: Arc<dyn index::VolumeResolver> = match volumes {
+            Some(volumes) => Arc::from(volumes),
+            None => Arc::new(index::SystemVolumes),
+        };
+        index.set_volume_resolver(Box::new(SharedVolumes(volumes.clone())));
         index.set_machine(&drive::machine_id(Path::new(&app_support_dir))?)?;
         Self::migrate_image_ids(&index)?;
         let reader = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -456,6 +487,7 @@ impl Engine {
             heads,
             watching: AtomicBool::new(false),
             drive: Default::default(),
+            volumes,
             this: this.clone(),
             #[cfg(test)]
             develop_writer_constructions: std::sync::atomic::AtomicUsize::new(0),
@@ -532,10 +564,13 @@ impl Engine {
     /// time is relocated in the catalog and reported at its current path; a
     /// root whose volume is absent is reported not attached, with its counts.
     pub fn roots(&self) -> Result<Vec<RootInfo>> {
+        // Listing mounted volumes stats each one; a slow or hung volume must
+        // not stall the catalog.
+        let mounted = self.volumes.mounted()?;
         let c = self.lock()?;
         let mut out = Vec::new();
         for root in c.index.roots()? {
-            let located = c.index.locate_root(&root)?;
+            let located = c.index.locate_root_among(&root, &mounted)?;
             let path = located.clone().unwrap_or_else(|| root.path.clone());
             let volume_name = root.location.volume_uuid.as_ref().map(|_| {
                 // `/Volumes/<name>/<relative>`: the component before the relative path.
@@ -616,15 +651,11 @@ impl Engine {
         };
         let gate = recipe_write::gate_for(Path::new(&path))?;
         let write = gate.begin_selection_write()?;
-        let mut c = self.lock()?;
-        if Self::path(&c, &image_id)? != path {
-            return Err(failure("image path changed before recipe write"));
-        }
+        self.check_path(&image_id, Path::new(&path), "recipe write")?;
         let mut doc = catalog::document(Path::new(&path), parse_id(&image_id)?)?;
         doc.recipe.selection = selection;
         doc.record_write("tessera-mac", now_ms())?;
-        Self::persist(&mut c, Path::new(&path), &doc)?;
-        drop(c);
+        self.persist(Path::new(&path), &doc)?;
         drop(write);
         drop(_id_write);
         self.notify_changes();
@@ -636,18 +667,20 @@ impl Engine {
         let _read = gate.begin_read()?;
         if let Some((_, snapshot)) = self.local_smart_preview(id)?
             && (snapshot.dirty || {
-                let catalog = self.lock()?;
+                let path = Self::path(&*self.lock()?, &image_id)?;
                 // Indexed ownership is sufficient offline; never canonicalize the
                 // absent original folder or synthesize a default recipe here.
-                !Path::new(&Self::path(&catalog, &image_id)?).is_file()
+                !Path::new(&path).is_file()
             })
         {
             let doc: sidecar::RecipeDocument =
                 serde_json::from_slice(&snapshot.recipe).map_err(failure)?;
             return String::from_utf8(doc.recipe.to_json()?).map_err(failure);
         }
-        let c = self.lock()?;
-        let path = Self::path(&c, &image_id)?;
+        let path = Self::path(&*self.lock()?, &image_id)?;
+        // The sidecars are read under their destination gate, not the catalog.
+        let gate = recipe_write::gate_for(Path::new(&path))?;
+        let _read = gate.begin_read()?;
         String::from_utf8(
             catalog::document(Path::new(&path), parse_id(&image_id)?)?
                 .recipe
@@ -671,10 +704,7 @@ impl Engine {
         };
         let gate = recipe_write::gate_for(Path::new(&path))?;
         let write = gate.begin_write()?;
-        let mut c = self.lock()?;
-        if Self::path(&c, &image_id)? != path {
-            return Err(failure("image path changed before recipe write"));
-        }
+        self.check_path(&image_id, Path::new(&path), "recipe write")?;
         let mut doc = catalog::document(Path::new(&path), parse_id(&image_id)?)?;
         // Existing history and unknown fields cannot be discarded by a stale client.
         if recipe.history.base != doc.recipe.history.base
@@ -696,8 +726,7 @@ impl Engine {
         doc.recipe = recipe;
         doc.record_write("tessera-mac", now_ms())?;
         let packet = catalog::selection_packet(Path::new(&path), &doc)?.with_recipe(&doc.recipe)?;
-        Self::persist_with_packet(&mut c, Path::new(&path), &doc, &packet)?;
-        drop(c);
+        self.persist_with_packet(Path::new(&path), &doc, &packet)?;
         drop(write);
         drop(_id_write);
         self.notify_changes();

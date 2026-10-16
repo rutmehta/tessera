@@ -149,7 +149,16 @@ impl Index {
     /// returns that path, or `None` while the volume is absent. Boot-volume
     /// roots are returned unchanged.
     pub fn locate_root(&self, root: &RootRecord) -> EngineResult<Option<PathBuf>> {
-        let Some(current) = root.locate(&self.0.volumes.mounted()?) else {
+        self.locate_root_among(root, &self.0.volumes.mounted()?)
+    }
+    /// `locate_root` against a volume list the caller already fetched (so the
+    /// stats behind `mounted` can happen before a catalog lock is taken).
+    pub fn locate_root_among(
+        &self,
+        root: &RootRecord,
+        mounted: &[Volume],
+    ) -> EngineResult<Option<PathBuf>> {
+        let Some(current) = root.locate(mounted) else {
             return Ok(None);
         };
         if current != root.path {

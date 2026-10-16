@@ -464,15 +464,14 @@ impl Engine {
         admission: &crate::original_write::OriginalWriteReservation,
     ) -> Result<()> {
         admission.validate(id, path)?;
-        let mut c = self.lock()?;
         let doc = catalog::document(path, id)?;
         let packet = catalog::selection_packet(path, &doc)?.with_recipe(&doc.recipe)?;
         Sidecar::write_xmp(catalog::xmp_path(path), &packet)?;
         // Resync only this admitted original. A folder scan could discover a
         // target excluded as unavailable at admission after it reconnects.
-        c.index
+        self.lock()?
+            .index
             .scan_file(path, &catalog::Sidecars, &catalog::IndexedMetadata)?;
-        drop(c);
         Ok(())
     }
     fn update_agent_extension(
@@ -525,27 +524,31 @@ impl Engine {
         let library = Self::library_id(&library_folder)?;
         let folder = Path::new(&library_folder).canonicalize()?;
         let (mut profile, _) = self.profile(&library_folder, &library)?;
-        let candidates = {
+        let members = {
             let c = self.lock()?;
-            let mut rows = Vec::new();
-            for id in c.index.search(&index::Query {
-                folder: Some(folder.to_string_lossy().into_owned()),
-                limit: usize::MAX,
-                ..Default::default()
-            })? {
-                let path = c.index.image_info(id)?.path;
-                let recipe = catalog::document(&path, id)?.recipe;
-                if recipe
-                    .history
-                    .lineage(recipe.history.head)?
-                    .iter()
-                    .any(|e| matches!(e.meta.author, Author::User))
-                {
-                    rows.push((id, path, recipe));
-                }
-            }
-            rows
+            c.index
+                .search(&index::Query {
+                    folder: Some(folder.to_string_lossy().into_owned()),
+                    limit: usize::MAX,
+                    ..Default::default()
+                })?
+                .into_iter()
+                .map(|id| Ok((id, c.index.image_info(id)?.path)))
+                .collect::<Result<Vec<_>>>()?
         };
+        // The recipe documents come off the drive outside the catalog lock.
+        let mut candidates = Vec::new();
+        for (id, path) in members {
+            let recipe = catalog::document(&path, id)?.recipe;
+            if recipe
+                .history
+                .lineage(recipe.history.head)?
+                .iter()
+                .any(|e| matches!(e.meta.author, Author::User))
+            {
+                candidates.push((id, path, recipe));
+            }
+        }
         let total = candidates.len() as u32;
         let report = |done: u32, current: String| {
             if let Some(l) = &listener {

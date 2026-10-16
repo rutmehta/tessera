@@ -831,9 +831,10 @@ impl Engine {
                 "original unavailable: full-quality export requires the original",
             ));
         }
-        // The recipe document is authoritative; read it under the catalog
-        // lock so a concurrent develop save cannot tear it.
-        let _c = self.lock()?;
+        // The recipe document is authoritative; read it under the destination
+        // gate so a concurrent develop save cannot tear the recipe/XMP pair.
+        let gate = crate::recipe_write::gate_for(&item.path)?;
+        let _read = gate.begin_read()?;
         let doc = catalog::document(&item.path, parse_id(&item.id)?)?;
         let xmp = catalog::xmp_path(&item.path);
         let packet = if xmp.exists() {

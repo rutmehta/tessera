@@ -590,8 +590,11 @@ impl Engine {
             model: ANALYSIS_MODEL.into(),
         };
         if quality {
+            // The classical analysis runs outside the catalog lock; only its
+            // rows go in under it.
+            let q = ml_quality::analyze(&rgb)?;
             let c = self.lock()?;
-            let q = ml_quality::analyze_and_store(&c.index, id, &rgb)?;
+            ml_quality::store(&c.index, id, &q)?;
             let highlights = q.highlight_clipping.iter().copied().fold(0., f64::max);
             c.index
                 .set_score(id, &score("highlight_clipping", highlights))?;

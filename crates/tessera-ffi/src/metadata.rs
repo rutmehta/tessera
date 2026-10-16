@@ -222,13 +222,13 @@ impl LibraryStore {
             self.engine.support_dir()?,
             &paths,
         )?;
-        let mut c = self.engine.lock()?;
-        let mut folders = BTreeSet::new();
-        for (id, key) in ids.iter().zip(image_ids) {
-            let path = PathBuf::from(Engine::path(&c, key)?);
-            admission.validate(*id, &path)?;
-            let doc = catalog::document(&path, *id)?;
-            let xmp = catalog::xmp_path(&path);
+        // Sidecars are read and written under the admission, outside the
+        // catalog lock; each touched image is then rescanned on its own.
+        for ((id, path), key) in paths.iter().zip(image_ids) {
+            self.engine.check_path(key, path, "metadata write")?;
+            admission.validate(*id, path)?;
+            let doc = catalog::document(path, *id)?;
+            let xmp = catalog::xmp_path(path);
             let packet = if xmp.exists() {
                 Sidecar::read_xmp(&xmp)?
             } else {
@@ -239,15 +239,15 @@ impl LibraryStore {
             let updated =
                 packet.with_metadata(&doc.recipe.selection, &meta, &MarkPreset::default())?;
             Sidecar::write_xmp(&xmp, &updated)?;
-            if let Some(parent) = path.parent() {
-                folders.insert(parent.to_path_buf());
-            }
         }
-        for folder in folders {
-            c.index
-                .scan(&folder, &catalog::Sidecars, &catalog::IndexedMetadata)?;
+        for (_, path) in &paths {
+            self.engine.lock()?.index.scan_file(
+                path,
+                &catalog::Sidecars,
+                &catalog::IndexedMetadata,
+            )?;
         }
-        c.index.sync_keyword_tree(&pairs)?;
+        self.engine.lock()?.index.sync_keyword_tree(&pairs)?;
         Ok(())
     }
 
