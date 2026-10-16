@@ -519,7 +519,11 @@ final class AppModel {
     private(set) var smartPreviewSelectionRevision = 0
     private(set) var smartPreviewBatchActive = false
     private(set) var smartPreviewCancelRequested = false
-    var statusMessage: String?
+    /// What just happened, in one line. UX-16: there is no status bar; a new message shows as
+    /// the toast for 3 s (nil clears nothing: a message that was shown stays until it expires).
+    var statusMessage: String? {
+        didSet { if let statusMessage, statusMessage != oldValue { showToast(statusMessage, undoable: false, seconds: 3) } }
+    }
     @ObservationIgnored private var developRenderNotice: String?
     /// The open photo's omitted-setting notices, shown persistently in the loupe.
     /// Independent of `statusMessage`, so a newer status never hides them.
@@ -2167,11 +2171,14 @@ final class AppModel {
 
     // MARK: Toast
 
-    func showToast(_ message: String, undoable: Bool, details: [String] = []) {
+    /// Bottom centre above the agent row: 5 s for an undoable action, 15 s with details, 3 s for
+    /// a status message. A plain status never replaces an undoable toast that is still up.
+    func showToast(_ message: String, undoable: Bool, details: [String] = [], seconds: Double? = nil) {
+        if !undoable, details.isEmpty, let current = toast, current.undoable || !current.details.isEmpty { return }
         let t = Toast(message: message, undoable: undoable, details: details)
         toast = t
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(details.isEmpty ? 5 : 15))
+            try? await Task.sleep(for: .seconds(seconds ?? (details.isEmpty ? 5 : 15)))
             if self?.toast?.id == t.id { self?.toast = nil }
         }
     }

@@ -172,19 +172,6 @@ final class LayoutContractTests: XCTestCase {
                                     "an absent badge's 16 pt slot and gap go to the title/detail")
     }
 
-    // MARK: Status bar (L3)
-
-    func testStatusBarFitsANarrowDetailWithLongStrings() {
-        let model = AppModel()
-        model.install(StubLibrary.synthetic(count: 40))
-        model.statusMessage = String(repeating: "A long status message that must truncate. ", count: 6)
-        for width: CGFloat in [ShellBudget.detailMinWidth, 480, 640] {
-            let size = fit(StatusBar(model: model).frame(width: width), width: width)
-            XCTAssertLessThanOrEqual(size.width, width + 0.5, "status bar at \(width)")
-            XCTAssertEqual(size.height, Theme.Height.statusBar + Theme.Space.hairline, accuracy: 0.5)
-        }
-    }
-
     // MARK: Budget
 
     func testShellBudgetYieldOrder() throws {

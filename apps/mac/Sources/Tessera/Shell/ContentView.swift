@@ -150,6 +150,24 @@ struct ContentView: View {
                             }
                         }
                         .animation(Theme.Motion.appear, value: model.toast)
+                        // Debug ▸ Show Engine Readouts: the render timing floats top right of the canvas.
+                        if model.showRenderReadout, model.viewMode != .document, let readout = model.renderReadout {
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Text(readout)
+                                        .font(Theme.Fonts.captionNumeric).foregroundStyle(Theme.textSecondary)
+                                        .padding(.horizontal, Theme.Space.s).frame(height: Theme.Height.regular)
+                                        .background(Capsule().fill(Theme.hud))
+                                        .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: Theme.Space.hairline))
+                                        .help("Settings change → frame in the loupe surface (Debug ▸ Show Engine Readouts)")
+                                        .accessibilityIdentifier("renderReadout")
+                                }
+                                Spacer()
+                            }
+                            .padding(Theme.Space.panelInset)
+                            .allowsHitTesting(false)
+                        }
                     }
                     .frame(width: area.size.width, height: area.size.height)
                     .clipped()
@@ -167,21 +185,11 @@ struct ContentView: View {
                 ExportProgressBar(exporter: model.exporter)
                 PrintProgressBar(printing: model.printing)
                 PhotoJobProgressBar(jobs: model.photoJobs)   // M2-50
+                // UX-16: no status bar outside document mode. Counts are in the Cull column, the
+                // position in the Cull header and the folder button, messages are the toast
+                // (`AppModel.statusMessage`), engine readouts a floating overlay behind Debug.
                 if model.viewMode == .document {
                     DocumentStatusBar(model: model, workspace: model.documents)
-                } else if model.isReviewing {
-                    HStack {
-                        Text(model.statusMessage ?? model.agent.queue.summary)
-                            .lineLimit(1).truncationMode(.tail)
-                            .help(model.statusMessage ?? model.agent.queue.summary)
-                        Spacer(minLength: Theme.Space.m)
-                        Text("↑ ↓ Browse · D Edit · Esc Back").fixedSize()
-                    }
-                    .font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-                    .padding(.horizontal, Theme.Space.gutter).frame(height: Theme.Height.statusBar)
-                    .background(Theme.panel)
-                } else {
-                    StatusBar(model: model)
                 }
                 if showsFilmstrip {
                     Hairline()
@@ -611,118 +619,6 @@ struct WindowToolbarConfigurator: NSViewRepresentable {
                 anchor.configure(window)
             }
         }
-    }
-}
-
-/// One line, three groups: where you are (position, group, decision) · what happened (message) ·
-/// the session (counts, basket). Hairline-separated, tabular figures throughout.
-struct StatusBar: View {
-    let model: AppModel
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Hairline()
-            // M2-56 (L3): the full row when it fits, else a compact one (position, decision, counts
-            // as K / R, the basket's count without its name; every full string stays in help).
-            // The message never decides which fits: it takes whatever width is left and truncates.
-            ViewThatFits(in: .horizontal) {
-                row(compact: false)
-                row(compact: true)
-            }
-            .font(Theme.Fonts.captionNumeric)
-            .foregroundStyle(Theme.textSecondary)
-            .padding(.horizontal, Theme.Space.gutter)
-            .frame(height: Theme.Height.statusBar)
-        }
-        .background(Theme.panel)
-    }
-
-    private func row(compact: Bool) -> some View {
-        HStack(spacing: Theme.Space.m) {
-            if let item = model.focusedItem, let p = model.focusedPosition {
-                HStack(spacing: Theme.Space.s) {
-                    Text("\((p + 1).formatted()) of \(model.visibleCount.formatted())")
-                        .foregroundStyle(Theme.textPrimary)
-                    if !compact {
-                        Text("G\(item.groupID + 1) · \(model.indexInGroup(of: item) + 1)/\(model.groupSize(of: item))"
-                             + (model.focusedIsBest ? " · suggested best" : ""))
-                    }
-                    HStack(spacing: Theme.Space.xs) {
-                        Circle().fill(Color(nsColor: model.focusedState.decision.color))
-                            .frame(width: Theme.Space.s - Theme.Space.xxs, height: Theme.Space.s - Theme.Space.xxs)
-                        Text(compact ? model.focusedState.decision.label : stateText)
-                    }
-                    .help(stateText)
-                    if model.selectionCount > 1 {
-                        Text(compact ? "+\((model.selectionCount - 1).formatted())" : "\(model.selectionCount.formatted()) selected")
-                            .foregroundStyle(Theme.accent)
-                            .help("\(model.selectionCount.formatted()) selected")
-                    }
-                }
-                .fixedSize()
-                separator
-            }
-            if let person = model.assist.personFilterTitle {
-                Button { model.assist.clearPersonFilter() } label: {
-                    HStack(spacing: Theme.Space.xs) {
-                        Text(person).lineLimit(1).truncationMode(.middle)
-                        Image(systemName: "xmark.circle.fill").font(Theme.Fonts.iconSmall)
-                    }
-                }
-                .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                .foregroundStyle(Theme.accent)
-                .help("Showing frames with \(person) only. Click to show all.")
-                .accessibilityIdentifier("status-person-filter")
-                .frame(maxWidth: compact ? Theme.Width.labelWide : nil)
-                separator
-            }
-            // Ideal width 0: the message fills what is left and truncates; it never makes a row "not fit".
-            Group {
-                if let msg = model.statusMessage {
-                    Text(msg).lineLimit(1).truncationMode(.tail).foregroundStyle(Theme.textTertiary)
-                        .help(msg)
-                } else {
-                    Color.clear
-                }
-            }
-            .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
-            if !compact, model.showRenderReadout, let readout = model.renderReadout {
-                Text(readout)
-                    .foregroundStyle(Theme.textTertiary)
-                    .help("Settings change → frame in the loupe surface (Debug ▸ Show Engine Readouts)")
-                    .accessibilityIdentifier("renderReadout")
-                    .fixedSize()
-                separator
-            }
-            HStack(spacing: Theme.Space.s) {
-                Text(compact ? "K \(model.counts.keep.formatted())" : "Keep \(model.counts.keep.formatted())")
-                Text(compact ? "R \(model.counts.reject.formatted())" : "Reject \(model.counts.reject.formatted())")
-            }
-            .fixedSize()
-            .help("Keep \(model.counts.keep.formatted()) · Reject \(model.counts.reject.formatted())")
-            separator
-            HStack(spacing: Theme.Space.xs) {
-                RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(Theme.basket)
-                    .frame(width: Theme.Space.s, height: Theme.Space.s)
-                Text(compact ? model.counts.basket.formatted() : "\(model.basketTarget) \(model.counts.basket.formatted())")
-            }
-            .fixedSize()
-            .help("Basket target \(model.basketTarget): B adds to this album. Change it in Cull ▸ Basket Target or the sidebar.")
-        }
-    }
-
-    private var separator: some View {
-        Hairline(vertical: true).frame(height: Theme.Space.m)
-    }
-
-    private var stateText: String {
-        let s = model.focusedState
-        var parts = [s.decision.label]
-        if s.grade > 0 { parts.append("Grade \(s.grade) (\(CullState.gradeNames[Int(s.grade)]))") }
-        if s.mark > 0 { parts.append("Mark \(s.mark)") }
-        if s.inBasket { parts.append("In \(model.basketTarget)") }
-        if model.focusedStatus.phase != .unedited { parts.append(model.focusedStatus.phase.rawValue.capitalized) }
-        return parts.joined(separator: " · ")
     }
 }
 
