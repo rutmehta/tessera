@@ -226,6 +226,21 @@ tests. See [release operations](Support/release/README.md) for key provisioning,
 notarization, appcasts, delta updates, and GitHub Actions. An empty `SUPublicEDKey`
 produces a build warning and must be configured before publishing updates.
 
+## Sync (docs/design/cloud-sync/SPEC.md §3, WP CS-2 / CS-2b)
+
+Account-resident state (AI and appearance preferences, never API keys; the keyword hierarchy;
+the style profile and culling learner; people names; the drives list) lives as one JSON file per
+record under `Tessera/` in the app's iCloud Drive container, through `TesseraCore/Sync`
+(`AccountStore`, `AccountRecords`) and `App/AccountSync`. Settings ▸ Sync ▸ Where can point it
+at a synced folder instead (`<folder>/Tessera/` inside Nextcloud, Dropbox, Google Drive,
+Syncthing or any app that syncs a folder between Macs); the folder persists as a security-scoped
+bookmark, changes are watched with FSEvents, and conflict copies a sync tool leaves beside a
+record are merged by the record's rules and removed. Writes are coordinated and atomic; last
+writer wins per record, people union their cluster ids. Isolated runs (`--app-dir`,
+`TESSERA_APP_DIR`) never touch the container or folder. iCloud needs a Developer ID build with
+the iCloud entitlement; `swift run` builds report "no iCloud entitlement" and the folder option
+still works.
+
 ## Launch arguments
 
 | Argument | Effect |

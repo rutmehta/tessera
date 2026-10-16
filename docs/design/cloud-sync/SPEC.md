@@ -74,6 +74,16 @@ drives/<volume-uuid>.json  the drive's roots, display name, counts, last seen on
 
 - Sign-in is the Mac's iCloud account; Tessera shows "Synced as <name>" in Settings ▸ Sync with
   what syncs and when it last did, and an off switch. No account: everything still works locally.
+- **Any synced folder (CS-2b).** Settings ▸ Sync ▸ Where offers "A synced folder…" beside iCloud
+  Drive: the user picks a folder inside Nextcloud, Dropbox, Google Drive, Syncthing or any app
+  that syncs a folder between their computers, and the same `Tessera/` layout lives at
+  `<folder>/Tessera/`. The folder persists as a security-scoped bookmark (plus its path). It is
+  available when the folder is there and writable; otherwise Settings says why in one line
+  ("Folder not found: is Nextcloud running?"). Changes are watched with FSEvents (coalesced 1 s)
+  instead of a metadata query; reads and writes stay coordinated and atomic. A conflict copy a
+  sync tool leaves beside a record ("name (conflicted copy …).json", "name.sync-conflict-….json",
+  Nextcloud's "name (conflict …).json" / "name_conflict-….json") is read as one more candidate,
+  merged by the record's rules below, and removed. Default stays iCloud Drive.
 - Merge: records carry `modified` + `machine`; last writer wins per record; people merges are
   union-find over cluster ids so two Macs naming the same person converge.
 - Writes go through `NSFileCoordinator`; reads through a metadata query so changes made on another
@@ -86,7 +96,8 @@ drives/<volume-uuid>.json  the drive's roots, display name, counts, last seen on
 - Attach a drive on a second Mac, open Tessera: the folder popover already lists it (from
   `drives/`), opening it shows albums, people, decisions, scores and edits at once; previews
   render in the background (or load from `.tessera/previews` if the drive carries them).
-- Settings ▸ Sync: account, on/off, "Keep previews on the drive" toggle, last sync, storage used.
+- Settings ▸ Sync: where (iCloud Drive or a synced folder with Choose…), account, on/off, "Keep
+  previews on the drive" toggle, last sync, storage used.
 - A one-line status in the folder popover: "Rut photo · 226 photos · synced 2 min ago".
 
 ## 5. Work packages
