@@ -14,12 +14,12 @@ struct EditPhotoHUDs: View {
             ZStack(alignment: .top) {
                 if tools.cropActive {
                     AspectChipsHUD(tools: tools)
-                        .padding(.top, Theme.Space.l)
+                        .padding(.top, Self.pillTop)
                         .transition(Theme.Motion.transition(from: .top))
                 } else if dial.masksToolShown {
                     MaskChipsHUD(dial: dial)
-                        // Under the mask toolbar when M's brush and gradient tools are up.
-                        .padding(.top, masks.active ? Theme.Height.sectionHeader + Theme.Height.large + Theme.Space.m : Theme.Space.l)
+                        // Under the mask toolbar when the brush and gradient tools are up.
+                        .padding(.top, masks.active ? Self.pillTop + Theme.Height.large + Theme.Space.s + Theme.Space.m : Self.pillTop)
                         .transition(Theme.Motion.transition(from: .top))
                 }
                 if dial.isOpen {
@@ -35,6 +35,10 @@ struct EditPhotoHUDs: View {
         }
         .allowsHitTesting(dial.isOpen || dial.masksToolShown || tools.cropActive)
     }
+
+    /// The chip pills' distance from the top of the photo area (the prototype's 14 px); UX-16: the
+    /// loupe's information strip is gone, so nothing is above them.
+    static let pillTop: CGFloat = Theme.Space.m + Theme.Space.xxs
 
     /// The dial's centre: beside the click, kept inside the canvas (the demo's placement).
     static func dialCenter(anchor: CGPoint, in size: CGSize) -> CGPoint {
