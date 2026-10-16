@@ -236,6 +236,13 @@ impl Engine {
                 store.remove_pinned(&image_core::depth::imported_depth_key(*id))?;
             }
         }
+        // Computed AI rasters are keyed by image too (`masks::mask_cache_dir`).
+        for id in &gone {
+            let dir = crate::develop::masks::mask_cache_dir(self.support_dir()?, &id.to_string());
+            if dir.is_dir() {
+                std::fs::remove_dir_all(dir)?;
+            }
+        }
         admission.remove_images(self.support_dir()?, gone)?;
         drop(admission);
         drop(state);

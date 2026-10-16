@@ -721,6 +721,10 @@ pub(crate) struct MaskShared {
     listener: Mutex<Option<Arc<dyn MaskListener>>>,
     prelocal: Mutex<Option<Arc<PreLocal>>>,
     segment_input: Mutex<Option<Arc<RgbImage>>>,
+    /// Segmentation jobs this session ran (a reopened recipe with stored
+    /// rasters must run none).
+    #[cfg(test)]
+    pub(crate) segmentations: AtomicU64,
 }
 
 impl MaskShared {
@@ -746,6 +750,8 @@ impl MaskShared {
             listener: Mutex::default(),
             prelocal: Mutex::default(),
             segment_input: Mutex::default(),
+            #[cfg(test)]
+            segmentations: AtomicU64::new(0),
         })
     }
 
@@ -1093,6 +1099,162 @@ impl Engine {
     }
 }
 
+// ─────────────────────────────── mask cache ───────────────────────────────
+//
+// Rasters of AI components computed here (not imported ones, which live
+// pinned under `imported-masks`) are kept per image under
+// `<support>/mask-cache/<image id>/<blake3(raster key)>.mask` (ST-3,
+// FOLLOWUPS 14), so a session reopened on a recipe that carries AI masks
+// loads them instead of segmenting again. The store evicts the oldest
+// entries of an image over [`MASK_CACHE_PER_IMAGE`]; the directory goes
+// with the image record (`changes::remove_images`).
+
+/// Disk budget of one image's computed AI rasters (u16, so ~120 MB for a
+/// 61 MP raster; the budget keeps eight of those).
+const MASK_CACHE_PER_IMAGE: u64 = 1 << 30;
+
+/// The image's mask cache directory (not created).
+pub(crate) fn mask_cache_dir(support: &std::path::Path, image_id: &str) -> std::path::PathBuf {
+    support.join("mask-cache").join(image_id)
+}
+
+fn stored_key(key: &str) -> [u8; 32] {
+    *blake3::hash(key.as_bytes()).as_bytes()
+}
+
+/// Whether a raster for `key` is stored on disk: a stat, cheap enough for
+/// the render path (which holds the session state lock).
+fn stored_raster_exists(support: &std::path::Path, image_id: &str, key: &str) -> bool {
+    mask_cache_dir(support, image_id)
+        .join(format!(
+            "{}.mask",
+            blake3::Hash::from_bytes(stored_key(key)).to_hex()
+        ))
+        .is_file()
+}
+
+impl MaskShared {
+    /// Loads the stored raster of `key` (validated against the render
+    /// extent) and makes it ready.
+    fn load_stored(
+        &self,
+        support: &std::path::Path,
+        image_id: &str,
+        key: &str,
+    ) -> anyhow::Result<()> {
+        let store =
+            ml_segment::MaskStore::new(mask_cache_dir(support, image_id), MASK_CACHE_PER_IMAGE)?;
+        let raster = store
+            .get(&stored_key(key))
+            .ok_or_else(|| anyhow::anyhow!("stored mask raster missing or corrupt"))?;
+        anyhow::ensure!(
+            self.extents.first() == Some(&(raster.width(), raster.height())),
+            "stored mask raster has the wrong extent"
+        );
+        self.set_ai(
+            key,
+            AiEntry::Ready(Arc::new(AlphaPlane {
+                width: raster.width(),
+                height: raster.height(),
+                data: raster.data().to_vec(),
+            })),
+        );
+        Ok(())
+    }
+
+    /// Stores a computed raster for later sessions (quantized to u16).
+    fn store_plane(
+        support: &std::path::Path,
+        image_id: &str,
+        key: &str,
+        plane: &AlphaPlane,
+    ) -> anyhow::Result<()> {
+        let store =
+            ml_segment::MaskStore::new(mask_cache_dir(support, image_id), MASK_CACHE_PER_IMAGE)?;
+        let raster = ml_segment::MaskRaster::new(plane.width, plane.height, plane.data.clone())?;
+        store.put_compact(&stored_key(key), &raster)?;
+        Ok(())
+    }
+
+    /// Forgets the stored raster of `key` so the next use segments again.
+    fn remove_stored(support: &std::path::Path, image_id: &str, key: &str) {
+        let path = mask_cache_dir(support, image_id).join(format!(
+            "{}.mask",
+            blake3::Hash::from_bytes(stored_key(key)).to_hex()
+        ));
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+/// Loads one stored AI raster into the session; a raster that turns out
+/// unusable falls back to segmentation by queueing an [`AiMaskJob`].
+struct AiMaskLoadJob {
+    shared: std::sync::Weak<Shared>,
+    key: String,
+    kind: MaskKind,
+}
+
+impl Job for AiMaskLoadJob {
+    fn label(&self) -> &str {
+        "AI mask (stored)"
+    }
+    fn priority(&self) -> Priority {
+        Priority::Prefetch
+    }
+    fn run(self: Box<Self>, _ctx: &JobContext) -> engine_api::EngineResult<()> {
+        let Some(shared) = self.shared.upgrade() else {
+            return Ok(());
+        };
+        let Some(engine) = shared.engine.upgrade() else {
+            return Ok(());
+        };
+        let loaded = engine
+            .support_dir()
+            .map_err(|e| anyhow::anyhow!("{e}"))
+            .and_then(|support| {
+                shared
+                    .masks
+                    .load_stored(support, &shared.image_id, &self.key)
+            });
+        match loaded {
+            Ok(()) => {
+                let job = AiMaskJob {
+                    shared: self.shared.clone(),
+                    key: self.key.clone(),
+                    kind: self.kind.clone(),
+                };
+                // The same completion path as a fresh segmentation: notify
+                // the panel and re-render with the raster in the cache key.
+                let plane = match shared
+                    .masks
+                    .ai
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .get(&self.key)
+                {
+                    Some(AiEntry::Ready(p)) => p.clone(),
+                    _ => return Ok(()),
+                };
+                job.announce(&shared, &plane, "Loaded");
+            }
+            Err(e) => {
+                let job = AiMaskJob {
+                    shared: self.shared.clone(),
+                    key: self.key.clone(),
+                    kind: self.kind.clone(),
+                };
+                job.progress(
+                    &shared.masks,
+                    0.,
+                    &format!("Regenerating: stored raster unusable ({e:#})"),
+                );
+                drop(engine.jobs.submit(Box::new(job), None));
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Runs one AI component on the session's segmentation input.
 struct AiMaskJob {
     shared: std::sync::Weak<Shared>,
@@ -1109,36 +1271,63 @@ impl AiMaskJob {
             return;
         }
         let masks = &shared.masks;
-        let error = match result {
+        let imported = self.key.starts_with("imported:");
+        match result {
             Ok(plane) => {
-                masks.set_ai(&self.key, AiEntry::Ready(Arc::new(plane)));
-                None
+                let plane = Arc::new(plane);
+                if !imported
+                    && let Some(engine) = shared.engine.upgrade()
+                    && let Ok(support) = engine.support_dir()
+                    && let Err(e) =
+                        MaskShared::store_plane(support, &shared.image_id, &self.key, &plane)
+                {
+                    eprintln!("mask cache: {} not stored: {e:#}", self.key);
+                }
+                self.announce(
+                    shared,
+                    &plane,
+                    if imported {
+                        "Regenerated missing stored mask"
+                    } else {
+                        "Ready"
+                    },
+                );
             }
             Err(e) => {
-                let message = if self.key.starts_with("imported:") {
+                let message = if imported {
                     format!("Regenerating missing stored mask: {e:#}")
                 } else {
                     format!("{e:#}")
                 };
                 masks.set_ai(&self.key, AiEntry::Failed(message.clone()));
-                Some(message)
+                if let Some(l) = masks.listener() {
+                    l.ai_progress(MaskJobUpdate {
+                        key: self.key.clone(),
+                        title: component_title(&self.kind),
+                        fraction: 1.0,
+                        message: "Unavailable".into(),
+                        done: true,
+                        error: Some(message),
+                    });
+                }
             }
-        };
+        }
+    }
+
+    /// Makes `plane` the component's raster, tells the panel (`message`)
+    /// and re-renders a frame that uses it: the end of a segmentation and
+    /// of a stored-raster load alike.
+    fn announce(&self, shared: &Arc<Shared>, plane: &Arc<AlphaPlane>, message: &str) {
+        let masks = &shared.masks;
+        masks.set_ai(&self.key, AiEntry::Ready(plane.clone()));
         if let Some(l) = masks.listener() {
             l.ai_progress(MaskJobUpdate {
                 key: self.key.clone(),
                 title: component_title(&self.kind),
                 fraction: 1.0,
-                message: if error.is_some() {
-                    "Unavailable"
-                } else if self.key.starts_with("imported:") {
-                    "Regenerated missing stored mask"
-                } else {
-                    "Ready"
-                }
-                .into(),
+                message: message.into(),
                 done: true,
-                error,
+                error: None,
             });
         }
         if let Ok(mut st) = shared.state.lock() {
@@ -1287,6 +1476,8 @@ impl Job for AiMaskJob {
         let Some(shared) = self.shared.upgrade() else {
             return Ok(());
         };
+        #[cfg(test)]
+        shared.masks.segmentations.fetch_add(1, Ordering::SeqCst);
         let result = self.compute(&shared, ctx);
         self.finish(&shared, result);
         Ok(())
@@ -1355,6 +1546,26 @@ pub(crate) fn ensure_ai_jobs(shared: &Arc<Shared>, settings: &DevelopSettings) {
                 Ok(()) => continue,
                 Err(_) => message = "Regenerating: stored AI raster missing or unavailable".into(),
             }
+        } else if engine
+            .support_dir()
+            .is_ok_and(|support| stored_raster_exists(support, &shared.image_id, &key))
+        {
+            // Computed in an earlier session: load it (off this lock) instead
+            // of segmenting again.
+            shared.masks.set_ai(
+                &key,
+                AiEntry::Pending {
+                    fraction: 0.,
+                    message: "Loading stored mask".into(),
+                },
+            );
+            let job = AiMaskLoadJob {
+                shared: Arc::downgrade(shared),
+                key,
+                kind,
+            };
+            drop(engine.jobs.submit(Box::new(job), None));
+            continue;
         }
         shared.masks.set_ai(
             &key,
@@ -2134,8 +2345,14 @@ impl DevelopSession {
         Ok(id)
     }
 
-    /// Re-runs segmentation for a failed (or stale) AI component.
+    /// Re-runs segmentation for a failed (or stale) AI component. The stored
+    /// raster, if any, is forgotten first: a retry means a fresh result.
     pub fn retry_ai_mask(&self, key: String) -> Result<()> {
+        if let Some(engine) = self.shared.engine.upgrade()
+            && let Ok(support) = engine.support_dir()
+        {
+            MaskShared::remove_stored(support, &self.shared.image_id, &key);
+        }
         let st = self.shared.edit_lock()?;
         self.shared.masks.ai.lock().map_err(failure)?.remove(&key);
         let live = st.live.clone();
@@ -3762,6 +3979,111 @@ pub(crate) mod eng8b_alignment_tests {
         let iou = interior_iou(&darkened, &target, w, h);
         test_fixtures::raw::notice(test, &format!("RAF level {level}: IoU {iou:.4}"));
         assert!(iou >= 0.99, "Develop AI mask misaligned: IoU {iou}");
+        session.close().unwrap();
+    }
+}
+
+#[cfg(test)]
+mod stored_ai_mask_tests {
+    //! ST-3 (FOLLOWUPS 14): a reopened recipe with AI masks loads their
+    //! stored rasters; only a missing raster segments, on first use.
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct CountingSegmenter(Arc<AtomicUsize>);
+    impl MaskSegmenter for CountingSegmenter {
+        fn segment(
+            &mut self,
+            image: &RgbImage,
+            _request: &SegmentRequest,
+        ) -> anyhow::Result<Vec<f32>> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(vec![0.5; (image.width() * image.height()) as usize])
+        }
+    }
+    struct Done(std::sync::mpsc::Sender<MaskJobUpdate>);
+    impl MaskListener for Done {
+        fn overlay_ready(&self, _: MaskOverlayFrame) {}
+        fn ai_progress(&self, update: MaskJobUpdate) {
+            if update.done {
+                let _ = self.0.send(update);
+            }
+        }
+    }
+
+    #[test]
+    fn reopened_recipe_loads_stored_ai_rasters_instead_of_segmenting() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        std::fs::create_dir(&photos).unwrap();
+        image::RgbImage::from_pixel(4, 4, image::Rgb([90, 120, 60]))
+            .save(photos.join("subject.jpg"))
+            .unwrap();
+        let engine =
+            Engine::open(dir.path().join("support").to_string_lossy().into_owned()).unwrap();
+        engine
+            .index_folder(photos.to_string_lossy().into_owned())
+            .unwrap();
+        let segmentations = Arc::new(AtomicUsize::new(0));
+        engine.install_mask_segmenter(Box::new(CountingSegmenter(segmentations.clone())));
+        let id = engine
+            .list_images(crate::ImageQuery::default())
+            .unwrap()
+            .remove(0)
+            .id;
+        // The panel records the model it segmented with; the key carries it.
+        let mut kind = MaskKind::Subject { model: None };
+        default_model(&mut kind);
+        let key = ai_key(&kind).unwrap();
+        let support = engine.support_dir().unwrap().to_path_buf();
+
+        // Session 1: the panel's Select ▸ Subject segments once and stores.
+        let session = engine.clone().open_develop_session(id.clone()).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        session.set_mask_listener(Some(Arc::new(Done(tx))));
+        session
+            .add_ai_mask(None, AiMaskRequest::Subject, MaskCombineMode::Add)
+            .unwrap();
+        let update = rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
+        assert_eq!((update.message.as_str(), update.error), ("Ready", None));
+        assert_eq!(segmentations.load(Ordering::SeqCst), 1);
+        assert!(
+            stored_raster_exists(&support, &id, &key),
+            "the computed raster is in the per-image mask cache"
+        );
+        session.commit("Subject".into()).unwrap();
+        session.close().unwrap();
+        drop(session);
+
+        // Session 2: the saved recipe carries the mask; its first render
+        // loads the raster and starts no segmentation job.
+        let session = engine.clone().open_develop_session(id.clone()).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        session.set_mask_listener(Some(Arc::new(Done(tx))));
+        assert!(
+            session.get_settings_json().unwrap().contains("\"subject\""),
+            "the reopened recipe carries the AI mask"
+        );
+        session.refresh().unwrap();
+        let update = rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
+        assert_eq!((update.message.as_str(), update.error), ("Loaded", None));
+        assert_eq!(
+            session.shared.masks.segmentations.load(Ordering::SeqCst),
+            0,
+            "no AiMaskJob ran for the reopened recipe"
+        );
+        assert_eq!(segmentations.load(Ordering::SeqCst), 1);
+        assert!(matches!(
+            session.shared.masks.ai.lock().unwrap().get(&key),
+            Some(AiEntry::Ready(plane)) if plane.width == 4 && plane.height == 4
+        ));
+
+        // A retry forgets the stored raster and segments afresh.
+        session.retry_ai_mask(key.clone()).unwrap();
+        let update = rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
+        assert_eq!((update.message.as_str(), update.error), ("Ready", None));
+        assert_eq!(segmentations.load(Ordering::SeqCst), 2);
+        assert_eq!(session.shared.masks.segmentations.load(Ordering::SeqCst), 1);
         session.close().unwrap();
     }
 }
