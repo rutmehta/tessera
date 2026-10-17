@@ -265,21 +265,25 @@ fn tone_signed_rgb_near_zero_luminance_matches_f64_reference() {
             let rgb = p.map(|v| v * settings.exposure.exp2());
             let y = (0.2627 * rgb[0] + 0.678 * rgb[1] + 0.0593 * rgb[2]) as f64;
             assert!(y > 0.);
-            let initial = (y / 0.18).ln_1p();
+            // pipeline_cpu::tone_math::tone_gain in f64 (PL-1 calibration).
+            let stop = 2f64.ln();
+            let reach = 1.5 * stop;
+            let u = (y / 0.18).ln();
             let slope = (f64::from(settings.contrast) / 100.).exp2();
-            let z = slope * initial + (1. - slope) * 2. * 2f64.ln() * -(-initial).exp_m1();
-            let softplus = |v: f64| v.max(0.) + (-v.abs()).exp().ln_1p();
-            let mut out = z;
-            for (amount, center, upper) in [
-                (-3., 0.25, false),
-                (9., 0.8, false),
-                (-17., 1.5, true),
-                (5., 2.5, true),
+            let shift = (slope - 1.) * reach * (u / reach).tanh();
+            let u1 = u + shift;
+            let sigmoid = |x: f64| 1. / (1. + (-x).exp());
+            let mut stops = 0.;
+            for (amount, range, centre, width, upper) in [
+                (-3., 1.25, -3.5, 0.55, false),
+                (9., 1.5, -2.0, 0.75, false),
+                (-17., 1.6, 1.25, 0.55, true),
+                (5., 1.0, 2.75, 0.6, true),
             ] {
-                let integral = softplus(z - center) - softplus(-center);
-                out += 0.2 * amount / 100. * if upper { integral } else { z - integral };
+                let x = (u1 - centre * stop) / width;
+                stops += amount / 100. * range * sigmoid(if upper { x } else { -x });
             }
-            rgb.map(|v| f64::from(v) * 0.18 * out.exp_m1() / y)
+            rgb.map(|v| f64::from(v) * (shift + stops * stop).exp())
         })
         .collect();
     let cpu = CpuStageOp

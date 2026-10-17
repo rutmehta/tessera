@@ -102,6 +102,15 @@ pub fn tone(tile: &mut Tile, settings: &ToneSettings) -> EngineResult<()> {
     }
     let gain = settings.exposure.clamp(-10.0, 10.0).exp2();
     let neutral = values[1..].iter().all(|&v| v == 0.0);
+    let slope = (settings.contrast.clamp(-100.0, 100.0) / 100.0).exp2();
+    // Blacks, Shadows, Highlights, Whites: the REGIONS order in tone_math.
+    let amounts = [
+        settings.blacks,
+        settings.shadows,
+        settings.highlights,
+        settings.whites,
+    ]
+    .map(|v| v.clamp(-100.0, 100.0) / 100.0);
     map_rgb(tile, |rgb| {
         let rgb = rgb.map(|v| v * gain);
         if neutral {
@@ -111,30 +120,7 @@ pub fn tone(tile: &mut Tile, settings: &ToneSettings) -> EngineResult<()> {
         if y <= 0.0 {
             return rgb;
         }
-        let z = tone_math::log_one_plus(y / 0.18);
-        let pivot = std::f32::consts::LN_2;
-        let slope = (settings.contrast.clamp(-100.0, 100.0) / 100.0).exp2();
-        // Bounded slope in log space avoids exp(log(Y)^2) overflow at +10 EV.
-        let z = slope * z + (1.0 - slope) * 2.0 * pivot * -tone_math::exp_minus_one(-z);
-
-        let mut out = z;
-        for (amount, center, upper) in [
-            (settings.blacks, 0.25, false),
-            (settings.shadows, 0.8, false),
-            (settings.highlights, 1.5, true),
-            (settings.whites, 2.5, true),
-        ] {
-            let upper_integral = tone_math::upper_integral(z, center);
-            let region = if upper {
-                upper_integral
-            } else {
-                z - upper_integral
-            };
-            // Each derivative contributes at most 0.2 in magnitude.
-            out += 0.2 * (amount.clamp(-100.0, 100.0) / 100.0) * region;
-        }
-
-        let scale = 0.18 * tone_math::exp_minus_one(out) / y;
+        let scale = tone_math::tone_gain(y, slope, amounts);
         rgb.map(|v| v * scale)
     })
 }

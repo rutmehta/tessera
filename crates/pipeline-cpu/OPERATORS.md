@@ -101,7 +101,8 @@ Detailed constants, validation, halo support, matrices and test contracts:
   unordered/descending knots. Identity curves bypass; HDR tails continue linearly.
 - Color: signed Rec.2020→OkLab matrix/cube-root conversion, `C=hypot(a,b)`,
   `h=atan2(b,a)`. Saturation scales C by `1+s`; Vibrance scales it by
-  `1+v/(1+C/(.25*max(abs(L),.05)))*(1-.7*skinWeight(h))`.
+  `1+v*muted*(1-shield)` with `S=C/(.25*max(abs(L),.05))`, `muted=1/(1+S²)` and
+  `shield=.7*skinWeight(h)*(S/.3)²/(1+(S/.3)²)` (see COLOR_DETAIL_M2.md).
 - HSL: centres `[25,55,95,145,195,255,295,335]` degrees. Raised-cosine weights
   on adjacent bands partition unity and wrap smoothly. Weighted normalized sliders
   rotate hue by up to 30 degrees, scale C by `1+sat`, L by `1+.5*lum`.
@@ -241,49 +242,63 @@ identity, including negative values. Non-finite controls return errors.
 Other sliders are clamped to -100..100; this is not Adobe's tone model.
 
 Compute Rec.2020 luminance `Y = .2627*R + .6780*G + .0593*B` after exposure.
-For Y<=0, retain RGB. For Y>0, let `z = ln(1+Y/.18)` and `p = ln(2)`.
-Contrast with `c = 2^(contrast/100)` changes z to:
+For Y<=0, retain RGB. For Y>0, work on the log axis `u = ln(Y/.18)` (one stop
+is `ln 2`; `u=0` at 18% grey). The stage is a pure luminance gain
+`RGB *= G(Y)` with `G = exp(shift + stops*ln 2)`, evaluated by
+`tone_math::tone_gain` and its twin `tone_gain` in
+`pipeline-gpu/src/operators.wgsl` (PL-1 calibration, 2026-10).
 
-    zc = c*z + (1-c)*2*p*(1-exp(-z))
+Contrast with `c = 2^(contrast/100)` and `K = 1.5*ln 2`:
 
-It fixes black and the .18 pivot. Its derivative is positive for c in [.5,2],
-and remains bounded, avoiding overflow from exponentiating a power of log Y.
+    shift = (c-1)*K*tanh(u/K)
+    u1 = u + shift
 
-Define `S(t)=max(t,0)+ln(1+exp(-abs(t)))`. For each region centre k,
-`U(z,k)=S(z-k)-S(-k)` and `L(z,k)=z-U(z,k)`. Apply simultaneously:
+The log-slope at the pivot is exactly `c` (×2 at +100, ×0.5 at −100), the
+slope returns to 1 away from it, and the far shadows/highlights move by at most
+`(c-1)*K`: ∓1.5 stops at +100, ±0.75 at −100. Black stays black because the
+gain is multiplicative.
 
-    zo = zc + .2 * (blacks/100 * L(zc,.25)
-                  + shadows/100 * L(zc,.8)
-                  + highlights/100 * U(zc,1.5)
-                  + whites/100 * U(zc,2.5))
-    Yo = .18 * (exp(zo)-1)
-    RGB *= Yo/Y
+Each region control adds a feathered number of stops to `u1`:
 
-The CPU and Metal evaluations use the same cancellation-free f32 formulation
-(`src/tone_math.rs` and `pipeline-gpu/src/operators.wgsl`). For `zc < .5`,
-compute the equivalent difference directly:
+    stops = Σ amount/100 * range * w(u1)
+    w(u1) = σ(±(u1 - centre*ln 2)/width),  σ(x) = 1/(1+exp(-x))
 
-    U(zc,k) = log1p(expm1(zc) / (1 + exp(k)))
+with `+` for Highlights/Whites (the band is above the centre) and `−` for
+Blacks/Shadows. The bands (`tone_math::REGIONS`, in evaluation order):
 
-For `zc >= .5`, retain the softplus difference, avoiding an HDR `exp(zc)`
-overflow. Both backends evaluate `log1p(x)` for `abs(x) < .5` as
-`2*t*(1 + t²/3 + t⁴/5 + ... + t¹⁴/15)`, `t=x/(2+x)`, in the same Horner
-order; outside that interval they use `log(1+x)`. Both evaluate `expm1(x)`
-for `abs(x) < .5` using the same degree-ten Taylor/Horner polynomial and
-`exp(x)-1` outside. Clamp and divide each region amount by 100 **before**
-multiplying by .2. The exposure-only/neutral and `Y <= 0` bypasses are the
-same on both sides. No luminance floor or one-sided gain correction is used.
+| control    | range (stops at ±100) | centre (stops from grey) | width (ln) |
+|------------|----------------------:|-------------------------:|-----------:|
+| Blacks     | 1.25                  | −3.5 (Y≈.016)            | .55        |
+| Shadows    | 1.5                   | −2.0 (Y≈.045)            | .75        |
+| Highlights | 1.6                   | +1.25 (Y≈.43)            | .55        |
+| Whites     | 1.0                   | +2.75 (Y≈1.2)            | .6         |
 
-This preserves the real-valued tone curve while preventing near-zero signed
-luminance from magnifying cancellation in the log and region differences.
-F32 rounding can still change: ENG-4's [handoff](../../tools/orchestrate/wp/ENG-4/HANDOFF.md)
-records the per-golden deltas and the two explained SDR quantization crossings.
+Shadows +100 lifts Y=.0065 by 1.4 stops and Y=1 by .02; Highlights −100 drops
+Y=1 by 1.3 stops and Y=.02 by .01; mid grey moves .2–.27 stop at ±100 of
+either. Response is linear in the amount: +20 is a fifth of +100.
 
-Every region derivative is between zero and one, so the combined derivative is
-at least .2 even at slider extremes. Operations are global and continuous, with
-no local edge filter that could create spatial halos. Luminance rescaling retains
-RGB ratios. Tests exercise all extreme slider combinations over the raw headroom
-range at +10 EV and check finite, monotone output.
+Both backends clamp the logistic argument to ±60 and evaluate tanh as
+`(1-t)/(1+t)`, `t=exp(-2*min(abs(x),20))`, so the operation order and
+rounding match. Clamp and divide each amount by 100 on the host. The
+exposure-only/neutral and `Y <= 0` bypasses are the same on both sides. No
+luminance floor is used; `G` is a bounded exponential of bounded terms, so
+near-zero signed luminance never cancels.
+
+Every feather derivative is bounded by `range/(4*width)`, and the bands are
+spaced so the combined log-slope stays above .24 at every combination of
+slider extremes (worst case Blacks/Shadows +100 with Highlights/Whites −100
+and Contrast −100). Operations are global and continuous, with no local edge
+filter that could create spatial halos. Luminance rescaling retains RGB
+ratios. Tests exercise all extreme slider combinations over the raw headroom
+range at +10 EV and check finite, monotone output; `tests/pl1_response.rs`
+pins the measured response on the `sample.dng` fixture.
+
+History: until PL-1 the regions were `.2*amount*L/U(z,k)` integrals on
+`z=ln(1+Y/.18)` whose lower regions saturated to a constant offset above
+their band, so Shadows ±100 moved the shadow quartile .19 stop and the
+highlight quartile .27, Highlights ±100 moved highlights .15 stop and
+Contrast ±100 changed global log-contrast by ×1.2/×.92. See
+`docs/design/evidence/PL-1/`.
 
 ## Display
 

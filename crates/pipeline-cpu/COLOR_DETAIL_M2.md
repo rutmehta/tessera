@@ -87,12 +87,20 @@ Use normalized sliders `v,s ∈ [−1,1]`. Circular hue distance is
 
 ```
 skin = exp(-.5*(d(h,50)/25)^2)
-muted = 1/(1 + C/(.25*max(abs(L),.05)))
-C' = C * (1 + v*muted*(1-.7*skin)) * (1+s)
+S = C/(.25*max(abs(L),.05))
+muted = 1/(1 + S^2)
+shield = .7*skin * (S/.3)^2/(1 + (S/.3)^2)
+C' = C * (1 + v*muted*(1-shield)) * (1+s)
 ```
 
 This is hue-based skin protection, not semantic face detection. Muted colours
-receive more vibrance; neutral colours do not acquire chroma.
+receive more vibrance; neutral colours do not acquire chroma. PL-1 (2026-10)
+made `muted` a Lorentzian in the relative saturation `S`, so colours below
+`S≈.3` take the whole boost and vivid ones little, and gated the skin shield
+by saturation: a muted warm colour (a warm grey, pale wood, `S<.2`) doubles
+like any other muted colour, while a saturated skin tone (`S≈.5`) takes about
+1.35× at Vibrance +100. Before, the shield fired on hue alone, so warm-dominated
+photographs saw ~1.3× mean chroma at +100 where Saturation +100 gives 2×.
 
 ### Eight-band HSL mixer
 

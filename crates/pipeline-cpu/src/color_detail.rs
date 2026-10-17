@@ -69,8 +69,15 @@ pub fn color(tile: &mut Tile, s: &ColorSettings) -> EngineResult<()> {
         let mut c = a.hypot(b);
         let mut h = b.atan2(a).to_degrees().rem_euclid(360.0);
         let skin = (-0.5 * (hue_distance(h, 50.0) / 25.0).powi(2)).exp();
-        let muted = 1.0 / (1.0 + c / (0.25 * l.abs().max(0.05)));
-        c *= (1.0 + unit(s.vibrance) * muted * (1.0 - 0.7 * skin)) * (1.0 + unit(s.saturation));
+        // Lorentzian in relative saturation: muted colours take the whole
+        // boost, vivid ones little. Skin protection ramps in with saturation,
+        // so a muted warm colour is not mistaken for skin (PL-1). Mirrored in
+        // operators.wgsl.
+        let relative = c / (0.25 * l.abs().max(0.05));
+        let muted = 1.0 / (1.0 + relative * relative);
+        let saturated = relative / 0.3;
+        let shielded = 0.7 * skin * (saturated * saturated / (1.0 + saturated * saturated));
+        c *= (1.0 + unit(s.vibrance) * muted * (1.0 - shielded)) * (1.0 + unit(s.saturation));
         // Membership uses the original hue, never the already-shifted hue.
         let weights = hue_weights(h);
         if c > 1e-6 {

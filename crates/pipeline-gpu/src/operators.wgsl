@@ -186,17 +186,37 @@ fn exp_minus_one(x: f32) -> f32 {
     return exp(x) - 1.0;
 }
 
-fn softplus(v: f32) -> f32 {
-    return max(v, 0.0) + log_one_plus(exp(-abs(v)));
+// Logistic; the argument is clamped so exp never overflows (tone_math.rs).
+fn sigmoid(x: f32) -> f32 {
+    return 1.0 / (1.0 + exp(-clamp(x, -60.0, 60.0)));
 }
 
-fn upper_integral(z: f32, center: f32) -> f32 {
-    if z < 0.5 {
-        // The same softplus difference evaluated without cancellation.
-        return log_one_plus(exp_minus_one(z) / (1.0 + exp(center)));
+// tanh through one exp, the CPU's tanh_unit operation for operation.
+fn tanh_unit(x: f32) -> f32 {
+    let t = exp(-2.0 * min(abs(x), 20.0));
+    let r = (1.0 - t) / (1.0 + t);
+    if x < 0.0 {
+        return -r;
     }
-    // This form avoids exp(z) HDR overflow once subtraction is conditioned.
-    return softplus(z - center) - softplus(-center);
+    return r;
+}
+
+const STOP: f32 = 0.6931471805599453;
+const CONTRAST_REACH: f32 = 1.5 * STOP;
+
+// pipeline_cpu::tone_math::tone_gain. Region order: Blacks p[30], Shadows
+// p[28], Highlights p[27], Whites p[29] (amounts clamped and divided by 100
+// by the host), with the CPU's REGIONS constants in the same order.
+fn tone_gain(y: f32, slope: f32) -> f32 {
+    let u = log(y / 0.18);
+    let shift = (slope - 1.0) * CONTRAST_REACH * tanh_unit(u / CONTRAST_REACH);
+    let u1 = u + shift;
+    var stops = 0.0;
+    stops = stops + p[30] * 1.25 * sigmoid(-((u1 - -3.5 * STOP) / 0.55));
+    stops = stops + p[28] * 1.5 * sigmoid(-((u1 - -2.0 * STOP) / 0.75));
+    stops = stops + p[27] * 1.6 * sigmoid((u1 - 1.25 * STOP) / 0.55);
+    stops = stops + p[29] * 1.0 * sigmoid((u1 - 2.75 * STOP) / 0.6);
+    return exp(shift + stops * STOP);
 }
 
 fn tone(v: vec3<f32>) -> vec3<f32> {
@@ -210,23 +230,7 @@ fn tone(v: vec3<f32>) -> vec3<f32> {
     if y <= 0.0 {
         return rgb;
     }
-    let initial_z = log_one_plus(y / 0.18);
-    let pivot = 0.6931471805599453;
-    let slope = p[26];
-    let z = slope * initial_z
-        + (1.0 - slope) * 2.0 * pivot * -exp_minus_one(-initial_z);
-    var out = z;
-    // Preserve black, shadow, highlight, white accumulation order.
-    // Amounts are supplied clamped and normalized by the host.
-    let black_region = z - upper_integral(z, 0.25);
-    out = out + 0.2 * p[30] * black_region;
-    let shadow_region = z - upper_integral(z, 0.8);
-    out = out + 0.2 * p[28] * shadow_region;
-    let highlight_region = upper_integral(z, 1.5);
-    out = out + 0.2 * p[27] * highlight_region;
-    let white_region = upper_integral(z, 2.5);
-    out = out + 0.2 * p[29] * white_region;
-    let scale = 0.18 * exp_minus_one(out) / y;
+    let scale = tone_gain(y, p[26]);
     return rgb * scale;
 }
 
@@ -440,8 +444,13 @@ fn creative_color(input: vec3<f32>) -> vec3<f32> {
     }
     let distance = (wrap(h - 50.0 + 180.0) - 180.0) / 25.0;
     let skin = exp(-0.5 * distance * distance);
-    let muted = 1.0 / (1.0 + c / (0.25 * max(abs(l), 0.05)));
-    c *= (1.0 + unit(p[33]) * muted * (1.0 - 0.7 * skin)) * (1.0 + unit(p[34]));
+    // Lorentzian in relative saturation: muted colours take the whole
+    // boost, vivid ones little. pipeline_cpu::color_detail::color.
+    let relative = c / (0.25 * max(abs(l), 0.05));
+    let muted = 1.0 / (1.0 + relative * relative);
+    let saturated = relative / 0.3;
+    let shielded = 0.7 * skin * (saturated * saturated / (1.0 + saturated * saturated));
+    c *= (1.0 + unit(p[33]) * muted * (1.0 - shielded)) * (1.0 + unit(p[34]));
     let centers = array<f32, 9>(25.0, 55.0, 95.0, 145.0, 195.0, 255.0, 295.0, 335.0, 385.0);
     let wh = wrap(h - 25.0) + 25.0;
     var weights: array<f32, 8>;
