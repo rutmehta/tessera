@@ -479,7 +479,7 @@ final class AgentController {
         let cancel = CancelFlag()
         cancelFlag = cancel
         error = nil
-        runningTitle = instruction.map { "Redo “\($0)”" } ?? "Auto edit · \(kind.title)"
+        runningTitle = instruction.map { "Agent “\($0)”" } ?? "Auto edit · \(kind.title)"
         progress = AgentRunProgress(done: 0, total: UInt32(itemIDs.count), current: "", phase: "Preparing")
         let job = UUID()
         runID = job
@@ -537,7 +537,7 @@ final class AgentController {
                 let completed = self.recording(report: report, base: intent, runImageIDs: images,
                                                redo: instruction != nil, library: lib)
                 self.writeResumeRecord(completed, for: lib)
-                self.didFinish(report, library: lib, redo: instruction != nil, resumeRecord: completed,
+                self.didFinish(report, library: lib, instruction: instruction, resumeRecord: completed,
                                runImageIDs: images)
             case .failure(let e):
                 self.writeResumeRecord(self.recordingFailure(base: intent, runImageIDs: images,
@@ -622,9 +622,10 @@ final class AgentController {
         return (try? current.advanced(state: .failed, targets: targets)) ?? current
     }
 
-    private func didFinish(_ report: AgentRunReport, library lib: EngineLibrary, redo: Bool,
+    private func didFinish(_ report: AgentRunReport, library lib: EngineLibrary, instruction: String?,
                            resumeRecord: ReviewResumeRecord, runImageIDs: [String]) {
         guard app?.engineLibrary === lib else { return }
+        let redo = instruction != nil
         var entries = report.items.map { AgentReviewEntry($0, itemID: lib.itemOfImage[$0.imageId]) }
         let returned = Set(report.items.map(\.imageId))
         for target in resumeRecord.targets where runImageIDs.contains(target.imageID) && !returned.contains(target.imageID) {
@@ -640,8 +641,10 @@ final class AgentController {
         queueGeneration = UUID()
         let failed = entries.filter { $0.error != nil }
         let done = entries.count - failed.count
+        // UX-16 (item 30): an instruction run names itself after the instruction, never "Redo"
+        // (the Edit menu's Redo is the develop history; the agent's re-run is its own command).
         var headline = report.cancelled ? "Auto edit cancelled: \(done) edited" : redo
-            ? "Redo finished for \(done) photo\(done == 1 ? "" : "s")"
+            ? Self.instructionHeadline(instruction ?? "", done: done)
             : "Auto edit finished: \(done) photo\(done == 1 ? "" : "s") to review, least confident first"
         if !failed.isEmpty { headline += "; \(failed.count) failed" }
         app?.statusMessage = headline
@@ -746,6 +749,12 @@ final class AgentController {
             }
             if let item = self.currentItem(for: target) { app.agentDidEdit([item]) }
         }
+    }
+
+    /// "Agent finished “warmer”: 1 photo" (an instruction run from the agent field, the Edits
+    /// stack's Redo with Instruction… or the review queue).
+    static func instructionHeadline(_ instruction: String, done: Int) -> String {
+        "Agent finished “\(instruction)”: \(done) photo\(done == 1 ? "" : "s")"
     }
 
     /// Natural-language redo ("warmer, keep the sky"): a new, named group on that photo.

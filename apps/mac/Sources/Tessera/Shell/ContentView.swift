@@ -423,6 +423,7 @@ struct ContentView: View {
                     .init(value: mode, title: mode.title,
                           help: "\(mode.title) (⌘\(ShellMode.allCases.firstIndex(of: mode)! + 1))")
                 }, height: Theme.Height.sectionHeader, fill: false, prominent: true, accessibilityPrefix: "\(axMode).toolbar.workspace")
+                .shellProbe("modeControl")
                 .accessibilityLabel("Mode")
             }
         }
@@ -661,6 +662,8 @@ struct WindowToolbarConfigurator: NSViewRepresentable {
             window.titlebarSeparatorStyle = .line
             window.backgroundColor = Theme.Palette.canvas
             RecoveryWindowCloseGuard.install(on: window)
+            // UX-16 (item 36): never under the Dock, on first launch and with a restored frame.
+            WindowFrameFitting.apply(to: window)
         }
     }
 
@@ -697,40 +700,3 @@ struct EmptyStateView: View {
     }
 }
 
-struct ToastView: View {
-    let model: AppModel
-    let toast: Toast
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.xs) {
-            HStack(spacing: Theme.Space.m) {
-                Text(toast.message).font(Theme.Fonts.label).foregroundStyle(Theme.textPrimary).lineLimit(1)
-                if toast.undoable {
-                    Button { model.undo() } label: {
-                        HStack(spacing: Theme.Space.xs) {
-                            Text("Undo").font(Theme.Fonts.labelMedium).foregroundStyle(Theme.accent)
-                            Text("⌘Z").font(Theme.Fonts.caption).foregroundStyle(Theme.textTertiary)
-                        }
-                    }
-                    .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
-                }
-                if !toast.details.isEmpty {
-                    Button("Dismiss") { model.toast = nil }
-                        .buttonStyle(.theme(.borderless, height: Theme.Height.regular))
-                }
-            }
-            ForEach(Array(toast.details.prefix(5).enumerated()), id: \.offset) { _, line in
-                StatusLine(text: line, kind: .error).lineLimit(1).truncationMode(.middle)
-            }
-            if toast.details.count > 5 {
-                Text("and \(toast.details.count - 5) more").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
-            }
-        }
-        .padding(.leading, Theme.Space.l)
-        .padding(.trailing, Theme.Space.xs)
-        .padding(.vertical, Theme.Space.xs)
-        .frame(minHeight: Theme.Height.toast)
-        .background(HUDBackground())
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("toast")
-    }
-}

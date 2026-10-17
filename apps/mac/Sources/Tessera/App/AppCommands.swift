@@ -257,6 +257,11 @@ struct AppCommands: Commands {
                 .disabled(model.agent.isRunning || model.isCachedPreviewLibrary)
             Button("Agent Review") { model.enterReview() }
                 .disabled(docMode)
+            // UX-16 (item 30): the agent's re-run has its own command and key; ⇧⌘Z stays the
+            // develop history's Redo while a photo is open.
+            Button(AppModel.agentRerunTitle) { model.rerunAgentInstruction() }
+                .shortcut(!docMode, "r", [.command, .shift, .option])   // = AppModel.agentRerunShortcut
+                .disabled(docMode || !model.canRerunAgentInstruction)
             Divider()
             Button("Reset All Settings") { model.resetDevelop() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])

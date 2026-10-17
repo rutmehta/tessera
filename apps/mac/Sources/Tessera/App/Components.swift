@@ -222,6 +222,7 @@ struct SegmentedPicker<Value: Hashable>: View {
             }
         }
         .padding(inset)
+        .fixedSize(horizontal: !fill, vertical: false)
         .frame(height: height)
         .background(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.card : Theme.Radius.control).fill(prominent ? Theme.panel : Theme.well))
         .overlay(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.card : Theme.Radius.control)
@@ -254,6 +255,9 @@ struct SegmentedPicker<Value: Hashable>: View {
                 .foregroundStyle(on ? (prominent ? Theme.canvas : Theme.textPrimary)
                                  : hovering ? Theme.textPrimary : prominent ? Theme.textTertiary : Theme.textSecondary)
                 .padding(.horizontal, prominent ? Theme.Space.l : Theme.Space.s)
+                // UX-16 (item 35): a hugging segment keeps its title's width whatever the toolbar
+                // proposes ("Deliv…" at 2000 pt); the padded row is still the hit target.
+                .fixedSize(horizontal: !fill, vertical: false)
                 .frame(maxWidth: fill ? .infinity : nil)
                 .frame(height: height)
                 .background(RoundedRectangle(cornerRadius: prominent ? Theme.Radius.control : Theme.Radius.chip)

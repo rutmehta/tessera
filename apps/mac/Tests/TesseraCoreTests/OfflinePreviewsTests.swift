@@ -24,16 +24,22 @@ final class OfflinePreviewsTests: XCTestCase {
         var pending: [String] = []
         var synchronized: [String] = []
         var syncFailing: Set<String> = []
+        /// A status that is not the plain rule (a pending id is dirty, the rest ready).
+        var infoOverrides: [String: SmartPreviewSnapshot] = [:]
 
         init(_ candidates: [String]) { self.candidates = candidates }
 
-        func snapshot(_ id: String, state: SmartPreviewSnapshot.State = .ready, online: Bool = true, dirty: Bool = false) -> SmartPreviewSnapshot {
-            .init(imageID: id, state: state, originalAvailable: online, dirty: dirty, width: 2048, height: 1365, message: "")
+        func snapshot(_ id: String, state: SmartPreviewSnapshot.State = .ready, online: Bool = true, dirty: Bool = false,
+                      message: String = "") -> SmartPreviewSnapshot {
+            .init(imageID: id, state: state, originalAvailable: online, dirty: dirty, width: 2048, height: 1365, message: message)
         }
 
         var api: SmartPreviewAPI {
             SmartPreviewAPI(
-                info: { id in self.snapshot(id) },
+                info: { id in
+                    self.infoOverrides[id] ?? self.snapshot(id, state: self.pending.contains(id) ? .dirty : .ready,
+                                                            dirty: self.pending.contains(id))
+                },
                 build: { id in self.snapshot(id) },
                 discard: { _ in },
                 synchronize: { id in
@@ -285,6 +291,64 @@ final class OfflinePreviewsTests: XCTestCase {
                                                 shouldContinue: { calls += 1; return calls < 3 })
         XCTAssertEqual(fake.synchronized, ["a", "b"])
         XCTAssertEqual(outcome.wrote, 2)
+    }
+
+    // MARK: UX-16 item 29 — a clean preview whose baseline moved is refreshed, never a conflict
+
+    static let engineConflict = "Original sidecars differ from the offline baseline; both copies retained"
+
+    func testReconnectSyncRefreshesACleanBehindPreviewSilently() async {
+        let fake = Fake([])
+        // The engine's dirty-journal scan listed it earlier; by now the person has edited the
+        // original (its sidecars moved) and the journal is clean: `info` says Conflict, not dirty.
+        fake.pending = ["behind", "dirty"]
+        fake.infoOverrides["behind"] = fake.snapshot("behind", state: .conflict, dirty: false, message: Self.engineConflict)
+        var refreshed: [(String, SmartPreviewSnapshot?)] = []
+        let outcome = await OfflineEditSync.run(api: fake.api, libraryIDs: ["behind", "dirty"], isOpen: { _ in false },
+                                                didSynchronize: { id, info in refreshed.append((id, info)) })
+        XCTAssertEqual(fake.synchronized, ["dirty"], "only the journal with edits is written")
+        XCTAssertEqual(fake.ensured, ["behind"], "the clean one is rebuilt on the new baseline")
+        XCTAssertEqual(outcome, .init(wrote: 1, failed: 0, skipped: 0, refreshed: 1))
+        XCTAssertEqual(outcome.toast, "Wrote 1 offline edit to the drive", "nothing about a conflict")
+        XCTAssertEqual(refreshed.map(\.0), ["behind", "dirty"], "badges and thumbnails refresh for both")
+        XCTAssertNil(OfflineEditSync.Outcome(refreshed: 3).toast, "refreshes alone say nothing")
+    }
+
+    func testReconnectSyncLeavesACleanReadyPreviewAlone() async {
+        let fake = Fake([])
+        fake.pending = ["clean"]
+        fake.infoOverrides["clean"] = fake.snapshot("clean")   // synchronized from the menu meanwhile
+        let outcome = await OfflineEditSync.run(api: fake.api, libraryIDs: ["clean"], isOpen: { _ in false })
+        XCTAssertEqual(fake.synchronized, [])
+        XCTAssertEqual(fake.ensured, [])
+        XCTAssertEqual(outcome, .init())
+    }
+
+    func testSnapshotTellsABehindBaselineFromAConflict() {
+        let fake = Fake([])
+        let behind = fake.snapshot("a", state: .conflict, dirty: false, message: Self.engineConflict)
+        XCTAssertTrue(behind.isBaselineBehind)
+        XCTAssertFalse(behind.isConflict)
+        XCTAssertTrue(behind.badge.contains("Behind the original"))
+        XCTAssertFalse(behind.badge.contains("Conflict"))
+        let conflict = fake.snapshot("a", state: .conflict, dirty: true, message: Self.engineConflict)
+        XCTAssertFalse(conflict.isBaselineBehind)
+        XCTAssertTrue(conflict.isConflict)
+        XCTAssertTrue(conflict.badge.contains("Conflict"))
+        let offline = fake.snapshot("a", state: .conflict, online: false, dirty: false)
+        XCTAssertFalse(offline.isBaselineBehind, "without the original there is no baseline to compare")
+    }
+
+    func testOpeningEditOnACleanBehindPreviewOpensTheOriginalWithoutAConflict() throws {
+        let fake = Fake([])
+        let behind = fake.snapshot("raw", state: .conflict, dirty: false, message: Self.engineConflict)
+        XCTAssertEqual(try SmartPreviewRouting.route(behind, preferPreview: false), .original)
+        XCTAssertEqual(try SmartPreviewRouting.route(behind, preferPreview: true), .original,
+                       "the preview is behind the original; the original is the truth until it is rebuilt")
+        let conflict = fake.snapshot("raw", state: .conflict, dirty: true, message: Self.engineConflict)
+        XCTAssertThrowsError(try SmartPreviewRouting.route(conflict, preferPreview: false)) { error in
+            XCTAssertEqual(error.localizedDescription, Self.engineConflict, "a real conflict still stops the open")
+        }
     }
 
     // MARK: Routing

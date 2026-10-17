@@ -92,10 +92,15 @@ final class SmartPreviewUITests: XCTestCase {
 
     func testOnlyCleanMissingPreviewFallsBackToAvailableOriginal() throws {
         XCTAssertEqual(try SmartPreviewRouting.route(info("raw", .missing), preferPreview: true), .original)
-        for state in [SmartPreviewSnapshot.State.conflict, .stale, .failed] {
+        for state in [SmartPreviewSnapshot.State.stale, .failed] {
             XCTAssertThrowsError(try SmartPreviewRouting.route(info("raw", state), preferPreview: true))
             XCTAssertThrowsError(try SmartPreviewRouting.route(info("raw", state), preferPreview: false))
         }
+        // UX-16 (item 29): a conflict with journaled edits still stops the open; a clean preview
+        // behind the original's sidecars opens the original (see OfflinePreviewsTests).
+        XCTAssertThrowsError(try SmartPreviewRouting.route(info("raw", .conflict, dirty: true), preferPreview: true))
+        XCTAssertThrowsError(try SmartPreviewRouting.route(info("raw", .conflict, dirty: true), preferPreview: false))
+        XCTAssertEqual(try SmartPreviewRouting.route(info("raw", .conflict), preferPreview: true), .original)
         XCTAssertThrowsError(try SmartPreviewRouting.route(info(dirty: true), preferPreview: false))
         XCTAssertThrowsError(try SmartPreviewRouting.route(info("raw", .missing, online: false), preferPreview: true))
         XCTAssertEqual(try SmartPreviewRouting.route(info("raw", .originalOffline, dirty: true, online: false), preferPreview: true), .smartPreview)
@@ -103,7 +108,10 @@ final class SmartPreviewUITests: XCTestCase {
 
     func testBadgesDescribeOfflinePendingConflictAndActualRoute() {
         XCTAssertEqual(info("raw", .originalOffline, dirty: true, online: false).badge, "Smart Preview · Original offline · Pending edits")
-        XCTAssertTrue(info("raw", .conflict).badge.contains("Conflict"))
+        XCTAssertTrue(info("raw", .conflict, dirty: true).badge.contains("Conflict"))
+        // UX-16 (item 29): a clean preview behind the original's sidecars is not a conflict.
+        XCTAssertTrue(info("raw", .conflict).badge.contains("Behind the original"))
+        XCTAssertFalse(info("raw", .conflict).badge.contains("Conflict"))
         XCTAssertTrue(info("raw", .stale).badge.contains("Stale"))
         XCTAssertEqual(DevelopSourceRoute.original.label, "Original")
         XCTAssertEqual(DevelopSourceRoute.smartPreview.label, "Smart Preview")

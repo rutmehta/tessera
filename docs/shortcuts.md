@@ -54,6 +54,7 @@ commands may not claim the reserved combinations listed below.
 | Document / Library | ⌥⌘P | AppCommands / Show People |
 | Document / Library | ⌥⌘K | AppCommands / Suggest Keywords for Selection |
 | Library | ⇧⌘A | AppCommands / Auto Edit… |
+| Library | ⌥⇧⌘R | AppCommands / AppModel.agentRerunTitle |
 | Document / Library | ⇧⌘R | AppCommands / Reset All Settings |
 | Library | ⇧⌘S | AppCommands / New Snapshot… |
 | Document / Library | ⌥⌘T | AppCommands / Show Engine Readouts |

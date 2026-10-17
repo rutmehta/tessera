@@ -104,8 +104,11 @@ public enum OfflineEditSync {
         public var failed = 0
         /// Pending photos left alone because their editor was open.
         public var skipped = 0
-        public init(wrote: Int = 0, failed: Int = 0, skipped: Int = 0) {
-            self.wrote = wrote; self.failed = failed; self.skipped = skipped
+        /// Clean previews whose baseline had moved (the original was edited meanwhile): rebuilt
+        /// in place, nothing written, nothing said (UX-16 item 29).
+        public var refreshed = 0
+        public init(wrote: Int = 0, failed: Int = 0, skipped: Int = 0, refreshed: Int = 0) {
+            self.wrote = wrote; self.failed = failed; self.skipped = skipped; self.refreshed = refreshed
         }
         public var toast: String? { OfflineCopy.syncToast(wrote: wrote, failed: failed) }
     }
@@ -113,6 +116,11 @@ public enum OfflineEditSync {
     /// `isOpen`: a Develop session for the photo is open (that photo waits for the next reconnect).
     /// `shouldContinue`: the library is still the one the pending list was read for.
     /// `didSynchronize`: the fresh status for a photo (ready or failed), for badges and thumbnails.
+    ///
+    /// Only a journal with edits is written. The pending list is the engine's dirty-journal scan,
+    /// but each id's status is read again first: a preview that is clean by then (its edits were
+    /// synchronized from the menu, or the person edited the original) is never reported as a
+    /// conflict; if its baseline moved it is rebuilt through `ensure` and counted as refreshed.
     @MainActor
     public static func run(api: SmartPreviewAPI, libraryIDs: Set<String>,
                            isOpen: @MainActor (String) -> Bool,
@@ -123,6 +131,14 @@ public enum OfflineEditSync {
         for id in pending where libraryIDs.contains(id) {
             guard shouldContinue() else { break }
             if isOpen(id) { outcome.skipped += 1; continue }
+            if let status = try? await api.info(id), status.imageID == id, !status.hasPendingEdits {
+                if status.isBaselineBehind || status.state == .stale,
+                   let fresh = try? await api.ensure(id), fresh.imageID == id, !fresh.needsAttention {
+                    outcome.refreshed += 1
+                    didSynchronize(id, fresh)
+                }
+                continue
+            }
             do {
                 let info = try await api.synchronize(id)
                 let clean = info.imageID == id && !info.needsAttention && !info.hasPendingEdits && info.originalAvailable

@@ -13,12 +13,14 @@ struct DeliverView: View {
         HStack(spacing: 0) {
             if model.showInspector {
                 DeliverColumn(model: model)
+                    .shellProbe("deliverColumn")
                     .transition(Theme.Motion.transition(from: .leading))
             }
             DeliverPreview(model: model)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.canvas)
+        .shellProbe("deliverWorkspace")
         .animation(Theme.Motion.appear, value: model.showInspector)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("library.deliver.workspace")

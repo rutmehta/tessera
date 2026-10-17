@@ -133,6 +133,26 @@ extension AppModel {
 
     // MARK: Agent field
 
+    // MARK: Agent re-run (UX-16 item 30)
+
+    /// Develop ▸ Run Agent Instruction Again: ⌥⇧⌘R. Never ⇧⌘Z, which is the Edit menu's Redo (the
+    /// develop history while a photo is open, the cull history otherwise).
+    static let agentRerunShortcut = KeyboardShortcut("r", modifiers: [.command, .shift, .option])
+    static let agentRerunTitle = "Run Agent Instruction Again"
+
+    /// The last instruction the agent field ran, while a photo is open in Edit and no run is going.
+    var canRerunAgentInstruction: Bool {
+        lastAgentInstruction != nil && shellMode == .edit && editTarget?.engineImage != nil && isEngineBacked && !agent.isRunning
+    }
+
+    /// Repeats the last agent-field instruction on the photo being edited (a new run, reviewed
+    /// like any other); says so when there is nothing to repeat.
+    func rerunAgentInstruction() {
+        guard let text = lastAgentInstruction else { statusMessage = "No agent instruction to run again"; return }
+        guard shellMode == .edit else { statusMessage = "Open a photo in Edit to run “\(text)” again"; return }
+        submitAgentInstruction(text)
+    }
+
     /// ⌘K: the agent field of the current mode takes the keyboard.
     func focusAgentField() {
         guard viewMode != .document else { return }
@@ -158,6 +178,7 @@ extension AppModel {
         agent.start(itemIDs: [item.id], instruction: text)
         if agent.isRunning {
             statusMessage = "Agent: “\(text)” on \(item.name)"
+            lastAgentInstruction = text
             if let ref = item.engineImage {
                 agentFieldRun = AgentFieldRun(itemID: item.id, imageID: ref.imageID, instruction: text)
             }

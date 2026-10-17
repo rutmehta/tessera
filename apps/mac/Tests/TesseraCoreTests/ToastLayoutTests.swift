@@ -62,6 +62,65 @@ final class ToastLayoutTests: XCTestCase {
         }
     }
 
+    // MARK: UX-16 item 28 — a long toast wraps inside Theme.Width.toast and never clips
+
+    /// The owner's toast: cut at both ends. It wraps to two lines at the capped width.
+    static let longMessage = "1 edit could not be written · DSC02506.ARW: Original sidecars differ from the offline baseline; both copies retained"
+
+    func testToastPlanHugsShortAndWrapsLong() {
+        let short = ToastLayout.plan(message: "Opened shoot: 24 images", undoable: false, detailLines: 0)
+        XCTAssertEqual(short, .init(wraps: false, messageOverflows: false, hasDetails: false))
+        let long = ToastLayout.plan(message: Self.longMessage, undoable: false, detailLines: 0)
+        XCTAssertTrue(long.wraps)
+        XCTAssertFalse(long.messageOverflows, "two lines hold the owner's message")
+        XCTAssertFalse(long.hasDetails)
+        let undoable = ToastLayout.plan(message: Self.longMessage, undoable: true, detailLines: 0)
+        XCTAssertTrue(undoable.wraps)
+        let essay = ToastLayout.plan(message: String(repeating: Self.longMessage + " ", count: 4), undoable: false, detailLines: 0)
+        XCTAssertTrue(essay.wraps)
+        XCTAssertTrue(essay.messageOverflows, "beyond two lines the whole text goes behind Details")
+        XCTAssertTrue(essay.hasDetails)
+        XCTAssertTrue(ToastLayout.plan(message: "Export failed", undoable: false, detailLines: 2).hasDetails)
+        XCTAssertLessThanOrEqual(ToastLayout.lineCount(Self.longMessage, width: Theme.Width.toast - ToastLayout.chrome(undo: false, details: false)), 2)
+        XCTAssertEqual(ToastLayout.lineCount("short", width: 400), 1)
+    }
+
+    func testLongToastWrapsInsideTheCapAndStaysInTheWindow() throws {
+        let size = CGSize(width: 1385, height: 868)
+        let model = try ShellHarness.model(.library, scratch: try scratch())
+        model.select(position: 0)
+        let (window, _) = ShellHarness.window(model, size: size, dark: true)
+        defer { LayoutProbeHarness.dispose(window) }
+        model.documents.columnVisibility = .detailOnly
+        ShellHarness.settle(window, size: size)
+
+        model.showToast("Opened shoot: 24 images", undoable: false, seconds: 60)
+        ShellHarness.settle(window, size: size)
+        let short = try frame("toast", in: window)
+        XCTAssertLessThan(short.width, Theme.Width.toast * 0.75, "a short toast hugs its text")
+        let shortHeight = short.height
+
+        model.toast = nil
+        ShellHarness.settle(window, size: size)
+        model.showToast(Self.longMessage, undoable: false, seconds: 60)
+        ShellHarness.settle(window, size: size)
+        let toast = try frame("toast", in: window)
+        let message = try frame("toastMessage", in: window)
+        let content = try XCTUnwrap(window.contentView).bounds
+        XCTAssertEqual(toast.width, Theme.Width.toast, accuracy: 1, "the long toast takes the cap")
+        XCTAssertTrue(content.insetBy(dx: -0.5, dy: -0.5).contains(toast), "not clipped: \(toast) in \(content)")
+        XCTAssertTrue(toast.insetBy(dx: -0.5, dy: -0.5).contains(message), "the message \(message) sits inside the toast \(toast)")
+        let line = Theme.NSFonts.label.ascender - Theme.NSFonts.label.descender
+        XCTAssertGreaterThanOrEqual(message.height, 2 * line - 1, "two lines of text (\(message.height) pt)")
+        XCTAssertGreaterThan(toast.height, shortHeight, "the toast grows for the second line rather than clipping")
+        // Still above the agent row and clear of the chips (UX-15 item 20).
+        let row = try frame("agentRow", in: window)
+        let chips = try frame("cullQuickActions", in: window)
+        XCTAssertLessThanOrEqual(toast.maxY, row.minY + 0.5)
+        XCTAssertFalse(toast.intersects(chips.insetBy(dx: 0, dy: 1)))
+        model.toast = nil
+    }
+
     func testToastClearsDeliverStatusLine() throws {
         let size = CGSize(width: 1385, height: 868)
         let model = try ShellHarness.model(.deliver, scratch: try scratch())

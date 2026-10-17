@@ -342,14 +342,17 @@ struct EditsSection: View {
 
     var body: some View {
         let ready = model.developStatus == .ready
-        let steps = tools.historyItems.filter(\.applied).count
+        // UX-16 (item 32): the list is the history, so the readout counts what is listed and says
+        // where the current state is in it; the steps after Original stay in the list and click.
+        let listed = tools.historyItems.count
+        let applied = tools.historyItems.filter(\.applied).count
         let reset = AnyView(
             Button("Reset") { model.resetDevelop() }
                 .buttonStyle(.theme(.borderless, height: Theme.Height.small))
-                .disabled(!ready || steps == 0)
+                .disabled(!ready || applied == 0)
                 .help("Back to the unedited photo (one undo step)")
                 .accessibilityIdentifier("develop.basic.reset"))
-        let readout = ready ? ["\(steps) step\(steps == 1 ? "" : "s")", model.developSaveLabel].compactMap { $0 }.joined(separator: " · ") : nil
+        let readout = ready ? [EditsReadout.text(listed: listed, applied: applied), model.developSaveLabel].compactMap { $0 }.joined(separator: " · ") : nil
         if model.developStatus == .loading, let since = model.developLoadingSince {
             // UX-15 (item 19): the opening session reports here, not in a floating capsule:
             // "Rendering…", and after 2 s why, counted up each second.
@@ -364,6 +367,18 @@ struct EditsSection: View {
                 HistoryPanel(model: model, tools: tools)
             }
         }
+    }
+}
+
+/// The Edits section's readout (UX-16 item 32): "6 steps" with every listed step applied,
+/// "Original · 6 steps" after Original, "at 3 of 6 steps" part-way back; "No edits" when empty.
+enum EditsReadout {
+    static func text(listed: Int, applied: Int) -> String {
+        let steps = "\(listed) step\(listed == 1 ? "" : "s")"
+        if listed == 0 { return "No edits" }
+        if applied >= listed { return steps }
+        if applied == 0 { return "Original · \(steps)" }
+        return "at \(applied) of \(steps)"
     }
 }
 

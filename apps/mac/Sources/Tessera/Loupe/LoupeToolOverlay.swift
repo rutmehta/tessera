@@ -272,40 +272,26 @@ final class LoupeToolOverlay: NSView {
         str.draw(at: NSPoint(x: r.minX + Theme.Space.m, y: r.midY - ceil(font.ascender - font.descender) / 2), withAttributes: attrs)
     }
 
+    /// The guide ink over a dark underlay, so the lines read on a bright sky and in shadow.
+    static func strokeGuides(_ segments: [CropGuides.Segment]) {
+        guard !segments.isEmpty else { return }
+        let path = NSBezierPath()
+        for s in segments { path.move(to: s.from); path.line(to: s.to) }
+        Theme.Palette.OnImage.shadow.setStroke()
+        path.lineWidth = Theme.Space.xxs + Theme.Space.hairline
+        path.stroke()
+        Theme.Palette.OnImage.guide.setStroke()
+        path.lineWidth = Theme.Space.hairline
+        path.stroke()
+    }
+
     private func drawCrop(_ g: CropGeometry, _ view: CropView) {
         let box = view.box(g)
-        // Composition guides.
-        let guide = NSBezierPath()
-        let line = { (a: CGPoint, b: CGPoint) in guide.move(to: a); guide.line(to: b) }
+        // Composition guides (UX-16 item 31): a half-point line at 30 % white vanished on most
+        // photos, so the picker seemed to draw nothing. Now a dark underlay and a one-point
+        // guide, readable on light and dark areas alike; the segments come from `CropGuides`.
+        Self.strokeGuides(CropGuides.segments(tools.cropOverlay, in: box))
         let fx = { (f: Double) in box.minX + box.width * f }, fy = { (f: Double) in box.minY + box.height * f }
-        switch tools.cropOverlay {
-        case .thirds:
-            for f in [1.0 / 3, 2.0 / 3] {
-                line(CGPoint(x: fx(f), y: box.minY), CGPoint(x: fx(f), y: box.maxY))
-                line(CGPoint(x: box.minX, y: fy(f)), CGPoint(x: box.maxX, y: fy(f)))
-            }
-        case .grid:
-            for i in 1..<8 {
-                let f = Double(i) / 8
-                line(CGPoint(x: fx(f), y: box.minY), CGPoint(x: fx(f), y: box.maxY))
-                line(CGPoint(x: box.minX, y: fy(f)), CGPoint(x: box.maxX, y: fy(f)))
-            }
-        case .goldenRatio:
-            for f in [0.382, 0.618] {
-                line(CGPoint(x: fx(f), y: box.minY), CGPoint(x: fx(f), y: box.maxY))
-                line(CGPoint(x: box.minX, y: fy(f)), CGPoint(x: box.maxX, y: fy(f)))
-            }
-        case .diagonals:
-            let s = min(box.width, box.height)
-            line(CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.minX + s, y: box.minY + s))
-            line(CGPoint(x: box.maxX, y: box.minY), CGPoint(x: box.maxX - s, y: box.minY + s))
-            line(CGPoint(x: box.minX, y: box.maxY), CGPoint(x: box.minX + s, y: box.maxY - s))
-            line(CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.maxX - s, y: box.maxY - s))
-        case .none: break
-        }
-        Theme.Palette.OnImage.guideFaint.setStroke()
-        guide.lineWidth = 0.5
-        guide.stroke()
         // While rotating, a fine grid helps levelling.
         if case .rotate = drag {
             let fine = NSBezierPath()
