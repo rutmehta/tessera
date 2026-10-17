@@ -69,6 +69,42 @@ public enum CropOverlay: String, CaseIterable, Sendable {
     }
 }
 
+/// The composition guide lines of a crop overlay inside the crop box, in the box's coordinates
+/// (UX-16 item 31: the loupe draws these; the picker's choice must show at once).
+public enum CropGuides {
+    public struct Segment: Equatable, Sendable {
+        public let from: CGPoint
+        public let to: CGPoint
+        public init(from: CGPoint, to: CGPoint) { self.from = from; self.to = to }
+    }
+
+    /// Thirds: 4 lines; grid: 14 (eighths); golden ratio: 4; diagonals: 4 (45° from each corner,
+    /// the shorter side long); none: empty. An empty box has no lines.
+    public static func segments(_ overlay: CropOverlay, in box: CGRect) -> [Segment] {
+        guard box.width > 0, box.height > 0 else { return [] }
+        let fx = { (f: Double) in box.minX + box.width * f }
+        let fy = { (f: Double) in box.minY + box.height * f }
+        func cross(_ fractions: [Double]) -> [Segment] {
+            fractions.flatMap { f in
+                [Segment(from: CGPoint(x: fx(f), y: box.minY), to: CGPoint(x: fx(f), y: box.maxY)),
+                 Segment(from: CGPoint(x: box.minX, y: fy(f)), to: CGPoint(x: box.maxX, y: fy(f)))]
+            }
+        }
+        switch overlay {
+        case .thirds: return cross([1.0 / 3, 2.0 / 3])
+        case .grid: return cross((1..<8).map { Double($0) / 8 })
+        case .goldenRatio: return cross([0.382, 0.618])
+        case .diagonals:
+            let s = min(box.width, box.height)
+            return [Segment(from: CGPoint(x: box.minX, y: box.minY), to: CGPoint(x: box.minX + s, y: box.minY + s)),
+                    Segment(from: CGPoint(x: box.maxX, y: box.minY), to: CGPoint(x: box.maxX - s, y: box.minY + s)),
+                    Segment(from: CGPoint(x: box.minX, y: box.maxY), to: CGPoint(x: box.minX + s, y: box.maxY - s)),
+                    Segment(from: CGPoint(x: box.maxX, y: box.maxY), to: CGPoint(x: box.maxX - s, y: box.maxY - s))]
+        case .none: return []
+        }
+    }
+}
+
 /// Crop and straighten in the *displayed* orientation, in full-resolution pixels of the displayed
 /// image (`width × height`). The engine stores the crop in sensor orientation; `engineValues` and
 /// `init(engine…)` convert through the EXIF orientation. Geometry follows pipeline-cpu

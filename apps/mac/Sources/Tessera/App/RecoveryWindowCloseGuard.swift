@@ -81,6 +81,17 @@ final class RecoveryWindowCloseGuard: NSObject, NSWindowDelegate {
         return previous?.windowShouldClose?(sender) ?? true
     }
 
+    /// Zoom (UX-16 item 36): the standard frame stays inside the screen's visible frame, above the Dock.
+    func windowWillUseStandardFrame(_ window: NSWindow, defaultFrame: NSRect) -> NSRect {
+        let proposed = previous?.windowWillUseStandardFrame?(window, defaultFrame: defaultFrame) ?? defaultFrame
+        return WindowFrameFitting.fit(proposed, in: window.screen?.visibleFrame ?? proposed)
+    }
+
+    func windowDidChangeScreen(_ notification: Notification) {
+        previous?.windowDidChangeScreen?(notification)
+        if let window, notification.object as? NSWindow === window { WindowFrameFitting.apply(to: window) }
+    }
+
     func windowWillClose(_ notification: Notification) {
         if !forwardedClose {
             forwardedClose = true

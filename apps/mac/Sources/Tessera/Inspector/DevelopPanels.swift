@@ -737,6 +737,8 @@ struct HistoryPanel: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .help(atBase ? "The unedited photo: the current state." : "Back to the unedited photo; every step stays listed and clicks back.")
+                .accessibilityAddTraits(atBase ? .isSelected : [])
                 .accessibilityIdentifier("develop.history.original")
             }
         }
@@ -780,12 +782,16 @@ private struct HistoryRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("\(item.label) · \(Self.time(item.timestampMs)). Click to return to this step.")
+            .help(item.isHead ? "\(item.label) · \(Self.time(item.timestampMs)). The current state."
+                  : "\(item.label) · \(Self.time(item.timestampMs)). Click to return to this step" + (item.applied ? "." : " (undone; later edits branch from here)."))
             .accessibilityIdentifier("develop.history.step.\(item.id).restore").accessibilityLabel("Restore \(item.label)")
         }
         .padding(.horizontal, Theme.Space.xs)
         .frame(height: Theme.Height.regular)
+        // UX-16 (item 32): the current step is marked; the steps after it stay in the list,
+        // dimmed, and any of them returns the photo to that state.
         .background(RoundedRectangle(cornerRadius: Theme.Radius.chip).fill(item.isHead ? Theme.accentSubtle : Theme.clear))
+        .accessibilityAddTraits(item.isHead ? .isSelected : [])
     }
 
     /// The row's who tag from the entry's author ("user", "agent:<name>", "import:<source>",

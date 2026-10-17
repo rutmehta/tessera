@@ -231,40 +231,44 @@ private struct BigFrame: View {
     }
 }
 
-/// Sharpness (a bar) · Eyes · Face · Score, over the photo. Missing signals say so.
+/// Sharpness (the value and a bar) · Eyes · Face · Score, over the photo. Missing signals say
+/// so; every pill explains itself on hover (UX-16 item 27: the bare bar read as nothing).
 private struct SignalPills: View {
     let signals: FrameSignals?
     let score: Double?
 
     var body: some View {
         HStack(spacing: Theme.Space.xs + Theme.Space.xxs) {
-            pill {
+            pill(help: SignalPillText.sharpnessHelp) {
                 Text("Sharpness").foregroundStyle(Theme.textTertiary)
+                Text(SignalPillText.sharpness(signals?.sharpness))
+                    .foregroundStyle(signals?.sharpness == nil ? Theme.textQuaternary : Theme.textSecondary)
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(Theme.track)
                     RoundedRectangle(cornerRadius: Theme.Space.xxs).fill(Theme.textPrimary)
                         .frame(width: Theme.Width.signalBar * CGFloat(min(max(signals?.sharpness ?? 0, 0), 1)))
                 }
                 .frame(width: Theme.Width.signalBar, height: Theme.Space.xs)
-                .accessibilityLabel("Sharpness \(signals?.sharpness.map { String(format: "%.2f", $0) } ?? "unmeasured")")
+                .accessibilityHidden(true)
             }
-            pill {
+            .accessibilityLabel("Sharpness \(SignalPillText.sharpness(signals?.sharpness))")
+            pill(help: SignalPillText.eyesHelp) {
                 Text("Eyes").foregroundStyle(Theme.textTertiary)
                 if let e = signals?.eyesOpen {
-                    Text(e >= 0.5 ? "open" : e >= DefectRule.closedEyes.threshold ? "unsure" : "closed")
+                    Text(SignalPillText.eyes(e))
                         .foregroundStyle(e >= 0.5 ? Theme.textSecondary : Theme.reject)
                 } else {
                     Text("—").foregroundStyle(Theme.textQuaternary)
                 }
             }
-            pill {
+            pill(help: SignalPillText.faceHelp) {
                 Text("Face").foregroundStyle(Theme.textTertiary)
-                Text(signals?.faceSharpness.map { "\(Int(($0 * 100).rounded())) %" } ?? "—")
+                Text(SignalPillText.face(signals?.faceSharpness))
                     .foregroundStyle(signals?.faceSharpness == nil ? Theme.textQuaternary : Theme.textSecondary)
             }
-            pill {
+            pill(help: SignalPillText.scoreHelp) {
                 Text("Score").foregroundStyle(Theme.textTertiary)
-                Text(score.map { String(format: "%.2f", $0) } ?? "—")
+                Text(SignalPillText.score(score))
                     .fontWeight(.semibold).foregroundStyle(score == nil ? Theme.textQuaternary : Theme.accent)
             }
         }
@@ -273,13 +277,30 @@ private struct SignalPills: View {
         .accessibilityIdentifier("library.cull.burst.signals")
     }
 
-    private func pill<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    private func pill<Content: View>(help: String, @ViewBuilder _ content: () -> Content) -> some View {
         HStack(spacing: Theme.Space.xs + Theme.Space.xxs) { content() }
             .padding(.horizontal, Theme.Space.s + Theme.Space.xxs)
             .frame(height: Theme.Height.large)
             .background(Capsule().fill(Theme.hud))
             .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: Theme.Space.hairline))
+            .help(help)
     }
+}
+
+/// The signal pills' texts, in one place so a test can pin them (UX-16 item 27).
+enum SignalPillText {
+    /// "0.12" (the measured sharpness, 0–1); "—" until measured.
+    static func sharpness(_ value: Double?) -> String { value.map { String(format: "%.2f", $0) } ?? "—" }
+    static func eyes(_ eyesOpen: Double) -> String {
+        eyesOpen >= 0.5 ? "open" : eyesOpen >= DefectRule.closedEyes.threshold ? "unsure" : "closed"
+    }
+    static func face(_ faceSharpness: Double?) -> String { faceSharpness.map { "\(Int(($0 * 100).rounded())) %" } ?? "—" }
+    static func score(_ score: Double?) -> String { score.map { String(format: "%.2f", $0) } ?? "—" }
+
+    static let sharpnessHelp = "Sharpness of the frame from 0 (blurred) to 1 (crisp), measured as the shoot loads; the bar shows the same value. Suggested rejects start below about 0.08."
+    static let eyesHelp = "Whether the eyes in the frame are open: open, unsure or closed. — when no face was found."
+    static let faceHelp = "How sharp the largest face is, as a percentage. — when no face was found."
+    static let scoreHelp = "The agent's technical score for the frame, 0 to 1: sharpness, exposure and faces combined. The pick is the highest in the burst."
 }
 
 /// One 172 × 116 cell of the strip: the thumbnail, the focus ring, the pick badge, the decision

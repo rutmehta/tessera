@@ -502,6 +502,9 @@ final class AppModel {
     /// UX-12: the run the agent field started on the focused photo; its plan shows as change cards
     /// in the Edit panel's Agent section until Keep or Undo all (see AppModel+Shell.swift).
     var agentFieldRun: AgentFieldRun?
+    /// UX-16 (item 30): the last instruction the agent field ran in Edit; Develop ▸ Run Agent
+    /// Instruction Again (its own command and shortcut, never the standard redo key) repeats it.
+    var lastAgentInstruction: String?
     /// UX-12 / UX-13: the panel slider the loupe dial targets. The matching slider row draws
     /// highlighted (`ValueSlider.dialHighlighted`); nil clears it. Set it when the dial opens on a
     /// control and clear it when the dial closes.
@@ -1389,7 +1392,15 @@ final class AppModel {
     func groupSize(of item: PhotoItem) -> Int { library.groups[item.groupID].count }
     func indexInGroup(of item: PhotoItem) -> Int { item.id - library.groups[item.groupID].lowerBound }
     func item(id: Int) -> PhotoItem { library.items[id] }
-    func state(id: Int) -> CullState { cull[id] }
+    /// A photo's decision. `cull` is unobserved (per-item changes on 20k items must not
+    /// invalidate SwiftUI bodies), so this read registers `decisionRevision` instead: a SwiftUI
+    /// view that reads a state through here re-renders after every decision, undo and redo
+    /// (UX-16 item 26: the burst strip cell kept its old badge because its own inputs had not
+    /// changed and only its parent read the revision).
+    func state(id: Int) -> CullState {
+        _ = decisionRevision
+        return cull[id]
+    }
 
     // MARK: Library / Photo Edit workspace
 
@@ -2098,7 +2109,7 @@ final class AppModel {
             return
         }
         if isPhotoEditing {
-            guard let d = develop, d.itemID == focusedItem?.id, d.history.canUndo else { return }
+            guard let d = develop, d.itemID == focusedItem?.id, d.history.canUndo else { statusMessage = "Nothing to undo"; return }
             developHistoryMove("Undo", label: d.history.headLabel) { try d.undo() }
             return
         }
@@ -2131,7 +2142,7 @@ final class AppModel {
             return
         }
         if isPhotoEditing {
-            guard let d = develop, d.itemID == focusedItem?.id, d.history.canRedo else { return }
+            guard let d = develop, d.itemID == focusedItem?.id, d.history.canRedo else { statusMessage = "Nothing to redo"; return }
             developHistoryMove("Redo", label: nil) { try d.redo() }
             return
         }
@@ -2635,7 +2646,7 @@ final class AppModel {
             self.offlineSyncTask = nil
             guard self.engineLibrary === lib else { return }
             if let text = outcome.toast { self.showToast(text, undoable: false) }
-            if outcome.wrote + outcome.failed > 0 { self.offlinePreviews.refreshCoverage() }
+            if outcome.wrote + outcome.failed + outcome.refreshed > 0 { self.offlinePreviews.refreshCoverage() }
         }
     }
 

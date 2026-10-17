@@ -33,13 +33,21 @@ public struct SmartPreviewSnapshot: Sendable, Equatable {
     }
     public var hasPendingEdits: Bool { dirty || state == .dirty }
     public var needsAttention: Bool { state == .stale || state == .conflict || state == .failed }
+    /// The engine reports Conflict whenever the original's sidecars differ from the preview's
+    /// baseline, dirty or not. With no journaled edits nothing can be lost: the original is the
+    /// truth and the preview is merely behind it (the person edited the original, or another
+    /// machine synced). That is a refresh, not a conflict (UX-16 item 29): routing opens the
+    /// original and the builder rebuilds the preview on its next pass.
+    public var isBaselineBehind: Bool { state == .conflict && !hasPendingEdits && originalAvailable }
+    /// A real conflict: journaled edits and a moved baseline, both copies kept.
+    public var isConflict: Bool { state == .conflict && !isBaselineBehind }
     public var badge: String {
         var parts = [state == .missing ? "No Smart Preview" : "Smart Preview"]
         if !originalAvailable { parts.append("Original offline") }
         if hasPendingEdits { parts.append("Pending edits") }
         switch state {
         case .stale: parts.append("Stale")
-        case .conflict: parts.append("Conflict")
+        case .conflict: parts.append(isBaselineBehind ? "Behind the original · rebuilt in the background" : "Conflict")
         case .failed: parts.append("Failed")
         default: break
         }
@@ -65,6 +73,9 @@ public enum SmartPreviewRouting {
     /// `volumeName`: the detached drive, for the missing-preview message.
     public static func route(_ info: SmartPreviewSnapshot, preferPreview: Bool,
                              volumeName: String? = nil) throws -> DevelopSourceRoute {
+        // A clean preview behind the original's sidecars is not a conflict (UX-16 item 29): the
+        // original opens; the background builder re-baselines the preview.
+        if info.isBaselineBehind { return .original }
         guard !info.needsAttention else {
             throw SmartPreviewUIError.unavailable(info.message.isEmpty ? info.badge : info.message)
         }

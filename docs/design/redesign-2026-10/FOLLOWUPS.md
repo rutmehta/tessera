@@ -151,25 +151,71 @@ session screenshots described here. All on the 8-ARW sample shoot, window 1385 �
 26. **Burst strip badges do not update after a decision.** After "Kept DSC02693.ARW, rejected 1
     in G3" both frames still show the red X badge and the kept one also shows "Pick"; the cell
     badge must follow the decision at once (the toast and column counts did).
+    *Done (UX-16):* `AppModel.cull` is unobserved by design, so `state(id:)` registered nothing;
+    the burst view read `decisionRevision` itself, but `BurstStripCell` (same `item`, `focused`,
+    `isPick` after a decision) was skipped by SwiftUI and kept its old badge. `state(id:)` now
+    touches `decisionRevision`, so every view that reads a decision through it re-renders after a
+    decision, undo or redo. `UX16FollowupTests.testReadingAStateIsInvalidatedByDecisions`.
 27. **"Sharpness" pill in the loupe footer is a bare meter** (a short bar with no number); the
     owner could not tell what it was. Show the value ("Sharpness 0.12") like Score, or the
     word with a level ("Sharpness low"), and give every pill a `.help`.
+    *Done:* "Sharpness 0.12" with the bar beside the number ("—" until measured); every pill has
+    a tooltip that says what it measures (`SignalPillText`, the sharpness one names the triage
+    threshold). `UX16FollowupTests.testSignalPillTexts`, `testSharpnessPillShowsTheValueBesideTheBar`.
 28. **Toasts overflow:** "…inal sidecars differ from the offline baseline; both copies reta…" is
     cut at both ends. Toasts wrap to at most two lines inside a max width (`Theme.Width.toast`),
     never clip; long detail goes behind a "Details" affordance.
+    *Done:* `ToastView` (its own file) plans its layout with the view's font (`ToastLayout`): a
+    short message hugs, a long one takes `Theme.Width.toast` (= the agent field, 560 pt) and
+    wraps to two lines; what would need a third line, and the detail lines, sit behind Details /
+    Hide / Dismiss. `ToastLayoutTests.testToastPlanHugsShortAndWrapsLong` and
+    `testLongToastWrapsInsideTheCapAndStaysInTheWindow` (the owner's message on the real shell).
 29. **That conflict should not have fired.** The offline preview for the photo was clean (no
     journaled edits); the sidecars changed because the owner edited the original. Reconnect sync
     must only report a conflict when the journal is dirty; a clean preview whose baseline moved is
     refreshed (rebuilt or re-baselined) silently.
+    *Done:* the engine's `smart_preview_info` reports Conflict whenever the original's sidecars
+    differ from the preview's baseline, dirty or not; the reconnect sync was already dirty-only
+    (`pending_sync_smart_previews`), the toast came from `SmartPreviewRouting.route` refusing to
+    open Edit on a clean "conflict". `SmartPreviewSnapshot.isBaselineBehind` (conflict, clean,
+    original present) now routes to the original, its badge reads "Behind the original · rebuilt
+    in the background", and `OfflineEditSync.run` re-reads each pending id's status: a clean one
+    is never synchronized; behind or stale it is rebuilt through `ensure` (counted as
+    `refreshed`, no toast). The engine's own rule is unchanged (engine side: `ensure` already
+    rebuilds a Conflict). `OfflinePreviewsTests` (four UX-16 cases with the fake API).
 30. **⇧⌘Z in Edit ran the agent's "redo" instead of the develop history:** "Redo finished for 0
     photos; 1 failed · DSC02506.ARW: redo intent cannot be safely scoped; specify warmth, tint,
     exposure or contrast". With a Develop session open, Edit ▸ Redo (and Undo) is the develop
     history; the agent's re-run lives under its own command and never under ⇧⌘Z.
+    *Done (partly located):* nothing in the app binds ⇧⌘Z to the agent (`UX16FollowupTests.
+    testOnlyTheEditMenuBindsShiftCommandZ`); Edit ▸ Redo already called the develop history, and
+    with nothing to redo it returned silently (now "Nothing to redo"). What the owner saw is the
+    agent's wording: every instruction run (the agent field in Edit included) titled itself
+    "Redo “…”" and finished with "Redo finished for n photos", so an agent-field run that the
+    engine refused to scope read as a redo. Instruction runs now say "Agent “…”" / "Agent
+    finished “…”: n photos". The re-run is Develop ▸ Run Agent Instruction Again (⌥⇧⌘R,
+    `AppModel.rerunAgentInstruction`, enabled while a photo is open and an instruction was run).
+    If ⇧⌘Z still starts a run on the owner's Mac, the next thing to check is which first
+    responder had the key (the agent field's text view undoes typed text, nothing more).
 31. **Crop overlay picker (Grid / Thirds) draws nothing** on the loupe while cropping.
+    *Done:* the guides were drawn (the picker and the redraw hook were wired) as a half-point
+    line at 30 % white, which vanishes on most photos. The segments now come from
+    `CropGuides.segments` (TesseraCore, pure) and `LoupeToolOverlay.strokeGuides` draws a
+    dark underlay and a one-point `OnImage.guide` line, readable on bright and dark areas.
+    `UX16FollowupTests.testCropGuideSegments`, `testCropGuidesAreVisibleWhenStroked` (stroked
+    into a bitmap on a mid-grey ground, the line is 0.25 brighter than its surround).
 32. **Edits history after "Original":** clicking Original works, but no earlier step can be
     clicked again to return; the readout says "0 steps · saved" while six steps are listed. The
     list is a history: any row selects that state, the readout counts the steps in the list, and
     the current row is marked.
+    *Done:* the engine and `DevelopTools.checkout` do return to any listed step after Original
+    (`DevelopHistoryCheckoutTests`, on the ARW fixture through the bridge and through the tools);
+    the rows after Original were drawn dimmed with no mark and the readout counted applied steps
+    only, so they read as dead. The readout now counts the list ("6 steps", "Original · 6
+    steps", "at 3 of 6 steps", `EditsReadout`), the current row (or Original) carries the
+    selected trait and the highlight, and an undone row's tooltip says it returns there. If a
+    click still does nothing on the owner's Mac, the status line now names the move
+    ("History: Exposure +0.30") or the failure.
 33. **Slider response (PL-1, engine):** the owner reports that apart from Exposure, ±100 on
     Shadows, Highlights, Contrast and Vibrance feels like about ±20 in Lightroom. Calibrate the
     native pipeline's response so ±100 spans a comparable range (see PL-1 brief).
@@ -179,8 +225,26 @@ session screenshots described here. All on the 8-ARW sample shoot, window 1385 �
     empty pane — the system `.inspector` or the split view's sidebar). Reproduce in-process
     (the Deliver evidence harness) and fix; the owner saw it at 2000 × 1257 after Cull → Edit →
     Deliver.
+    *Not reproduced (UX-16):* `DeliverPanelToggleTests.testPanelToggleInDeliverAfterEditShowsTheDeliverColumn`
+    runs the owner's path on the real shell at 2000 × 1257 (engine folder, a real develop
+    session, the asynchronous save-and-close into Deliver, then Panel hidden and shown again):
+    the Deliver workspace spans the window, no `NSSplitViewItem` with the inspector behaviour is
+    presented, and the column is laid out *and drawn* (the bitmap has ink where What · How ·
+    Where sit; `TESSERA_UX16_EVIDENCE=<dir>` writes the window PNGs). The test stays as the
+    guard; the next thing to check on the owner's Mac is whether the pane was the library
+    sidebar (View ▸ Show Library Sidebar restores on leaving Edit) or a transition caught
+    mid-way, with a screenshot of the pane's edge.
 35. **"Deliv…" truncates in the mode control** at 2000 pt wide: segments take their label's
     intrinsic width (UX-15 item 25 made them full-row buttons; keep the hit target, fix the width).
+    *Done:* a hugging `SegmentedPicker` (and each of its segments) is `fixedSize` horizontally,
+    so the principal toolbar item cannot squeeze a title; the padded row stays the hit target.
+    `DeliverPanelToggleTests.testModeControlKeepsEveryTitleWholeAt2000Points` measures the
+    control against its three titles' widths.
 36. **The window sits under the Dock** (the agent field and the Try cards were behind it in the
     owner's screenshots): on first launch and on zoom the window frame is constrained to
     `NSScreen.visibleFrame`; a saved frame that overlaps the Dock is pulled up on restore.
+    *Done:* `WindowFrameFitting.fit` (pure: shrink to the visible frame, then move inside it)
+    is applied when the window is configured (first launch and a restored frame), on zoom
+    (`windowWillUseStandardFrame` on the existing window delegate proxy) and when the window
+    changes screen; full-screen windows are left alone. `UX16FollowupTests.testWindowFrameFitting`,
+    `testWindowIsPulledAboveTheDockOnApply`.
