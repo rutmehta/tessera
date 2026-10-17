@@ -216,7 +216,7 @@ session screenshots described here. All on the 8-ARW sample shoot, window 1385 �
     selected trait and the highlight, and an undone row's tooltip says it returns there. If a
     click still does nothing on the owner's Mac, the status line now names the move
     ("History: Exposure +0.30") or the failure.
-33. **Slider response (PL-1, engine):** the owner reports that apart from Exposure, ±100 on
+33. **Slider response (PL-1, engine):** Done (`crates/pipeline-cpu/src/tone_math.rs`, evidence in `docs/design/evidence/PL-1/`; a bug fix inside native revision 2, render epoch 4). The original report: the owner reports that apart from Exposure, ±100 on
     Shadows, Highlights, Contrast and Vibrance feels like about ±20 in Lightroom. Calibrate the
     native pipeline's response so ±100 spans a comparable range (see PL-1 brief).
 34. **Deliver: the Panel toggle opens an empty pane.** With Deliver up and the column hidden,
