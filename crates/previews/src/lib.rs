@@ -41,8 +41,10 @@ pub struct PreviewKey {
 /// longer applies image-estimated distortion, built-in DNG opcode corrections
 /// apply in every profile mode, and automatic CA is off by default. Epoch 3
 /// (ENG-8): maker-note built-in corrections (Fujifilm) apply in every profile
-/// mode. Stale directories are left to LRU eviction.
-pub const RENDER_EPOCH: u32 = 3;
+/// mode. Epoch 4 (PL-1): the native Blacks/Shadows/Highlights/Whites,
+/// Contrast and Vibrance responses are recalibrated inside native revision 2.
+/// Stale directories are left to LRU eviction.
+pub const RENDER_EPOCH: u32 = 4;
 
 impl PreviewKey {
     pub fn new(bytes: &[u8], orientation: u8, recipe_hash: [u8; 32]) -> Self {

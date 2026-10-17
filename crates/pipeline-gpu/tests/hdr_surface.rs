@@ -80,10 +80,14 @@ fn sdr_cases() -> Vec<DevelopSettings> {
 /// sdr-report.json; sdr_audit.py reproduces the old fingerprint and the audit.
 /// `(CPU tiles, GPU resident tiles, GPU RGBA8 surface)` per case. GPU values
 /// retain their pre-EDR reference and are asserted on the recording adapter.
+/// PL-1 (2026-10) recalibrated the basic tone and vibrance responses, so
+/// cases 1 (Highlights −30) and 2 (Vibrance 40, Shadows 25) were re-recorded
+/// on the same adapter; case 0 (neutral) is unchanged. See
+/// docs/design/evidence/PL-1/response-after.md.
 const SDR_FINGERPRINTS: [(u64, u64, u64); 3] = [
     (0x44fae39b8cad1e, 0x50eac09770927b7a, 0xdbf920dcf5887ebe),
-    (0xcc470d33eeb4d28a, 0x9888e139c4c750cd, 0xfc167ff4409e51d9),
-    (0xd1434c534f542e11, 0x9f14a1d177fda67c, 0x6955ddd3131422e4),
+    (0x184d5de654e58dda, 0x723c8b1d93beb66d, 0x4e94784fa5e25a31),
+    (0x9f955e82c3a4c7d0, 0xa1c0f2a147ae7d6f, 0x91ce68aeda9e6633),
 ];
 const PRE_EDR_ADAPTER: &str = "Apple M4";
 
