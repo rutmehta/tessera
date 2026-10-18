@@ -20,6 +20,28 @@ else
   "$BIN/generate_appcast" --account "$ACCOUNT" "${ARGS[@]}" "$DIST"
 fi
 [[ -s "$DIST/appcast.xml" ]] || { echo "error: Sparkle did not produce appcast.xml" >&2; exit 1; }
+# Keep only the newest update. generate_appcast stamps every archive in dist/ with the one
+# --download-url-prefix, so older items point at a DMG under the newest tag that does not exist
+# (0.7.1 shipped with 404s for 0.5.0 and 0.6.0). Sparkle offers only the newest item anyway; its
+# deltas still cover the older versions.
+/usr/bin/python3 - "$DIST/appcast.xml" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+SP = 'http://www.andymatuschak.org/xml-namespaces/sparkle'
+ET.register_namespace('sparkle', SP)
+ET.register_namespace('dc', 'http://purl.org/dc/elements/1.1/')
+tree = ET.parse(sys.argv[1])
+channel = tree.getroot().find('channel')
+items = channel.findall('item')
+def version(item):
+    text = (item.findtext(f'{{{SP}}}version') or '0').strip()
+    return tuple(int(x) if x.isdigit() else 0 for x in text.split('.'))
+newest = max(items, key=version)
+for item in items:
+    if item is not newest:
+        channel.remove(item)
+tree.write(sys.argv[1], xml_declaration=True, encoding='utf-8')
+PY
 # Fail closed even if upstream merely warns about unsigned/unusable archives.
 /usr/bin/python3 - "$DIST/appcast.xml" <<'PY'
 import sys
