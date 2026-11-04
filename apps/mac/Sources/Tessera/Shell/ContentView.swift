@@ -100,7 +100,10 @@ struct ContentView: View {
                             .padding(.bottom, model.isCullWorkspace ? CullWorkspace.gridBottomInset : 0)
                             .opacity(model.viewMode == .grid && !model.isBurstViewShown ? 1 : 0)
                             .allowsHitTesting(model.viewMode == .grid && !model.isBurstViewShown)
-                        LoupeView(model: model)
+                        // UX-17: in Edit the picture stays above the Try cards and the agent field
+                        // (the prototype's layout) instead of running under them.
+                        LoupeView(model: model, bottomInset: model.isPhotoEditing && model.shellMode == .edit
+                                  ? Theme.Height.bottomRow + Theme.Space.l + Theme.Space.s : 0)
                             .opacity(model.viewMode == .loupe ? 1 : 0)
                             .allowsHitTesting(model.viewMode == .loupe)
                         if model.viewMode == .loupe {
@@ -178,8 +181,10 @@ struct ContentView: View {
                     // the band every mode keeps clear (`Theme.Height.toastBand`, UX-15 item 20). In a
                     // window too narrow to centre the field beside Edit's panel it centres over the
                     // photo area instead, and the row goes compact.
-                    let panelInset = model.isPhotoEditing && model.showInspector
-                        && area.size.width < Theme.Width.editPanel * 2 + Theme.Width.agentField ? Theme.Width.editPanel : 0
+                    // UX-17: with Edit's panel shown the row is centred over the photo, never over
+                    // the panel (at 1440 pt the Try cards and the agent status ran under it).
+                    let panelInset = model.isPhotoEditing && model.shellMode == .edit && model.showInspector
+                        ? Theme.Width.editPanel : 0
                     let rowWidth = area.size.width - panelInset - 2 * Theme.Space.l
                     VStack(spacing: Theme.Space.s) {
                         Spacer()

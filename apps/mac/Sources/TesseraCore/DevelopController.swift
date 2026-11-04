@@ -886,16 +886,16 @@ extension DevelopController {
             let patch = applied.map { Self.merge(Self.inverse(of: $0, in: base), look, keepNulls: true) } ?? look
             applied = look
             let before = frameSerial
-            apply(patch: patch, interactive: true)
-            _ = flushPending()
-            let frame = await waitForFrame(surface: tinyID, after: before)
+            // A non-interactive render draws the planned level; an interactive one stops at the
+            // drag level (L7–L8, a 20 × 13 smear on a 153 × 102 card). Neither records history.
+            apply(patch: patch, interactive: false)
+            let frame = await waitForFrame(surface: tinyID, after: before, level: Int(wanted.level))
             log("look \(i): frame=\(frame.map { "s\($0.surfaceID) L\($0.level) \($0.width)x\($0.height) final=\($0.isFinal)" } ?? "none") last=\(lastFrame.map { "s\($0.surfaceID) L\($0.level) final=\($0.isFinal) overlay=\($0.isOverlay)" } ?? "none") serial=\(frameSerial)/\(before)")
             out.append(frame.flatMap { Self.image(of: tiny, frame: $0, orientation: Int(info.orientation)) })
         }
         while out.count < looks.count { out.append(nil) }   // cancelled before the rest
         if let applied, !closed {
-            apply(patch: Self.inverse(of: applied, in: base), interactive: true)
-            _ = flushPending()
+            apply(patch: Self.inverse(of: applied, in: base), interactive: false)
         }
         isInteracting = false
         surfaces = [:]
@@ -905,13 +905,21 @@ extension DevelopController {
 
     /// The first final frame rendered into `surface` after serial `after`, or nil after 3 s (or
     /// when the task is cancelled, or the session closed).
-    private func waitForFrame(surface: UInt32, after: Int) async -> DevelopFrame? {
-        for _ in 0..<180 {
-            if frameSerial > after, let f = lastFrame, f.surfaceID == surface, f.isFinal, !f.isOverlay { return f }
-            if closed || Task.isCancelled { return nil }
+    /// The first final frame on `surface` after serial `after` whose pyramid level is `level` or
+    /// finer; a coarser final frame is kept as the fallback and returned when nothing finer comes
+    /// within the wait (UX-17: the engine answers a 153 × 102 request with a 39 × 26 L7 frame
+    /// first, and the Try cards showed that smear as the look).
+    private func waitForFrame(surface: UInt32, after: Int, level: Int = .max) async -> DevelopFrame? {
+        var coarse: DevelopFrame?
+        for _ in 0..<300 {
+            if frameSerial > after, let f = lastFrame, f.surfaceID == surface, f.isFinal, !f.isOverlay {
+                if f.level <= level { return f }
+                coarse = f
+            }
+            if closed || Task.isCancelled { return coarse }
             try? await Task.sleep(for: .milliseconds(16))
         }
-        return nil
+        return coarse
     }
 
     /// The content of a frame surface (RGBA8 sRGB, or RGBA16F linear encoded to sRGB) as an sRGB

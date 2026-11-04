@@ -35,7 +35,13 @@ cp Support/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 VERSION="$(bash Support/release/version.sh)"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
-if [[ -z "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP/Contents/Info.plist")" ]]; then
+if [[ "$VERSION" == 0.0.0-dev* ]]; then
+  # A development build must never update itself: its version sorts below every release, so a
+  # configured feed makes Sparkle download the latest release at launch and replace this bundle
+  # (seen 2026-11-03: a fresh build turned back into 0.7.1 within a minute). No feed, no updater.
+  /usr/libexec/PlistBuddy -c "Delete :SUFeedURL" "$APP/Contents/Info.plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :SUEnableAutomaticChecks false" "$APP/Contents/Info.plist" 2>/dev/null || true
+elif [[ -z "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP/Contents/Info.plist")" ]]; then
   echo "warning: SUPublicEDKey is empty; signed Sparkle updates require release key setup." >&2
 fi
 # ditto follows the outer SPM symlink but preserves the framework's internal symlinks.

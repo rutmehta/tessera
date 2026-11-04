@@ -65,8 +65,14 @@ final class ValueSlider: NSControl, KeyOwningControl {
     override var acceptsFirstResponder: Bool { isEnabled }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    /// Focus arrived by keyboard (Tab, ⇧Tab): the ring is drawn. A click or drag also focuses the
+    /// control so the arrow keys work afterwards, but draws no ring (UX-17: every slider that was
+    /// touched kept an amber box around its whole row).
+    private var focusedByKeyboard = false
+
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
+        focusedByKeyboard = NSApp.currentEvent.map { $0.type == .keyDown || $0.type == .keyUp } ?? false
         needsDisplay = true
         return accepted
     }
@@ -163,7 +169,7 @@ final class ValueSlider: NSControl, KeyOwningControl {
             Theme.Palette.accent.withAlphaComponent(0.6).setStroke()
             row.stroke()
         }
-        if window?.firstResponder === self {
+        if window?.firstResponder === self, focusedByKeyboard {
             let focus = NSBezierPath(roundedRect: bounds.insetBy(dx: Theme.Space.hairline, dy: Theme.Space.hairline),
                                      xRadius: Theme.Radius.control, yRadius: Theme.Radius.control)
             focus.lineWidth = Theme.Space.hairline

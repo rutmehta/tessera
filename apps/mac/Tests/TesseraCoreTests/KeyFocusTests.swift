@@ -71,8 +71,23 @@ final class KeyFocusTests: XCTestCase {
             XCTAssertTrue(router.handle(key(code, character, window: window)))
             XCTAssertEqual(model.focusedState.decision, .undecided)
         }
-        XCTAssertTrue(router.handle(key(53, "\u{1b}", window: window)))
+        // UX-17 item 39: Esc is for the tools; it no longer drops an Edit entered from Cull.
+        XCTAssertFalse(router.handle(key(53, "\u{1b}", window: window)))
+        XCTAssertTrue(model.isPhotoEditing)
+    }
+
+    func testEscapeStillReturnsFromAReviewEdit() {
+        let model = AppModel()
+        model.loadStubItems(count: 10)
+        model.setSelectionFromUI([1, 2], clicked: 2)
+        model.enterReview()
+        model.openReviewPhotoForEditing(5)
+        XCTAssertTrue(model.isReviewEditing)
+        let window = LayoutProbeHarness.window(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+                              styleMask: .titled, backing: .buffered, defer: false)
+        XCTAssertTrue(KeyRouter(model: model).handle(key(53, "\u{1b}", window: window)))
         XCTAssertFalse(model.isPhotoEditing)
+        XCTAssertTrue(model.isReviewing)
     }
 
     func testPhotoEditTextFieldStillOwnsLetters() {

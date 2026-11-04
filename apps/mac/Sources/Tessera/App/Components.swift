@@ -44,13 +44,15 @@ private struct ThemeButtonBody: View {
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
-            .opacity(enabled ? 1 : Theme.Opacity.disabled)
+            // UX-17: a disabled primary button is a quiet bordered one, not a dim amber blob whose
+            // dark title cannot be read ("Keep the pick, reject the rest", "Export 0").
+            .opacity(enabled || kind == .primary ? 1 : Theme.Opacity.disabled)
             .onHover { hovering = $0 && enabled }
     }
 
     private var foreground: Color {
         switch kind {
-        case .primary: Theme.textOnAccent
+        case .primary: enabled ? Theme.textOnAccent : Theme.textSecondary
         case .destructive: Theme.reject
         case .bordered, .borderless: Theme.textPrimary
         }
@@ -58,7 +60,7 @@ private struct ThemeButtonBody: View {
 
     private func fill(pressed: Bool) -> Color {
         switch kind {
-        case .primary: return pressed ? Theme.accent.opacity(0.8) : hovering ? Theme.accent.opacity(0.9) : Theme.accent
+        case .primary: return !enabled ? Theme.raised : pressed ? Theme.accent.opacity(0.8) : hovering ? Theme.accent.opacity(0.9) : Theme.accent
         case .bordered: return pressed ? Theme.pressed : hovering ? Theme.hover : Theme.raised
         case .borderless, .destructive: return pressed ? Theme.pressed : hovering ? Theme.hover : Theme.clear
         }

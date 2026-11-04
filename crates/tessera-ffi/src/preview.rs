@@ -1499,7 +1499,12 @@ impl PreviewJob {
             .unwrap_or_default();
         ctx.check_cancelled().map_err(|e| e.to_string())?;
         let hash = recipe.recipe_hash();
-        if catalog::lightroom_proxy(path).is_some() || catalog::catalog_orientation(path).is_some()
+        // Native RAWs normally take the preview store's own renderer, which has
+        // no mask hooks and so cannot draw AI groups; a recipe with one renders
+        // like an import, with the session's stored rasters (UX-17).
+        if catalog::lightroom_proxy(path).is_some()
+            || catalog::catalog_orientation(path).is_some()
+            || uses_ai_masks(&recipe.settings)
         {
             let (image, orientation) = render_imported(
                 path,
@@ -1715,6 +1720,18 @@ pub(crate) fn cull_preview_hash(
         .transpose()
 }
 
+/// Whether an enabled local adjustment of `settings` has an AI component.
+fn uses_ai_masks(settings: &core::settings::DevelopSettings) -> bool {
+    settings
+        .locals
+        .adjustments
+        .iter()
+        .filter(|g| g.enabled)
+        .flat_map(|g| &g.components)
+        .flat_map(engine_api::recipe::MaskComponent::active_leaves)
+        .any(|c| c.kind.is_ai())
+}
+
 /// Coarsest engine level whose long edge still covers `max_px`: a request is
 /// never upsampled and never rendered finer than it needs.
 fn thumbnail_level(extent: engine_api::tile::Extent, max_px: u32) -> u8 {
@@ -1751,6 +1768,7 @@ fn render_imported(
     }
     let masks = crate::develop::masks::MaskShared::new(&image);
     masks.load_available_imported(support, &settings);
+    masks.load_available_stored(support, &id.to_string(), &settings);
     // A missing (pending) raster zeroes its group, as in Develop; the render
     // identity re-renders when it arrives. Only an invalid raster fails.
     if let Some(reason) = masks.invalid_imported(support, &settings) {
@@ -1876,5 +1894,85 @@ mod eng8b_thumbnail_tests {
         let iou = interior_iou(&darkened, &target, w, h);
         test_fixtures::raw::notice(test, &format!("Adobe-process RAF thumbnail: IoU {iou:.4}"));
         assert!(iou >= 0.98, "thumbnail AI mask misaligned: IoU {iou}");
+    }
+
+    /// UX-17 item 42: a native RAW whose recipe has an AI group draws the
+    /// group in its thumbnail from the raster the session stored, instead of
+    /// failing (`AI segmentation requires an external raster`) and leaving the
+    /// grid on the unedited fallback.
+    #[test]
+    fn native_thumbnail_draws_a_stored_ai_mask() {
+        let test = "native_thumbnail_draws_a_stored_ai_mask";
+        let Some(path) = test_fixtures::raw::with_extension(test, "raf") else {
+            return;
+        };
+        let root = tempfile::tempdir().unwrap();
+        let support = root.path().join("support");
+        std::fs::create_dir_all(&support).unwrap();
+        let id = engine_api::id::ImageId(1320);
+        let max_px = 400;
+        let plain = core::Recipe::new(id);
+        assert!(!uses_ai_masks(&plain.settings));
+        let (base, _) = render_imported(&path, id, &plain, &support, max_px).unwrap();
+        // The "segmentation": the top half of the frame, stored as the session
+        // stores a computed raster (`mask-cache/<image id>/`).
+        let extent = catalog::open_image(id, &path).unwrap().level_extent(0);
+        let component = MaskComponent::new(MaskKind::Subject { model: None });
+        let key = crate::develop::masks::component_raster_key(&component).unwrap();
+        let (fw, fh) = (extent.width as usize, extent.height as usize);
+        let plane = crate::develop::masks::AlphaPlane {
+            width: extent.width,
+            height: extent.height,
+            data: (0..fw * fh)
+                .map(|i| f32::from(u8::from(i / fw < fh / 2)))
+                .collect(),
+        };
+        crate::develop::masks::MaskShared::store_plane(&support, &id.to_string(), &key, &plane)
+            .unwrap();
+        let mut edited = plain.clone();
+        edited
+            .edit(EditMeta::user("Subject", 1), |s| {
+                s.locals.adjustments.push(LocalAdjustment {
+                    components: vec![component],
+                    params: LocalParams {
+                        exposure: -3.,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+            })
+            .unwrap();
+        assert!(uses_ai_masks(&edited.settings));
+        let (masked, _) = render_imported(&path, id, &edited, &support, max_px).unwrap();
+        assert_eq!(masked.dimensions(), base.dimensions());
+        let (w, h) = (base.width() as usize, base.height() as usize);
+        let luma = |img: &image::RgbImage, y0: usize, y1: usize| -> f32 {
+            let mut sum = 0.;
+            for y in y0..y1 {
+                for x in 0..w {
+                    let p = img.get_pixel(x as u32, y as u32);
+                    sum += 0.2126 * f32::from(p[0])
+                        + 0.7152 * f32::from(p[1])
+                        + 0.0722 * f32::from(p[2]);
+                }
+            }
+            sum / ((y1 - y0) * w) as f32
+        };
+        let (top_base, top_masked) = (luma(&base, 0, h / 2 - 2), luma(&masked, 0, h / 2 - 2));
+        let (bottom_base, bottom_masked) = (luma(&base, h / 2 + 2, h), luma(&masked, h / 2 + 2, h));
+        test_fixtures::raw::notice(
+            test,
+            &format!(
+                "top {top_base:.1} → {top_masked:.1}, bottom {bottom_base:.1} → {bottom_masked:.1}"
+            ),
+        );
+        assert!(
+            top_masked < 0.6 * top_base,
+            "the masked half was not darkened"
+        );
+        assert!(
+            (bottom_masked - bottom_base).abs() < 2.,
+            "the unmasked half changed"
+        );
     }
 }

@@ -20,6 +20,7 @@ struct CropView: Equatable {
 
     /// Fits crop `g` into `bounds` (points) with room for the handles.
     static func fit(_ g: CropGeometry, in bounds: CGRect) -> CropView {
+        // `bounds` is the room above the band `LoupePlacement.reservedBottom` keeps clear.
         let k = min(bounds.width * 0.8 / g.cropWidth, bounds.height * 0.8 / g.cropHeight)
         var v = CropView(imageCenter: (g.centerX, g.centerY), screenCenter: CGPoint(x: bounds.midX, y: bounds.midY),
                          scale: k, angle: g.angle, imageSize: (g.width, g.height), keep: .zero)
@@ -63,6 +64,12 @@ struct CropView: Equatable {
 /// a tool is armed: the crop & straighten tool, the HSL targeted adjustment or the detail target.
 @MainActor
 final class LoupeToolOverlay: NSView {
+    /// The bounds the crop frame fits in: the view minus the band the Try cards and the agent
+    /// field occupy (`LoupePlacement.reservedBottom`, y-down so the band is at the bottom).
+    var cropFitBounds: CGRect {
+        CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width,
+               height: max(bounds.height - LoupePlacement.reservedBottom, bounds.height * 0.4))
+    }
     weak var loupe: MetalLoupeView?
     var tools: DevelopTools { .shared }
 
@@ -151,14 +158,14 @@ final class LoupeToolOverlay: NSView {
     }
 
     private func currentView(_ g: CropGeometry) -> CropView {
-        guard var v = frozen else { return .fit(g, in: bounds) }
+        guard var v = frozen else { return .fit(g, in: cropFitBounds) }
         v.keep = v.box(g)
         return v
     }
 
     override func layout() {
         super.layout()
-        if tools.cropActive, let g = tools.crop, frozen == nil { loupe?.cropView = .fit(g, in: bounds) }
+        if tools.cropActive, let g = tools.crop, frozen == nil { loupe?.cropView = .fit(g, in: cropFitBounds) }
     }
 
     // MARK: Drawing

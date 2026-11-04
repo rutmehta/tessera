@@ -534,7 +534,7 @@ struct CropPanel: View {
                     .buttonStyle(.theme(.bordered, height: Theme.Height.small))
             }
             HStack(spacing: Theme.Space.xs) {
-                Text("Aspect").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                Text("Aspect").font(Theme.Fonts.body).foregroundStyle(Theme.textPrimary)
                 Spacer()
                 MenuPicker(selection: Binding(get: { tools.cropAspect }, set: { tools.setCropAspect($0) }),
                            options: CropAspect.presets.map { ($0, $0.title) })
@@ -549,8 +549,9 @@ struct CropPanel: View {
             .controlSize(.small)
             .frame(height: Theme.Height.regular)
             CropAngleSlider(tools: tools).frame(height: Theme.Height.slider)
+                .padding(.horizontal, -ValueSlider.edgeInset)   // its title on the section's left edge, like ControlSlider
             HStack(spacing: Theme.Space.xs) {
-                Text("Overlay").font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary)
+                Text("Overlay").font(Theme.Fonts.body).foregroundStyle(Theme.textPrimary)
                 Spacer()
                 MenuPicker(selection: Binding(get: { tools.cropOverlay },
                                               set: { tools.cropOverlay = $0; tools.onLoupeToolChange?() }),

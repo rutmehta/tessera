@@ -4,10 +4,17 @@ import SwiftUI
 
 struct LoupeView: NSViewRepresentable {
     let model: AppModel
+    /// Points at the bottom kept clear of the picture (the Try cards and the agent field in Edit).
+    var bottomInset: CGFloat = 0
 
     func makeCoordinator() -> LoupeController { LoupeController(model: model) }
     func makeNSView(context: Context) -> MetalLoupeView { context.coordinator.view }
-    func updateNSView(_ nsView: MetalLoupeView, context: Context) {}
+    func updateNSView(_ nsView: MetalLoupeView, context: Context) {
+        guard LoupePlacement.reservedBottom != bottomInset else { return }
+        LoupePlacement.reservedBottom = bottomInset
+        nsView.toolOverlay.toolsChanged()
+        nsView.render()
+    }
 }
 
 /// Feeds the loupe: instant first paint from the cached grid thumbnail, then the embedded preview,

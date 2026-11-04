@@ -681,8 +681,9 @@ pub(crate) enum AiEntry {
 // Keep the FFI dependency surface unchanged.
 #[path = "../../mask-ai/src/lib.rs"]
 mod mask_backend;
-use mask_backend::{AlphaPlane, object_prompts, orient, reorient, resample, unorient};
+pub(crate) use mask_backend::AlphaPlane;
 pub use mask_backend::{MaskSegmenter, SegmentRequest};
+use mask_backend::{object_prompts, orient, reorient, resample, unorient};
 
 struct Observed {
     level: u8,
@@ -892,6 +893,40 @@ impl MaskShared {
                 && let Some(key) = component_raster_key(component)
             {
                 let _ = self.refresh_imported(support, &key, &imported);
+            }
+        }
+    }
+
+    /// Loads the rasters this engine computed for `settings`' AI components in
+    /// an earlier session (the per-image mask cache) so a renderer without a
+    /// session (grid thumbnails, UX-17) draws the groups Develop drew. A leaf
+    /// without a stored raster keeps zeroing its group.
+    pub(crate) fn load_available_stored(
+        &self,
+        support: &std::path::Path,
+        image_id: &str,
+        settings: &DevelopSettings,
+    ) {
+        for component in settings
+            .locals
+            .adjustments
+            .iter()
+            .filter(|g| g.enabled)
+            .flat_map(|g| &g.components)
+            .flat_map(MaskComponent::active_leaves)
+        {
+            if component
+                .adobe_ai
+                .as_ref()
+                .and_then(|s| s.mask_key)
+                .is_some()
+            {
+                continue;
+            }
+            if let Some(key) = component_raster_key(component)
+                && stored_raster_exists(support, image_id, &key)
+            {
+                let _ = self.load_stored(support, image_id, &key);
             }
         }
     }
@@ -1163,7 +1198,7 @@ impl MaskShared {
     }
 
     /// Stores a computed raster for later sessions (quantized to u16).
-    fn store_plane(
+    pub(crate) fn store_plane(
         support: &std::path::Path,
         image_id: &str,
         key: &str,
@@ -1484,7 +1519,7 @@ impl Job for AiMaskJob {
     }
 }
 
-fn component_raster_key(c: &MaskComponent) -> Option<String> {
+pub(crate) fn component_raster_key(c: &MaskComponent) -> Option<String> {
     c.adobe_ai
         .as_ref()
         .and_then(|s| s.mask_key)

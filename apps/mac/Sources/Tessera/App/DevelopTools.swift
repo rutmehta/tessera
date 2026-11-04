@@ -150,6 +150,12 @@ final class DevelopTools: LibraryObserver {
         cropActive = true
         hslPicker = nil
         detailPicking = false
+        // UX-17: one tool at a time: the mask chips and the heal tool leave when the crop opens.
+        let dial = PhotoDial.shared
+        if dial.model === model {
+            if dial.masksToolShown { dial.toggleMasksTool() }
+            if dial.healActive { dial.toggleHeal() }
+        }
         d.setCropEditing(true)
         onLoupeToolChange?()
     }

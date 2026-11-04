@@ -248,3 +248,64 @@ session screenshots described here. All on the 8-ARW sample shoot, window 1385 �
     (`windowWillUseStandardFrame` on the existing window delegate proxy) and when the window
     changes screen; full-screen windows are left alone. `UX16FollowupTests.testWindowFrameFitting`,
     `testWindowIsPulledAboveTheDockOnApply`.
+
+## UX-17: editing dogfood on the scratch shoot (2026-11-03, debug bundle at 1440 × 900 pt)
+
+The owner's verdict on 0.7.1: "there are so many collisions/overlaps"; edit real photos, fix
+the collisions, and copy LightCraft/PhotoCraft's editing UI where ours is worse. Findings, in
+the order they were hit; *Done* marks what landed in this pass.
+
+37. **The photo sat under the Try cards and the agent field in Edit.** `LoupePlacement.fit`
+    centred the picture in the whole Metal view, so its bottom third was behind the cards, the
+    field and the status line.
+    *Done:* `LoupePlacement.reservedBottom` (set from `LoupeView.bottomInset`, the bottom row +
+    spacing in Edit) keeps that band clear and centres the picture above it; the crop frame
+    fits the same band (`LoupeToolOverlay.cropFitBounds`).
+38. **The agent row, the Try cards and the status line were centred under the Edit panel.**
+    `ContentView` centred the bottom row in the window, not in the photo area, so the right
+    card and the field's end ran under the 320 pt panel.
+    *Done:* the row is inset by the panel's width while it is shown and narrows to the compact
+    field when the photo area is too narrow for the full one.
+39. **Esc left Edit.** `KeyRouter.handlePhotoEdit` mapped Esc to "return from photo edit" even
+    when Edit was entered from Cull, so a stray Esc (meant to end a tool) dropped the session.
+    *Done:* Esc returns only from a review edit; in Edit it falls through to the tools.
+40. **Masks, Crop and Heal all stayed active at once**, each drawing its own overlay.
+    *Done:* showing Masks cancels a crop; beginning a crop hides the mask tools and ends Heal.
+41. **Try cards were a 20 × 13 smear.** `renderLooks` attached a 153 × 102 surface and applied
+    the look *interactively*, so the engine drew its drag level (L7–L8) and marked it final;
+    the first look of every pass also came back empty and rendered twice.
+    *Done:* the pass applies non-interactively (the planned level, no history either way) and
+    `waitForFrame` takes the first final frame at the planned level or finer, keeping a coarser
+    one only as the fallback.
+42. **Cull showed the fallback (unedited) thumbnail for a photo with an AI mask**, and the
+    engine logged `AI segmentation requires an external raster and is unsupported` for every
+    grid request: native RAWs took the preview store's own renderer, which has no mask hooks.
+    *Done:* a native RAW whose recipe has an enabled AI component renders like an import
+    (`render_imported`), and `MaskShared::load_available_stored` loads the rasters the session
+    stored in `mask-cache/<image id>/` so the thumbnail draws the masked groups.
+43. **Disabled primary buttons were unreadable** ("Keep the pick, reject the rest" at 38 %
+    opacity on the accent fill).
+    *Done:* a disabled primary keeps full opacity on the raised fill with secondary text.
+44. **A slider clicked with the mouse drew the keyboard focus ring.**
+    *Done:* `ValueSlider` draws the ring only when it became first responder from a key event.
+45. **Crop panel:** the "Aspect" and "Overlay" labels were caption-grey and the angle slider's
+    track was inset from the other sliders. *Done:* body labels; the angle slider shares the
+    sliders' edge inset.
+46. **Dev builds auto-updated themselves to the release** within a minute of launch (Sparkle's
+    feed was in the dev Info.plist). *Done:* `make-app.sh` strips `SUFeedURL` from 0.0.0-dev
+    bundles.
+
+Open after this pass (the LightCraft gap):
+
+47. **The Masks panel is the old inspector** (Mask 1/2/3, Components Add/Subtract/Intersect, a
+    "Show mask tools" toggle). Copy LightCraft's Masking panel: a row of Subject · Sky ·
+    Background · Brush · Linear · Radial · Luminance · Color, then the mask list with the
+    adjustments of the selected mask under it; clicking the photo with Masks active picks the
+    mask under the pointer (SPEC §tools).
+48. **The empty state (no photo focused) shows the old Image/Selection inspector** instead of
+    the Edit panel's empty copy.
+49. **The Deliver "Name" row is empty** on the scratch shoot; the Edits readout truncates at
+    the panel width.
+50. **Edit panel sections** should take LightCraft's shape: label-left value-right sliders on
+    thin gradient tracks, Light/Color/Effects/Detail/Optics with Curve, Color Mixer and Color
+    Grading as sub-cards, Auto · B&W · Reset in the header.

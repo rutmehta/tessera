@@ -226,7 +226,9 @@ final class KeyRouter {
     /// Photo Edit has one photo target. Library decision keys never leak into it.
     private func handlePhotoEdit(_ event: NSEvent) -> Bool {
         switch event.keyCode {
-        case 53: model.returnFromPhotoEdit(); return true
+        // UX-17: Esc leaves a tool (handled above), never the photo. Lightroom and LightCraft keep
+        // you in Develop; the owner lost an edit session to a stray Esc. Review's edit returns.
+        case 53: if model.isReviewEditing { model.returnFromPhotoEdit(); return true }; return false
         case 123, 126: model.navigate(.left, groupwise: false, extend: false); return true
         case 124, 125: model.navigate(.right, groupwise: false, extend: false); return true
         default: break

@@ -339,6 +339,8 @@ final class PhotoDial: LibraryObserver {
         masksToolShown.toggle()
         if masksToolShown {
             if healActive { healActive = false }
+            // UX-17: one tool at a time (Masks and Crop were both up with their chips over each other).
+            if tools.cropActive { tools.cancelCrop() }
             if target == .whole { select(.subject) } else { select(target) }
             model.photoInspectorTab = .masks
         } else {

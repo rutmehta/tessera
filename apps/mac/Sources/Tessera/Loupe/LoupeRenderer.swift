@@ -20,12 +20,19 @@ struct LoupePlacement {
     /// `scale` is the layer's contents scale), never upscaling past 1:1 of `display` texels unless
     /// `magnify`: a preview shown before the engine's first frame (UX-15 item 19) fills the loupe
     /// at once rather than sitting at its thumbnail size in the middle.
+    /// Points at the bottom of the loupe no picture is placed over (UX-17): in Edit the Try cards
+    /// and the agent field sit there, and the photo (its crop handles included) stays above them,
+    /// as in the prototype. `LoupeView` sets it; the crop tool's fit reads it too.
+    nonisolated(unsafe) static var reservedBottom: CGFloat = 0
+
     static func fit(display: (width: Int, height: Int), drawable: CGSize, scale: Double = 1, magnify: Bool = false) -> LoupePlacement {
         let inset = Theme.Space.panelInset * scale
-        let room = CGSize(width: max(drawable.width - 2 * inset, 1), height: max(drawable.height - 2 * inset, 1))
+        let reserved: Double = min(Double(reservedBottom) * scale, max(Double(drawable.height) - 2 * inset - 1, 0))
+        let room = CGSize(width: max(drawable.width - 2 * inset, 1),
+                          height: max(Double(drawable.height) - 2 * inset - reserved, 1))
         let fit = min(room.width / Double(display.width), room.height / Double(display.height), magnify ? .infinity : 1.0)
         let dw = Double(display.width) * fit, dh = Double(display.height) * fit
-        let ox = (drawable.width - dw) / 2, oy = (drawable.height - dh) / 2
+        let ox = (drawable.width - dw) / 2, oy = (drawable.height - reserved - dh) / 2
         return LoupePlacement(row0: SIMD3(1 / dw, 0, -ox / dw), row1: SIMD3(0, 1 / dh, -oy / dh),
                               pixelsPerImageWidth: dw, keep: nil)
     }

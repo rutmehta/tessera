@@ -169,7 +169,7 @@ Keeping the guards here avoids documenting context-dependent keys as global shor
 | Library/Review | Y | break |
 | Library/Review | N | break |
 | Library/Review | C | break |
-| Library/Photo Edit | Escape | model.returnFromPhotoEdit(); return true |
+| Library/Photo Edit | Escape | if model.isReviewEditing { model.returnFromPhotoEdit(); return true }; return false |
 | Library/Photo Edit | Left | model.navigate(.left, groupwise: false, extend: false); return true |
 | Library/Photo Edit | Up | model.navigate(.left, groupwise: false, extend: false); return true |
 | Library/Photo Edit | Right | model.navigate(.right, groupwise: false, extend: false); return true |
@@ -382,9 +382,9 @@ Keeping the guards here avoids documenting context-dependent keys as global shor
 | Library/Review | ⇧C | break |
 | Library/Review | ⌥C | break |
 | Library/Review | ⌥⇧C | break |
-| Library/Photo Edit | ⇧Escape | model.returnFromPhotoEdit(); return true |
-| Library/Photo Edit | ⌥Escape | model.returnFromPhotoEdit(); return true |
-| Library/Photo Edit | ⌥⇧Escape | model.returnFromPhotoEdit(); return true |
+| Library/Photo Edit | ⇧Escape | if model.isReviewEditing { model.returnFromPhotoEdit(); return true }; return false |
+| Library/Photo Edit | ⌥Escape | if model.isReviewEditing { model.returnFromPhotoEdit(); return true }; return false |
+| Library/Photo Edit | ⌥⇧Escape | if model.isReviewEditing { model.returnFromPhotoEdit(); return true }; return false |
 | Library/Photo Edit | ⇧Left | model.navigate(.left, groupwise: false, extend: false); return true |
 | Library/Photo Edit | ⌥Left | model.navigate(.left, groupwise: false, extend: false); return true |
 | Library/Photo Edit | ⌥⇧Left | model.navigate(.left, groupwise: false, extend: false); return true |
@@ -673,7 +673,7 @@ final class KeyRouter {
     }
     private func handlePhotoEdit(_ event: NSEvent) -> Bool {
         switch event.keyCode {
-        case 53: model.returnFromPhotoEdit(); return true
+        case 53: if model.isReviewEditing { model.returnFromPhotoEdit(); return true }; return false
         case 123, 126: model.navigate(.left, groupwise: false, extend: false); return true
         case 124, 125: model.navigate(.right, groupwise: false, extend: false); return true
         default: break
