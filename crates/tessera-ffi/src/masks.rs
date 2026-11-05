@@ -535,6 +535,17 @@ fn component_title(k: &MaskKind) -> String {
     }
 }
 
+/// The default name stem of a mask whose first component is `k`: the
+/// component title without its stroke or sample count.
+fn group_base_name(k: &MaskKind) -> String {
+    match k {
+        MaskKind::Brush { .. } => "Brush".into(),
+        MaskKind::ColorRange { .. } => "Color Range".into(),
+        MaskKind::Landscape { .. } => "Landscape".into(),
+        other => component_title(other),
+    }
+}
+
 /// `prompt` of an object component created from a face box.
 const PERSON_PROMPT: &str = "person";
 
@@ -1816,20 +1827,26 @@ impl Shared {
         MaskId(id)
     }
 
+    /// Adds a mask named after its first component's kind, numbered per
+    /// kind ("Linear Gradient 1", "Subject 2"), as LightCraft names masks;
+    /// a kind's count never reuses a number still in the list.
     fn new_group(&self, st: &mut State, components: Vec<MaskComponent>) -> u32 {
         let id = self.next_mask_id(st);
+        let base = components
+            .first()
+            .map(|c| group_base_name(&c.kind))
+            .unwrap_or_else(|| "Mask".into());
         let n = st
             .live
             .locals
             .adjustments
             .iter()
-            .filter_map(|g| g.name.strip_prefix("Mask ")?.parse::<u32>().ok())
+            .filter_map(|g| g.name.strip_prefix(&base)?.trim().parse::<u32>().ok())
             .max()
-            .unwrap_or(0)
-            .max(st.live.locals.adjustments.len() as u32);
+            .unwrap_or(0);
         st.live.locals.adjustments.push(LocalAdjustment {
             id,
-            name: format!("Mask {}", n + 1),
+            name: format!("{base} {}", n + 1),
             components,
             ..Default::default()
         });

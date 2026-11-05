@@ -306,8 +306,10 @@ Open after this pass (the LightCraft gap):
     Background · People · Objects · Brush · Linear · Radial · Luminance · Color, icon over
     label, four to a row), then the Masks list with an eye toggle for the loupe tools in its
     header, then the selected mask's components and sliders. The Create menu and the checkbox
-    are gone (their identifiers live on the grid and the eye). Still open: the photo click that
-    picks the mask under the pointer, and the thin gradient-track sliders.
+    are gone (their identifiers live on the grid and the eye). New masks are named after their
+    first component's kind, numbered per kind ("Linear Gradient 1", "Subject 2"), instead of
+    "Mask N". Still open: the photo click that picks the mask under the pointer, and the thin
+    gradient-track sliders.
 48. **The empty state (no photo focused) shows the old Image/Selection inspector** instead of
     the Edit panel's empty copy.
 49. **The Deliver "Name" row is empty** on the scratch shoot; the Edits readout truncates at

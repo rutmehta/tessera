@@ -203,7 +203,7 @@ fn gradient_brush_range_overlay_undo_and_persistence() {
     assert!(o.session.commit("Linear Gradient".into()).unwrap());
     let groups = o.session.mask_groups().unwrap();
     assert_eq!(groups.len(), 1);
-    assert_eq!(groups[0].name, "Mask 1");
+    assert_eq!(groups[0].name, "Linear Gradient 1");
     assert_eq!(groups[0].components[0].kind, MaskComponentType::Linear);
     let exposure = groups[0]
         .params
