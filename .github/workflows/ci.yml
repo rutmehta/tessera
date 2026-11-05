@@ -31,6 +31,9 @@ jobs:
           key: raw-fixtures-${{ hashFiles('fixtures/fetch.sh') }}
       - run: bash fixtures/fetch.sh
       - run: cargo install cargo-deny --locked
+      # crates/export/tests/native_metadata.rs writes and reads its fixtures
+      # with ExifTool as an independent carrier-aware tool.
+      - run: brew install exiftool
       - run: bash ci.sh
         env:
           # fetch.sh just provided fixtures/raw: fixture tests must not skip.
