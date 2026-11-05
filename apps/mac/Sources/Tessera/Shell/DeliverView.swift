@@ -70,7 +70,7 @@ private struct DeliverColumn: View {
                 }
                 .accessibilityIdentifier("library.deliver.where.folder")
                 whereRow("Name", help: "The first file to be written; the naming template is in More…") {
-                    Text(model.deliverNamingExample)
+                    Text(model.deliverNamingExample.isEmpty ? "\u{2014}" : model.deliverNamingExample)
                         .font(Theme.Fonts.label).foregroundStyle(Theme.textSecondary)
                         .lineLimit(1).truncationMode(.middle)
                         .accessibilityIdentifier("library.deliver.where.name")

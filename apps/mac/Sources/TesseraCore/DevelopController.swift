@@ -909,9 +909,9 @@ extension DevelopController {
     /// finer; a coarser final frame is kept as the fallback and returned when nothing finer comes
     /// within the wait (UX-17: the engine answers a 153 × 102 request with a 39 × 26 L7 frame
     /// first, and the Try cards showed that smear as the look).
-    private func waitForFrame(surface: UInt32, after: Int, level: Int = .max) async -> DevelopFrame? {
+    private func waitForFrame(surface: UInt32, after: Int, level: Int = .max, polls: Int = 300) async -> DevelopFrame? {
         var coarse: DevelopFrame?
-        for _ in 0..<300 {
+        for _ in 0..<polls {
             if frameSerial > after, let f = lastFrame, f.surfaceID == surface, f.isFinal, !f.isOverlay {
                 if f.level <= level { return f }
                 coarse = f

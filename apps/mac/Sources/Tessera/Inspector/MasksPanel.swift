@@ -16,19 +16,20 @@ struct MasksPanel: View {
         let ready = model.developStatus == .ready
         let _ = masks.revision
         VStack(alignment: .leading, spacing: Theme.Space.s) {
+            createGrid
             HStack(spacing: Theme.Space.s) {
-                Toggle(isOn: Binding(get: { masks.active }, set: { masks.setActive($0) })) {
-                    Text("Show mask tools").font(Theme.Fonts.caption).foregroundStyle(Theme.textPrimary)
+                Text("Masks").font(Theme.Fonts.captionMedium).foregroundStyle(Theme.textSecondary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 0)
+                IconButton(symbol: masks.active ? "eye" : "eye.slash",
+                           help: masks.active ? "Hide the mask tools on the photo (⇧M)" : "Show the mask tools on the photo (⇧M)",
+                           on: masks.active, size: Theme.Height.small) {
+                    masks.setActive(!masks.active)
                 }
-                .toggleStyle(.checkbox)
-                .controlSize(.small)
-                .help("Show the brush, gradient and range tools on the loupe (⇧M)")
-                .accessibilityIdentifier("develop.masks.showTools")
-                Spacer()
-                createMenu
+                .accessibilityIdentifier("develop.masks.showTools").accessibilityLabel("Show mask tools")
             }
             if masks.list.groups.isEmpty {
-                Hint(ready ? "No masks. Pick a tool on the loupe or from Create; AI masks run on this Mac."
+                Hint(ready ? "No masks yet. Pick one above, or click the photo with Masks on."
                            : model.photoEditAvailabilityHint)
             } else {
                 VStack(spacing: Theme.Space.xxs) {
@@ -42,28 +43,57 @@ struct MasksPanel: View {
 
     // MARK: Create
 
-    private var createMenu: some View {
-        Menu {
-            Section("AI") {
-                Button("Subject") { masks.runAI(.subject, title: "Subject") }
-                Button("Sky") { masks.runAI(.sky, title: "Sky") }
-                Button("Background") { masks.runAI(.background, title: "Background") }
-                Button("People…") { arm(.person) }
-                Button("Objects…") { arm(.object) }
+    /// One tile per way to make a mask, as LightCraft's "Create New Mask" grid (UX-17 item 47):
+    /// icon over label, four to a row. AI tiles run at once; the others arm the loupe tool.
+    private struct CreateTile: Identifiable {
+        let id: String
+        let symbol: String
+        let help: String
+        let action: () -> Void
+    }
+
+    private var createTiles: [CreateTile] {
+        [
+            CreateTile(id: "Subject", symbol: "person.and.background.dotted", help: "Select the subject (AI, on this Mac)") { masks.runAI(.subject, title: "Subject") },
+            CreateTile(id: "Sky", symbol: "cloud.sun", help: "Select the sky (AI, on this Mac)") { masks.runAI(.sky, title: "Sky") },
+            CreateTile(id: "Background", symbol: "photo.on.rectangle", help: "Select the background (AI, on this Mac)") { masks.runAI(.background, title: "Background") },
+            CreateTile(id: "People", symbol: MaskTool.person.symbol, help: "Pick a person on the photo") { arm(.person) },
+            CreateTile(id: "Objects", symbol: MaskTool.object.symbol, help: "Click or box an object on the photo") { arm(.object) },
+            CreateTile(id: "Brush", symbol: MaskTool.brush.symbol, help: MaskTool.brush.title) { arm(.brush) },
+            CreateTile(id: "Linear", symbol: MaskTool.linear.symbol, help: MaskTool.linear.title) { arm(.linear) },
+            CreateTile(id: "Radial", symbol: MaskTool.radial.symbol, help: MaskTool.radial.title) { arm(.radial) },
+            CreateTile(id: "Luminance", symbol: MaskTool.luminanceRange.symbol, help: MaskTool.luminanceRange.title) { arm(.luminanceRange) },
+            CreateTile(id: "Color", symbol: MaskTool.colorRange.symbol, help: MaskTool.colorRange.title) { arm(.colorRange) },
+        ]
+    }
+
+    private var createGrid: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            Text("Create new mask").font(Theme.Fonts.captionMedium).foregroundStyle(Theme.textSecondary)
+                .accessibilityAddTraits(.isHeader)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Theme.Space.xs), count: 4),
+                      spacing: Theme.Space.xs) {
+                ForEach(createTiles) { tile in
+                    Button(action: tile.action) {
+                        VStack(spacing: Theme.Space.xs) {
+                            Image(systemName: tile.symbol).font(Theme.Fonts.icon).foregroundStyle(Theme.textPrimary)
+                            Text(tile.id).font(Theme.Fonts.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: Theme.Height.large + Theme.Space.m)
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.control).fill(Theme.raised))
+                        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
+                    }
+                    .buttonStyle(.plain)
+                    .help(tile.help)
+                    .accessibilityIdentifier("develop.masks.create.\(tile.id.lowercased())")
+                    .accessibilityLabel("New \(tile.id) mask")
+                }
             }
-            Section("Tools") {
-                ForEach([MaskTool.brush, .linear, .radial], id: \.self) { t in Button(t.title) { arm(t) } }
-            }
-            Section("Range") {
-                Button(MaskTool.colorRange.title) { arm(.colorRange) }
-                Button(MaskTool.luminanceRange.title) { arm(.luminanceRange) }
-            }
-        } label: {
-            Label("Create", systemImage: "plus")
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("develop.masks.create").accessibilityLabel("Create mask")
         }
-        .menuStyle(ThemeMenuStyle(height: Theme.Height.small))
-        .help("New mask")
-        .accessibilityIdentifier("develop.masks.create").accessibilityLabel("Create mask")
     }
 
     private func arm(_ t: MaskTool) {

@@ -77,7 +77,7 @@ use engine_api::{
         history::{Author, HistoryEntry, apply_change},
         settings::{
             Curve, DemosaicMethod, DisplayTransform, GradeWheel, HighlightReconstruction, HueBands,
-            ParametricCurve, WhiteBalanceMode,
+            MonochromeSettings, ParametricCurve, WhiteBalanceMode,
         },
     },
     stage::StageId,
@@ -871,6 +871,16 @@ pub fn renderable_with(s: &DevelopSettings, geometry: bool) -> DevelopSettings {
     r.color.hsl.hue = bands(&hsl.hue);
     r.color.hsl.saturation = bands(&hsl.saturation);
     r.color.hsl.luminance = bands(&hsl.luminance);
+    // B&W conversion (UX-17: the pipeline draws it, but it never reached the
+    // renderable settings, so "Black and white" did nothing in Develop).
+    if let Some(gray) = &s.color.monochrome
+        && gray.enabled
+    {
+        r.color.monochrome = Some(MonochromeSettings {
+            enabled: true,
+            mixer: bands(&gray.mixer),
+        });
+    }
     let g = &s.color.grading;
     let rg = &mut r.color.grading;
     rg.shadows = wheel(&g.shadows);

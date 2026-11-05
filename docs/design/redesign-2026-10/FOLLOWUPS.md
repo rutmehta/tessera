@@ -302,10 +302,27 @@ Open after this pass (the LightCraft gap):
     Background · Brush · Linear · Radial · Luminance · Color, then the mask list with the
     adjustments of the selected mask under it; clicking the photo with Masks active picks the
     mask under the pointer (SPEC §tools).
+    *Partly done:* the panel opens with LightCraft's "Create new mask" grid (Subject · Sky ·
+    Background · People · Objects · Brush · Linear · Radial · Luminance · Color, icon over
+    label, four to a row), then the Masks list with an eye toggle for the loupe tools in its
+    header, then the selected mask's components and sliders. The Create menu and the checkbox
+    are gone (their identifiers live on the grid and the eye). Still open: the photo click that
+    picks the mask under the pointer, and the thin gradient-track sliders.
 48. **The empty state (no photo focused) shows the old Image/Selection inspector** instead of
     the Edit panel's empty copy.
 49. **The Deliver "Name" row is empty** on the scratch shoot; the Edits readout truncates at
     the panel width.
+    *Name done:* the row is empty only while nothing is to be delivered (no keeps yet); it now
+    reads "—" instead of nothing. The readout truncation stays open.
 50. **Edit panel sections** should take LightCraft's shape: label-left value-right sliders on
     thin gradient tracks, Light/Color/Effects/Detail/Optics with Curve, Color Mixer and Color
     Grading as sub-cards, Auto · B&W · Reset in the header.
+51. **"Black and white" did nothing.** `renderable_with` never copied `color.monochrome`, so the
+    pipeline's B&W conversion (which `pipeline-cpu` draws) was dropped for every native session,
+    Try card and thumbnail. *Done:* an enabled monochrome passes through with its mixer bands
+    sanitized like HSL.
+52. **Every Try card looked like the base photo.** With item 41 fixed the cards are sharp, but
+    Relight, Deeper sky and Clear the crowd move a mask's sliders by amounts that read as the
+    same picture at 132 pt, Film look's grain is invisible at that size, and B&W was item 51.
+    If the cards still read the same after 51, the looks need bolder patches (LightCraft's
+    presets are far bolder) or a before/after split in the card.
