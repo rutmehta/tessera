@@ -3,7 +3,8 @@ import XCTest
 
 @MainActor
 final class LayoutProbeHarnessTests: XCTestCase {
-    func testWaitsForDeferredGeometryAndFlushesItsLayout() {
+    func testWaitsForDeferredGeometryAndFlushesItsLayout() throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil, "Uses the local background window server: the runner delivers no deferred layout transaction")
         let root = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 200))
         LayoutProbeHarness.prepare()
         let window = LayoutProbeHarness.window(contentRect: root.bounds, styleMask: .titled, backing: .buffered, defer: false)

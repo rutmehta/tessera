@@ -10,6 +10,7 @@ import XCTest
 @MainActor
 final class MasksPanelLayoutTests: XCTestCase {
     func testPopulatedInspectorKeepsComponentActionsReadableAtMinimumWidth() async throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil, "Uses the local background window server: the runner paints no text into the panel bitmap for OCR")
         LayoutProbeHarness.prepare()
         let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("masks-layout-\(UUID().uuidString)")
         let folder = scratch.appendingPathComponent("photos")

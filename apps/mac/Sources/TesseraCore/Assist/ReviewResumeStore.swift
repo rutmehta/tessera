@@ -40,11 +40,16 @@ public struct ReviewResumeRecord: Codable, Equatable, Sendable {
     public var targets: [Target]
     public var selectedImageID: String?
     public var anchorImageID: String?
+    /// The application session that wrote a `.running` record (`ReviewResumeStore.processSession`).
+    /// A record written by another session was left behind by a relaunch; a record written by this
+    /// one is a live run, whichever engine owner is installed meanwhile. Absent in older records.
+    public var ownerSession: String?
 
     public init(schemaVersion: Int = currentSchemaVersion, recordRevision: UInt64,
                 libraryPath: String, queueID: UUID, provider: String, scope: String,
                 sourceDescription: String, state: RunState, startedAt: Date, updatedAt: Date,
-                targets: [Target], selectedImageID: String? = nil, anchorImageID: String? = nil) {
+                targets: [Target], selectedImageID: String? = nil, anchorImageID: String? = nil,
+                ownerSession: String? = nil) {
         self.schemaVersion = schemaVersion
         self.recordRevision = recordRevision
         self.libraryPath = libraryPath
@@ -58,6 +63,7 @@ public struct ReviewResumeRecord: Codable, Equatable, Sendable {
         self.targets = targets
         self.selectedImageID = selectedImageID
         self.anchorImageID = anchorImageID
+        self.ownerSession = ownerSession
     }
 
     public func advanced(state: RunState? = nil, targets: [Target]? = nil,
@@ -69,7 +75,8 @@ public struct ReviewResumeRecord: Codable, Equatable, Sendable {
              sourceDescription: sourceDescription, state: state ?? self.state,
              startedAt: startedAt, updatedAt: now, targets: targets ?? self.targets,
              selectedImageID: selectedImageID ?? self.selectedImageID,
-             anchorImageID: anchorImageID ?? self.anchorImageID)
+             anchorImageID: anchorImageID ?? self.anchorImageID,
+             ownerSession: ownerSession)
     }
 
     public func updatingCursor(selectedID: String?, anchorID: String?, now: Date = Date()) throws -> Self {
@@ -111,6 +118,8 @@ public enum ReviewResumeStoreError: LocalizedError, Equatable {
 /// portable library sidecar or a second authority for recipe status.
 public final class ReviewResumeStore: @unchecked Sendable {
     private static let lock = NSLock()
+    /// Identifies this application session in `ReviewResumeRecord.ownerSession`.
+    public static let processSession = UUID().uuidString
     public let directory: URL
 
     public init(directory: URL) { self.directory = directory }
@@ -126,12 +135,14 @@ public final class ReviewResumeStore: @unchecked Sendable {
         try Self.lock.withLock { try readStoredUnlocked(libraryFolder: libraryFolder) }
     }
 
-    /// Called when installing a library into a new application session. It is intentionally
-    /// separate from ordinary reads so status/cursor updates cannot interrupt a live run.
+    /// Called when installing a library. It is intentionally separate from ordinary reads so
+    /// status/cursor updates cannot interrupt a live run. A `.running` record left by another
+    /// application session was interrupted by a relaunch; one this session wrote is a live run
+    /// (the restore runs off the main actor and may land after a run started in the meantime).
     public func restore(libraryFolder: URL) throws -> ReviewResumeRecord? {
         try Self.lock.withLock {
             guard let record = try readStoredUnlocked(libraryFolder: libraryFolder) else { return nil }
-            guard record.state == .running else { return record }
+            guard record.state == .running, record.ownerSession != Self.processSession else { return record }
             let interrupted = try record.advanced(state: .interrupted)
             try saveUnlocked(interrupted)
             return interrupted

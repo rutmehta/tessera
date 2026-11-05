@@ -475,7 +475,8 @@ final class AgentController {
             updatedAt: now,
             targets: capturedTargets,
             selectedImageID: app.reviewNavigation.selectedID,
-            anchorImageID: app.reviewNavigation.anchorID)
+            anchorImageID: app.reviewNavigation.anchorID,
+            ownerSession: ReviewResumeStore.processSession)
         let cancel = CancelFlag()
         cancelFlag = cancel
         error = nil

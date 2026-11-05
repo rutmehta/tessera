@@ -101,6 +101,31 @@ final class ReviewResumeStoreTests: XCTestCase {
         XCTAssertEqual(restored.targets.compactMap(\.expectedGroupID), [])
     }
 
+    func testRestoreLeavesARunOwnedByThisSessionRunning() throws {
+        let root = try scratch()
+        let folder = root.appendingPathComponent("shoot", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let store = ReviewResumeStore(directory: root.appendingPathComponent("support"))
+        var running = record(folder: folder, state: .running)
+        running.ownerSession = ReviewResumeStore.processSession
+        try store.save(running)
+
+        // Installing another engine owner (or a restore that lands after the run started)
+        // in the same session is not a relaunch.
+        XCTAssertEqual(try store.restore(libraryFolder: folder), running)
+        XCTAssertEqual(try store.load(libraryFolder: folder)?.recordRevision, running.recordRevision)
+        let completed = try running.advanced(state: .completed)
+        try store.save(completed)
+        XCTAssertEqual(try store.load(libraryFolder: folder)?.state, .completed)
+
+        // A run left behind by another session was interrupted by the relaunch.
+        var foreign = record(folder: folder, revision: completed.recordRevision + 1, state: .running)
+        foreign.ownerSession = UUID().uuidString
+        try store.save(foreign)
+        XCTAssertEqual(try store.restore(libraryFolder: folder)?.state, .interrupted)
+        XCTAssertEqual(try store.restore(libraryFolder: folder)?.ownerSession, foreign.ownerSession)
+    }
+
     func testCompletingRunningIntentDoesNotTreatItAsAnInterruptedRestore() throws {
         let root = try scratch()
         let folder = root.appendingPathComponent("shoot", isDirectory: true)
