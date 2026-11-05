@@ -4,7 +4,14 @@ set -euo pipefail
 set +x
 cd "$(dirname "$0")/../.."
 DIST="${1:-dist}"
+# Sparkle's tools come with the package: in .build for everyday builds, or in the provenance
+# scratch tree that make-app.sh builds the release in (the only tree on a CI runner).
 BIN="${SPARKLE_BIN_DIR:-$PWD/.build/artifacts/sparkle/Sparkle/bin}"
+if [[ ! -x "$BIN/generate_appcast" ]]; then
+  for candidate in "$PWD"/build/provenance-swift.*/artifacts/sparkle/Sparkle/bin; do
+    [[ -x "$candidate/generate_appcast" ]] && BIN="$candidate" && break
+  done
+fi
 ACCOUNT="${SPARKLE_KEY_ACCOUNT:-ed25519}"
 [[ -d "$DIST" ]] || { echo "error: missing dist folder: $DIST" >&2; exit 1; }
 [[ -x "$BIN/generate_appcast" ]] || { echo "error: run swift package resolve to install Sparkle tools" >&2; exit 1; }

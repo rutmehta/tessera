@@ -57,7 +57,9 @@ enum Local {
     PendingSync,
     /// The original's size no longer matches the journal; `dirty` says
     /// whether unsynchronized edits stop a rebuild.
-    Stale { dirty: bool },
+    Stale {
+        dirty: bool,
+    },
     /// The original's sidecars drifted from the journal baseline.
     Conflict,
     /// Unreadable journal or absent pixels.
@@ -364,8 +366,14 @@ mod tests {
     #[test]
     fn newest_first_orders_unix_seconds_numerically_and_unknown_last() {
         let t = |s: &str| Some(s.to_string());
-        assert_eq!(newest_first(&t("1700000000"), &t("900000000")), Ordering::Less);
-        assert_eq!(newest_first(&t("900000000"), &t("1700000000")), Ordering::Greater);
+        assert_eq!(
+            newest_first(&t("1700000000"), &t("900000000")),
+            Ordering::Less
+        );
+        assert_eq!(
+            newest_first(&t("900000000"), &t("1700000000")),
+            Ordering::Greater
+        );
         assert_eq!(
             newest_first(&t("2026-05-01T10:00:00"), &t("2026-04-01T10:00:00")),
             Ordering::Less
@@ -402,8 +410,7 @@ mod tests {
         image::RgbImage::new(32, 16)
             .save(photos.join("one.jpg"))
             .unwrap();
-        let fixture =
-            test_fixtures::raw::file(&test_fixtures::current_test(), "sony-arw.ARW");
+        let fixture = test_fixtures::raw::file(&test_fixtures::current_test(), "sony-arw.ARW");
         if let Some(fixture) = &fixture {
             fs::copy(fixture, photos.join("one.ARW")).unwrap();
         }
@@ -445,7 +452,10 @@ mod tests {
                 .expect("the sweep must not wait on the catalog lock");
             assert!(elapsed < Duration::from_secs(5));
             assert_eq!(coverage.raws, expected_raws);
-            assert_eq!(coverage.ready + coverage.pending_sync + coverage.needs_attention, 0);
+            assert_eq!(
+                coverage.ready + coverage.pending_sync + coverage.needs_attention,
+                0
+            );
             assert_eq!(candidates.len(), expected_raws as usize);
             assert!(pending.is_empty());
             assert_eq!(storage, 0);

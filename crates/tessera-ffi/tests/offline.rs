@@ -186,7 +186,11 @@ fn offline_engine_contract() {
     let again = engine.ensure_smart_preview(older.clone()).unwrap();
     assert!(matches!(again.state, SmartPreviewState::Ready), "{again:?}");
     assert_eq!((again.width, again.height), (built.width, built.height));
-    assert_eq!(pixels_identity(&support, &older), first, "second ensure must not rebuild");
+    assert_eq!(
+        pixels_identity(&support, &older),
+        first,
+        "second ensure must not rebuild"
+    );
 
     // Coverage after the build; bytes are the files on disk.
     let on_disk = tree_bytes(&support.join("smart-previews"));
@@ -226,7 +230,10 @@ fn offline_engine_contract() {
 
     // Synchronize publishes the edit; nothing is pending afterwards.
     let synced = engine.synchronize_smart_preview(older.clone()).unwrap();
-    assert!(matches!(synced.state, SmartPreviewState::Ready), "{synced:?}");
+    assert!(
+        matches!(synced.state, SmartPreviewState::Ready),
+        "{synced:?}"
+    );
     assert!(engine.pending_sync_smart_previews().unwrap().is_empty());
     let on_disk = tree_bytes(&support.join("smart-previews"));
     assert_eq!(coverage(&engine, &folder), (2, 1, 0, 0, on_disk));
@@ -258,8 +265,15 @@ fn offline_engine_contract() {
         SmartPreviewState::Stale
     ));
     let rebuilt = engine.ensure_smart_preview(older.clone()).unwrap();
-    assert!(matches!(rebuilt.state, SmartPreviewState::Ready), "{rebuilt:?}");
-    assert_ne!(pixels_identity(&support, &older), first, "a stale preview is rebuilt");
+    assert!(
+        matches!(rebuilt.state, SmartPreviewState::Ready),
+        "{rebuilt:?}"
+    );
+    assert_ne!(
+        pixels_identity(&support, &older),
+        first,
+        "a stale preview is rebuilt"
+    );
     let on_disk = tree_bytes(&support.join("smart-previews"));
     assert_eq!(coverage(&engine, &folder), (2, 1, 0, 0, on_disk));
     assert_eq!(
