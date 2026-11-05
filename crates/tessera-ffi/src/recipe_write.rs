@@ -258,12 +258,21 @@ impl GateState {
                 "conflict: Develop destination already has an active editor",
             ));
         }
-        let id = self
-            .next_owner
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                current.checked_add(1)
-            })
-            .map_err(|_| failure("Develop lease identifier exhausted"))?;
+        // A compare-exchange loop rather than `fetch_update`, which newer toolchains
+        // deprecate in favour of `try_update` (not yet on the older stable in use).
+        let id = loop {
+            let current = self.next_owner.load(Ordering::Relaxed);
+            let next = current
+                .checked_add(1)
+                .ok_or_else(|| failure("Develop lease identifier exhausted"))?;
+            if self
+                .next_owner
+                .compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                break current;
+            }
+        };
         *owner = Some(DestinationOwner { id, external });
         match snapshot() {
             Ok(value) => Ok((
