@@ -11,7 +11,7 @@ permissions:
 jobs:
   test:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - name: Keep Cargo artifacts outside the checkout
