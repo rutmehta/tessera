@@ -7,6 +7,25 @@ struct InspectorView: View {
     let model: AppModel
 
     var body: some View {
+        // UX-17 (item 48): with nothing focused the panel says what Edit needs instead of
+        // showing empty Image and Selection sections.
+        if model.focusedItem == nil, !model.isReviewing {
+            VStack(spacing: Theme.Space.s) {
+                Text("No photo").font(Theme.Fonts.title).foregroundStyle(Theme.textPrimary)
+                Text(model.photoEditAvailabilityHint).font(Theme.Fonts.body).foregroundStyle(Theme.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(Theme.Space.l)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.panel)
+            .accessibilityIdentifier("library.panel.empty")
+        } else {
+            sections
+        }
+    }
+
+    private var sections: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 PanelSection("Image", headerIdentifier: "library.panel.Image") { ImageInfoPanel(model: model) }

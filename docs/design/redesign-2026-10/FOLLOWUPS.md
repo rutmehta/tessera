@@ -311,11 +311,14 @@ Open after this pass (the LightCraft gap):
     "Mask N". Still open: the photo click that picks the mask under the pointer, and the thin
     gradient-track sliders.
 48. **The empty state (no photo focused) shows the old Image/Selection inspector** instead of
-    the Edit panel's empty copy.
+    the Edit panel's empty copy. *Done:* with nothing focused the library panel is one empty
+    state ("No photo" and the Edit availability hint, `library.panel.empty`) instead of empty
+    Image and Selection sections.
 49. **The Deliver "Name" row is empty** on the scratch shoot; the Edits readout truncates at
     the panel width.
     *Name done:* the row is empty only while nothing is to be delivered (no keeps yet); it now
-    reads "—" instead of nothing. The readout truncation stays open.
+    reads "—" instead of nothing. *Readout done:* it shrinks to 85 % before truncating in the
+    middle, and its tooltip carries the whole line.
 50. **Edit panel sections** should take LightCraft's shape: label-left value-right sliders on
     thin gradient tracks, Light/Color/Effects/Detail/Optics with Curve, Color Mixer and Color
     Grading as sub-cards, Auto · B&W · Reset in the header.

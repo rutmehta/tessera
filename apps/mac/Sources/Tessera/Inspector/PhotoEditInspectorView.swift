@@ -155,10 +155,15 @@ struct EditSection<Content: View, More: View>: View {
                     .accessibilityIdentifier("develop.panel.\(AccessibilityKey.component(title))")
                 Spacer(minLength: 0)
                 if let readout {
+                    // UX-17 (item 49): a long readout ("at 3 of 12 steps · saving…") shrinks a
+                    // little, then truncates in the middle, and the tooltip keeps the whole line.
                     Text(readout)
                         .font(Theme.Fonts.labelNumeric)
                         .foregroundStyle(Theme.textTertiary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .truncationMode(.middle)
+                        .help(readout)
                         .accessibilityIdentifierIfPresent(identifier)
                 }
                 if let accessory { accessory }
