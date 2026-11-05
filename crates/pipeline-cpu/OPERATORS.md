@@ -317,8 +317,13 @@ inspired by sigmoid display rendering, not a port or exact darktable match.
 
 Map Rec.2020 luminance with f, rescale RGB by f(Y)/Y, then apply the linear
 Rec.2020-to-sRGB matrix. Perceptual gamut mapping compresses chroma along the ray
-from the achromatic luminance to RGB until all three channels fit [0,1]. Clip mode
-instead hard-clips. This limited RGB-ray mapper is not a full perceptual CMM.
+from the achromatic luminance to RGB until all three channels fit [0,1]. The grey
+point is the toned pixel's Rec.2020 luminance, taken before the matrix: the same
+ray the managed export (`output.rs`) and the Adobe Output stage (`map_gamut`)
+use, so Develop, export and print compress a saturated pixel identically (the
+sRGB coefficients after the matrix differ by rounding, which the sRGB toe
+magnified to 0.3 level once PL-1 steepened the tone curve). Clip mode instead
+hard-clips. This limited RGB-ray mapper is not a full perceptual CMM.
 
 The sRGB OETF is `12.92*x` below .0031308, else `1.055*x^(1/2.4)-.055`.
 A fixed 4x4 Bayer ordered dither adds `(rank+.5)/16-.5` in 8-bit code units before

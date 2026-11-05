@@ -252,7 +252,8 @@ fn display_linear(rgb: vec3<f32>) -> vec3<f32> {
             rgb.y * sigmoid / lum, rgb.z * sigmoid / lum);
     }
     let v = matrix(mapped);
-    let grey = clamp((0.2126 * v.x + 0.7152 * v.y) + 0.0722 * v.z, 0.0, h);
+    // Grey point: the toned Rec.2020 luminance, as pipeline_cpu::grey_points.
+    let grey = clamp(luminance(mapped), 0.0, h);
     var chroma = 1.0;
     if u32(p[9]) == 1u {
         for (var c = 0u; c < 3u; c = c + 1u) {
@@ -289,7 +290,7 @@ fn display(rgb: vec3<f32>, x: u32, y: u32) -> vec3<f32> {
             rgb.y * sigmoid / lum, rgb.z * sigmoid / lum);
     }
     let v = matrix(mapped);
-    let grey = clamp((0.2126 * v.x + 0.7152 * v.y) + 0.0722 * v.z, 0.0, 1.0);
+    let grey = clamp(luminance(mapped), 0.0, 1.0);
     var chroma = 1.0;
     if u32(p[9]) == 1u {
         for (var c = 0u; c < 3u; c = c + 1u) {

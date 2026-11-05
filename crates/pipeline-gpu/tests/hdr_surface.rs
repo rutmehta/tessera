@@ -83,11 +83,16 @@ fn sdr_cases() -> Vec<DevelopSettings> {
 /// PL-1 (2026-10) recalibrated the basic tone and vibrance responses, so
 /// cases 1 (Highlights −30) and 2 (Vibrance 40, Shadows 25) were re-recorded
 /// on the same adapter; case 0 (neutral) is unchanged. See
-/// docs/design/evidence/PL-1/response-after.md.
+/// docs/design/evidence/PL-1/response-after.md. 2026-11-05 (ENG-9 grey-point
+/// lane): the Native Output stage takes its Perceptual grey point from the
+/// toned Rec.2020 luminance, as export does, which moves saturated
+/// out-of-gamut pixels by at most one level; all three cases re-recorded.
+/// The GPU values were recorded on an Apple M4 Max (same GPU generation as
+/// the recording adapter) and are asserted on the M4 only.
 const SDR_FINGERPRINTS: [(u64, u64, u64); 3] = [
-    (0x44fae39b8cad1e, 0x50eac09770927b7a, 0xdbf920dcf5887ebe),
-    (0x184d5de654e58dda, 0x723c8b1d93beb66d, 0x4e94784fa5e25a31),
-    (0x9f955e82c3a4c7d0, 0xa1c0f2a147ae7d6f, 0x91ce68aeda9e6633),
+    (0xbe4a7092da77b37c, 0x3faed0b13c4dfa34, 0x9a2665d455375828),
+    (0xdd87a644f571398c, 0xfad06db3da047544, 0x9921c40fe9ed376a),
+    (0xd6fe9672e66702fe, 0xcfc0ccf0d5e0fa83, 0x10cf62f6da0fb4b3),
 ];
 const PRE_EDR_ADAPTER: &str = "Apple M4";
 

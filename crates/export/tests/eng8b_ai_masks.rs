@@ -186,7 +186,7 @@ fn ai_mask_exports_succeed_on_every_fixture_and_lens_mode_and_match_develop() {
                     "{name} {mode}: max {max:.3} mean {mean:.4} levels, export {seconds:.1} s"
                 ),
             );
-            if max > NATIVE_MAX + NATIVE_GREY_POINT || mean > MEAN {
+            if max > NATIVE_MAX + NATIVE_NEF_ALLOWANCE || mean > MEAN {
                 failures.push(format!("{name} {mode}: max {max} mean {mean}"));
             }
         }
@@ -195,11 +195,11 @@ fn ai_mask_exports_succeed_on_every_fixture_and_lens_mode_and_match_develop() {
 }
 
 /// The ENG-9 export/Develop parity bounds (`eng9_develop_parity.rs`): 1.0
-/// level max for Native plus its documented 0.1-level grey-point exception
-/// for saturated Perceptual pixels, 0.35 level mean. The NEF reaches 1.062
-/// on the unchanged non-warp path, as on main.
+/// level max for Native, 0.35 level mean, plus a 0.1-level allowance for the
+/// NEF, which reaches 1.062 on the unchanged non-warp path, as on main (not
+/// the grey point: it measures the same after the ENG-9 grey-point lane).
 const NATIVE_MAX: f32 = 1.0;
-const NATIVE_GREY_POINT: f32 = 0.1;
+const NATIVE_NEF_ALLOWANCE: f32 = 0.1;
 const MEAN: f32 = 0.35;
 
 /// Luma box-blurred with radius `r`.

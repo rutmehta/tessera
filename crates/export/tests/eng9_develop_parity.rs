@@ -31,16 +31,14 @@
 //! measures 0.533-0.556 level there; the excess over 8-bit rounding (at most
 //! 0.056 level) is not visible.
 //!
-//! One documented exception, Native only: Native's Output stage (CPU and
-//! Metal, `pipeline_cpu::display`) takes its Perceptual grey point from the
-//! 4-decimal sRGB luminance coefficients after conversion, the export from
-//! the 4-decimal Rec.2020 ones before it. The two Y differ by coefficient
-//! rounding only; on these fixtures that moves saturated Perceptual pixels
-//! by at most 0.093 level beyond the quantisation bound (0.023 without
-//! local adjustments), identical on main. `NATIVE_GREY_POINT` (0.1) covers
-//! saturated Perceptual Native rows only. Aligning Native's Output stage
-//! moves Native Develop pixels on every backend and is a separate lane
-//! (ENG-9 HANDOFF); the Adobe Output stage uses the export's grey point.
+//! Native's Output stage (CPU and Metal, `pipeline_cpu::display`) once took
+//! its Perceptual grey point from the 4-decimal sRGB luminance coefficients
+//! after conversion, the export from the 4-decimal Rec.2020 ones before it;
+//! the rounding difference cost up to 0.093 level on these fixtures, and
+//! 0.3 level once PL-1 steepened the tone curve. Since the ENG-9 grey-point
+//! lane (2026-11) every Output stage takes the toned Rec.2020 luminance, so
+//! the Native rows hold the plain quantisation bound (they measure at most
+//! 0.97 level).
 use engine_api::{
     id::ImageId,
     jobs::CancellationToken,
@@ -54,7 +52,6 @@ use std::sync::Arc;
 const ADOBE_MAX: f32 = 0.60;
 const NATIVE_MAX: f32 = 1.0;
 const MEAN: f32 = 0.35;
-const NATIVE_GREY_POINT: f32 = 0.1;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Kind {
@@ -411,11 +408,9 @@ fn processes() -> [ProcessVersion; 2] {
     [ProcessVersion::NATIVE_CURRENT, ProcessVersion::adobe(6)]
 }
 
-fn bound(process: ProcessVersion, saturated_perceptual: bool) -> f32 {
+fn bound(process: ProcessVersion) -> f32 {
     if process.family == engine_api::recipe::ProcessFamily::Adobe {
         ADOBE_MAX
-    } else if saturated_perceptual {
-        NATIVE_MAX + NATIVE_GREY_POINT
     } else {
         NATIVE_MAX
     }
@@ -454,14 +449,14 @@ fn run(kind: Kind) {
             let shown = develop(&fixture.image, &r);
             check(
                 &format!("{kind:?} {family} in-gamut {mapping:?} export"),
-                bound(process, false),
+                bound(process),
                 &shown,
                 &export_file(&fixture, &r),
                 &mut failures,
             );
             check(
                 &format!("{kind:?} {family} in-gamut {mapping:?} print sRGB"),
-                bound(process, false),
+                bound(process),
                 &shown,
                 &print(&fixture, &r, ColorSpace::Srgb),
                 &mut failures,
@@ -470,7 +465,7 @@ fn run(kind: Kind) {
             // transform; in gamut it converts back to the same sRGB values.
             check(
                 &format!("{kind:?} {family} in-gamut {mapping:?} print P3"),
-                bound(process, false),
+                bound(process),
                 &shown,
                 &print(&fixture, &r, ColorSpace::DisplayP3),
                 &mut failures,
@@ -486,14 +481,14 @@ fn run(kind: Kind) {
             let shown = develop(&fixture.image, &r);
             check(
                 &format!("{kind:?} {family} saturated {mapping:?} export"),
-                bound(process, mapping == GamutMapping::Perceptual),
+                bound(process),
                 &shown,
                 &export_file(&fixture, &r),
                 &mut failures,
             );
             check(
                 &format!("{kind:?} {family} saturated {mapping:?} print sRGB"),
-                bound(process, mapping == GamutMapping::Perceptual),
+                bound(process),
                 &shown,
                 &print(&fixture, &r, ColorSpace::Srgb),
                 &mut failures,
@@ -698,7 +693,7 @@ fn eng9_local_adjustments_and_crop_export_and_print_match_develop() {
             .unwrap();
             let shown = develop(&fixture.image, &r);
             let family = format!("{:?}{}", process.family, process.revision);
-            let limit = bound(process, true);
+            let limit = bound(process);
             check(
                 &format!("{kind:?} {family} gradient+crop export"),
                 limit,

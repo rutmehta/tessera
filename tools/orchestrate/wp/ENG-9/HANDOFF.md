@@ -182,12 +182,13 @@ start and 22.3 at the end.
 
 ## Not done / follow-ups
 
-- **Native grey point (follow-up lane).** Native's Output stage (CPU
-  `display`, `display_float`, `display_linear` and the Metal
-  `display`/`display_linear` in `operators.wgsl`) should take its
-  Perceptual grey point from the Rec.2020 luminance, as export and the Adobe
-  stage now do. The difference is ≤ 0.1 level today, and the change moves
-  Native goldens.
+- **Native grey point (follow-up lane).** Done 2026-11-05: Native's Output
+  stage (CPU `display`, `display_float`, `display_linear` and the Metal
+  `display`/`display_linear` in `operators.wgsl`) takes its Perceptual grey
+  point from the toned Rec.2020 luminance, as export and the Adobe stage do.
+  PL-1's steeper tone curve had grown the difference to 0.3 level on the
+  parity fixture (`eng9_local_adjustments_and_crop_export_and_print_match_develop`
+  reached 1.304 against its 1.1 bound); it is now 0.965.
 - **Performance:** see ENG-9b SF2 and the ENG-10 follow-up.
 - **Not exercised end-to-end.** Neural denoise for Adobe RAW exports is
   covered only at the renderer level (a fake denoiser); exports load the

@@ -36,6 +36,10 @@ fn raw_fixture_goldens() {
         metadata.maker_lens = None;
         let mut settings = DevelopSettings::default();
         // Immutable M1/M2-08 goldens predate optics. Explicitly test the off path.
+        // Re-recorded 2026-11-05 (ENG-9 grey-point lane: the Output stage's
+        // Perceptual grey point is the toned Rec.2020 luminance): NEF 367,
+        // sample.dng 24 and ARW 8 saturated pixels moved by one level;
+        // CR3 and RAF are bit-identical.
         settings.lens.profile = engine_api::recipe::settings::LensProfileSource::None;
         settings.lens.remove_chromatic_aberration = false;
         let rendered = render_scaled(

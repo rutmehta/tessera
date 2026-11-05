@@ -60,6 +60,21 @@ pub fn srgb_oetf(v: f32) -> f32 {
     }
 }
 
+/// The Perceptual grey point of every sample of a toned (post-sigmoid,
+/// pre-matrix) Rec.2020 tile: its working-space luminance clamped to
+/// `[0, peak]`. Taken before the sRGB matrix so Develop compresses chroma
+/// along the same achromatic ray as the managed export (`output.rs`) and the
+/// Adobe Output stage ([`map_gamut`]); the sRGB coefficients after the matrix
+/// differ by rounding, which the sRGB toe magnified to a visible level in
+/// saturated highlights (ENG-9 follow-up lane).
+fn grey_points(toned: &Tile, peak: f32) -> EngineResult<Vec<f32>> {
+    let plane = toned.layout().plane_len();
+    let s = toned.samples::<f32>()?;
+    Ok((0..plane)
+        .map(|i| crate::luminance([s[i], s[plane + i], s[2 * plane + i]]).clamp(0.0, peak))
+        .collect())
+}
+
 /// Scene-linear Rec.2020 -> sigmoid luminance -> display-linear sRGB ->
 /// gamut compression -> sRGB OETF, without quantization or dither.
 /// For restoration models; the returned f32 tile excludes input halos.
@@ -79,6 +94,7 @@ pub fn display_float(
             v.map(|c| c * s / y)
         }
     })?;
+    let grey_points = grey_points(&rgb, 1.0)?;
     crate::apply_matrix(
         &mut rgb,
         WorkingSpace::LinearRec2020
@@ -95,7 +111,7 @@ pub fn display_float(
             // Interior sample (x, y) of each plane, skipping the halo.
             let i = ((y + u32::from(l.halo)) * row + x + u32::from(l.halo)) as usize;
             let v = [samples[i], samples[plane + i], samples[2 * plane + i]];
-            let grey = (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]).clamp(0.0, 1.0);
+            let grey = grey_points[i];
             let mut chroma = 1.0f32;
             if gamut == GamutMapping::Perceptual {
                 for c in v {
@@ -201,6 +217,7 @@ pub fn display_linear(tile: &Tile, gamut: GamutMapping, headroom: f32) -> Engine
             v.map(|c| c * s / y)
         }
     })?;
+    let grey_points = grey_points(&rgb, h)?;
     crate::apply_matrix(
         &mut rgb,
         WorkingSpace::LinearRec2020
@@ -216,7 +233,7 @@ pub fn display_linear(tile: &Tile, gamut: GamutMapping, headroom: f32) -> Engine
         for x in 0..l.extent.width {
             let i = ((y + u32::from(l.halo)) * row + x + u32::from(l.halo)) as usize;
             let v = [samples[i], samples[plane + i], samples[2 * plane + i]];
-            let grey = (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]).clamp(0.0, h);
+            let grey = grey_points[i];
             let mut chroma = 1.0f32;
             if gamut == GamutMapping::Perceptual {
                 for c in v {
@@ -263,6 +280,7 @@ pub fn display(tile: &Tile, settings: SigmoidSettings, gamut: GamutMapping) -> E
             v.map(|c| c * s / y)
         }
     })?;
+    let grey_points = grey_points(&rgb, 1.0)?;
     crate::apply_matrix(
         &mut rgb,
         WorkingSpace::LinearRec2020
@@ -281,7 +299,7 @@ pub fn display(tile: &Tile, settings: SigmoidSettings, gamut: GamutMapping) -> E
             // Interior sample (x, y) of each plane, skipping the halo.
             let i = ((y + u32::from(l.halo)) * row + x + u32::from(l.halo)) as usize;
             let v = [samples[i], samples[plane + i], samples[2 * plane + i]];
-            let grey = (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]).clamp(0.0, 1.0);
+            let grey = grey_points[i];
             let mut chroma = 1.0f32;
             if gamut == GamutMapping::Perceptual {
                 for c in v {
