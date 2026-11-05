@@ -151,6 +151,12 @@ fn decoded_fixture(builtin: Builtin) -> (RawImage, Raster, FilterContext, Transf
 /// analytic LCMS curve, plus f32 render noise, stays well below 1/4096
 /// (measured worst 5.3e-5, Adobe RGB).
 const GOLDEN_TOLERANCE: f32 = 0.0001;
+/// Where a channel's linear value sits at zero (PL-1's tone and vibrance
+/// put one Adobe RGB fixture pixel there), a pure-gamma TRC has an infinite
+/// slope, so f32 render noise of 5e-7 linear between the filter's and the
+/// test's Develop renders reads as 2e-3 encoded. Such a sample passes when
+/// the two decode to within this linear distance instead.
+const LINEAR_TOLERANCE: f32 = 1e-6;
 
 #[path = "support/conditioning_golden.rs"]
 mod conditioning_golden;
@@ -203,9 +209,28 @@ fn assert_golden(builtin: Builtin) {
                 for c in 0..3 {
                     // Amount is the filter's opacity: it blends ENCODED samples.
                     let expected = before[c] + amount.unwrap_or(1.) * (want[c] - before[c]);
-                    max_error = max_error.max((after[c] - expected).abs());
+                    let encoded_error = (after[c] - expected).abs();
+                    // The blend is in encoded space, so undo it: the toe noise lives in
+                    // the full-strength value the filter blended in.
+                    let a = amount.unwrap_or(1.);
+                    let (filtered, target) = if a > 0. {
+                        (before[c] + (after[c] - before[c]) / a, want[c])
+                    } else {
+                        (after[c], expected)
+                    };
+                    let linear_error = (Trc::curve(&trc.decode, c, filtered)
+                        - Trc::curve(&trc.decode, c, target))
+                    .abs();
+                    if encoded_error >= GOLDEN_TOLERANCE {
+                        eprintln!(
+                            "{builtin:?} ({x},{y}) channel {c}: encoded {encoded_error:e} at the TRC toe, \
+                             linear {linear_error:e}"
+                        );
+                    } else {
+                        max_error = max_error.max(encoded_error);
+                    }
                     assert!(
-                        (after[c] - expected).abs() < GOLDEN_TOLERANCE,
+                        encoded_error < GOLDEN_TOLERANCE || linear_error < LINEAR_TOLERANCE,
                         "{builtin:?} ({x},{y}) channel {c}: {} != {expected}",
                         after[c]
                     );
