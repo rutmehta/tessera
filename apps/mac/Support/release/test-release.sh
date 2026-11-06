@@ -14,9 +14,16 @@ import plistlib, subprocess, sys
 from pathlib import Path
 app = Path(sys.argv[1])
 p = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
-assert p['SUEnableAutomaticChecks'] and p['SUScheduledCheckInterval'] == 86400
-assert p['SUFeedURL'] == 'https://github.com/rutmehta/tessera/releases/latest/download/appcast.xml'
-assert 'SUPublicEDKey' in p
+version = p['CFBundleShortVersionString']
+if version.startswith('0.0.0-dev'):
+    # make-app.sh: a development build has no feed and never checks for updates, or Sparkle
+    # would replace it with the latest release at launch (its version sorts below every tag).
+    assert 'SUFeedURL' not in p, p.get('SUFeedURL')
+    assert not p['SUEnableAutomaticChecks'], version
+else:
+    assert p['SUEnableAutomaticChecks'] and p['SUScheduledCheckInterval'] == 86400
+    assert p['SUFeedURL'] == 'https://github.com/rutmehta/tessera/releases/latest/download/appcast.xml'
+assert p.get('SUPublicEDKey'), 'SUPublicEDKey missing from Support/Info.plist'
 info = subprocess.check_output(['codesign', '-dv', str(app)], stderr=subprocess.STDOUT).decode()
 assert 'runtime' in info and 'Signature=adhoc' in info
 entitlements = subprocess.check_output(['codesign', '-d', '--entitlements', '-', str(app)], stderr=subprocess.DEVNULL)
